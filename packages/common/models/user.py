@@ -1,11 +1,17 @@
 """User model and roles."""
 
+from __future__ import annotations
+
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.common.models.base import BaseModel
+
+if TYPE_CHECKING:
+    from packages.common.models.api_key import APIKey
 
 
 class UserRole(str, Enum):
@@ -52,6 +58,12 @@ class User(BaseModel):
     is_verified: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
+    )
+
+    # Relationships
+    api_keys: Mapped[list["APIKey"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:
