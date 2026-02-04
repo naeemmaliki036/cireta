@@ -1,0 +1,30 @@
+{
+  "name": "scaffold",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Product-agnostic scaffold monorepo for FastAPI + Next.js applications",
+  "scripts": {
+    "dev": "honcho start -f Procfile.dev",
+    "dev:frontend": "npm run dev --workspace=apps/example-frontend",
+    "dev:api": "poetry run uvicorn apps.example_api.main:app --reload --host 0.0.0.0 --port 8000",
+    "build": "npm run build --workspace=apps/example-frontend",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "poetry run pytest",
+    "test:watch": "poetry run pytest --watch",
+    "format": "npm run format --workspaces --if-present && poetry run ruff format .",
+    "format:check": "poetry run ruff format --check ."
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

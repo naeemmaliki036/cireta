@@ -1,0 +1,94 @@
+@import 'tailwindcss';
+
+/* CSS Variables for Theming */
+:root {
+  /* Brand colors */
+  --brand-primary: #3b82f6;
+  --brand-secondary: #8b5cf6;
+
+  /* Surface colors */
+  --surface: #ffffff;
+  --surface-elevated: #f9fafb;
+
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+
+  /* Border */
+  --border: #e5e7eb;
+
+  /* Status colors */
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --info: #3b82f6;
+
+  /* Spacing */
+  --radius: 0.5rem;
+}
+
+/* Dark mode */
+.dark {
+  --brand-primary: #60a5fa;
+  --brand-secondary: #a78bfa;
+
+  --surface: #111827;
+  --surface-elevated: #1f2937;
+
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #6b7280;
+
+  --border: #374151;
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--brand-primary);
+  color: white;
+}

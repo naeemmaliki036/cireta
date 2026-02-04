@@ -1,0 +1,114 @@
+"""Centralized configuration with environment variable support."""
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from packages.common.config.defaults import DEFAULTS
+
+
+class Settings(BaseSettings):
+    """Application settings with environment variable overrides.
+
+    Uses two-tier configuration:
+    1. Safe defaults from defaults.py (version controlled)
+    2. Environment variable overrides (runtime)
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Environment
+    environment: Literal["development", "staging", "production"] = Field(
+        default=DEFAULTS["ENVIRONMENT"]
+    )
+    debug: bool = Field(default=DEFAULTS["DEBUG"])
+
+    # Database
+    database_url: str = Field(default=DEFAULTS["DATABASE_URL"])
+    db_pool_size: int = Field(default=DEFAULTS["DB_POOL_SIZE"])
+    db_max_overflow: int = Field(default=DEFAULTS["DB_MAX_OVERFLOW"])
+    db_pool_recycle: int = Field(default=DEFAULTS["DB_POOL_RECYCLE"])
+
+    # Redis
+    redis_url: str | None = Field(default=DEFAULTS["REDIS_URL"])
+    cache_ttl: int = Field(default=DEFAULTS["CACHE_TTL"])
+
+    # Security
+    jwt_secret_key: str = Field(default="")
+    jwt_algorithm: str = Field(default=DEFAULTS["JWT_ALGORITHM"])
+    access_token_expire_seconds: int = Field(
+        default=DEFAULTS["ACCESS_TOKEN_EXPIRE_SECONDS"]
+    )
+    refresh_token_expire_seconds: int = Field(
+        default=DEFAULTS["REFRESH_TOKEN_EXPIRE_SECONDS"]
+    )
+
+    # Encryption
+    encryption_key: str = Field(default="")
+
+    # Server
+    api_host: str = Field(default=DEFAULTS["API_HOST"])
+    api_port: int = Field(default=DEFAULTS["API_PORT"])
+    workers: int = Field(default=DEFAULTS["WORKERS"])
+
+    # CORS
+    cors_origins: list[str] = Field(default=DEFAULTS["CORS_ORIGINS"])
+
+    # Logging
+    log_level: str = Field(default=DEFAULTS["LOG_LEVEL"])
+    log_format: Literal["json", "console"] = Field(default=DEFAULTS["LOG_FORMAT"])
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        """Parse CORS origins from comma-separated string or list."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
+    def model_post_init(self, _context: object) -> None:
+        """Validate security settings after initialization."""
+        self._validate_security()
+
+    def _validate_security(self) -> None:
+        """Fail fast if security settings are missing in production."""
+        if self.environment in ("production", "staging"):
+            if not self.jwt_secret_key:
+                raise ValueError(
+                    "JWT_SECRET_KEY must be set in production/staging environments"
+                )
+            if not self.encryption_key:
+                raise ValueError(
+                    "ENCRYPTION_KEY must be set in production/staging environments"
+                )
+            if self.debug:
+                raise ValueError(
+                    "DEBUG must be False in production/staging environments"
+                )
+
+    @property
+    def is_development(self) -> bool:
+        """Check if running in development mode."""
+        return self.environment == "development"
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production mode."""
+        return self.environment == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    return Settings()
+
+
+# Global settings instance
+settings = get_settings()
