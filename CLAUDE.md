@@ -1,178 +1,121 @@
-# CLAUDE.md - Master Coding Standards
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-This is a product-agnostic scaffold/template monorepo demonstrating best practices for structuring applications. It serves as a reference for developers and AI agents building monorepo applications with FastAPI backends and Next.js frontends.
+Product-agnostic scaffold monorepo for FastAPI backends and Next.js frontends. See `apps/example_api/CLAUDE.md` and `apps/example-frontend/CLAUDE.md` for stack-specific standards.
+
+## Build & Development Commands
+
+```bash
+# Install dependencies
+make install                    # or: poetry install && npm install
+
+# Start all services
+make dev                        # Uses honcho with Procfile.dev
+
+# Start individual services
+make dev-api                    # FastAPI on :8000
+make dev-frontend               # Next.js on :3000
+
+# Run tests
+make test                       # All pytest tests
+make test-unit                  # Unit tests only
+make test-integration           # Integration tests only
+poetry run pytest tests/unit/test_example.py -v           # Single test file
+poetry run pytest tests/unit/test_example.py::test_name   # Single test function
+
+# Frontend tests (from apps/example-frontend)
+npm run test --workspace=apps/example-frontend            # Watch mode
+npm run test:run --workspace=apps/example-frontend        # Single run
+
+# Code quality
+make lint                       # Ruff + ESLint
+make format                     # Ruff format + Prettier
+make typecheck                  # mypy + tsc
+
+# Database
+make db-migrate MSG="description"  # Create Alembic migration
+make db-upgrade                    # Apply migrations
+make db-downgrade                  # Rollback one migration
+```
 
 ## Architecture
 
-### Request Flow
 ```
-Client → API Gateway → FastAPI Router → Service Layer → Repository → Database
-                                              ↓
-                                        External APIs
+Client → FastAPI Router → Service Layer → Repository → Database
+                               ↓
+                         External APIs
 ```
 
-### Key Principles
-- **Thin Controllers**: Endpoints delegate to services
-- **Service Layer**: Business logic lives in services/
-- **Repository Pattern**: Database access abstracted
+**Key patterns:**
+- **Thin Controllers**: Endpoints delegate to services in `services/`
 - **Dependency Injection**: All dependencies via FastAPI `Depends()`
+- **Repository Pattern**: Database access abstracted; frontend uses repositories (no raw `fetch()`)
 
 ## Directory Structure
 
 ```
 scaffold/
-├── apps/                    # Deployable applications
-│   ├── example-frontend/    # Next.js 16 reference app
-│   └── example-api/         # FastAPI reference app
-├── packages/                # Shared code libraries
-│   └── common/              # Python shared code (backend)
-├── infra/                   # Infrastructure (migrations, monitoring)
-├── tests/                   # Test suites
-├── docs/                    # Documentation
-└── scripts/                 # Development scripts
+├── apps/
+│   ├── example_api/        # FastAPI app (Python)
+│   └── example-frontend/   # Next.js app (TypeScript)
+├── packages/
+│   └── common/             # Shared Python code (models, db, utils)
+├── infra/
+│   └── alembic/            # Database migrations
+└── tests/                  # pytest suites (unit/, integration/, e2e/)
 ```
 
-## Service Naming Conventions
+## Code Standards
 
-- Service names: `example-api`, `example-frontend` (kebab-case)
-- Dockerfiles: `Dockerfile.{service-name}` at repository root
-- Environment files: `.env.dockerfile.{service-name}` for Docker builds
+### File Limits
+- Max **300 LOC** per file (split when exceeding)
+- Max **150 LOC** per React hook
 
-## Code Quality Rules
-
-### Universal Standards
-
-| Rule | Enforcement |
-|------|-------------|
-| **Max 300 LOC** | Split file when exceeding |
-| **SOLID principles** | Single responsibility per file |
-| **DRY** | Shared code → packages/ |
-| **No secrets in code** | Use .env files exclusively |
-| **Full paths in docs** | `packages/common/models/user.py` style |
-
-### Import Organization
-
+### Import Order
 ```python
-# 1. Standard library
-import os
+# Python: stdlib → third-party → packages → local
 from datetime import datetime
-
-# 2. Third-party packages
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-
-# 3. Local imports (full paths)
+from fastapi import Depends
 from packages.common.db.session import get_db
-from packages.common.models.user import User
+from apps.example_api.services import ExampleService
 ```
 
-### Backend Rules
-
-| Rule | Pattern |
-|------|---------|
-| Service layer | Business logic in `services/` |
-| `Depends()` | All injection via FastAPI |
-| Pydantic | All request/response validation |
-| Alembic | All schema changes via migrations |
-| Encrypted fields | Sensitive data uses `EncryptedString` |
-
-### Frontend Rules
-
-| Rule | Pattern |
-|------|---------|
-| Atomic hierarchy | atoms → molecules → organisms |
-| forwardRef | All atoms wrapping HTML elements |
-| CSS variables | `[var(--brand-color)]` syntax |
-| Repository pattern | Never raw `fetch()` |
-| TypeScript strict | No `any`, explicit types |
-
-## Configuration Pattern
-
-### Two-Tier System
-
-1. **`defaults.py`** - Safe defaults, version controlled, no secrets
-2. **`config.py`** - Settings class, reads env vars, validates security
-
-### Security Validation
-
-```python
-# Fail fast in production/staging
-if not JWT_SECRET_KEY and ENVIRONMENT in ("production", "staging"):
-    raise ValueError("JWT_SECRET_KEY must be set")
+```typescript
+// TypeScript: react/next → third-party → @/ aliases → relative
+import { useState } from 'react';
+import { clsx } from 'clsx';
+import { BaseButton } from '@/atoms/buttons/BaseButton';
+import { localHelper } from './helpers';
 ```
 
-### Environment Files
+### Backend
+- Pydantic for all request/response validation
+- Alembic for all schema changes
+- `EncryptedString` for sensitive data (API keys, tokens, PII)
+- HTTPException with structured detail: `{"code": "ERROR_CODE", "message": "..."}`
 
-- `.env.example` - Root template (copy to `.env`)
-- `.env.backend.example` - Backend template with all options
-- `.env.dockerfile.{service}` - Per-service Docker build env
+### Frontend
+- Atomic design: atoms → molecules → organisms → templates
+- `forwardRef` on atoms wrapping HTML elements
+- CSS variables via Tailwind arbitrary values: `bg-[var(--brand-primary)]`
+- TypeScript strict mode, no `any`
 
-## Database Patterns
+## Configuration
 
-### ID Strategy
+Two-tier system:
+1. `defaults.py` - Safe defaults, version controlled
+2. `config.py` - Settings class with env var overrides
 
-- **UUID**: Distributed entities (conversations, messages)
-- **Integer**: Auth entities (users, api_keys)
+Environment files:
+- `.env.example` → copy to `.env`
+- `.env.backend.example` → copy to `.env.backend`
+- `.env.dockerfile.{service}` for Docker builds
 
-### Model Conventions
+## Naming Conventions
 
-```python
-class BaseModel(Base):
-    __abstract__ = True
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
-    updated_at = Column(DateTime, onupdate=lambda: datetime.now(UTC))
-```
-
-### Encrypted Fields
-
-Use `EncryptedString` for sensitive data (API keys, tokens, PII).
-
-## Error Handling
-
-```python
-from fastapi import HTTPException
-
-# Use specific error codes
-raise HTTPException(
-    status_code=404,
-    detail={"code": "USER_NOT_FOUND", "message": "User does not exist"}
-)
-```
-
-## Middleware Stack (Order Matters)
-
-1. Logging (correlation IDs)
-2. Security headers
-3. CORS
-4. Authentication
-
-## Development Workflow
-
-```bash
-# Start all services
-make dev
-
-# Run specific service
-make dev-api
-make dev-frontend
-
-# Database operations
-make db-migrate
-make db-upgrade
-```
-
-## Testing Conventions
-
-- Unit tests: `tests/unit/`
-- Integration tests: `tests/integration/`
-- E2E tests: `tests/e2e/`
-- Fixtures in `tests/conftest.py`
-
-## Git Conventions
-
-- Feature branches: `feature/{ticket}-{description}`
-- Bug fixes: `fix/{ticket}-{description}`
-- Commits: Conventional commits format
+- Service names: kebab-case (`example-api`, `example-frontend`)
+- Python packages: snake_case (`example_api`)
+- Dockerfiles: `Dockerfile.{service-name}` at repo root
