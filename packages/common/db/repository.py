@@ -1,14 +1,17 @@
 """Generic repository pattern for database operations."""
 
-from typing import Generic, TypeVar, Type, Sequence
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar
+from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from packages.common.db.base import Base
-
+from packages.common.utils.http_errors import raise_conflict, raise_not_found
 
 T = TypeVar("T", bound=Base)
+IdType = int | UUID | str
 
 
 class Repository(Generic[T]):
@@ -25,7 +28,7 @@ class Repository(Generic[T]):
                 ).scalar_one_or_none()
     """
 
-    def __init__(self, db: Session, model: Type[T]) -> None:
+    def __init__(self, db: Session, model: type[T]) -> None:
         """Initialize repository with database session and model class."""
         self.db = db
         self.model = model
@@ -35,11 +38,107 @@ class Repository(Generic[T]):
         return self.db.get(self.model, id)
 
     def get_or_raise(self, id: int) -> T:
-        """Get a single record by ID, raise if not found."""
+        """Get a single record by ID, raise ValueError if not found."""
         instance = self.get(id)
         if instance is None:
             raise ValueError(f"{self.model.__name__} with id {id} not found")
         return instance
+
+    def get_or_404(
+        self,
+        id: IdType,
+        *,
+        entity_type: str | None = None,
+        error_code: str | None = None,
+    ) -> T:
+        """Get a single record by ID, raise HTTPException 404 if not found.
+
+        Args:
+            id: Primary key value
+            entity_type: Human-readable entity name (defaults to model class name)
+            error_code: Custom error code (auto-generated if not provided)
+
+        Returns:
+            Model instance
+
+        Raises:
+            HTTPException: 404 with structured error if not found
+        """
+        instance = self.get(id)
+        if instance is None:
+            entity = entity_type or self.model.__name__
+            raise_not_found(entity, id, error_code=error_code)
+        return instance
+
+    def get_by(self, **filters: Any) -> T | None:
+        """Get a single record by arbitrary field(s).
+
+        Args:
+            **filters: Field=value pairs for filtering
+
+        Returns:
+            Model instance or None if not found
+
+        Example:
+            user = repo.get_by(email="test@example.com")
+        """
+        stmt = select(self.model)
+        for field, value in filters.items():
+            column = getattr(self.model, field)
+            stmt = stmt.where(column == value)
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def get_by_or_404(
+        self,
+        *,
+        entity_type: str | None = None,
+        error_code: str | None = None,
+        **filters: Any,
+    ) -> T:
+        """Get a single record by field(s), raise HTTPException 404 if not found.
+
+        Args:
+            entity_type: Human-readable entity name (defaults to model class name)
+            error_code: Custom error code (auto-generated if not provided)
+            **filters: Field=value pairs for filtering
+
+        Returns:
+            Model instance
+
+        Raises:
+            HTTPException: 404 with structured error if not found
+        """
+        instance = self.get_by(**filters)
+        if instance is None:
+            entity = entity_type or self.model.__name__
+            raise_not_found(entity, error_code=error_code)
+        return instance
+
+    def check_exists_or_409(
+        self,
+        *,
+        entity_type: str | None = None,
+        error_code: str | None = None,
+        message: str | None = None,
+        **filters: Any,
+    ) -> None:
+        """Raise 409 Conflict if a record exists.
+
+        Useful for checking duplicate entries before create operations.
+
+        Args:
+            entity_type: Human-readable entity name (defaults to model class name)
+            error_code: Custom error code (auto-generated if not provided)
+            message: Custom error message (auto-generated if not provided)
+            **filters: Field=value pairs for filtering
+
+        Raises:
+            HTTPException: 409 with structured error if record exists
+        """
+        if self.get_by(**filters) is not None:
+            entity = entity_type or self.model.__name__
+            msg = message or f"{entity} already exists"
+            raise_conflict(msg, error_code=error_code)
 
     def get_all(self, *, skip: int = 0, limit: int = 100) -> Sequence[T]:
         """Get all records with pagination."""

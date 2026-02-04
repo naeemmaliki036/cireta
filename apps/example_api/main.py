@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from packages.common.core.config import settings
 from packages.common.core.logging import configure_logging, get_logger
 from packages.common.middleware import LoggingMiddleware, SecurityHeadersMiddleware
+from packages.common.utils.error_handlers import register_exception_handlers
 
 from apps.example_api.api.v1.router import api_router
 
@@ -46,6 +47,9 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if settings.debug else None,
     )
 
+    # Register exception handlers for consistent error responses
+    register_exception_handlers(app)
+
     # Add middleware (order matters - applied bottom to top)
     # 1. CORS
     app.add_middleware(
@@ -59,7 +63,7 @@ def create_app() -> FastAPI:
     # 2. Security headers
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # 3. Logging
+    # 3. Logging (with correlation IDs)
     app.add_middleware(LoggingMiddleware)
 
     # Register routers
