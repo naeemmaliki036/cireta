@@ -25,9 +25,6 @@ FROM python:3.11-slim AS runner
 
 WORKDIR /app
 
-RUN groupadd --gid 1001 appgroup && \
-    useradd --uid 1001 --gid 1001 --shell /bin/bash appuser
-
 RUN apt-get update && apt-get install -y \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
@@ -36,10 +33,6 @@ COPY --from=builder /app/.venv /app/.venv
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY infra ./infra
-
-RUN chown -R appuser:appgroup /app
-
-USER appuser
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
@@ -53,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 CMD ["/app/.venv/bin/uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# cache-bust: 1772375431
+# cache-bust: 1772375662
