@@ -45,64 +45,54 @@ class Token(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("issuers.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
-    name: Mapped[str] = mapped_column(String(255), init=False)
+    name: Mapped[str] = mapped_column(String(255))
 
     symbol: Mapped[str] = mapped_column(
         String(20),
         index=True,
-        init=False,
     )
 
     asset_type: Mapped[AssetType] = mapped_column(
         String(20),
         default=AssetType.COMMODITY,
-        init=False,
     )
 
     contract_address: Mapped[str | None] = mapped_column(
         String(42),
         nullable=True,
         index=True,
-        init=False,
     )
 
     chain_id: Mapped[int] = mapped_column(
         Integer,
         default=8453,  # Base mainnet
-        init=False,
     )
 
     total_supply: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),
-        init=False,
     )
 
     decimals: Mapped[int] = mapped_column(
         Integer,
         default=18,
-        init=False,
     )
 
     ipfs_docs_hash: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
-        init=False,
     )
 
     chainlink_por_feed: Mapped[str | None] = mapped_column(
         String(42),
         nullable=True,
-        init=False,
     )
 
     is_paused: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
-        init=False,
     )
 
     # Relationships

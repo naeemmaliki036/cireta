@@ -43,53 +43,44 @@ class SalePhase(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("token_sales.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     phase_number: Mapped[int] = mapped_column(
         Integer,
         default=1,
-        init=False,
     )
 
-    name: Mapped[str] = mapped_column(String(100), init=False)
+    name: Mapped[str] = mapped_column(String(100))
 
     price_per_token: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
-        init=False,
     )
 
     allocation: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
-        init=False,
     )
 
     min_contribution: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),
-        init=False,
     )
 
     max_contribution: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),  # 0 = unlimited
-        init=False,
     )
 
     start_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        init=False,
     )
 
     end_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        init=False,
     )
 
     whitelist_only: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
-        init=False,
     )
 
     # Relationships

@@ -36,30 +36,25 @@ class Wallet(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     address: Mapped[str] = mapped_column(
         EncryptedString(),
-        init=False,
     )
 
     address_checksum: Mapped[str] = mapped_column(
         String(42),
         index=True,
-        init=False,
     )
 
     chain_id: Mapped[int] = mapped_column(
         Integer,
         default=8453,  # Base mainnet
-        init=False,
     )
 
     is_primary: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
-        init=False,
     )
 
     # Relationships

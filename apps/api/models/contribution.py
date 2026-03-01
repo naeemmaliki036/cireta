@@ -42,51 +42,43 @@ class Contribution(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     sale_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("token_sales.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     phase_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("sale_phases.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
-        init=False,
     )
 
     tokens_allocated: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
-        init=False,
     )
 
     tx_hash: Mapped[str] = mapped_column(
         String(66),
         unique=True,
         index=True,
-        init=False,
     )
 
     status: Mapped[ContributionStatus] = mapped_column(
         String(20),
         default=ContributionStatus.PENDING,
-        init=False,
     )
 
     claimed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         default=None,
-        init=False,
     )
 
     # Relationships

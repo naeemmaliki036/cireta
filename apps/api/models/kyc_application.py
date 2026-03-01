@@ -35,37 +35,31 @@ class KYCApplication(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     sumsub_review_id: Mapped[str | None] = mapped_column(
         EncryptedString(),
         nullable=True,
-        init=False,
     )
 
     result_payload: Mapped[dict[str, Any] | None] = mapped_column(
         EncryptedJSON(),
         nullable=True,
-        init=False,
     )
 
     status: Mapped[str] = mapped_column(
         String(50),
         default="pending",
-        init=False,
     )
 
     submitted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        init=False,
     )
 
     reviewed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        init=False,
     )
 
     # Relationships

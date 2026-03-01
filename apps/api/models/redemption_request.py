@@ -41,50 +41,42 @@ class RedemptionRequest(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("tokens.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
-        init=False,
     )
 
     fulfillment_method: Mapped[FulfillmentMethod] = mapped_column(
         String(20),
         default=FulfillmentMethod.CASH,
-        init=False,
     )
 
     status: Mapped[RedemptionStatus] = mapped_column(
         String(20),
         default=RedemptionStatus.PENDING,
-        init=False,
     )
 
     tx_hash: Mapped[str | None] = mapped_column(
         String(66),
         nullable=True,
         index=True,
-        init=False,
     )
 
     fulfilled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        init=False,
     )
 
     notes: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
-        init=False,
     )
 
     # Relationships

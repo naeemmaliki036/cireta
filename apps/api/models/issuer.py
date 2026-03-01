@@ -42,46 +42,39 @@ class Issuer(BaseModel):
         ForeignKey("users.id", ondelete="CASCADE"),
         unique=True,
         index=True,
-        init=False,
     )
 
-    name: Mapped[str] = mapped_column(String(255), init=False)
+    name: Mapped[str] = mapped_column(String(255))
 
     slug: Mapped[str] = mapped_column(
         String(100),
         unique=True,
         index=True,
-        init=False,
     )
 
     wallet_address: Mapped[str | None] = mapped_column(
         EncryptedString(),
         nullable=True,
-        init=False,
     )
 
     fee_bps: Mapped[int] = mapped_column(
         Integer,
         default=200,  # 2% default
-        init=False,
     )
 
     status: Mapped[IssuerStatus] = mapped_column(
         String(20),
         default=IssuerStatus.PENDING,
-        init=False,
     )
 
     legal_entity_name: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-        init=False,
     )
 
     jurisdiction: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
-        init=False,
     )
 
     # Relationships

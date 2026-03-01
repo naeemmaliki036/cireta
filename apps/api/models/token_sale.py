@@ -42,44 +42,37 @@ class TokenSale(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("tokens.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     issuer_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("issuers.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     payment_token: Mapped[str] = mapped_column(
         String(42),
         default="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",  # USDC on Base
-        init=False,
     )
 
     soft_cap: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),
-        init=False,
     )
 
     hard_cap: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),
-        init=False,
     )
 
     status: Mapped[SaleStatus] = mapped_column(
         String(20),
         default=SaleStatus.DRAFT,
-        init=False,
     )
 
     total_raised: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),
-        init=False,
     )
 
     # Relationships

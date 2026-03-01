@@ -39,41 +39,34 @@ class VestingSchedule(BaseModel):
         PG_UUID(as_uuid=True),
         ForeignKey("tokens.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
-        init=False,
     )
 
     total_amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
-        init=False,
     )
 
     claimed_amount: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18),
         default=Decimal("0"),
-        init=False,
     )
 
     cliff_end: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        init=False,
     )
 
     vesting_end: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        init=False,
     )
 
     last_claim_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        init=False,
     )
 
     # Relationships

@@ -39,41 +39,35 @@ class User(BaseModel):
         String(255),
         unique=True,
         index=True,
-        init=False,
     )
 
-    hashed_password: Mapped[str] = mapped_column(String(255), init=False)
+    hashed_password: Mapped[str] = mapped_column(String(255))
 
     role: Mapped[UserRole] = mapped_column(
         String(20),
         default=UserRole.INVESTOR,
-        init=False,
     )
 
     kyc_status: Mapped[KYCStatus] = mapped_column(
         String(20),
         default=KYCStatus.NONE,
-        init=False,
     )
 
     kyc_level: Mapped[int] = mapped_column(
         Integer,
         default=0,
-        init=False,
     )
 
     onchain_id: Mapped[str | None] = mapped_column(
         String(42),
         nullable=True,
         default=None,
-        init=False,
     )
 
     sumsub_applicant_id: Mapped[str | None] = mapped_column(
         EncryptedString(),
         nullable=True,
         default=None,
-        init=False,
     )
 
     # Relationships

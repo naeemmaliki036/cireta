@@ -40,43 +40,36 @@ class AuditLog(BaseModel):
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
-        init=False,
     )
 
     action: Mapped[str] = mapped_column(
         String(100),
         index=True,
-        init=False,
     )
 
     target_type: Mapped[str] = mapped_column(
         String(50),
         index=True,
-        init=False,
     )
 
     target_id: Mapped[str] = mapped_column(
         String(100),
         index=True,
-        init=False,
     )
 
     payload: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         nullable=True,
-        init=False,
     )
 
     ip_address: Mapped[str | None] = mapped_column(
         String(45),  # IPv6 max length
         nullable=True,
-        init=False,
     )
 
     reason: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
-        init=False,
     )
 
     def __repr__(self) -> str:

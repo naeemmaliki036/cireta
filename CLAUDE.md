@@ -472,3 +472,181 @@ All env files committed:
 - .env.backend.example
 - .env.dockerfile.example-api
 - .env.dockerfile.example-launchpad
+
+---
+
+## UI Design System (NON-NEGOTIABLE — Read Before Steps 11 & 12)
+
+This is NOT a generic UI. Every pixel must match Cireta's real brand identity.
+Study ~/projects/cireta-repo before writing a single component.
+
+### Typography
+- Font: Gilroy ONLY — load via @font-face from local woff2 files (same as globals.css)
+- Weights: 500 (Medium) | 600 (Semibold) | 700 (Bold)
+- letter-spacing: -0.03em on body (Cireta brand rule — critical)
+- Heading tracking: -tracking-[1.44px] to -tracking-[1.8px] on large headings
+- Font smoothing: -webkit-font-smoothing: antialiased
+
+### Exact Tailwind Color Tokens (from tailwind.config.ts)
+```
+darkBlack:  #180B2E   (deep purple-black — dark sections, nav bg)
+darkAqua:   #13636F   (teal — primary brand, CTAs, links, progress bars)
+box:        #ECF3F4   (light blue-grey — card backgrounds, input fills)
+text:       #0C0C0C   (near-black — body copy)
+black:      #000000
+white:      #ffffff
+```
+Use these tokens always. Never hardcode hex values in components.
+
+### Gold Accent
+#C9913D — used for premium/featured badges, hover accents, star ratings.
+Add to tailwind config as `gold: '#C9913D'`.
+
+### Background Patterns
+- Dark hero sections: bg-darkBlack with subtle gradient overlay
+- Light sections: bg-white or bg-box
+- Cards: bg-box with border-[1.5px] border-darkBlack/10 (exactly like ProjectCard)
+- Featured/dark cards: bg-darkAqua/[0.08] (semi-transparent teal wash)
+
+### Border Radius Scale
+- Cards: rounded-3xl (24px) — see ProjectCard
+- Inner card image area: rounded-[20px]
+- Buttons: rounded-full (pill shape — see Button.tsx)
+- Badges/tags: rounded-[100px]
+- Feature cards: rounded-3xl or rounded-[40px] for section containers
+
+### Button Component
+Copy the exact Button.tsx pattern from cireta-repo:
+- Uses framer-motion (motion.button)
+- rounded-full, py-2.5 md:py-[18px] px-6 md:px-10
+- text-xsm/4 md:text-sm/5 lg:text-base/6
+- hover:opacity-80 with duration-300
+- Primary CTA: bg-darkAqua text-white
+- Secondary: bg-white text-text border border-darkBlack/10
+- Outline teal: border border-darkAqua text-darkAqua bg-transparent
+- NO generic MUI/shadcn buttons — hand-rolled only
+
+### Tag / Badge Pattern (from ProjectCard)
+```tsx
+<div className="flex items-center justify-center rounded-[100px] py-1.5 px-4 gap-[10px] border-[0.5px] border-white bg-white/20 text-white font-medium text-[14px] shadow-tag backdrop-blur-[10px]">
+  {label}
+</div>
+```
+Use backdrop-blur for floating labels over images. shadow-tag defined in tailwind config.
+
+### Progress Bar Pattern (from ProjectCard)
+```tsx
+<div className="bg-[#b2b7b81a] rounded-[100px] overflow-hidden h-[12px]">
+  <div className="h-[12px] bg-darkAqua rounded-[100px]" style={{ width: `${pct}%` }} />
+</div>
+```
+
+### Card Pattern (from ProjectCard)
+```tsx
+<div className="relative group block bg-box p-1 rounded-3xl border-[1.5px] border-darkBlack/10 h-full cursor-pointer overflow-hidden">
+  <div className="rounded-[20px] h-[393px] overflow-hidden">
+    <Image ... className="group-hover:scale-105 duration-500" />
+  </div>
+  <div className="flex justify-between flex-col pt-4 p-3">
+    {/* content */}
+  </div>
+</div>
+```
+Cards scale image on hover with `group-hover:scale-105 duration-500`.
+
+### Navigation Pattern (from Header.tsx)
+- Transparent on top, gains `shadow-nav` on scroll (isScrolled state)
+- shadow-nav: 0px 0px 16px 0px rgba(255,255,255,0.06) inset
+- backdrop-blur on scroll
+- Logo: 4-pointed star SVG + "Cireta" in Gilroy Bold
+- Links: text-white on dark hero, text-text on light pages
+- Mobile: hamburger → full-screen aside panel (AsideBar pattern)
+
+### Section Layout
+- Max content width: max-w-inner (1624px) centered
+- Section padding: py-10 to py-20 depending on density
+- Grid: grid-cols-2 or grid-cols-3 with gap-16 or gap-8
+- Container: use Container component with max-w-inner class
+
+### Animations (framer-motion — mandatory, not optional)
+Copy the motion patterns from cireta-repo:
+- Cards: whileInView opacity 0→1, y 100→0, type: "spring", duration: 2
+- Staggered: delay: (index + 1) * 0.25
+- Buttons: already on motion.button
+- Page transitions: initial opacity 0, animate opacity 1
+- viewport: {{ once: true }} on all scroll animations
+
+### Dashboard / Portal Specific Rules
+The launchpad and admin are app-like (not marketing). Apply this adapted style:
+
+**Sidebar nav:**
+- Width: 240px, bg-darkBlack, text-white
+- Active item: bg-darkAqua/20 text-darkAqua rounded-xl
+- Icons: Lucide React ONLY (not heroicons, not fontawesome)
+- No generic sidebar templates — custom built
+
+**Data cards:**
+- bg-box rounded-3xl p-6 border border-darkBlack/10
+- Metric value: text-2xl font-bold text-darkBlack tracking-tight
+- Label: text-xs text-text/60 uppercase tracking-wide
+- Trend indicator: green (#16a34a) up / red (#dc2626) down
+
+**Tables:**
+- thead: bg-darkAqua text-white text-sm font-semibold
+- tbody rows: hover:bg-box transition-colors
+- Striped: even rows bg-box/50
+- Status pills: use rounded-full px-3 py-1 text-xs font-semibold
+  - active: bg-darkAqua/10 text-darkAqua
+  - pending: bg-gold/10 text-gold
+  - failed/rejected: bg-red-100 text-red-700
+
+**Forms:**
+- Input: bg-box border border-darkBlack/10 rounded-xl px-4 py-3 focus:border-darkAqua focus:ring-1 focus:ring-darkAqua outline-none
+- Label: text-sm font-semibold text-text mb-1.5
+- Error: text-red-600 text-xs mt-1
+- No floating labels — labels above inputs always
+
+**Empty states:**
+- Centered layout, custom SVG illustration (simple geometric, on-brand)
+- Heading + subtext + CTA button
+- NOT generic grey box with "No data found"
+
+### Icons
+Use Lucide React ONLY. Never:
+- heroicons
+- fontawesome
+- react-icons random packs
+- emoji as icons
+- Generic stock icon sets
+
+Common icons: TrendingUp, Shield, Coins, Wallet, Users, ArrowRight, ChevronDown, CheckCircle2, XCircle, Clock, Lock, Globe, FileText, BarChart3, RefreshCw
+
+### Key Screen References
+Study these before building each page:
+- Home/hero: ~/projects/cireta-repo/src/app/components/homepage/Banner.tsx
+- Project card: ~/projects/cireta-repo/src/app/components/card/ProjectCard.tsx
+- Asset card: ~/projects/cireta-repo/src/app/components/card/AssetsCard.tsx
+- Featured section: ~/projects/cireta-repo/src/app/components/homepage/FeaturedProjects.tsx
+- Header: ~/projects/cireta-repo/src/app/components/Header.tsx
+- Button: ~/projects/cireta-repo/src/app/components/Button.tsx
+- Tailwind config: ~/projects/cireta-repo/tailwind.config.ts
+
+### What "Gorgeous" Means Here
+1. Every card has real hover states (scale, shadow change, border glow)
+2. Progress bars are always teal (#13636F), pill-shaped, with light track
+3. Status badges use backdrop-blur on media, solid pill on lists
+4. Numbers/metrics are large, bold, darkBlack or darkAqua colored
+5. Sections alternate: dark hero → light content → dark feature → light content
+6. Framer-motion entrance animations on every card grid (staggered)
+7. No grey placeholder boxes. No lorem ipsum in UI code.
+8. Images always have object-cover + aspect ratio locked containers
+9. Mobile-first — every component must look perfect at 375px AND 1440px
+10. Letter spacing -0.03em EVERYWHERE — it defines the brand feel
+
+### What NOT to Build
+- No Material UI / Ant Design / shadcn default themes
+- No Bootstrap grid
+- No generic CSS resets beyond Tailwind
+- No SVG icon libraries except Lucide
+- No inline styles except for dynamic values (progress width, chart bars)
+- No fixed pixel font sizes not in the tailwind fontSize scale

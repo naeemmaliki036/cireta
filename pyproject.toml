@@ -28,6 +28,7 @@ asyncpg = "^0.30.0"
 psycopg2-binary = "^2.9.10"
 web3 = "^7.0.0"
 email-validator = "^2.3.0"
+bcrypt = "^5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -38,6 +39,7 @@ mypy = "^1.13.0"
 pre-commit = "^4.0.0"
 honcho = "^2.0.0"
 aiosqlite = "^0.20.0"
+greenlet = "^3.3.2"
 
 [build-system]
 requires = ["poetry-core"]

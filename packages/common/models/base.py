@@ -31,20 +31,17 @@ class BaseModel(Base):
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
-        default_factory=uuid4,
+        default=uuid4,
         index=True,
-        init=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default_factory=lambda: datetime.now(UTC),
-        init=False,
+        insert_default=datetime.now,
     )
 
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=None,
         onupdate=lambda: datetime.now(UTC),
-        init=False,
     )
