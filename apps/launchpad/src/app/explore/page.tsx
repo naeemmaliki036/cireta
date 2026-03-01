@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Search } from "lucide-react";
-import { Button, Spinner } from "@/components/atoms";
+import { Button } from "@/components/atoms";
 import { ProjectCard } from "@/components/molecules";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ export default function ExplorePage() {
   const [assetType, setAssetType] = useState("All");
   const [status, setStatus] = useState("All");
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState(false);
 
   const fetchProjects = useCallback(async () => {
@@ -125,8 +125,10 @@ export default function ExplorePage() {
 
           {/* Projects Grid */}
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Spinner size="lg" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-box rounded-3xl h-[380px] animate-pulse border border-darkBlack/5" />
+              ))}
             </div>
           ) : apiError ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
