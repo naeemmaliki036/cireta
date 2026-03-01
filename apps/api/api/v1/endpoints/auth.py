@@ -116,7 +116,7 @@ async def get_current_user(
     return UserResponse(
         id=str(user.id),
         email=user.email,
-        role=user.role.value,
-        kyc_status=user.kyc_status.value,
+        role=(user.role.value if hasattr(user.role, "value") else user.role),
+        kyc_status=(user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status),
         kyc_level=user.kyc_level,
     )

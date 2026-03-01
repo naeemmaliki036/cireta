@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   type ReactNode,
 } from "react";
 import { useAuth } from "./AuthContext";
@@ -62,13 +63,15 @@ export function KYCProvider({ children }: { children: ReactNode }) {
   }, [accessToken]);
 
   // Update KYC status when user changes
-  if (user) {
-    setKYCStatus({
-      status: user.kycStatus,
-      level: user.kycLevel,
-      canInvest: user.kycLevel >= 2,
-    });
-  }
+  useEffect(() => {
+    if (user) {
+      setKYCStatus({
+        status: user.kycStatus,
+        level: user.kycLevel,
+        canInvest: user.kycLevel >= 2,
+      });
+    }
+  }, [user]);
 
   const initiateKYC = async () => {
     if (!accessToken) {
