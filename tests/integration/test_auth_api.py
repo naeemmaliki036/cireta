@@ -19,7 +19,7 @@ class TestRegisterEndpoint:
         assert response.status_code == 201
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
+        # refresh_token now in httpOnly cookie, not body
         assert data["token_type"] == "bearer"
 
     async def test_register_invalid_email(self, client: AsyncClient) -> None:
@@ -64,7 +64,7 @@ class TestLoginEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
+        # refresh_token now in httpOnly cookie
         assert data["token_type"] == "bearer"
 
     async def test_login_invalid_credentials(self, client: AsyncClient) -> None:
@@ -96,18 +96,19 @@ class TestRefreshEndpoint:
             "/api/v1/auth/login",
             json={"email": email, "password": password},
         )
-        refresh_token = login_response.json()["refresh_token"]
+        # refresh_token now set as httpOnly cookie
+        refresh_cookie = login_response.cookies.get("refresh_token")
+        assert refresh_cookie is not None
 
-        # Refresh
+        # Refresh using cookie
         response = await client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": refresh_token},
+            cookies={"refresh_token": refresh_cookie},
         )
 
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
 
     async def test_refresh_invalid_token(self, client: AsyncClient) -> None:
         """Test refresh with invalid token."""

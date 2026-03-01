@@ -141,3 +141,16 @@ class FrozenAddressListResponse(BaseModel):
 
     items: list[FrozenAddressInfo]
     total: int
+
+
+class RedemptionUpdateRequest(BaseModel):
+    """Request to update redemption status."""
+    status: str  # processing, shipped, fulfilled, cancelled
+    notes: str | None = None
+
+
+class DividendDepositRequest(BaseModel):
+    """Request to deposit dividends for a token."""
+    token_id: str
+    amount_usdc: float
+    contract_address: str | None = None

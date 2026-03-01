@@ -14,7 +14,7 @@ interface User {
   id: string;
   email: string;
   role: "investor" | "issuer" | "admin";
-  kycStatus: "none" | "pending" | "approved" | "rejected";
+  kycStatus: "none" | "pending" | "approved" | "rejected" | "expired";
   kycLevel: number;
 }
 

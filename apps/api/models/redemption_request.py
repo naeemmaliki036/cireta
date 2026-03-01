@@ -20,79 +20,36 @@ if TYPE_CHECKING:
 
 
 class RedemptionRequest(BaseModel):
-    """Request to redeem commodity tokens for physical delivery or cash.
-
-    Handles the redemption process for commodity-backed tokens.
-
-    Attributes:
-        token_id: Reference to the redeemed token
-        user_id: Reference to the requesting user
-        amount: Amount of tokens to redeem
-        fulfillment_method: Physical delivery or cash settlement
-        status: Redemption request status
-        tx_hash: Token burn transaction hash
-        fulfilled_at: When redemption was fulfilled
-        notes: Additional notes or tracking info
-    """
+    """Request to redeem commodity tokens for physical delivery or cash."""
 
     __tablename__ = "redemption_requests"
 
-    token_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tokens.id", ondelete="CASCADE"),
-        index=True,
-    )
+    token_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("tokens.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18))
+    fulfillment_method: Mapped[FulfillmentMethod] = mapped_column(String(20), default=FulfillmentMethod.CASH)
+    status: Mapped[RedemptionStatus] = mapped_column(String(20), default=RedemptionStatus.PENDING)
+    tx_hash: Mapped[str | None] = mapped_column(String(66), nullable=True, index=True)
+    fulfilled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    shipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    user_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        index=True,
-    )
-
-    amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=78, scale=18),
-    )
-
-    fulfillment_method: Mapped[FulfillmentMethod] = mapped_column(
-        String(20),
-        default=FulfillmentMethod.CASH,
-    )
-
-    status: Mapped[RedemptionStatus] = mapped_column(
-        String(20),
-        default=RedemptionStatus.PENDING,
-    )
-
-    tx_hash: Mapped[str | None] = mapped_column(
-        String(66),
-        nullable=True,
-        index=True,
-    )
-
-    fulfilled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-
-    notes: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
+    # Delivery details
+    delivery_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    delivery_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    delivery_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     token: Mapped[Token] = relationship(back_populates="redemption_requests")
-
     user: Mapped[User] = relationship(back_populates="redemption_requests")
 
     def __repr__(self) -> str:
-        return f"<RedemptionRequest(id={self.id}, amount={self.amount}, status={self.status.value})>"
+        return f"<RedemptionRequest(id={self.id}, amount={self.amount}, status={self.status})>"
 
     @property
     def is_pending(self) -> bool:
-        """Check if request is still pending."""
         return self.status == RedemptionStatus.PENDING
 
     @property
     def is_fulfilled(self) -> bool:
-        """Check if request has been fulfilled."""
         return self.status == RedemptionStatus.FULFILLED

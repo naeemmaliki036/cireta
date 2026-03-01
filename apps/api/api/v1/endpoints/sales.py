@@ -7,9 +7,11 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import SaleStatus
+from apps.api.models.sale_phase import SalePhase
 from apps.api.schemas.sale import (
     ContributeRequest,
     ContributionResponse,
+    OTCAllocateRequest,
     SaleCreateRequest,
     SaleListResponse,
     SalePhaseResponse,
@@ -220,3 +222,55 @@ async def claim_refund(
     """
     contributions = await sale_service.claim_refund(user_id, sale_id)
     return [_contribution_to_response(c) for c in contributions]
+
+
+@router.post("/{sale_id}/otc")
+async def otc_allocate(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    request: "OTCAllocateRequest",
+) -> dict:
+    """OTC allocation — issuer manually allocates tokens to a verified investor."""
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from apps.api.models.contribution import Contribution
+    from apps.api.models.issuer import Issuer
+    from apps.api.models.token_sale import TokenSale
+
+    # Verify caller is an issuer
+    issuer_result = await db.execute(select(Issuer).where(Issuer.user_id == user_id))
+    issuer = issuer_result.scalar_one_or_none()
+    if not issuer:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Issuer access required")
+
+    sale_result = await db.execute(select(TokenSale).where(TokenSale.id == sale_id, TokenSale.issuer_id == issuer.id))
+    sale = sale_result.scalar_one_or_none()
+    if not sale:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Sale not found")
+
+    # Create OTC contribution (is_otc=True, excluded from fee base)
+    contrib = Contribution()
+    contrib.user_id = user_id  # issuer's user_id as placeholder — in prod link to investor user
+    contrib.sale_id = sale_id
+    contrib.phase_id = (await db.execute(
+        select(SalePhase).where(SalePhase.sale_id == sale_id).order_by(SalePhase.phase_number).limit(1)
+    )).scalar_one().id
+    contrib.amount = Decimal("0")  # OTC — no on-platform USDC
+    contrib.tokens_allocated = Decimal(str(request.token_amount))
+    contrib.tx_hash = f"otc-{sale_id}-{request.investor_wallet[:8]}-{int(__import__('time').time())}"
+    contrib.is_otc = True
+    contrib.otc_reference = request.payment_reference
+    contrib.wallet_address = request.investor_wallet
+    contrib.status = "confirmed"
+
+    # Update sale total (OTC counts toward hard cap but NOT toward on-platform total)
+    sale.total_raised += Decimal("0")  # OTC doesn't change USDC raised
+
+    db.add(contrib)
+    await db.commit()
+    return {"message": "OTC allocation recorded", "tokens_allocated": str(request.token_amount)}

@@ -11,7 +11,7 @@ import {
 import { useAuth } from "./AuthContext";
 
 interface KYCStatus {
-  status: "none" | "pending" | "approved" | "rejected";
+  status: "none" | "pending" | "approved" | "rejected" | "expired";
   level: number;
   canInvest: boolean;
   message?: string;

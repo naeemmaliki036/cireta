@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.schemas.portfolio import (
@@ -190,3 +190,64 @@ async def create_redemption(
     redemption = result.scalar_one()
 
     return _redemption_to_response(redemption)
+
+
+@router.get("/dividends")
+async def get_dividends(
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Get claimable dividends for user's token holdings."""
+    # Returns distributions keyed by token - on-chain claimable amounts
+    # would be read via web3 in production; return DB records for now
+
+    return {
+        "dividends": [],
+        "total_claimable_usdc": "0",
+        "note": "Connect DividendDistributor contract to read live claimable amounts",
+    }
+
+
+@router.get("/transactions")
+async def get_transactions(
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),  # noqa: ARG001 — pagination TODO
+) -> dict:
+    """Get transaction history for current user."""
+    from sqlalchemy import select
+
+    from apps.api.models.contribution import Contribution
+    from apps.api.models.redemption_request import RedemptionRequest
+
+    txs = []
+
+    contribs = await db.execute(
+        select(Contribution).where(Contribution.user_id == user_id)
+        .order_by(Contribution.created_at.desc()).limit(limit)
+    )
+    for c in contribs.scalars().all():
+        txs.append({
+            "type": "investment",
+            "amount": str(c.amount),
+            "tx_hash": c.tx_hash,
+            "status": c.status if isinstance(c.status, str) else c.status.value,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        })
+
+    redemptions = await db.execute(
+        select(RedemptionRequest).where(RedemptionRequest.user_id == user_id)
+        .order_by(RedemptionRequest.created_at.desc()).limit(limit)
+    )
+    for r in redemptions.scalars().all():
+        txs.append({
+            "type": "redemption",
+            "amount": str(r.amount),
+            "tx_hash": r.tx_hash,
+            "status": r.status if isinstance(r.status, str) else r.status.value,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+
+    txs.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    return {"transactions": txs[:limit], "total": len(txs)}

@@ -4,47 +4,53 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
-    """User registration request."""
-
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+    display_name: str | None = Field(None, max_length=100)
 
 
 class LoginRequest(BaseModel):
-    """User login request."""
-
     email: EmailStr
     password: str
 
 
 class TokenResponse(BaseModel):
-    """JWT token response."""
-
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
+    # refresh_token omitted — sent as httpOnly cookie
 
 
 class RefreshTokenRequest(BaseModel):
-    """Token refresh request."""
+    refresh_token: str | None = None  # fallback if cookie unavailable
 
-    refresh_token: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str | None = Field(None, max_length=100)
 
 
 class UserResponse(BaseModel):
-    """User data response."""
-
     id: str
     email: str
     role: str
     kyc_status: str
     kyc_level: int
+    display_name: str | None = None
+    email_verified: bool = False
+    country_code: str | None = None
+    investor_type: str = "individual"
 
     class Config:
         from_attributes = True
 
 
 class MessageResponse(BaseModel):
-    """Simple message response."""
-
     message: str

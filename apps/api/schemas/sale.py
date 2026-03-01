@@ -114,3 +114,11 @@ class MessageResponse(BaseModel):
     """Simple message response."""
 
     message: str
+
+
+class OTCAllocateRequest(BaseModel):
+    """OTC allocation request."""
+    investor_wallet: str = Field(..., min_length=42, max_length=42)
+    token_amount: float = Field(..., gt=0)
+    payment_reference: str = Field(..., min_length=1, max_length=255)
+    notes: str | None = None

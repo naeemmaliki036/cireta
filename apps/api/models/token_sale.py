@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,94 +22,46 @@ if TYPE_CHECKING:
 
 
 class TokenSale(BaseModel):
-    """Token sale campaign for an ERC-3643 token.
-
-    Manages the fundraising process with multiple phases,
-    soft/hard caps, and USDC payment processing.
-
-    Attributes:
-        token_id: Reference to the token being sold
-        issuer_id: Reference to the issuer
-        payment_token: Address of payment token (USDC)
-        soft_cap: Minimum funding goal
-        hard_cap: Maximum funding cap
-        status: Current sale status
-        total_raised: Total amount raised so far
-    """
+    """Token sale campaign for an ERC-3643 token."""
 
     __tablename__ = "token_sales"
 
-    token_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("tokens.id", ondelete="CASCADE"),
-        index=True,
-    )
+    token_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("tokens.id", ondelete="CASCADE"), index=True)
+    issuer_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("issuers.id", ondelete="CASCADE"), index=True)
+    payment_token: Mapped[str] = mapped_column(String(42), default="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
+    soft_cap: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
+    hard_cap: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
+    status: Mapped[SaleStatus] = mapped_column(String(20), default=SaleStatus.DRAFT)
+    total_raised: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
 
-    issuer_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("issuers.id", ondelete="CASCADE"),
-        index=True,
-    )
-
-    payment_token: Mapped[str] = mapped_column(
-        String(42),
-        default="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",  # USDC on Base
-    )
-
-    soft_cap: Mapped[Decimal] = mapped_column(
-        Numeric(precision=78, scale=18),
-        default=Decimal("0"),
-    )
-
-    hard_cap: Mapped[Decimal] = mapped_column(
-        Numeric(precision=78, scale=18),
-        default=Decimal("0"),
-    )
-
-    status: Mapped[SaleStatus] = mapped_column(
-        String(20),
-        default=SaleStatus.DRAFT,
-    )
-
-    total_raised: Mapped[Decimal] = mapped_column(
-        Numeric(precision=78, scale=18),
-        default=Decimal("0"),
-    )
+    # Spec-required fields
+    fee_cap_usdc: Mapped[Decimal | None] = mapped_column(Numeric(36, 6), nullable=True, default=None)
+    total_raised_on_platform: Mapped[Decimal] = mapped_column(Numeric(36, 6), default=Decimal("0"))
+    platform_fee_collected: Mapped[Decimal] = mapped_column(Numeric(36, 6), default=Decimal("0"))
+    contract_address: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     # Relationships
     token: Mapped[Token] = relationship(back_populates="token_sales")
-
     issuer: Mapped[Issuer] = relationship(back_populates="token_sales")
-
-    phases: Mapped[list[SalePhase]] = relationship(
-        back_populates="sale",
-        cascade="all, delete-orphan",
-        order_by="SalePhase.phase_number",
-    )
-
-    contributions: Mapped[list[Contribution]] = relationship(
-        back_populates="sale",
-    )
+    phases: Mapped[list[SalePhase]] = relationship(back_populates="sale", cascade="all, delete-orphan", order_by="SalePhase.phase_number")
+    contributions: Mapped[list[Contribution]] = relationship(back_populates="sale")
 
     def __repr__(self) -> str:
-        return f"<TokenSale(id={self.id}, token_id={self.token_id}, status={self.status.value})>"
+        return f"<TokenSale(id={self.id}, token_id={self.token_id}, status={self.status})>"
 
     @property
     def is_active(self) -> bool:
-        """Check if sale is currently active."""
         return self.status == SaleStatus.ACTIVE
 
     @property
     def soft_cap_reached(self) -> bool:
-        """Check if soft cap has been reached."""
         return self.total_raised >= self.soft_cap
 
     @property
     def hard_cap_reached(self) -> bool:
-        """Check if hard cap has been reached."""
         return self.total_raised >= self.hard_cap
 
     @property
     def remaining_capacity(self) -> Decimal:
-        """Calculate remaining capacity until hard cap."""
         return max(Decimal("0"), self.hard_cap - self.total_raised)

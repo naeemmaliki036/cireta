@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Shield, ShieldCheck, Clock, XCircle } from "lucide-react";
+import { AlertCircle, Clock, Shield, ShieldCheck, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type KYCStatus = "none" | "pending" | "approved" | "rejected";
+export type KYCStatus = "none" | "pending" | "approved" | "rejected" | "expired";
 
 export interface KYCBadgeProps {
   status: KYCStatus;
@@ -33,6 +33,11 @@ const STATUS_CONFIG = {
     icon: XCircle,
     label: "Rejected",
     colors: "bg-red-100 text-red-700 border-red-200",
+  },
+  expired: {
+    icon: AlertCircle,
+    label: "Expired",
+    colors: "bg-orange-500/10 border-orange-500/20 text-orange-400",
   },
 };
 
