@@ -67,7 +67,7 @@ interface SalePhaseRaw {
   is_active: boolean;
 }
 
-interface SaleRaw {
+export interface SaleRaw {
   id: string;
   token_id: string;
   issuer_id: string;
@@ -149,4 +149,9 @@ export async function getProjects(
 export async function getProject(slug: string): Promise<Project> {
   const raw = await apiGet<SaleRaw>(`/api/v1/sales/by-slug/${slug}`);
   return mapSaleToProject(raw);
+}
+
+
+export async function getSaleRawBySlug(slug: string): Promise<SaleRaw> {
+  return apiGet<SaleRaw>(`/api/v1/sales/by-slug/${slug}`);
 }
