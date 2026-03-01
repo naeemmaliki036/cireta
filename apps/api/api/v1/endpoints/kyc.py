@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.core.sumsub_crypto import validate_sumsub_signature
 from apps.api.schemas.kyc import KYCInitiateResponse, KYCStatusResponse
 from apps.api.services.kyc_service import KYCService
 from packages.common.core.auth_deps import CurrentUserId
@@ -81,7 +82,7 @@ async def sumsub_webhook(
     sig_header = request.headers.get("X-Payload-Digest", "")
 
     # CRITICAL: Validate HMAC BEFORE any processing
-    if not KYCService.validate_sumsub_signature(
+    if not validate_sumsub_signature(
         body, sig_header, settings.sumsub_secret_key
     ):
         raise HTTPException(

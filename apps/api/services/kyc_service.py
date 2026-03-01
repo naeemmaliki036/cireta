@@ -3,8 +3,6 @@
 CRITICAL: Webhook HMAC validation must happen BEFORE any processing.
 """
 
-import hashlib
-import hmac
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -17,6 +15,7 @@ from apps.api.models.audit_log import AuditLog
 from apps.api.models.enums import KYCStatus
 from apps.api.models.kyc_application import KYCApplication
 from apps.api.models.user import User
+from apps.api.services.notification_service import NotificationService
 
 
 class KYCService:
@@ -28,27 +27,6 @@ class KYCService:
     def __init__(self, db: AsyncSession) -> None:
         """Initialize KYC service."""
         self.db = db
-
-    @staticmethod
-    def validate_sumsub_signature(body: bytes, sig_header: str, secret: str) -> bool:
-        """Validate Sumsub webhook HMAC-SHA256 signature.
-
-        CRITICAL: This MUST be called BEFORE any webhook processing.
-
-        Args:
-            body: Raw request body bytes.
-            sig_header: X-Payload-Digest header value from Sumsub.
-            secret: Sumsub secret key.
-
-        Returns:
-            True if signature is valid, False otherwise.
-        """
-        if not secret:
-            # In development without key, reject all webhooks
-            return False
-
-        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(expected, sig_header)
 
     async def initiate(self, user_id: UUID) -> dict[str, Any]:
         """Initiate KYC process for a user.
@@ -220,7 +198,6 @@ class KYCService:
                 await self._issue_onchain_claims(user)
                 # Send notification + email
                 try:
-                    from apps.api.services.notification_service import NotificationService
                     notif_service = NotificationService(self.db)
                     await notif_service.notify_kyc_approved(user.id, user.email, 2)
                 except Exception as e:
@@ -247,7 +224,6 @@ class KYCService:
                 user.kyc_status = KYCStatus.REJECTED
                 user.kyc_level = 0
                 try:
-                    from apps.api.services.notification_service import NotificationService
                     notif_service = NotificationService(self.db)
                     await notif_service.notify_kyc_rejected(user.id, user.email)
                 except Exception as e:

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 async def task_send_email(
-    ctx: dict[str, Any],
+    ctx: dict[str, Any],  # noqa: ARG001
     template: str,
     to: str,
     **kwargs: Any,
@@ -38,7 +38,7 @@ async def task_send_email(
 
 
 async def task_deploy_onchainid(
-    ctx: dict[str, Any],
+    ctx: dict[str, Any],  # noqa: ARG001
     user_id: str,
     wallet_address: str,
 ) -> None:
@@ -61,10 +61,10 @@ async def task_deploy_onchainid(
 
 
 async def task_register_wallet_on_chain(
-    ctx: dict[str, Any],
+    ctx: dict[str, Any],  # noqa: ARG001
     wallet_address: str,
     token_addresses: list[str],
-    onchain_id_address: str,
+    onchain_id_address: str,  # noqa: ARG001
 ) -> None:
     """Register a wallet in Identity Registry for each token after KYC approval."""
     logger.info("Registering wallet=%s in %d identity registries", wallet_address, len(token_addresses))
@@ -75,10 +75,10 @@ async def task_register_wallet_on_chain(
 
 
 async def task_index_contribution(
-    ctx: dict[str, Any],
+    ctx: dict[str, Any],  # noqa: ARG001
     tx_hash: str,
     sale_id: str,
-    user_id: str,
+    user_id: str,  # noqa: ARG001
 ) -> None:
     """Verify on-chain contribution matches DB record."""
     logger.info("Indexing contribution tx=%s sale=%s", tx_hash, sale_id)

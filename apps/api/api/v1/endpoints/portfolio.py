@@ -194,8 +194,8 @@ async def create_redemption(
 
 @router.get("/dividends")
 async def get_dividends(
-    user_id: CurrentUserId,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    user_id: CurrentUserId,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],  # noqa: ARG001
 ) -> dict:
     """Get claimable dividends for user's token holdings."""
     # Returns distributions keyed by token - on-chain claimable amounts
