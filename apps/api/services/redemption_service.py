@@ -1,0 +1,150 @@
+"""Redemption service for commodity token redemptions."""
+
+from datetime import UTC, datetime
+from decimal import Decimal
+from uuid import UUID
+
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from apps.api.models.enums import RedemptionStatus
+from apps.api.models.redemption_request import RedemptionRequest
+from apps.api.models.token import Token
+from apps.api.models.user import User
+
+
+class RedemptionService:
+    """Service for redemption operations."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        """Initialize redemption service."""
+        self.db = db
+
+    async def create_request(
+        self,
+        user_id: UUID,
+        token_id: UUID,
+        amount: Decimal,
+        fulfillment_method: str,
+        notes: str | None = None,
+    ) -> RedemptionRequest:
+        """Create a new redemption request.
+
+        Args:
+            user_id: User UUID.
+            token_id: Token UUID.
+            amount: Amount to redeem.
+            fulfillment_method: Physical delivery or cash.
+            notes: Optional notes.
+
+        Returns:
+            Created redemption request.
+
+        Raises:
+            HTTPException: If not eligible.
+        """
+        # Check user KYC
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"},
+            )
+
+        if not user.can_invest:  # Same KYC requirement as investing
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "KYC_REQUIRED", "message": "KYC level 2 required"},
+            )
+
+        # Check token exists
+        token_result = await self.db.execute(
+            select(Token).where(Token.id == token_id)
+        )
+        token = token_result.scalar_one_or_none()
+
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"},
+            )
+
+        # Create redemption request
+        redemption = RedemptionRequest()
+        redemption.user_id = user_id
+        redemption.token_id = token_id
+        redemption.amount = amount
+        redemption.fulfillment_method = fulfillment_method
+        redemption.notes = notes
+
+        self.db.add(redemption)
+        await self.db.commit()
+        await self.db.refresh(redemption)
+
+        return redemption
+
+    async def get_user_requests(self, user_id: UUID) -> list[RedemptionRequest]:
+        """Get all redemption requests for a user.
+
+        Args:
+            user_id: User UUID.
+
+        Returns:
+            List of redemption requests with token info.
+        """
+        result = await self.db.execute(
+            select(RedemptionRequest)
+            .options(selectinload(RedemptionRequest.token))
+            .where(RedemptionRequest.user_id == user_id)
+            .order_by(RedemptionRequest.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def update_fulfillment(
+        self,
+        request_id: UUID,
+        status: RedemptionStatus,
+        tx_hash: str | None = None,
+        notes: str | None = None,
+    ) -> RedemptionRequest:
+        """Update redemption fulfillment status.
+
+        This is an admin/issuer operation.
+
+        Args:
+            request_id: Request UUID.
+            status: New status.
+            tx_hash: Burn transaction hash.
+            notes: Additional notes.
+
+        Returns:
+            Updated redemption request.
+        """
+        result = await self.db.execute(
+            select(RedemptionRequest).where(RedemptionRequest.id == request_id)
+        )
+        redemption = result.scalar_one_or_none()
+
+        if not redemption:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "REQUEST_NOT_FOUND", "message": "Redemption request not found"},
+            )
+
+        redemption.status = status
+        if tx_hash:
+            redemption.tx_hash = tx_hash
+        if notes:
+            redemption.notes = notes
+
+        if status == RedemptionStatus.FULFILLED:
+            redemption.fulfilled_at = datetime.now(UTC)
+
+        await self.db.commit()
+        await self.db.refresh(redemption)
+
+        return redemption
