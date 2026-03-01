@@ -12,7 +12,7 @@ export interface RegisterRequest {
 
 export interface AuthTokens {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string; // now sent as httpOnly cookie
   token_type: string;
 }
 

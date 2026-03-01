@@ -226,6 +226,23 @@ class KYCService:
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning("KYC notification failed: %s", e)
+                # Queue ONCHAINID deployment for primary wallet
+                try:
+                    from packages.common.core.config import settings
+                    if settings.redis_url:
+                        from arq import create_pool
+                        from arq.connections import RedisSettings
+                        pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+                        primary_wallet = next((w for w in user.wallets if w.is_primary), None)
+                        if primary_wallet:
+                            await pool.enqueue_job(
+                                "task_deploy_onchainid",
+                                str(user.id),
+                                primary_wallet.address_checksum,
+                            )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning("ONCHAINID queue failed: %s", e)
             elif review_answer == "RED":
                 user.kyc_status = KYCStatus.REJECTED
                 user.kyc_level = 0

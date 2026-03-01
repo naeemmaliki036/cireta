@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "003_spec_gap_fields"
-down_revision = "002_cireta_initial_schema"
+down_revision = "9cd097779a53"
 branch_labels = None
 depends_on = None
 

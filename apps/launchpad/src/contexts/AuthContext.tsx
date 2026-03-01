@@ -62,27 +62,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const storedRefresh = localStorage.getItem("refreshToken");
-      if (!storedRefresh) {
-        setState((s) => ({ ...s, isLoading: false }));
-        return;
+      // Fast path: try stored access token directly
+      const storedToken = localStorage.getItem("token");
+      if (storedToken) {
+        try {
+          const rawUser = await authRepo.me(storedToken);
+          setAuthCookie(true);
+          setState({
+            user: mapUser(rawUser),
+            accessToken: storedToken,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return;
+        } catch {
+          localStorage.removeItem("token");
+        }
       }
 
-      const tokens = await authRepo.refreshToken(storedRefresh);
-      localStorage.setItem("token", tokens.access_token);
-      localStorage.setItem("refreshToken", tokens.refresh_token);
+      // Fall back: try httpOnly cookie refresh (no localStorage refresh token needed)
+      try {
+        const tokens = await authRepo.refreshToken("");
+        localStorage.setItem("token", tokens.access_token);
+        const rawUser = await authRepo.me(tokens.access_token);
+        setAuthCookie(true);
+        setState({
+          user: mapUser(rawUser),
+          accessToken: tokens.access_token,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        return;
+      } catch {
+        // no valid refresh cookie
+      }
 
-      const rawUser = await authRepo.me(tokens.access_token);
-      setAuthCookie(true);
-      setState({
-        user: mapUser(rawUser),
-        accessToken: tokens.access_token,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      setState((s) => ({ ...s, isLoading: false }));
     } catch {
       localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
       setAuthCookie(false);
       setState({
         user: null,
@@ -100,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const tokens = await authRepo.login({ email, password });
     localStorage.setItem("token", tokens.access_token);
-    localStorage.setItem("refreshToken", tokens.refresh_token);
+    if (tokens.refresh_token) localStorage.setItem("refreshToken", tokens.refresh_token);
 
     const rawUser = await authRepo.me(tokens.access_token);
     setAuthCookie(true);
@@ -115,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string) => {
     const tokens = await authRepo.register({ email, password });
     localStorage.setItem("token", tokens.access_token);
-    localStorage.setItem("refreshToken", tokens.refresh_token);
+    if (tokens.refresh_token) localStorage.setItem("refreshToken", tokens.refresh_token);
 
     const rawUser = await authRepo.me(tokens.access_token);
     setAuthCookie(true);

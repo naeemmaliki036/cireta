@@ -21,6 +21,8 @@ import { me, type User as AuthUser } from "@/lib/api/repositories/auth.repositor
 export default function AccountPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("profile");
+  const [notifications, setNotifications] = useState({ email: true, sms: false, browser: true });
 
   useEffect(() => {
     (async () => {
@@ -36,9 +38,6 @@ export default function AccountPage() {
 
   if (loading) return <DashboardLayout title="Account"><div className="flex justify-center py-24"><Spinner /></div></DashboardLayout>;
   if (!user) return <DashboardLayout title="Account"><p className="text-center text-white/40 py-24">Please log in</p></DashboardLayout>;
-
-  const [activeTab, setActiveTab] = useState("profile");
-  const [notifications, setNotifications] = useState({ email: true, sms: false, browser: true });
 
   return (
     <DashboardLayout
