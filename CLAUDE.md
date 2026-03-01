@@ -650,3 +650,201 @@ Study these before building each page:
 - No SVG icon libraries except Lucide
 - No inline styles except for dynamic values (progress width, chart bars)
 - No fixed pixel font sizes not in the tailwind fontSize scale
+
+---
+
+## UI Rules — MANDATORY (Cireta Design System)
+
+### Source of truth
+The real Cireta design lives in ~/projects/cireta-repo. Study these files:
+- ~/projects/cireta-repo/src/app/globals.css — exact font loading, scrollbar, base styles
+- ~/projects/cireta-repo/src/app/components/Button.tsx — motion.button with framer-motion
+- ~/projects/cireta-repo/src/app/components/card/ProjectCard.tsx — exact card pattern
+- ~/projects/cireta-repo/src/app/components/Header.tsx — nav + scroll behaviour
+- ~/projects/cireta-repo/src/app/components/homepage/Banner.tsx — hero pattern
+- ~/projects/cireta-repo/tailwind.config.ts — ALL colour + shadow + font tokens
+
+### Tailwind tokens (copy to launchpad/tailwind.config.ts exactly)
+Colors:
+  black: "#000"
+  darkBlack: "#180B2E"
+  white: "#fff"
+  text: "#0C0C0C"
+  darkAqua: "#13636F"       ← brand teal
+  box: "#ECF3F4"            ← card background
+  paua: "#202254"
+  gold: "#C9913D"           ← add this
+
+Box shadows:
+  nav: "0px 0px 16px 0px rgba(255,255,255,0.06) inset"
+  tag: "0px 0px 4px 0px rgba(255,255,255,0.40) inset"
+  progress: "20px 0px 0px 0px #13636F inset"
+  tooltip: "0px 8px 40px 0px rgba(0,0,0,0.20)"
+  aside: "-12px 0px 20px 0px rgba(0,0,0,0.07)"
+  bulletIcon: "rgba(19,99,111,0.40) 0px 0px 0px 1px"
+
+Font sizes:
+  xsm: "14px", sm: "16px", base: "18px", lg: "20px"
+  xl: "22px", xxl: "36px", 1xl: "48px", 2xl: "60px"
+
+### Typography
+- Font: Gilroy only (Bold 700, Semibold 600, Medium 500)
+- Letter spacing: -0.03em on body, -tracking-[1.8px] on hero h1
+- Font smoothing: -webkit-font-smoothing: antialiased
+
+### Cards (exact ProjectCard pattern)
+```tsx
+<Link className="relative group block bg-box p-1 rounded-3xl border-[1.5px] border-darkBlack/10 h-full cursor-pointer overflow-hidden hover:shadow-tooltip transition-shadow duration-300">
+  {/* Glass tag top-left */}
+  <div className="absolute left-4 top-4 z-[1] flex items-center justify-center rounded-[100px] py-2 px-3.5 border-[0.5px] border-white bg-white/20 text-white text-[14px] font-medium shadow-tag backdrop-blur-[10px]">
+    Gold
+  </div>
+  {/* Media area */}
+  <div className="rounded-[20px] h-[300px] md:h-[393px] overflow-hidden">
+    <Image src={...} className="w-full h-full object-cover group-hover:scale-105 duration-500" />
+  </div>
+  {/* Card body */}
+  <div className="flex justify-between flex-col pt-4 p-3">
+    <h3 className="text-[18px]/[21px] font-medium">{title}</h3>
+    {/* Funding round pill */}
+    <span className="rounded-[100px] py-1 px-3 border border-darkAqua/30 bg-darkAqua/10 text-darkAqua text-[14px] font-medium capitalize">
+      Seed Round
+    </span>
+    {/* Progress bar */}
+    <div className="bg-[#b2b7b81a] rounded-[100px] overflow-hidden h-[12px]">
+      <div className="h-[12px] bg-darkAqua rounded-[100px]" style={{ width: `${progress}%` }} />
+    </div>
+    {/* Stats row */}
+    <div className="flex items-center justify-between mt-2.5 text-[16px] font-medium">
+      <span>Raised <strong>{formatCurrency(raised)}</strong></span>
+      <span>Target <strong>{formatCurrency(target)}</strong></span>
+    </div>
+  </div>
+</Link>
+```
+
+### Buttons (exact Cireta Button pattern)
+```tsx
+// Use framer-motion — import { motion } from "framer-motion"
+<motion.button
+  className="inline-flex justify-center items-center text-base/6 rounded-full py-[18px] px-10 duration-300 cursor-pointer hover:opacity-80 bg-darkAqua text-white"
+  whileTap={{ scale: 0.97 }}
+>
+  {children}
+</motion.button>
+
+// White variant (on dark bg):
+className="... bg-white !text-text"
+
+// Outline variant:
+className="... border border-darkAqua text-darkAqua bg-transparent"
+```
+
+### Hero (dark full-bleed)
+```tsx
+<section className="bg-darkBlack w-full min-h-screen relative overflow-hidden">
+  {/* Gradient overlay matching bg-gradientBanner */}
+  <div className="absolute inset-0 bg-gradient-to-b from-darkBlack via-darkBlack/90 to-darkAqua/30" />
+  <div className="relative z-10 flex items-center justify-center flex-col h-full mx-auto max-w-[990px] px-4 text-center text-white pt-32 pb-20">
+    {/* Cireta star */}
+    <svg width="60" height="60" viewBox="0 0 40 40" className="mb-8">
+      <path d="M20 2 L22.5 17.5 L38 20 L22.5 22.5 L20 38 L17.5 22.5 L2 20 L17.5 17.5 Z" fill="#13636F"/>
+    </svg>
+    <h1 className="text-2xl/[60px] font-semibold -tracking-[1.8px] mb-9">
+      Unlock Global Commodity Investment Through RWA Tokenization
+    </h1>
+    <p className="text-base font-semibold text-white/75 mb-[60px]">
+      Fully regulated ERC-3643 security tokens on Base L2.
+    </p>
+    <div className="flex items-center gap-6">
+      <Button className="bg-white !text-text">Explore Projects</Button>
+      <Button className="gap-2.5 !pl-3 bg-darkAqua text-white">
+        <PlayIcon /> Watch Demo
+      </Button>
+    </div>
+  </div>
+  {/* Decorative blur orbs */}
+  <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-darkAqua/20 rounded-full blur-[120px] pointer-events-none" />
+</section>
+```
+
+### Navigation (sticky + scroll-aware)
+```tsx
+// Transparent on top, blurred dark on scroll
+const [isScrolled, setIsScrolled] = useState(false)
+// nav className:
+isScrolled
+  ? "fixed top-0 w-full z-50 bg-darkBlack/80 backdrop-blur-md shadow-nav border-b border-white/5"
+  : "fixed top-0 w-full z-50 bg-transparent"
+```
+
+### Stats bar (HomepageStats pattern)
+```tsx
+<section className="bg-darkAqua py-12">
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-inner mx-auto px-4">
+    {[{val:"$2.4B", label:"Assets Tokenized"}, ...].map(s => (
+      <div className="text-center text-white">
+        <div className="text-1xl font-bold -tracking-[1.44px]">{s.val}</div>
+        <div className="text-sm text-white/70 mt-1">{s.label}</div>
+      </div>
+    ))}
+  </div>
+</section>
+```
+
+### Animations (Framer Motion — used throughout Cireta repo)
+```tsx
+import { motion } from "framer-motion"
+
+// Card entrance
+<motion.div
+  initial={{ opacity: 0, y: 40 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true }}
+  transition={{ type: "spring", duration: 0.8, delay: index * 0.1 }}
+>
+
+// Number counter
+// Use react-countup or animate with motion
+```
+
+### NO-GO list (never do these)
+- NO rounded-md or rounded-lg on cards — use rounded-3xl
+- NO gray borders — use border-darkBlack/10 or border-darkAqua/30
+- NO generic gradient placeholders for images — use real asset images or darkAqua bg with Cireta logo
+- NO Tailwind blue/green/red status pills — use darkAqua/10 with darkAqua text
+- NO shadcn/ui components — build from primitives matching Cireta patterns
+- NO generic lucide/heroicons — use inline SVGs matching Cireta's icon style
+- NO white backgrounds on dark-theme pages — darkBlack or box only
+
+### Required pages — ALL of these, fully designed:
+launchpad:
+  / — Hero (dark, full-bleed) + stats bar + featured project slider (Swiper) + how it works + CTA
+  /explore — Project grid (ProjectCard exact pattern) + filter bar by asset type / status
+  /project/[slug] — Full detail: hero image, tabs (Overview/Docs/Team), phase timeline, invest sidebar
+  /invest/[slug] — Amount input + USDC approval step + confirm tx + success state
+  /login — Dark split-screen: Cireta brand left, form right
+  /register — Same split pattern
+  /verify — KYC stepper: ID → liveness → review (Sumsub embed)
+  /portfolio — Holdings grid + vesting progress bars + claimable amounts
+  /portfolio/claim/[token] — Cliff countdown + claim button + history
+  /portfolio/redeem/[token] — Redemption form (physical/cash) + status tracker
+  /account — KYC badge + linked wallets + notification prefs + CSV export
+
+admin:
+  /issuer/overview — Stats dashboard: TVL, raised, investors, fees earned
+  /issuer/tokens/new — 4-step wizard with progress indicator
+  /issuer/tokens/[id] — Token metrics + compliance status
+  /issuer/sales/[id] — Phase config + live fundraise progress
+  /issuer/investors — Table: wallet, KYC status, invested, tokens allocated + OTC button
+  /issuer/compliance — Freeze/unfreeze/recover/forced-transfer actions + audit log
+  /issuer/withdrawals — Available to withdraw + withdrawal history
+  /platform/issuers — Issuer table + approve/revoke/fee actions
+  /platform/compliance — Global compliance controls
+  /platform/analytics — TVL chart, fee revenue, KYC funnel
+
+### Component architecture (atomic design)
+atoms/: Button (motion), Input, Badge, Avatar, Spinner, ProgressBar, Tag
+molecules/: ProjectCard, PhaseCard, StatCard, WalletBadge, KYCBadge, TxRow
+organisms/: Navbar, Footer, ProjectGrid, PortfolioTable, CompliancePanel, VestingCard, InvestSidebar
+templates/: PageLayout, DashboardLayout, SplitAuthLayout

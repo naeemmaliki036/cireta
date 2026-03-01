@@ -77,19 +77,20 @@ export function ProjectCard({
                 loading="lazy"
               />
             ) : (
-              <div className="bg-darkAqua w-full h-full flex items-center justify-center">
-                <svg
-                  width="70"
-                  height="68"
-                  viewBox="0 0 40 40"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M20 2L22.5 17.5L38 20L22.5 22.5L20 38L17.5 22.5L2 20L17.5 17.5L20 2Z"
-                    fill="white"
-                  />
+              <div className={`w-full h-full flex items-center justify-center relative overflow-hidden ${
+                assetType.toLowerCase().includes('gold') 
+                  ? 'bg-gradient-to-br from-[#C9913D] to-[#8B6914]'
+                  : assetType.toLowerCase().includes('copper')
+                  ? 'bg-gradient-to-br from-[#B87333] to-[#7D4E1F]'
+                  : 'bg-gradient-to-br from-[#13636F] to-[#0a3d45]'
+              }`}>
+                <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 30% 50%, white 1px, transparent 1px), radial-gradient(circle at 70% 20%, white 1px, transparent 1px)', backgroundSize: '40px 40px'}} />
+                <svg width="80" height="80" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-30">
+                  <path d="M20 2L22.5 17.5L38 20L22.5 22.5L20 38L17.5 22.5L2 20L17.5 17.5L20 2Z" fill="white"/>
                 </svg>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="text-white/80 text-xs font-semibold uppercase tracking-widest">{assetType}</div>
+                </div>
               </div>
             )}
           </div>

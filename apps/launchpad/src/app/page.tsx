@@ -127,19 +127,15 @@ export default function HomePage() {
             ONCHAINID.
           </p>
 
-          <div className="flex items-center gap-6 animate-fade-in">
-            <Link href="/explore">
-              <Button variant="secondary" size="lg">
+          <div className="flex items-center gap-6">
+            <Link href="/explore" className="inline-flex items-center justify-center rounded-full py-5 px-10 text-base font-semibold bg-[#13636F] text-white hover:bg-[#13636F]/90 transition-all duration-300 shadow-lg">
                 Explore Projects
-              </Button>
             </Link>
-            <Button
-              variant="primary"
-              size="lg"
-              leftIcon={<Play className="h-4 w-4" />}
+            <button
+              className="inline-flex items-center justify-center gap-2.5 rounded-full py-5 px-10 text-base font-semibold border-2 border-white/60 text-white hover:border-white hover:bg-white/10 transition-all duration-300"
             >
               Watch Demo
-            </Button>
+            </button>
           </div>
         </div>
       </section>
@@ -315,7 +311,7 @@ export default function HomePage() {
           </p>
           <div className="flex items-center justify-center gap-6">
             <Link href="/register">
-              <Button variant="secondary" size="lg">
+              <Button variant="outlineWhite" size="lg">
                 Create Account
               </Button>
             </Link>

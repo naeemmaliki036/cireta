@@ -95,25 +95,20 @@ export default function ExplorePage() {
   });
 
   return (
-    <div className="min-h-screen bg-box">
-      <Navbar variant="dark" />
+    <div className="min-h-screen bg-white">
+      <Navbar variant="light" />
+      <div className="pt-20">
 
       {/* Hero */}
-      <section className="bg-darkBlack pt-32 pb-12 px-4">
-        <div className="max-w-inner mx-auto text-center">
-          <h1 className="text-xxl md:text-1xl font-semibold text-white tracking-tight mb-4">
-            Explore Projects
-          </h1>
-          <p className="text-white/60 text-lg max-w-2xl mx-auto">
-            Discover tokenized real-world assets from verified institutional
-            issuers
-          </p>
-        </div>
-      </section>
+      <div className="max-w-7xl mx-auto px-6 pt-8 pb-6">
+        <h1 className="text-3xl font-bold text-darkBlack tracking-tight mb-2">Explore Projects</h1>
+        <p className="text-base text-darkBlack/60">Discover tokenized real-world assets from verified institutional issuers</p>
+      </div>
+
 
       {/* Filters */}
       <section className="bg-box border-b border-darkBlack/5 sticky top-0 z-30 py-4">
-        <div className="max-w-inner mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             {/* Search */}
             <div className="relative w-full md:w-96">
@@ -167,8 +162,8 @@ export default function ExplorePage() {
       </section>
 
       {/* Results */}
-      <section className="py-8 px-4">
-        <div className="max-w-inner mx-auto">
+      <section className="pt-6 pb-8 px-6">
+        <div className="max-w-7xl mx-auto">
           {/* Results Header */}
           <div className="flex items-center justify-between mb-6">
             <p className="text-gray-500">
@@ -219,6 +214,7 @@ export default function ExplorePage() {
         </div>
       </section>
 
+      </div>
       <Footer />
     </div>
   );
