@@ -1,127 +1,102 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
-import { Button, Select } from "@/components/atoms";
-import { TokenCard } from "@/components/molecules";
+import { Button, Input, Badge, Spinner } from "@/components/atoms";
+import { DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
+import { getTokens, type Token } from "@/lib/api/repositories/tokens";
 
-const MOCK_TOKENS = [
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("token") ?? undefined : undefined;
+}
+
+const columns: Column<Token>[] = [
   {
-    id: "1",
-    name: "West African Gold Reserve",
-    symbol: "WAGR",
-    assetType: "commodity" as const,
-    totalSupply: 50000,
-    currentPrice: 105,
-    holders: 247,
-    isPaused: false,
-    raised: 2450000,
-    target: 5000000,
+    key: "name",
+    header: "Token",
+    render: (row) => (
+      <div>
+        <p className="font-semibold text-text">{row.name}</p>
+        <p className="text-xs text-darkBlack/40">{row.symbol} · {row.asset_type}</p>
+      </div>
+    ),
   },
   {
-    id: "2",
-    name: "Copper Futures Q2 2024",
-    symbol: "CFQ2",
-    assetType: "futures" as const,
-    totalSupply: 25000,
-    currentPrice: 45,
-    holders: 89,
-    isPaused: false,
-    raised: 750000,
-    target: 1000000,
+    key: "total_supply",
+    header: "Supply",
+    render: (row) => <span className="font-mono text-sm">{parseFloat(row.total_supply).toLocaleString()}</span>,
   },
   {
-    id: "3",
-    name: "Silver Standard",
-    symbol: "SLVR",
-    assetType: "commodity" as const,
-    totalSupply: 100000,
-    currentPrice: 28,
-    holders: 156,
-    isPaused: true,
+    key: "contract_address",
+    header: "Contract",
+    render: (row) => row.contract_address
+      ? <code className="text-xs bg-box px-2 py-1 rounded">{row.contract_address.slice(0, 10)}…</code>
+      : <Badge variant="pending" size="sm">Not deployed</Badge>,
+  },
+  {
+    key: "is_paused",
+    header: "Status",
+    render: (row) => <Badge variant={row.is_paused ? "pending" : "active"} size="sm">{row.is_paused ? "Paused" : "Active"}</Badge>,
+  },
+  {
+    key: "id",
+    header: "",
+    render: (row) => (
+      <Link href={`/issuer/tokens/${row.id}`}>
+        <Button variant="ghost" size="sm">Manage</Button>
+      </Link>
+    ),
   },
 ];
 
-export default function TokensListPage() {
+export default function TokensPage() {
+  const [search, setSearch] = useState("");
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getTokens(1, 50, undefined, getToken());
+        setTokens(data.items);
+      } catch { /* empty */ }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const filtered = tokens.filter((t) =>
+    !search ||
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.symbol.toLowerCase().includes(search.toLowerCase()),
+  );
+
   return (
-    <IssuerDashboardLayout
-      title="Tokens"
-      description="Manage your tokenized assets"
-      actions={
-        <Link href="/issuer/tokens/new">
-          <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>
-            Create Token
-          </Button>
-        </Link>
-      }
-    >
-      {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-8"
-      >
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search tokens..."
-              className="input-field pl-12"
-            />
+    <IssuerDashboardLayout title="Tokens" description="Deploy and manage your ERC-3643 security tokens">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex-1 max-w-xs">
+            <Input placeholder="Search tokens…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select
-            options={[
-              { value: "all", label: "All Types" },
-              { value: "commodity", label: "Commodity" },
-              { value: "futures", label: "Futures" },
-            ]}
-          />
-          <Select
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "active", label: "Active" },
-              { value: "paused", label: "Paused" },
-            ]}
-          />
-        </div>
-      </motion.div>
-
-      {/* Tokens Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {MOCK_TOKENS.map((token, index) => (
-          <motion.div
-            key={token.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <TokenCard {...token} />
-          </motion.div>
-        ))}
-
-        {/* Create New Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: MOCK_TOKENS.length * 0.1 }}
-        >
-          <Link
-            href="/issuer/tokens/new"
-            className="flex flex-col items-center justify-center h-full min-h-[300px] bg-white rounded-3xl border-2 border-dashed border-darkBlack/20 hover:border-darkAqua hover:bg-darkAqua/5 transition-colors p-8"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-darkAqua/10 flex items-center justify-center mb-4">
-              <Plus className="h-8 w-8 text-darkAqua" />
-            </div>
-            <p className="font-semibold text-text mb-1">Create New Token</p>
-            <p className="text-sm text-gray-500 text-center">
-              Deploy a new ERC-3643 security token
-            </p>
+          <Link href="/issuer/tokens/new">
+            <Button variant="primary" >New Token</Button>
           </Link>
-        </motion.div>
-      </div>
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-12"><Spinner /></div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-darkBlack/40 mb-4">No tokens yet</p>
+            <Link href="/issuer/tokens/new">
+              <Button variant="primary" >Create First Token</Button>
+            </Link>
+          </div>
+        ) : (
+          <DataTable columns={columns} data={filtered} />
+        )}
+      </motion.div>
     </IssuerDashboardLayout>
   );
 }

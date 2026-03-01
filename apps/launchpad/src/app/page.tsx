@@ -10,46 +10,12 @@ import {
   Play,
   CheckCircle2,
 } from "lucide-react";
-import { Button } from "@/components/atoms";
+import { useState, useEffect } from "react";
+import { Button, Spinner } from "@/components/atoms";
 import { ProjectCard } from "@/components/molecules";
 import { Navbar, Footer } from "@/components/organisms";
+import { getProjects, type Project } from "@/lib/api/repositories/projects.repository";
 import CountUp from "react-countup";
-
-const MOCK_PROJECTS = [
-  {
-    id: "1",
-    title: "West African Gold Reserve",
-    slug: "west-african-gold",
-    imageUrl: "",
-    assetType: "Gold",
-    fundingRound: "Seed",
-    currentRaised: 2450000,
-    targetAmount: 5000000,
-    investorCount: 847,
-  },
-  {
-    id: "2",
-    title: "Chilean Copper Fund",
-    slug: "chilean-copper",
-    imageUrl: "",
-    assetType: "Copper",
-    fundingRound: "Series A",
-    currentRaised: 8200000,
-    targetAmount: 10000000,
-    investorCount: 1234,
-  },
-  {
-    id: "3",
-    title: "Moroccan Steel Manufacturing",
-    slug: "moroccan-steel",
-    imageUrl: "",
-    assetType: "Futures",
-    fundingRound: "Seed",
-    currentRaised: 1800000,
-    targetAmount: 3500000,
-    investorCount: 523,
-  },
-];
 
 const STATS = [
   { value: 2.4, suffix: "B", label: "Assets Tokenized", prefix: "$" },
@@ -83,6 +49,19 @@ const HOW_IT_WORKS = [
 ];
 
 export default function HomePage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getProjects({ status: "active", size: 6 });
+        setProjects(data.items);
+      } catch { /* empty */ }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Navbar variant="dark" />
@@ -183,7 +162,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-6 lg:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {MOCK_PROJECTS.map((project, index) => (
+            {loading ? <div className="col-span-3 flex justify-center py-12"><Spinner /></div> : projects.length === 0 ? <p className="col-span-3 text-center text-white/40 py-12">No active sales yet</p> : projects.map((project, index) => (
               <ProjectCard key={project.id} {...project} index={index} />
             ))}
           </div>

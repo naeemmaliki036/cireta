@@ -82,3 +82,50 @@ export async function unpauseToken(
     { method: "POST", token },
   );
 }
+
+export interface AuditLogEntry {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string;
+  target_id: string;
+  reason: string | null;
+  ip_address: string | null;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface AuditLogListResponse {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface FrozenAddress {
+  wallet_address: string;
+  token_id: string | null;
+  reason: string;
+  frozen_at: string;
+  audit_log_id: string;
+}
+
+export interface FrozenAddressListResponse {
+  items: FrozenAddress[];
+  total: number;
+}
+
+export async function getAuditLogs(
+  page = 1,
+  size = 20,
+  action?: string,
+  token?: string,
+): Promise<AuditLogListResponse> {
+  let url = `/api/v1/admin/compliance/audit-logs?page=${page}&size=${size}`;
+  if (action) url += `&action=${encodeURIComponent(action)}`;
+  return apiFetch<AuditLogListResponse>(url, { token });
+}
+
+export async function getFrozenAddresses(token?: string): Promise<FrozenAddressListResponse> {
+  return apiFetch<FrozenAddressListResponse>("/api/v1/admin/compliance/frozen", { token });
+}

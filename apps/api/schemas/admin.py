@@ -98,3 +98,46 @@ class MessageResponse(BaseModel):
     """Simple message response."""
 
     message: str
+
+
+class AuditLogResponse(BaseModel):
+    """Audit log entry response."""
+
+    id: str
+    actor_id: str | None
+    action: str
+    target_type: str
+    target_id: str
+    reason: str | None
+    ip_address: str | None
+    payload: dict | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AuditLogListResponse(BaseModel):
+    """Paginated audit log response."""
+
+    items: list[AuditLogResponse]
+    total: int
+    page: int
+    size: int
+
+
+class FrozenAddressInfo(BaseModel):
+    """Derived frozen address entry from audit logs."""
+
+    wallet_address: str
+    token_id: str | None
+    reason: str
+    frozen_at: datetime
+    audit_log_id: str
+
+
+class FrozenAddressListResponse(BaseModel):
+    """List of currently frozen addresses."""
+
+    items: list[FrozenAddressInfo]
+    total: int

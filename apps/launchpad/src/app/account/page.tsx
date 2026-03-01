@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -12,29 +12,33 @@ import {
   ChevronRight,
   Plus,
 } from "lucide-react";
-import { Button, Badge, Input } from "@/components/atoms";
+import { Button, Badge, Input, Spinner } from "@/components/atoms";
 import { KYCBadge, WalletBadge } from "@/components/molecules";
 import { DashboardLayout } from "@/components/templates";
+import { me, type User as AuthUser } from "@/lib/api/repositories/auth.repository";
 
-const MOCK_USER = {
-  email: "investor@example.com",
-  kycStatus: "approved" as const,
-  kycLevel: 2,
-  wallets: [
-    { address: "0x1234567890abcdef1234567890abcdef12345678", isPrimary: true },
-    { address: "0xabcdef1234567890abcdef1234567890abcdef12", isPrimary: false },
-  ],
-  notifications: {
-    email: true,
-    saleUpdates: true,
-    vestingReminders: true,
-    marketing: false,
-  },
-};
 
 export default function AccountPage() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const token = localStorage.getItem("token");
+      if (!token) { setLoading(false); return; }
+      try {
+        const data = await me(token);
+        setUser(data);
+      } catch { /* redirect to login */ }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  if (loading) return <DashboardLayout title="Account"><div className="flex justify-center py-24"><Spinner /></div></DashboardLayout>;
+  if (!user) return <DashboardLayout title="Account"><p className="text-center text-white/40 py-24">Please log in</p></DashboardLayout>;
+
   const [activeTab, setActiveTab] = useState("profile");
-  const [notifications, setNotifications] = useState(MOCK_USER.notifications);
+  const [notifications, setNotifications] = useState({ email: true, sms: false, browser: true });
 
   return (
     <DashboardLayout
@@ -82,7 +86,7 @@ export default function AccountPage() {
                   <Mail className="h-5 w-5 text-darkAqua" />
                 </div>
                 <div>
-                  <p className="font-medium">{MOCK_USER.email}</p>
+                  <p className="font-medium">{user.email}</p>
                   <p className="text-sm text-gray-500">Primary email</p>
                 </div>
               </div>
@@ -98,8 +102,8 @@ export default function AccountPage() {
             <div className="flex items-center justify-between">
               <div>
                 <KYCBadge
-                  status={MOCK_USER.kycStatus}
-                  level={MOCK_USER.kycLevel}
+                  status={user.kyc_status}
+                  level={user.kyc_level}
                 />
                 <p className="text-sm text-gray-500 mt-2">
                   Verified on March 1, 2024
@@ -150,22 +154,13 @@ export default function AccountPage() {
             </div>
 
             <div className="space-y-4">
-              {MOCK_USER.wallets.map((wallet) => (
-                <div
-                  key={wallet.address}
-                  className="flex items-center justify-between p-4 rounded-xl bg-box"
-                >
-                  <WalletBadge
-                    address={wallet.address}
-                    isPrimary={wallet.isPrimary}
-                  />
-                  {!wallet.isPrimary && (
-                    <Button variant="ghost" size="sm">
-                      Set as Primary
-                    </Button>
-                  )}
+              {user.onchain_id ? (
+                <div className="flex items-center justify-between p-4 rounded-xl bg-box">
+                  <WalletBadge address={user.onchain_id} isPrimary={true} />
                 </div>
-              ))}
+              ) : (
+                <p className="text-sm text-darkBlack/40 text-center py-4">No wallet connected yet</p>
+              )}
             </div>
           </div>
         </motion.div>

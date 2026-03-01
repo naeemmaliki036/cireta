@@ -1,308 +1,154 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Shield,
-  Lock,
-  Unlock,
-  ArrowRightLeft,
-  RefreshCw,
-  AlertTriangle,
-  Search,
-  X,
-} from "lucide-react";
-import { Button, Input, Select, Textarea } from "@/components/atoms";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Lock, Unlock, ArrowLeftRight, RotateCcw, X } from "lucide-react";
+import { Button, Input, Spinner } from "@/components/atoms";
 import { AuditLogRow } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
+import {
+  freezeAddress, unfreezeAddress, forcedTransfer, recoverTokens,
+  getAuditLogs, type AuditLogEntry,
+} from "@/lib/api/repositories/compliance";
+import type { ComplianceAction } from "@/components/molecules";
 
-const MOCK_AUDIT_LOGS = [
-  { action: "freeze" as const, actorWallet: "0x1234567890abcdef1234567890abcdef12345678", targetWallet: "0xabcdef1234567890abcdef1234567890abcdef12", targetType: "WAGR", timestamp: "2024-03-01T10:30:00Z", details: "Suspected fraudulent activity" },
-  { action: "unfreeze" as const, actorWallet: "0x1234567890abcdef1234567890abcdef12345678", targetWallet: "0x9876543210fedcba9876543210fedcba98765432", targetType: "WAGR", timestamp: "2024-02-28T14:15:00Z", details: "Investigation complete" },
-  { action: "forced_transfer" as const, actorWallet: "0x1234567890abcdef1234567890abcdef12345678", targetWallet: "0xfedcba9876543210fedcba9876543210fedcba98", targetType: "CFQ2", timestamp: "2024-02-25T09:00:00Z", details: "Court order compliance" },
-  { action: "recover" as const, actorWallet: "0x1234567890abcdef1234567890abcdef12345678", targetWallet: "0x5678901234abcdef5678901234abcdef56789012", targetType: "WAGR", timestamp: "2024-02-20T16:45:00Z", details: "Lost key recovery request" },
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+}
+
+type ActionType = "freeze" | "unfreeze" | "forced_transfer" | "recover" | null;
+
+const ACTION_CARDS = [
+  { action: "freeze" as const, icon: Lock, title: "Freeze Address", desc: "Prevent an address from transferring tokens", color: "text-red-600", bg: "bg-red-100" },
+  { action: "unfreeze" as const, icon: Unlock, title: "Unfreeze Address", desc: "Restore transfer rights to an address", color: "text-green-600", bg: "bg-green-100" },
+  { action: "forced_transfer" as const, icon: ArrowLeftRight, title: "Forced Transfer", desc: "Forcibly move tokens between addresses", color: "text-yellow-600", bg: "bg-yellow-100" },
+  { action: "recover" as const, icon: RotateCcw, title: "Recover Tokens", desc: "Recover tokens from a lost wallet", color: "text-purple-600", bg: "bg-purple-100" },
 ];
-
-const TOKENS = [
-  { value: "wagr", label: "West African Gold Reserve (WAGR)" },
-  { value: "cfq2", label: "Copper Futures Q2 (CFQ2)" },
-];
-
-type ModalAction = "freeze" | "unfreeze" | "forced_transfer" | "recover" | null;
 
 export default function CompliancePage() {
-  const [activeTab, setActiveTab] = useState<"actions" | "logs">("actions");
-  const [modalAction, setModalAction] = useState<ModalAction>(null);
-  const [selectedToken, setSelectedToken] = useState("wagr");
+  const [modalAction, setModalAction] = useState<ActionType>(null);
   const [targetAddress, setTargetAddress] = useState("");
-  const [reason, setReason] = useState("");
   const [destinationAddress, setDestinationAddress] = useState("");
   const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [selectedToken, setSelectedToken] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getAuditLogs(1, 20, undefined, getToken());
+        setAuditLogs(data.items);
+      } catch { /* empty */ }
+      finally { setLogsLoading(false); }
+    })();
+  }, []);
 
   const handleSubmit = async () => {
+    if (!targetAddress || !reason) return;
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const token = getToken();
+    try {
+      if (modalAction === "freeze") {
+        await freezeAddress({ wallet_address: targetAddress, reason }, token);
+      } else if (modalAction === "unfreeze") {
+        await unfreezeAddress({ wallet_address: targetAddress, reason }, token);
+      } else if (modalAction === "forced_transfer") {
+        await forcedTransfer({ token_id: selectedToken, from_address: targetAddress, to_address: destinationAddress, amount, reason }, token);
+      } else if (modalAction === "recover") {
+        await recoverTokens({ token_id: selectedToken, from_address: targetAddress, amount, reason }, token);
+      }
+      const data = await getAuditLogs(1, 20, undefined, token);
+      setAuditLogs(data.items);
+    } catch { /* TODO: toast */ }
     setIsSubmitting(false);
     setModalAction(null);
-    setTargetAddress("");
-    setReason("");
-    setDestinationAddress("");
-    setAmount("");
+    setTargetAddress(""); setReason(""); setDestinationAddress(""); setAmount(""); setSelectedToken("");
   };
 
-  const actionCards = [
-    {
-      action: "freeze" as const,
-      icon: Lock,
-      title: "Freeze Address",
-      description: "Prevent an address from transferring tokens",
-      color: "text-red-600",
-      bgColor: "bg-red-100",
-    },
-    {
-      action: "unfreeze" as const,
-      icon: Unlock,
-      title: "Unfreeze Address",
-      description: "Re-enable transfers for a frozen address",
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
-    {
-      action: "forced_transfer" as const,
-      icon: ArrowRightLeft,
-      title: "Forced Transfer",
-      description: "Transfer tokens from one address to another",
-      color: "text-gold",
-      bgColor: "bg-gold/10",
-    },
-    {
-      action: "recover" as const,
-      icon: RefreshCw,
-      title: "Recover Tokens",
-      description: "Recover tokens from a lost or compromised wallet",
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-  ];
+  const activeCard = ACTION_CARDS.find((c) => c.action === modalAction);
 
   return (
-    <IssuerDashboardLayout
-      title="Compliance Management"
-      description="Manage token compliance actions and view audit logs"
-    >
-      {/* Tabs */}
-      <div className="flex gap-2 mb-8">
-        <button
-          onClick={() => setActiveTab("actions")}
-          className={`px-6 py-3 rounded-xl font-medium transition-colors ${
-            activeTab === "actions"
-              ? "bg-darkAqua text-white"
-              : "bg-white text-gray-500 hover:text-text border border-darkBlack/10"
-          }`}
-        >
-          <Shield className="h-4 w-4 inline mr-2" />
-          Actions
-        </button>
-        <button
-          onClick={() => setActiveTab("logs")}
-          className={`px-6 py-3 rounded-xl font-medium transition-colors ${
-            activeTab === "logs"
-              ? "bg-darkAqua text-white"
-              : "bg-white text-gray-500 hover:text-text border border-darkBlack/10"
-          }`}
-        >
-          Audit Logs
-        </button>
+    <IssuerDashboardLayout title="Compliance Actions" description="Freeze addresses, force transfers, recover tokens">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {ACTION_CARDS.map((card) => (
+          <motion.button key={card.action} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
+            onClick={() => setModalAction(card.action)}
+            className="bg-white rounded-3xl p-6 border border-darkBlack/10 text-left hover:border-darkAqua transition-colors">
+            <div className={`w-12 h-12 rounded-xl ${card.bg} flex items-center justify-center mb-4`}>
+              <card.icon className={`h-6 w-6 ${card.color}`} />
+            </div>
+            <h3 className="font-semibold text-text mb-1">{card.title}</h3>
+            <p className="text-sm text-darkBlack/50">{card.desc}</p>
+          </motion.button>
+        ))}
       </div>
 
-      {activeTab === "actions" && (
-        <>
-          {/* Token Selector */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6"
-          >
-            <div className="max-w-md">
-              <Select
-                label="Select Token"
-                options={TOKENS}
-                value={selectedToken}
-                onChange={(e) => setSelectedToken(e.target.value)}
-              />
-            </div>
-          </motion.div>
-
-          {/* Action Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {actionCards.map((card, index) => (
-              <motion.button
-                key={card.action}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => setModalAction(card.action)}
-                className="bg-white rounded-3xl p-6 border border-darkBlack/10 text-left hover:shadow-card transition-shadow group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`w-14 h-14 rounded-2xl ${card.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                    <card.icon className={`h-7 w-7 ${card.color}`} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-text mb-1">{card.title}</h3>
-                    <p className="text-sm text-gray-500">{card.description}</p>
-                  </div>
-                </div>
-              </motion.button>
-            ))}
-          </div>
-
-          {/* Warning */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 p-4 rounded-xl bg-gold/10 border border-gold/30 flex gap-3"
-          >
-            <AlertTriangle className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-gold text-sm">Important Notice</p>
-              <p className="text-sm text-gray-600 mt-1">
-                All compliance actions are permanently logged and cannot be undone.
-                Ensure you have proper authorization before proceeding.
-              </p>
-            </div>
-          </motion.div>
-        </>
-      )}
-
-      {activeTab === "logs" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-text">Audit Log</h3>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search logs..."
-                  className="input-field pl-10 py-2 text-sm"
-                />
-              </div>
-              <Select
-                options={[
-                  { value: "all", label: "All Actions" },
-                  { value: "freeze", label: "Freeze" },
-                  { value: "unfreeze", label: "Unfreeze" },
-                  { value: "forced_transfer", label: "Forced Transfer" },
-                  { value: "recover", label: "Recover" },
-                ]}
-              />
-            </div>
-          </div>
-
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+        <h2 className="text-lg font-semibold text-text mb-6">Audit Log</h2>
+        {logsLoading ? (
+          <div className="flex justify-center py-8"><Spinner /></div>
+        ) : auditLogs.length === 0 ? (
+          <p className="text-center text-darkBlack/40 py-8">No compliance actions yet</p>
+        ) : (
           <div className="space-y-3">
-            {MOCK_AUDIT_LOGS.map((log, index) => (
-              <AuditLogRow key={index} {...log} index={index} />
+            {auditLogs.map((log, i) => (
+              <AuditLogRow key={log.id} action={log.action as ComplianceAction}
+                actorWallet={log.actor_id ?? ""} targetWallet={log.target_id}
+                targetType={log.target_type ?? "wallet"} timestamp={log.created_at}
+                details={log.reason ?? ""} index={i} />
             ))}
           </div>
-        </motion.div>
-      )}
-
-      {/* Action Modal */}
-      <AnimatePresence>
-        {modalAction && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={() => setModalAction(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-8 max-w-lg w-full"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-text capitalize">
-                  {modalAction.replace("_", " ")}
-                </h2>
-                <button
-                  onClick={() => setModalAction(null)}
-                  className="p-2 hover:bg-box rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <Input
-                  label="Target Address"
-                  placeholder="0x..."
-                  value={targetAddress}
-                  onChange={(e) => setTargetAddress(e.target.value)}
-                />
-
-                {(modalAction === "forced_transfer" || modalAction === "recover") && (
-                  <>
-                    <Input
-                      label="Destination Address"
-                      placeholder="0x..."
-                      value={destinationAddress}
-                      onChange={(e) => setDestinationAddress(e.target.value)}
-                    />
-                    <Input
-                      label="Amount"
-                      type="number"
-                      placeholder="Token amount"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                  </>
-                )}
-
-                <Textarea
-                  label="Reason"
-                  placeholder="Provide a detailed reason for this action..."
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-
-                <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-                  <p className="text-sm text-red-700">
-                    <strong>Warning:</strong> This action will be logged permanently and
-                    may require regulatory documentation.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <Button variant="outline" className="flex-1" onClick={() => setModalAction(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant={modalAction === "freeze" || modalAction === "forced_transfer" ? "danger" : "primary"}
-                  className="flex-1"
-                  onClick={handleSubmit}
-                  isLoading={isSubmitting}
-                  disabled={!targetAddress || !reason}
-                >
-                  Confirm Action
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
         )}
-      </AnimatePresence>
+      </motion.div>
+
+      {modalAction && activeCard && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setModalAction(null)}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl ${activeCard.bg} flex items-center justify-center`}>
+                  <activeCard.icon className={`h-5 w-5 ${activeCard.color}`} />
+                </div>
+                <h2 className="text-xl font-semibold text-text">{activeCard.title}</h2>
+              </div>
+              <button onClick={() => setModalAction(null)} className="p-2 hover:bg-box rounded-xl">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <Input label="Target Address" value={targetAddress}
+                onChange={(e) => setTargetAddress(e.target.value)} placeholder="0x..." />
+              {(modalAction === "forced_transfer" || modalAction === "recover") && (
+                <>
+                  <Input label="Token ID" value={selectedToken}
+                    onChange={(e) => setSelectedToken(e.target.value)} placeholder="Token ID" />
+                  <Input label="Amount" type="number" value={amount}
+                    onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+                </>
+              )}
+              {modalAction === "forced_transfer" && (
+                <Input label="Destination Address" value={destinationAddress}
+                  onChange={(e) => setDestinationAddress(e.target.value)} placeholder="0x..." />
+              )}
+              <Input label="Reason" value={reason}
+                onChange={(e) => setReason(e.target.value)} placeholder="Regulatory order #..." />
+            </div>
+            <div className="flex gap-4 mt-6">
+              <Button variant="outline" className="flex-1" onClick={() => setModalAction(null)}>Cancel</Button>
+              <Button variant="primary" className="flex-1" onClick={handleSubmit}
+                disabled={isSubmitting || !targetAddress || !reason}>
+                {isSubmitting ? <Spinner size="sm" /> : "Confirm"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </IssuerDashboardLayout>
   );
 }

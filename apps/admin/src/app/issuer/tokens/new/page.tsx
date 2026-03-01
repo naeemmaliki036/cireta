@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Coins,
@@ -309,16 +308,14 @@ export default function CreateTokenPage() {
       <div className="flex justify-between mt-8">
         {currentStep === 1 ? (
           <Link href="/issuer/tokens">
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            <Button variant="outline" >
               Cancel
             </Button>
           </Link>
         ) : (
           <Button
             variant="outline"
-            onClick={handleBack}
-            leftIcon={<ArrowLeft className="h-4 w-4" />}
-          >
+            onClick={handleBack} >
             Back
           </Button>
         )}
@@ -335,9 +332,7 @@ export default function CreateTokenPage() {
           <Button
             variant="primary"
             onClick={handleDeploy}
-            isLoading={isDeploying}
-            leftIcon={<Rocket className="h-4 w-4" />}
-          >
+            isLoading={isDeploying} >
             {isDeploying ? "Deploying..." : "Deploy Token"}
           </Button>
         )}

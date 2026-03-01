@@ -4,12 +4,18 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.models.audit_log import AuditLog
 from apps.api.schemas.admin import (
+    AuditLogListResponse,
+    AuditLogResponse,
     ComplianceActionResponse,
     ForcedTransferRequest,
     FreezeRequest,
+    FrozenAddressInfo,
+    FrozenAddressListResponse,
     RecoverRequest,
     UnfreezeRequest,
 )
@@ -194,3 +200,80 @@ async def unpause_token(
         target=str(token_id),
         audit_log_id=str(audit.id),
     )
+
+
+
+
+
+@router.get("/compliance/audit-logs", response_model=AuditLogListResponse)
+async def list_audit_logs(
+    user_id: CurrentUserId,  # noqa: ARG001
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    action: str | None = Query(None),
+) -> AuditLogListResponse:
+    """List compliance audit log entries, newest first."""
+    offset = (page - 1) * size
+    q = select(AuditLog).order_by(AuditLog.created_at.desc())
+    if action:
+        q = q.where(AuditLog.action == action)
+    total_q = select(func.count()).select_from(q.subquery())
+    total = (await db.execute(total_q)).scalar_one()
+    rows = (await db.execute(q.offset(offset).limit(size))).scalars().all()
+    items = [
+        AuditLogResponse(
+            id=str(r.id),
+            actor_id=str(r.actor_id) if r.actor_id else None,
+            action=r.action,
+            target_type=r.target_type,
+            target_id=r.target_id,
+            reason=r.reason,
+            ip_address=r.ip_address,
+            payload=r.payload,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+    return AuditLogListResponse(items=items, total=total, page=page, size=size)
+
+
+@router.get("/compliance/frozen", response_model=FrozenAddressListResponse)
+async def list_frozen_addresses(
+    user_id: CurrentUserId,  # noqa: ARG001
+    db: AsyncSession = Depends(get_db),
+) -> FrozenAddressListResponse:
+    """Return addresses that are currently frozen (freeze without matching unfreeze)."""
+    freeze_q = (
+        select(AuditLog)
+        .where(AuditLog.action == "freeze")
+        .order_by(AuditLog.created_at.desc())
+    )
+    unfreeze_q = select(AuditLog).where(AuditLog.action == "unfreeze")
+
+    frozen_rows = (await db.execute(freeze_q)).scalars().all()
+    unfrozen_rows = (await db.execute(unfreeze_q)).scalars().all()
+
+    unfrozen_targets = {
+        (r.target_id, str(r.payload.get("token_id") if r.payload else None))
+        for r in unfrozen_rows
+    }
+
+    items: list[FrozenAddressInfo] = []
+    seen: set[tuple[str, str | None]] = set()
+    for r in frozen_rows:
+        token_id = str(r.payload.get("token_id")) if r.payload and r.payload.get("token_id") else None
+        key = (r.target_id, token_id)
+        if key not in seen and key not in unfrozen_targets:
+            seen.add(key)
+            items.append(
+                FrozenAddressInfo(
+                    wallet_address=r.target_id,
+                    token_id=token_id,
+                    reason=r.reason or "",
+                    frozen_at=r.created_at,
+                    audit_log_id=str(r.id),
+                )
+            )
+
+    return FrozenAddressListResponse(items=items, total=len(items))

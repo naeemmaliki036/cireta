@@ -1,86 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/atoms";
+import { Button, Spinner } from "@/components/atoms";
 import { VestingCard } from "@/components/organisms";
-import { TxRow } from "@/components/molecules";
 import { DashboardLayout } from "@/components/templates";
+import { getVesting, claimVesting, type VestingSchedule } from "@/lib/api/repositories/portfolio.repository";
 
-const MOCK_VESTING = {
-  tokenName: "West African Gold Reserve",
-  tokenSymbol: "WAGR",
-  totalAmount: 1250,
-  claimedAmount: 500,
-  claimableAmount: 125,
-  cliffEnd: new Date("2024-03-01"),
-  vestingEnd: new Date("2025-03-01"),
-  lastClaimDate: new Date("2024-02-15"),
-};
+export default function ClaimTokenPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
+  const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
 
-const MOCK_TRANSACTIONS: any[] = [
-  {
-    txHash: "0x1234567890abcdef1234567890abcdef12345678",
-    type: "claim",
-    status: "confirmed",
-    amount: 250,
-    tokenSymbol: "WAGR",
-    timestamp: new Date("2024-02-15"),
-  },
-  {
-    txHash: "0xabcdef1234567890abcdef1234567890abcdef12",
-    type: "claim",
-    status: "confirmed",
-    amount: 250,
-    tokenSymbol: "WAGR",
-    timestamp: new Date("2024-01-15"),
-  },
-];
+  useEffect(() => {
+    paramsPromise.then(setResolvedParams);
+  }, [paramsPromise]);
 
-export default function ClaimTokenPage() {
+  if (!resolvedParams) return null;
+  const [schedule, setSchedule] = useState<VestingSchedule | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isClaimLoading, setIsClaimLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [claimedAmt, setClaimedAmt] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const schedules = await getVesting(resolvedParams.token);
+        if (schedules.length > 0) setSchedule(schedules[0] ?? null);
+      } catch { /* empty */ }
+      finally { setLoading(false); }
+    })();
+  }, [resolvedParams.token]);
 
   const handleClaim = async () => {
+    if (!schedule) return;
     setIsClaimLoading(true);
-    // Simulate claim transaction
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const result = await claimVesting(schedule.id);
+      setClaimedAmt(result.claimed_amount);
+      setShowSuccess(true);
+    } catch { /* TODO: toast */ }
     setIsClaimLoading(false);
-    setShowSuccess(true);
   };
+
+  if (loading) {
+    return <DashboardLayout title="Claim Tokens"><div className="flex justify-center py-24"><Spinner /></div></DashboardLayout>;
+  }
+
+  if (!schedule) {
+    return <DashboardLayout title="Claim Tokens"><p className="text-center text-gray-400 py-24">No vesting schedule found</p></DashboardLayout>;
+  }
 
   if (showSuccess) {
     return (
       <DashboardLayout title="Claim Tokens">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md mx-auto text-center py-20"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md mx-auto text-center py-20">
           <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-green-600" />
           </div>
-          <h1 className="text-2xl font-semibold text-text mb-4">
-            Tokens Claimed!
-          </h1>
-          <p className="text-gray-500 mb-8">
-            125 WAGR tokens have been successfully claimed to your wallet.
-          </p>
+          <h1 className="text-2xl font-semibold text-text mb-4">Tokens Claimed!</h1>
+          <p className="text-gray-500 mb-8">{claimedAmt} {schedule.token_symbol} tokens have been claimed to your wallet.</p>
           <div className="space-y-3">
-            <Button
-              variant="primary"
-              className="w-full"
-              onClick={() => setShowSuccess(false)}
-            >
-              Claim More
-            </Button>
-            <Link href="/portfolio">
-              <Button variant="outline" className="w-full">
-                Back to Portfolio
-              </Button>
-            </Link>
+            <Button variant="primary" className="w-full" onClick={() => setShowSuccess(false)}>Claim More</Button>
+            <Link href="/portfolio"><Button variant="outline" className="w-full">Back to Portfolio</Button></Link>
           </div>
         </motion.div>
       </DashboardLayout>
@@ -89,41 +73,23 @@ export default function ClaimTokenPage() {
 
   return (
     <DashboardLayout title="Claim Tokens">
-      <Link
-        href="/portfolio"
-        className="inline-flex items-center gap-2 text-gray-500 hover:text-text transition-colors mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Portfolio
+      <Link href="/portfolio" className="inline-flex items-center gap-2 text-gray-500 hover:text-text transition-colors mb-6">
+        <ArrowLeft className="h-4 w-4" /> Back to Portfolio
       </Link>
-
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Vesting Card */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
+      <div className="max-w-lg">
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <VestingCard
-            {...MOCK_VESTING}
+            tokenName={schedule.token_name}
+            tokenSymbol={schedule.token_symbol}
+            totalAmount={parseFloat(schedule.total_amount)}
+            claimedAmount={parseFloat(schedule.claimed_amount)}
+            claimableAmount={parseFloat(schedule.claimable_amount)}
+            cliffEnd={new Date(schedule.cliff_end)}
+            vestingEnd={new Date(schedule.vesting_end)}
+            lastClaimDate={schedule.last_claim_at ? new Date(schedule.last_claim_at) : undefined}
             onClaim={handleClaim}
             isClaimLoading={isClaimLoading}
           />
-        </motion.div>
-
-        {/* Claim History */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white rounded-3xl border border-darkBlack/10 overflow-hidden"
-        >
-          <div className="p-6 border-b border-darkBlack/5">
-            <h2 className="text-xl font-semibold text-text">Claim History</h2>
-          </div>
-          <div>
-            {MOCK_TRANSACTIONS.map((tx) => (
-              <TxRow key={tx.txHash} {...tx} />
-            ))}
-          </div>
         </motion.div>
       </div>
     </DashboardLayout>
