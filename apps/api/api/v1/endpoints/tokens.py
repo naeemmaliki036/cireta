@@ -32,7 +32,7 @@ def _token_to_response(token) -> TokenResponse:
         issuer_id=str(token.issuer_id),
         name=token.name,
         symbol=token.symbol,
-        asset_type=token.asset_type.value,
+        asset_type=(token.asset_type.value if hasattr(token.asset_type, "value") else token.asset_type),
         contract_address=token.contract_address,
         chain_id=token.chain_id,
         total_supply=str(token.total_supply),
@@ -41,6 +41,9 @@ def _token_to_response(token) -> TokenResponse:
         chainlink_por_feed=token.chainlink_por_feed,
         is_paused=token.is_paused,
         is_deployed=token.is_deployed,
+        slug=token.slug,
+        description=token.description,
+        image_url=token.image_url,
     )
 
 
@@ -92,7 +95,7 @@ async def create_token(
         user_id=user_id,
         name=request.name,
         symbol=request.symbol,
-        asset_type=request.asset_type.value,
+        asset_type=(request.asset_type.value if hasattr(request.asset_type, "value") else request.asset_type),
         total_supply=request.total_supply,
         decimals=request.decimals,
         ipfs_docs_hash=request.ipfs_docs_hash,

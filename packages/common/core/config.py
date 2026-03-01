@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     workers: int = Field(default=DEFAULTS["WORKERS"])
 
     # CORS
-    cors_origins: list[str] = Field(default=DEFAULTS["CORS_ORIGINS"])
+    cors_origins: str | list[str] = Field(default=DEFAULTS["CORS_ORIGINS"])
 
     # Logging
     log_level: str = Field(default=DEFAULTS["LOG_LEVEL"])

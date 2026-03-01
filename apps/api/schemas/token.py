@@ -17,6 +17,9 @@ class TokenCreateRequest(BaseModel):
     decimals: int = Field(default=18, ge=0, le=18)
     ipfs_docs_hash: str | None = None
     chainlink_por_feed: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    image_url: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -35,6 +38,9 @@ class TokenResponse(BaseModel):
     chainlink_por_feed: str | None
     is_paused: bool
     is_deployed: bool
+    slug: str | None = None
+    description: str | None = None
+    image_url: str | None = None
 
     class Config:
         from_attributes = True

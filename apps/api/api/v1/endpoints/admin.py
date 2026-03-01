@@ -57,7 +57,7 @@ def _issuer_to_response(issuer) -> IssuerResponse:
         slug=issuer.slug,
         wallet_address=issuer.wallet_address,
         fee_bps=issuer.fee_bps,
-        status=issuer.status.value,
+        status=(issuer.status.value if hasattr(issuer.status, "value") else issuer.status),
         legal_entity_name=issuer.legal_entity_name,
         jurisdiction=issuer.jurisdiction,
         created_at=issuer.created_at,

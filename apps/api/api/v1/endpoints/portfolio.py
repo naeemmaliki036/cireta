@@ -80,8 +80,8 @@ def _redemption_to_response(redemption) -> RedemptionResponse:
         token_id=str(redemption.token_id),
         token_symbol=redemption.token.symbol,
         amount=str(redemption.amount),
-        fulfillment_method=redemption.fulfillment_method.value,
-        status=redemption.status.value,
+        fulfillment_method=(redemption.fulfillment_method.value if hasattr(redemption.fulfillment_method, "value") else redemption.fulfillment_method),
+        status=(redemption.status.value if hasattr(redemption.status, "value") else redemption.status),
         tx_hash=redemption.tx_hash,
         fulfilled_at=redemption.fulfilled_at,
         notes=redemption.notes,
@@ -172,7 +172,7 @@ async def create_redemption(
         user_id=user_id,
         token_id=UUID(request.token_id),
         amount=request.amount,
-        fulfillment_method=request.fulfillment_method.value,
+        fulfillment_method=(request.fulfillment_method.value if hasattr(request.fulfillment_method, "value") else request.fulfillment_method),
         notes=request.notes,
     )
 

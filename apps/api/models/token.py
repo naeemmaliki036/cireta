@@ -90,6 +90,23 @@ class Token(BaseModel):
         nullable=True,
     )
 
+    slug: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        String(2000),
+        nullable=True,
+    )
+
+    image_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
     is_paused: Mapped[bool] = mapped_column(
         Boolean,
         default=False,

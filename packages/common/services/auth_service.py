@@ -4,12 +4,11 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class AuthService:
@@ -30,12 +29,12 @@ class AuthService:
     @staticmethod
     def hash_password(password: str) -> str:
         """Hash a password using bcrypt."""
-        return pwd_context.hash(password)
+        return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash."""
-        return pwd_context.verify(plain_password, hashed_password)
+        return _bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
     def create_access_token(
         self,

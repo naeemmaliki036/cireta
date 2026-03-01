@@ -55,7 +55,7 @@ def _sale_to_response(sale) -> SaleResponse:
         payment_token=sale.payment_token,
         soft_cap=str(sale.soft_cap),
         hard_cap=str(sale.hard_cap),
-        status=sale.status.value,
+        status=(sale.status.value if hasattr(sale.status, "value") else sale.status),
         total_raised=str(sale.total_raised),
         is_active=sale.is_active,
         soft_cap_reached=sale.soft_cap_reached,
@@ -74,7 +74,7 @@ def _contribution_to_response(contrib) -> ContributionResponse:
         amount=str(contrib.amount),
         tokens_allocated=str(contrib.tokens_allocated),
         tx_hash=contrib.tx_hash,
-        status=contrib.status.value,
+        status=(contrib.status.value if hasattr(contrib.status, "value") else contrib.status),
         claimed_at=contrib.claimed_at,
     )
 
