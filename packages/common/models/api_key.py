@@ -6,7 +6,7 @@ to support programmatic access in addition to user authentication.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
@@ -78,7 +78,7 @@ class APIKey(BaseModel):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="api_keys")
+    user: Mapped[User] = relationship(back_populates="api_keys")
 
     def __repr__(self) -> str:
         return (

@@ -1,123 +1,58 @@
-"""Shared test fixtures."""
+"""Shared test fixtures for Cireta RWA Launchpad.
+
+Note: Full test fixtures will be implemented in Step 13.
+This is a minimal placeholder to allow linting and import checks.
+"""
 
 import os
-from collections.abc import Generator
-from typing import Any
+from collections.abc import AsyncGenerator
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-# Set test environment before importing app
+# Set test environment before importing app modules
 os.environ["ENVIRONMENT"] = "development"
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
-os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
+os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only-32chars!"
 
 from packages.common.db.base import Base
-from packages.common.db.session import get_db
-from packages.common.models.user import User, UserRole
-from packages.common.services.auth_service import AuthService
-from apps.example_api.main import app
-
 
 # Test database setup
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
+SQLALCHEMY_TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
-engine = create_engine(
+engine = create_async_engine(
     SQLALCHEMY_TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
 )
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+TestingSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_database() -> Generator[None, None, None]:
+@pytest_asyncio.fixture(scope="session")
+async def setup_database() -> AsyncGenerator[None, None]:
     """Create database tables before tests, drop after."""
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
-    Base.metadata.drop_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture
-def db_session() -> Generator[Session, None, None]:
+@pytest_asyncio.fixture
+async def db_session(
+    setup_database: None,  # noqa: ARG001
+) -> AsyncGenerator[AsyncSession, None]:
     """Get a test database session with transaction rollback."""
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
-
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()
-
-
-@pytest.fixture
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    """Get FastAPI test client with database override."""
-
-    def override_get_db() -> Generator[Session, None, None]:
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    with TestClient(app) as test_client:
-        yield test_client
-
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def auth_service(db_session: Session) -> AuthService:
-    """Get AuthService instance for testing."""
-    return AuthService(db_session)
-
-
-@pytest.fixture
-def test_user(db_session: Session, auth_service: AuthService) -> User:
-    """Create a test user."""
-    user = User(
-        email="test@example.com",
-        hashed_password=auth_service.hash_password("password123"),
-        full_name="Test User",
-        role=UserRole.USER,
-        is_active=True,
-        is_verified=True,
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-
-@pytest.fixture
-def admin_user(db_session: Session, auth_service: AuthService) -> User:
-    """Create an admin test user."""
-    user = User(
-        email="admin@example.com",
-        hashed_password=auth_service.hash_password("admin123"),
-        full_name="Admin User",
-        role=UserRole.ADMIN,
-        is_active=True,
-        is_verified=True,
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-
-@pytest.fixture
-def auth_headers(test_user: User, auth_service: AuthService) -> dict[str, str]:
-    """Get authentication headers for test user."""
-    token = auth_service.create_access_token(test_user.id)
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture
-def admin_headers(admin_user: User, auth_service: AuthService) -> dict[str, str]:
-    """Get authentication headers for admin user."""
-    token = auth_service.create_access_token(admin_user.id)
-    return {"Authorization": f"Bearer {token}"}
+    async with TestingSessionLocal() as session:
+        yield session
+        await session.rollback()

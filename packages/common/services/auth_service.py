@@ -1,15 +1,13 @@
-"""Authentication service."""
+"""Authentication service with async support."""
 
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.core.config import settings
-from packages.common.models.user import User
-
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -21,10 +19,12 @@ class AuthService:
     - Password hashing and verification
     - JWT token creation and validation
     - User lookup from tokens
+
+    Note: User model is imported dynamically to avoid circular imports.
     """
 
-    def __init__(self, db: Session) -> None:
-        """Initialize auth service with database session."""
+    def __init__(self, db: AsyncSession) -> None:
+        """Initialize auth service with async database session."""
         self.db = db
 
     @staticmethod
@@ -37,21 +37,9 @@ class AuthService:
         """Verify a password against its hash."""
         return pwd_context.verify(plain_password, hashed_password)
 
-    def authenticate_user(self, email: str, password: str) -> User | None:
-        """Authenticate a user by email and password.
-
-        Returns the user if credentials are valid, None otherwise.
-        """
-        user = self._get_user_by_email(email)
-        if not user:
-            return None
-        if not self.verify_password(password, user.hashed_password):
-            return None
-        return user
-
     def create_access_token(
         self,
-        user_id: int,
+        user_id: UUID,
         expires_delta: timedelta | None = None,
     ) -> str:
         """Create a JWT access token for a user."""
@@ -73,7 +61,7 @@ class AuthService:
 
     def create_refresh_token(
         self,
-        user_id: int,
+        user_id: UUID,
         expires_delta: timedelta | None = None,
     ) -> str:
         """Create a JWT refresh token for a user."""
@@ -93,10 +81,27 @@ class AuthService:
             algorithm=settings.jwt_algorithm,
         )
 
-    async def get_user_from_token(self, token: str) -> User | None:
-        """Get a user from a JWT token.
+    @staticmethod
+    def decode_token(token: str) -> dict | None:
+        """Decode and validate a JWT token.
 
-        Returns the user if the token is valid, None otherwise.
+        Returns the payload if valid, None otherwise.
+        """
+        try:
+            payload = jwt.decode(
+                token,
+                settings.jwt_secret_key or "dev-secret",
+                algorithms=[settings.jwt_algorithm],
+            )
+            return payload
+        except JWTError:
+            return None
+
+    @staticmethod
+    def get_user_id_from_token(token: str) -> UUID | None:
+        """Extract user ID from a JWT token.
+
+        Returns the user UUID if token is valid, None otherwise.
         """
         try:
             payload = jwt.decode(
@@ -107,12 +112,6 @@ class AuthService:
             user_id = payload.get("sub")
             if user_id is None:
                 return None
-
-            return self.db.get(User, int(user_id))
+            return UUID(user_id)
         except (JWTError, ValueError):
             return None
-
-    def _get_user_by_email(self, email: str) -> User | None:
-        """Get a user by email address."""
-        stmt = select(User).where(User.email == email)
-        return self.db.execute(stmt).scalar_one_or_none()

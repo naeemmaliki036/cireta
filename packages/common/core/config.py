@@ -1,4 +1,4 @@
-"""Centralized configuration with environment variable support."""
+"""Centralized configuration for Cireta RWA Launchpad."""
 
 from functools import lru_cache
 from typing import Literal
@@ -65,6 +65,35 @@ class Settings(BaseSettings):
     log_level: str = Field(default=DEFAULTS["LOG_LEVEL"])
     log_format: Literal["json", "console"] = Field(default=DEFAULTS["LOG_FORMAT"])
 
+    # Rate limiting
+    rate_limit_default: int = Field(default=DEFAULTS["RATE_LIMIT_DEFAULT"])
+    rate_limit_login: int = Field(default=DEFAULTS["RATE_LIMIT_LOGIN"])
+    rate_limit_register: int = Field(default=DEFAULTS["RATE_LIMIT_REGISTER"])
+    rate_limit_contribute: int = Field(default=DEFAULTS["RATE_LIMIT_CONTRIBUTE"])
+
+    # Sumsub KYC
+    sumsub_app_token: str = Field(default="")
+    sumsub_secret_key: str = Field(default="")
+    sumsub_base_url: str = Field(default="https://api.sumsub.com")
+
+    # Web3 / Blockchain
+    chain_id: int = Field(default=DEFAULTS["CHAIN_ID"])
+    web3_rpc_url: str = Field(default=DEFAULTS["WEB3_RPC_URL"])
+    deployer_private_key: str = Field(default="")
+    platform_fee_receiver: str = Field(default="")
+
+    # External services
+    pinata_api_key: str = Field(default="")
+    pinata_secret_key: str = Field(default="")
+    resend_api_key: str = Field(default="")
+
+    # KYC levels
+    kyc_min_level_invest: int = Field(default=DEFAULTS["KYC_MIN_LEVEL_INVEST"])
+    kyc_min_level_initiate: int = Field(default=DEFAULTS["KYC_MIN_LEVEL_INITIATE"])
+
+    # Platform
+    platform_fee_bps: int = Field(default=DEFAULTS["PLATFORM_FEE_BPS"])
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
@@ -87,6 +116,10 @@ class Settings(BaseSettings):
             if not self.encryption_key:
                 raise ValueError(
                     "ENCRYPTION_KEY must be set in production/staging environments"
+                )
+            if not self.sumsub_secret_key:
+                raise ValueError(
+                    "SUMSUB_SECRET_KEY must be set in production/staging environments"
                 )
             if self.debug:
                 raise ValueError(

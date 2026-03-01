@@ -1,12 +1,12 @@
 """Base service class with common operations."""
 
-from typing import Generic, TypeVar, Type, Sequence
+from collections.abc import Sequence
+from typing import Generic, TypeVar
 
 from sqlalchemy.orm import Session
 
 from packages.common.db.base import Base
 from packages.common.db.repository import Repository
-
 
 T = TypeVar("T", bound=Base)
 
@@ -27,7 +27,7 @@ class BaseService(Generic[T]):
                 return self.create(user)
     """
 
-    def __init__(self, db: Session, model: Type[T]) -> None:
+    def __init__(self, db: Session, model: type[T]) -> None:
         """Initialize service with database session and model class."""
         self.db = db
         self.model = model

@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from cryptography.fernet import Fernet
-from sqlalchemy import String, Text, TypeDecorator
+from sqlalchemy import Text, TypeDecorator
 
 from packages.common.core.config import settings
 
@@ -33,7 +33,7 @@ class EncryptedString(TypeDecorator[str]):
     impl = Text
     cache_ok = True
 
-    def process_bind_param(self, value: str | None, dialect: Any) -> str | None:
+    def process_bind_param(self, value: str | None, _dialect: Any) -> str | None:
         """Encrypt value before storing in database."""
         if value is None:
             return None
@@ -46,7 +46,7 @@ class EncryptedString(TypeDecorator[str]):
         encrypted = fernet.encrypt(value.encode())
         return base64.urlsafe_b64encode(encrypted).decode()
 
-    def process_result_value(self, value: str | None, dialect: Any) -> str | None:
+    def process_result_value(self, value: str | None, _dialect: Any) -> str | None:
         """Decrypt value when reading from database."""
         if value is None:
             return None
@@ -80,7 +80,7 @@ class EncryptedJSON(TypeDecorator[dict[str, Any]]):
     cache_ok = True
 
     def process_bind_param(
-        self, value: dict[str, Any] | None, dialect: Any
+        self, value: dict[str, Any] | None, _dialect: Any
     ) -> str | None:
         """Encrypt JSON value before storing in database."""
         if value is None:
@@ -96,7 +96,7 @@ class EncryptedJSON(TypeDecorator[dict[str, Any]]):
         return base64.urlsafe_b64encode(encrypted).decode()
 
     def process_result_value(
-        self, value: str | None, dialect: Any
+        self, value: str | None, _dialect: Any
     ) -> dict[str, Any] | None:
         """Decrypt JSON value when reading from database."""
         if value is None:

@@ -1,17 +1,15 @@
-"""Database session management."""
+"""Database session management with async support."""
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from packages.common.core.config import settings
 
-
-# Create engine with connection pooling
-engine = create_engine(
+# Create async engine with connection pooling
+engine = create_async_engine(
     settings.database_url,
     pool_pre_ping=True,  # Verify connections before use
     pool_size=settings.db_pool_size,
@@ -20,30 +18,37 @@ engine = create_engine(
     echo=settings.debug,  # Log SQL in debug mode
 )
 
-# Session factory
-SessionLocal = sessionmaker(
+# Async session factory
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
     autocommit=False,
     autoflush=False,
-    bind=engine,
+    expire_on_commit=False,
 )
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Dependency that provides a database session.
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency that provides an async database session.
 
     Usage:
         @router.get("/users")
-        async def get_users(db: Annotated[Session, Depends(get_db)]):
+        async def get_users(db: DbSession):
+            result = await db.execute(select(User))
             ...
 
     The session is automatically closed after the request completes.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 # Type alias for cleaner endpoint signatures
-DbSession = Annotated[Session, Depends(get_db)]
+DbSession = Annotated[AsyncSession, Depends(get_db)]

@@ -61,7 +61,7 @@ class User(BaseModel):
     )
 
     # Relationships
-    api_keys: Mapped[list["APIKey"]] = relationship(
+    api_keys: Mapped[list[APIKey]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

@@ -1,50 +1,51 @@
-"""Generic repository pattern for database operations."""
+"""Generic async repository pattern for database operations."""
 
 from collections.abc import Sequence
 from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.db.base import Base
 from packages.common.utils.http_errors import raise_conflict, raise_not_found
 
 T = TypeVar("T", bound=Base)
-IdType = int | UUID | str
+IdType = UUID | str
 
 
 class Repository(Generic[T]):
-    """Generic repository for CRUD operations.
+    """Generic async repository for CRUD operations.
 
     Provides common database operations for any model type.
     Extend this class for model-specific queries.
 
     Example:
         class UserRepository(Repository[User]):
-            def get_by_email(self, email: str) -> User | None:
-                return self.db.execute(
+            async def get_by_email(self, email: str) -> User | None:
+                result = await self.db.execute(
                     select(User).where(User.email == email)
-                ).scalar_one_or_none()
+                )
+                return result.scalar_one_or_none()
     """
 
-    def __init__(self, db: Session, model: type[T]) -> None:
-        """Initialize repository with database session and model class."""
+    def __init__(self, db: AsyncSession, model: type[T]) -> None:
+        """Initialize repository with async database session and model class."""
         self.db = db
         self.model = model
 
-    def get(self, id: int) -> T | None:
+    async def get(self, id: IdType) -> T | None:
         """Get a single record by ID."""
-        return self.db.get(self.model, id)
+        return await self.db.get(self.model, id)
 
-    def get_or_raise(self, id: int) -> T:
+    async def get_or_raise(self, id: IdType) -> T:
         """Get a single record by ID, raise ValueError if not found."""
-        instance = self.get(id)
+        instance = await self.get(id)
         if instance is None:
             raise ValueError(f"{self.model.__name__} with id {id} not found")
         return instance
 
-    def get_or_404(
+    async def get_or_404(
         self,
         id: IdType,
         *,
@@ -54,7 +55,7 @@ class Repository(Generic[T]):
         """Get a single record by ID, raise HTTPException 404 if not found.
 
         Args:
-            id: Primary key value
+            id: Primary key value (UUID)
             entity_type: Human-readable entity name (defaults to model class name)
             error_code: Custom error code (auto-generated if not provided)
 
@@ -64,13 +65,13 @@ class Repository(Generic[T]):
         Raises:
             HTTPException: 404 with structured error if not found
         """
-        instance = self.get(id)
+        instance = await self.get(id)
         if instance is None:
             entity = entity_type or self.model.__name__
             raise_not_found(entity, id, error_code=error_code)
         return instance
 
-    def get_by(self, **filters: Any) -> T | None:
+    async def get_by(self, **filters: Any) -> T | None:
         """Get a single record by arbitrary field(s).
 
         Args:
@@ -80,15 +81,16 @@ class Repository(Generic[T]):
             Model instance or None if not found
 
         Example:
-            user = repo.get_by(email="test@example.com")
+            user = await repo.get_by(email="test@example.com")
         """
         stmt = select(self.model)
         for field, value in filters.items():
             column = getattr(self.model, field)
             stmt = stmt.where(column == value)
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def get_by_or_404(
+    async def get_by_or_404(
         self,
         *,
         entity_type: str | None = None,
@@ -108,13 +110,13 @@ class Repository(Generic[T]):
         Raises:
             HTTPException: 404 with structured error if not found
         """
-        instance = self.get_by(**filters)
+        instance = await self.get_by(**filters)
         if instance is None:
             entity = entity_type or self.model.__name__
             raise_not_found(entity, error_code=error_code)
         return instance
 
-    def check_exists_or_409(
+    async def check_exists_or_409(
         self,
         *,
         entity_type: str | None = None,
@@ -135,48 +137,51 @@ class Repository(Generic[T]):
         Raises:
             HTTPException: 409 with structured error if record exists
         """
-        if self.get_by(**filters) is not None:
+        if await self.get_by(**filters) is not None:
             entity = entity_type or self.model.__name__
             msg = message or f"{entity} already exists"
             raise_conflict(msg, error_code=error_code)
 
-    def get_all(self, *, skip: int = 0, limit: int = 100) -> Sequence[T]:
+    async def get_all(self, *, skip: int = 0, limit: int = 100) -> Sequence[T]:
         """Get all records with pagination."""
         stmt = select(self.model).offset(skip).limit(limit)
-        return self.db.execute(stmt).scalars().all()
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
 
-    def count(self) -> int:
+    async def count(self) -> int:
         """Count all records."""
         stmt = select(func.count()).select_from(self.model)
-        return self.db.execute(stmt).scalar_one()
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
 
-    def create(self, obj: T) -> T:
+    async def create(self, obj: T) -> T:
         """Create a new record."""
         self.db.add(obj)
-        self.db.commit()
-        self.db.refresh(obj)
+        await self.db.flush()
+        await self.db.refresh(obj)
         return obj
 
-    def update(self, obj: T) -> T:
+    async def update(self, obj: T) -> T:
         """Update an existing record."""
-        self.db.commit()
-        self.db.refresh(obj)
+        await self.db.flush()
+        await self.db.refresh(obj)
         return obj
 
-    def delete(self, obj: T) -> None:
+    async def delete(self, obj: T) -> None:
         """Delete a record."""
-        self.db.delete(obj)
-        self.db.commit()
+        await self.db.delete(obj)
+        await self.db.flush()
 
-    def delete_by_id(self, id: int) -> bool:
+    async def delete_by_id(self, id: IdType) -> bool:
         """Delete a record by ID. Returns True if deleted, False if not found."""
-        obj = self.get(id)
+        obj = await self.get(id)
         if obj is None:
             return False
-        self.delete(obj)
+        await self.delete(obj)
         return True
 
-    def exists(self, id: int) -> bool:
+    async def exists(self, id: IdType) -> bool:
         """Check if a record exists by ID."""
         stmt = select(func.count()).select_from(self.model).where(self.model.id == id)
-        return self.db.execute(stmt).scalar_one() > 0
+        result = await self.db.execute(stmt)
+        return result.scalar_one() > 0

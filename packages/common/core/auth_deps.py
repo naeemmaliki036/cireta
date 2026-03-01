@@ -4,13 +4,11 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
 from packages.common.db.session import get_db
 from packages.common.models.user import User, UserRole
 from packages.common.services.auth_service import AuthService
-
-from sqlalchemy.orm import Session
-
 
 security = HTTPBearer(auto_error=False)
 

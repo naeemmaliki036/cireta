@@ -1,8 +1,10 @@
 """Base model with common fields."""
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer
+from sqlalchemy import DateTime
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.common.db.base import Base
@@ -12,7 +14,7 @@ class BaseModel(Base):
     """Abstract base model with common fields.
 
     Provides:
-    - Auto-incrementing integer ID
+    - UUID primary key (auto-generated)
     - Created/updated timestamps with automatic management
 
     All models should inherit from this class.
@@ -26,9 +28,10 @@ class BaseModel(Base):
 
     __abstract__ = True
 
-    id: Mapped[int] = mapped_column(
-        Integer,
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
         primary_key=True,
+        default_factory=uuid4,
         index=True,
         init=False,
     )

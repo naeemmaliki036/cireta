@@ -202,7 +202,7 @@ class MetricsTimer:
         self.start_time: float = 0
         self.end_time: float = 0
 
-    def __enter__(self) -> "MetricsTimer":
+    def __enter__(self) -> MetricsTimer:
         self.start_time = time.perf_counter()
         return self
 

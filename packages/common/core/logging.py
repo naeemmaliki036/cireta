@@ -10,7 +10,6 @@ from structlog.types import EventDict, Processor
 
 from packages.common.core.config import settings
 
-
 # PII patterns to filter from logs
 PII_PATTERNS = [
     (re.compile(r'"password"\s*:\s*"[^"]*"', re.IGNORECASE), '"password": "[REDACTED]"'),

@@ -10,7 +10,6 @@ from starlette.responses import Response
 
 from packages.common.core.logging import get_logger
 
-
 # Context variable for correlation ID (accessible across async calls)
 correlation_id_ctx: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 
