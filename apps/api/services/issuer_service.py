@@ -140,6 +140,12 @@ class IssuerService:
                 detail={"code": "ISSUER_NOT_FOUND", "message": "Issuer not found"},
             )
 
+        if not (0 <= fee_bps <= 10000):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_FEE", "message": "Fee must be between 0 and 10000 bps"},
+            )
+
         issuer.fee_bps = fee_bps
         await self.db.commit()
         await self.db.refresh(issuer)

@@ -3,12 +3,11 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from jose import JWTError, jwt
 import bcrypt as _bcrypt
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.core.config import settings
-
 
 
 class AuthService:

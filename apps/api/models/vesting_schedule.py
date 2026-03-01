@@ -80,7 +80,10 @@ class VestingSchedule(BaseModel):
     @property
     def cliff_passed(self) -> bool:
         """Check if cliff period has passed."""
-        return datetime.now(UTC) >= self.cliff_end
+        cliff = self.cliff_end
+        if cliff.tzinfo is None:
+            cliff = cliff.replace(tzinfo=UTC)
+        return datetime.now(UTC) >= cliff
 
     @property
     def remaining_amount(self) -> Decimal:
@@ -94,12 +97,18 @@ class VestingSchedule(BaseModel):
             return Decimal("0")
 
         now = datetime.now(UTC)
-        if now >= self.vesting_end:
+        vesting_end = self.vesting_end
+        cliff_end = self.cliff_end
+        if vesting_end.tzinfo is None:
+            vesting_end = vesting_end.replace(tzinfo=UTC)
+        if cliff_end.tzinfo is None:
+            cliff_end = cliff_end.replace(tzinfo=UTC)
+        if now >= vesting_end:
             return self.remaining_amount
 
         # Linear vesting between cliff and end
-        total_vesting_seconds = (self.vesting_end - self.cliff_end).total_seconds()
-        elapsed_seconds = (now - self.cliff_end).total_seconds()
+        total_vesting_seconds = (vesting_end - cliff_end).total_seconds()
+        elapsed_seconds = (now - cliff_end).total_seconds()
 
         if total_vesting_seconds <= 0:
             return self.remaining_amount

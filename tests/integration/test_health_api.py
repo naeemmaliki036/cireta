@@ -1,6 +1,5 @@
 """Integration tests for health API endpoints."""
 
-import pytest
 from httpx import AsyncClient
 
 
@@ -22,5 +21,5 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert "database" in data
-        assert "redis" in data
+        assert "details" in data
+        assert "database" in data["details"]

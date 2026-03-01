@@ -104,10 +104,35 @@ class RedemptionService:
         )
         return list(result.scalars().all())
 
+    async def list_requests(
+        self,
+        user_id: UUID,
+        token_id: UUID | None = None,
+    ) -> list[RedemptionRequest]:
+        """Get redemption requests for a user, optionally filtered by token.
+
+        Args:
+            user_id: User UUID.
+            token_id: Optional token UUID filter.
+
+        Returns:
+            List of redemption requests.
+        """
+        query = (
+            select(RedemptionRequest)
+            .options(selectinload(RedemptionRequest.token))
+            .where(RedemptionRequest.user_id == user_id)
+        )
+        if token_id is not None:
+            query = query.where(RedemptionRequest.token_id == token_id)
+        query = query.order_by(RedemptionRequest.created_at.desc())
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
     async def update_fulfillment(
         self,
         request_id: UUID,
-        status: RedemptionStatus,
+        status: str | RedemptionStatus,
         tx_hash: str | None = None,
         notes: str | None = None,
     ) -> RedemptionRequest:
@@ -131,9 +156,13 @@ class RedemptionService:
 
         if not redemption:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail={"code": "REQUEST_NOT_FOUND", "message": "Redemption request not found"},
             )
+
+        # Coerce string to enum
+        if isinstance(status, str):
+            status = RedemptionStatus(status)
 
         redemption.status = status
         if tx_hash:
@@ -141,7 +170,7 @@ class RedemptionService:
         if notes:
             redemption.notes = notes
 
-        if status == RedemptionStatus.FULFILLED:
+        if status in (RedemptionStatus.FULFILLED, "fulfilled"):
             redemption.fulfilled_at = datetime.now(UTC)
 
         await self.db.commit()

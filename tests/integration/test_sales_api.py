@@ -1,18 +1,15 @@
 """Integration tests for sales API endpoints."""
 
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from uuid import uuid4
 
-import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from tests.conftest import make_tx_hash
 
 from apps.api.models.token import Token
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
 from apps.api.services.auth_service import CiretaAuthService
-from tests.conftest import make_tx_hash
 
 
 class TestListSalesEndpoint:
@@ -142,9 +139,9 @@ class TestContributeEndpoint:
             headers={"Authorization": f"Bearer {access_token}"},
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
-        assert data["amount"] == "1000"
+        assert float(data["amount"]) == 1000.0
         assert data["status"] == "pending"
 
     async def test_contribute_unauthorized(

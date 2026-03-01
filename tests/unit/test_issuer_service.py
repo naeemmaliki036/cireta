@@ -23,6 +23,7 @@ class TestIssuerServiceOnboard:
         issuer = await service.onboard_issuer(
             user_id=test_user.id,
             name="New Issuer Corp",
+            slug="new-issuer-corp",
             wallet_address="0x" + "c" * 40,
             legal_entity_name="New Issuer Corp LLC",
             jurisdiction="US",
@@ -32,7 +33,7 @@ class TestIssuerServiceOnboard:
         assert issuer.user_id == test_user.id
         assert issuer.name == "New Issuer Corp"
         assert issuer.slug is not None
-        assert issuer.status.value == "pending"
+        assert issuer.status == "pending"
 
     async def test_onboard_issuer_user_not_found(
         self, db_session: AsyncSession
@@ -44,6 +45,7 @@ class TestIssuerServiceOnboard:
             await service.onboard_issuer(
                 user_id=uuid4(),
                 name="Test Issuer",
+                slug="test-issuer",
                 wallet_address="0x" + "c" * 40,
                 legal_entity_name="Test LLC",
                 jurisdiction="US",
@@ -129,9 +131,9 @@ class TestIssuerServiceRevoke:
         """Test revoking issuer."""
         service = IssuerService(db_session)
 
-        issuer = await service.revoke_issuer(test_issuer.id, "Compliance violation")
+        issuer = await service.revoke_issuer(test_issuer.id)
 
-        assert issuer.status.value == "suspended"
+        assert issuer.status == "suspended"
 
     async def test_revoke_issuer_not_found(
         self, db_session: AsyncSession
@@ -140,6 +142,6 @@ class TestIssuerServiceRevoke:
         service = IssuerService(db_session)
 
         with pytest.raises(HTTPException) as exc_info:
-            await service.revoke_issuer(uuid4(), "Test reason")
+            await service.revoke_issuer(uuid4())
 
         assert exc_info.value.status_code == 404

@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from apps.api.models.contribution import Contribution
-from apps.api.models.token_sale import TokenSale
 from apps.api.models.enums import ContributionStatus, RedemptionStatus
 from apps.api.models.redemption_request import RedemptionRequest
+from apps.api.models.token_sale import TokenSale
 from apps.api.models.vesting_schedule import VestingSchedule
 
 
@@ -114,9 +114,32 @@ class PortfolioService:
         )
         pending_redemptions = len(redemption_count_result.scalars().all())
 
+        # Calculate total value (sum of contribution amounts as placeholder until pricing)
+        from decimal import Decimal as _D
+        total_value = _D("0")
+        for h in holdings:
+            if isinstance(h, dict) and "amount" in h:
+                import contextlib
+                with contextlib.suppress(Exception):
+                    total_value += _D(str(h["amount"]))
+
+        # Count claimable vesting
+        from apps.api.models.vesting_schedule import VestingSchedule as _VS  # noqa: F811
+        vesting_result = await self.db.execute(
+            select(_VS).where(_VS.user_id == user_id)
+        )
+        vesting_schedules = vesting_result.scalars().all()
+        pending_claims = sum(
+            1 for s in vesting_schedules if s.claimable_amount > _D("0")
+        )
+
         return {
             "total_holdings": len(holdings),
             "total_vesting_schedules": vesting_count,
             "total_pending_redemptions": pending_redemptions,
+            "total_value_usd": total_value,
+            "holdings_count": len(holdings),
+            "pending_claims": pending_claims,
+            "pending_redemptions": pending_redemptions,
             "holdings": holdings,
         }

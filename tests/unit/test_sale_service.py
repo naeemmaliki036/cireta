@@ -7,13 +7,12 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.conftest import make_tx_hash
 
-from apps.api.models.issuer import Issuer
 from apps.api.models.token import Token
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
 from apps.api.services.sale_service import SaleService
-from tests.conftest import make_tx_hash
 
 
 class TestSaleServiceCreate:
@@ -54,7 +53,7 @@ class TestSaleServiceCreate:
         assert sale.token_id == test_token.id
         assert sale.soft_cap == Decimal("50000")
         assert sale.hard_cap == Decimal("200000")
-        assert sale.status.value == "draft"
+        assert sale.status == "draft"
 
     async def test_create_sale_invalid_caps(
         self,
@@ -144,7 +143,7 @@ class TestSaleServiceContribute:
         assert contribution.sale_id == test_sale.id
         assert contribution.amount == Decimal("1000")
         assert contribution.tokens_allocated == Decimal("1000")  # 1:1 at $1
-        assert contribution.status.value == "pending"
+        assert contribution.status == "pending"
 
     async def test_contribute_sale_not_found(
         self, db_session: AsyncSession, test_user: User

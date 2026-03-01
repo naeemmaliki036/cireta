@@ -1,11 +1,8 @@
 """Integration tests for tokens API endpoints."""
 
-from decimal import Decimal
 from uuid import uuid4
 
-import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.issuer import Issuer
 from apps.api.models.token import Token

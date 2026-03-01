@@ -99,4 +99,11 @@ class SalePhase(BaseModel):
         from datetime import UTC
 
         now = datetime.now(UTC)
-        return self.start_time <= now <= self.end_time
+        start = self.start_time
+        end = self.end_time
+        # Handle naive datetimes stored without tz info
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=UTC)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=UTC)
+        return start <= now <= end

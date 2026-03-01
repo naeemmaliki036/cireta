@@ -2,7 +2,6 @@
 
 import hashlib
 import hmac
-import json
 from uuid import uuid4
 
 import pytest
@@ -17,15 +16,26 @@ class TestKYCServiceInitiate:
     """Tests for KYC initiation."""
 
     async def test_initiate_kyc_success(
-        self, db_session: AsyncSession, test_user: User
+        self, db_session: AsyncSession
     ) -> None:
-        """Test successful KYC initiation."""
-        service = KYCService(db_session)
+        """Test successful KYC initiation with a fresh unverified user."""
+        from apps.api.models.enums import KYCStatus, UserRole
+        # Create a fresh user with no KYC
+        user = User()
+        user.id = uuid4()
+        user.email = f"kyc_test_{uuid4().hex[:6]}@example.com"
+        user.hashed_password = "$2b$12$test.hash"
+        user.role = UserRole.INVESTOR
+        user.kyc_status = KYCStatus.NONE
+        user.kyc_level = 0
+        db_session.add(user)
+        await db_session.commit()
 
-        result = await service.initiate(test_user.id)
+        service = KYCService(db_session)
+        result = await service.initiate(user.id)
 
         assert "applicant_id" in result
-        assert "sdk_token" in result
+        assert "access_token" in result
 
     async def test_initiate_kyc_user_not_found(
         self, db_session: AsyncSession
@@ -64,7 +74,7 @@ class TestKYCServiceWebhook:
         expected_sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
         service = KYCService.__new__(KYCService)  # Skip __init__
-        result = service._validate_sumsub_signature(body, expected_sig, secret)
+        result = service.validate_sumsub_signature(body, expected_sig, secret)
 
         assert result is True
 
@@ -75,19 +85,16 @@ class TestKYCServiceWebhook:
         wrong_sig = "wrong-signature"
 
         service = KYCService.__new__(KYCService)
-        result = service._validate_sumsub_signature(body, wrong_sig, secret)
+        result = service.validate_sumsub_signature(body, wrong_sig, secret)
 
         assert result is False
 
-    async def test_handle_webhook_invalid_signature(
+    async def test_handle_webhook_unknown_type(
         self, db_session: AsyncSession
     ) -> None:
-        """Test webhook handling fails with invalid signature."""
+        """Test webhook handling with unknown type does nothing (no error)."""
         service = KYCService(db_session)
-        body = b'{"type": "applicantReviewed"}'
-
-        with pytest.raises(HTTPException) as exc_info:
-            await service.handle_webhook(body, "invalid-signature")
-
-        assert exc_info.value.status_code == 401
-        assert exc_info.value.detail["code"] == "INVALID_SIGNATURE"
+        # Service handle_webhook takes a pre-validated payload dict
+        payload = {"type": "unknown_event", "applicantId": "test-id"}
+        # Should not raise for unknown event types
+        await service.handle_webhook(payload)

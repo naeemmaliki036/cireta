@@ -144,7 +144,7 @@ class KYCService:
         application = app_result.scalar_one_or_none()
 
         return {
-            "status": user.kyc_status.value,
+            "status": user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status,
             "level": user.kyc_level,
             "review_status": application.status if application else None,
             "submitted_at": application.submitted_at if application else None,

@@ -35,7 +35,7 @@ class TestRedemptionServiceCreate:
         assert request.user_id == test_user.id
         assert request.token_id == test_token.id
         assert request.amount == Decimal("1000")
-        assert request.status.value == "pending"
+        assert request.status == "pending"
 
     async def test_create_request_token_not_found(
         self, db_session: AsyncSession, test_user: User
@@ -69,7 +69,7 @@ class TestRedemptionServiceCreate:
             fulfillment_method="physical",
         )
 
-        assert request.fulfillment_method.value == "physical"
+        assert request.fulfillment_method == "physical"
 
 
 class TestRedemptionServiceList:
@@ -137,7 +137,7 @@ class TestRedemptionServiceFulfillment:
             notes="Being processed",
         )
 
-        assert updated.status.value == "processing"
+        assert updated.status == "processing"
         assert updated.notes == "Being processed"
 
     async def test_update_fulfillment_not_found(
@@ -176,5 +176,5 @@ class TestRedemptionServiceFulfillment:
             notes="Gold bars shipped",
         )
 
-        assert updated.status.value == "fulfilled"
+        assert updated.status == "fulfilled"
         assert updated.fulfilled_at is not None

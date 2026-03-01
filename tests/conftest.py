@@ -4,7 +4,6 @@ import os
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -28,7 +27,6 @@ os.environ["SUMSUB_APP_TOKEN"] = "test-sumsub-token"
 from apps.api.main import app
 from apps.api.models.enums import (
     AssetType,
-    ContributionStatus,
     IssuerStatus,
     KYCStatus,
     SaleStatus,

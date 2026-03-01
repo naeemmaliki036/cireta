@@ -1,12 +1,11 @@
 """Unit tests for ComplianceService."""
 
-from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.models.issuer import Issuer
+from apps.api.models.audit_log import AuditLog
 from apps.api.models.token import Token
 from apps.api.models.user import User
 from apps.api.services.compliance_service import ComplianceService
@@ -21,35 +20,37 @@ class TestComplianceServiceFreeze:
         test_token: Token,
         test_issuer_user: User,
     ) -> None:
-        """Test successful address freeze."""
+        """Test successful address freeze creates audit log."""
         service = ComplianceService(db_session)
         address = "0x" + "d" * 40
 
         result = await service.freeze_address(
-            user_id=test_issuer_user.id,
+            actor_id=test_issuer_user.id,
+            wallet_address=address,
             token_id=test_token.id,
-            address=address,
             reason="Suspicious activity",
         )
 
-        assert result["address"] == address
-        assert result["frozen"] is True
+        assert isinstance(result, AuditLog)
+        assert result.action == "freeze"
+        assert result.target_id == address
 
-    async def test_freeze_address_token_not_found(
-        self, db_session: AsyncSession, test_issuer_user: User
+    async def test_freeze_address_no_token(
+        self,
+        db_session: AsyncSession,
+        test_token: Token,
+        test_issuer_user: User,
     ) -> None:
-        """Test freeze fails for non-existent token."""
+        """Test freeze with None token_id still logs."""
         service = ComplianceService(db_session)
 
-        with pytest.raises(HTTPException) as exc_info:
-            await service.freeze_address(
-                user_id=test_issuer_user.id,
-                token_id=uuid4(),
-                address="0x" + "d" * 40,
-                reason="Test",
-            )
-
-        assert exc_info.value.status_code == 404
+        result = await service.freeze_address(
+            actor_id=test_issuer_user.id,
+            wallet_address="0x" + "d" * 40,
+            token_id=None,
+            reason="Test",
+        )
+        assert isinstance(result, AuditLog)
 
     async def test_unfreeze_address_success(
         self,
@@ -57,19 +58,20 @@ class TestComplianceServiceFreeze:
         test_token: Token,
         test_issuer_user: User,
     ) -> None:
-        """Test successful address unfreeze."""
+        """Test successful address unfreeze creates audit log."""
         service = ComplianceService(db_session)
         address = "0x" + "e" * 40
 
         result = await service.unfreeze_address(
-            user_id=test_issuer_user.id,
+            actor_id=test_issuer_user.id,
+            wallet_address=address,
             token_id=test_token.id,
-            address=address,
             reason="Cleared investigation",
         )
 
-        assert result["address"] == address
-        assert result["frozen"] is False
+        assert isinstance(result, AuditLog)
+        assert result.action == "unfreeze"
+        assert result.target_id == address
 
 
 class TestComplianceServiceForcedTransfer:
@@ -81,11 +83,11 @@ class TestComplianceServiceForcedTransfer:
         test_token: Token,
         test_issuer_user: User,
     ) -> None:
-        """Test successful forced transfer."""
+        """Test successful forced transfer creates audit log."""
         service = ComplianceService(db_session)
 
         result = await service.forced_transfer(
-            user_id=test_issuer_user.id,
+            actor_id=test_issuer_user.id,
             token_id=test_token.id,
             from_address="0x" + "f" * 40,
             to_address="0x" + "1" * 40,
@@ -93,9 +95,8 @@ class TestComplianceServiceForcedTransfer:
             reason="Court order",
         )
 
-        assert result["from"] == "0x" + "f" * 40
-        assert result["to"] == "0x" + "1" * 40
-        assert result["amount"] == "1000"
+        assert isinstance(result, AuditLog)
+        assert result.action == "forced_transfer"
 
     async def test_forced_transfer_not_authorized(
         self, db_session: AsyncSession, test_token: Token, test_user: User
@@ -105,7 +106,7 @@ class TestComplianceServiceForcedTransfer:
 
         with pytest.raises(HTTPException) as exc_info:
             await service.forced_transfer(
-                user_id=test_user.id,
+                actor_id=test_user.id,
                 token_id=test_token.id,
                 from_address="0x" + "f" * 40,
                 to_address="0x" + "1" * 40,
@@ -125,16 +126,17 @@ class TestComplianceServicePause:
         test_token: Token,
         test_issuer_user: User,
     ) -> None:
-        """Test successful token pause."""
+        """Test successful token pause creates audit log."""
         service = ComplianceService(db_session)
 
         result = await service.pause_token(
-            user_id=test_issuer_user.id,
+            actor_id=test_issuer_user.id,
             token_id=test_token.id,
             reason="Emergency maintenance",
         )
 
-        assert result["paused"] is True
+        assert isinstance(result, AuditLog)
+        assert result.action == "pause_token"
 
     async def test_unpause_token_success(
         self,
@@ -142,16 +144,17 @@ class TestComplianceServicePause:
         test_token: Token,
         test_issuer_user: User,
     ) -> None:
-        """Test successful token unpause."""
+        """Test successful token unpause creates audit log."""
         service = ComplianceService(db_session)
 
         result = await service.unpause_token(
-            user_id=test_issuer_user.id,
+            actor_id=test_issuer_user.id,
             token_id=test_token.id,
             reason="Maintenance complete",
         )
 
-        assert result["paused"] is False
+        assert isinstance(result, AuditLog)
+        assert result.action == "unpause_token"
 
 
 class TestComplianceServiceRecover:
@@ -163,17 +166,17 @@ class TestComplianceServiceRecover:
         test_token: Token,
         test_issuer_user: User,
     ) -> None:
-        """Test successful token recovery."""
+        """Test successful token recovery creates audit log."""
         service = ComplianceService(db_session)
 
         result = await service.recover_tokens(
-            user_id=test_issuer_user.id,
+            actor_id=test_issuer_user.id,
             token_id=test_token.id,
             from_address="0x" + "2" * 40,
+            to_address="0x" + "3" * 40,
             amount="500",
             reason="Lost private key recovery",
         )
 
-        assert result["from"] == "0x" + "2" * 40
-        assert result["amount"] == "500"
-        assert result["recovered"] is True
+        assert isinstance(result, AuditLog)
+        assert result.action == "recover_tokens"

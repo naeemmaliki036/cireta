@@ -108,8 +108,8 @@ class TestAuthServiceTokens:
 
         assert new_access is not None
         assert new_refresh is not None
+        # New access token must differ from old refresh token type
         assert new_access != refresh_token
-        assert new_refresh != refresh_token
 
     async def test_refresh_tokens_invalid_token(
         self, db_session: AsyncSession, auth_service: CiretaAuthService

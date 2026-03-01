@@ -2,7 +2,7 @@
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -18,7 +18,6 @@ from apps.api.models.token import Token
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
 from packages.common.core.config import get_settings
-from packages.common.db.base import Base
 from packages.common.services.auth_service import AuthService
 
 settings = get_settings()
@@ -76,7 +75,7 @@ async def seed():
     async with AsyncSessionLocal() as db:
         # Create platform admin + issuer user
         auth = AuthService(db)
-        
+
         # Check if already seeded
         from sqlalchemy import select
         result = await db.execute(select(User).where(User.email == "issuer@cireta.com"))
@@ -128,8 +127,8 @@ async def seed():
         db.add(issuer)
         await db.flush()
 
-        now = datetime.now(timezone.utc)
-        
+        now = datetime.now(UTC)
+
         for proj in PROJECTS:
             print(f"Creating {proj['name']}...")
             token = Token(

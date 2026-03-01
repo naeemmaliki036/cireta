@@ -3,15 +3,39 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Coins, TrendingUp, Clock, DollarSign } from "lucide-react";
-import { StatCard } from "@/components/molecules";
 import { PortfolioTable, type HoldingItem } from "@/components/organisms";
 import { DashboardLayout } from "@/components/templates";
+import { Spinner } from "@/components/atoms";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getPortfolio,
   type PortfolioSummary,
 } from "@/lib/api/repositories/portfolio.repository";
 import { formatCurrency } from "@/lib/utils";
+
+interface PortfolioStat {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  positive?: boolean;
+}
+
+function PortfolioStatCard({ title, value, icon: Icon, positive }: PortfolioStat & { isLoading?: boolean }) {
+  return (
+    <div className="bg-box rounded-3xl p-6 border border-darkBlack/10">
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-xs uppercase tracking-wide font-medium text-gray-500">{title}</p>
+        <Icon className="h-4 w-4 text-darkAqua" />
+      </div>
+      <p className="text-2xl font-bold text-text">{value}</p>
+      {positive !== undefined && (
+        <p className={`text-sm mt-1 font-medium ${positive ? "text-green-600" : "text-red-500"}`}>
+          {positive ? "▲" : "▼"} vs. cost basis
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function PortfolioPage() {
   const { accessToken, isAuthenticated } = useAuth();
@@ -53,11 +77,11 @@ export default function PortfolioPage() {
   const totalInvested = parseFloat(portfolio?.total_invested_usd ?? "0");
   const unrealizedGain = totalValue - totalInvested;
 
-  const stats = [
-    { title: "Total Portfolio Value", value: formatCurrency(totalValue), icon: DollarSign, trend: { value: 0, positive: true } },
-    { title: "Total Invested", value: formatCurrency(totalInvested), icon: Coins, trend: { value: 0, positive: true } },
-    { title: "Unrealised P&L", value: formatCurrency(unrealizedGain), icon: TrendingUp, trend: { value: 0, positive: unrealizedGain >= 0 } },
-    { title: "Active Positions", value: String(holdings.length), icon: Clock, trend: { value: 0, positive: true } },
+  const stats: PortfolioStat[] = [
+    { title: "Total Portfolio Value", value: formatCurrency(totalValue), icon: DollarSign },
+    { title: "Total Invested", value: formatCurrency(totalInvested), icon: Coins },
+    { title: "Unrealised P&L", value: formatCurrency(unrealizedGain), icon: TrendingUp, positive: unrealizedGain >= 0 },
+    { title: "Active Positions", value: String(holdings.length), icon: Clock },
   ];
 
   return (
@@ -70,11 +94,15 @@ export default function PortfolioPage() {
 
         {/* Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {stats.map((stat) => (
-              <StatCard key={stat.title} {...stat} isLoading={isLoading} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Spinner /></div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((stat) => (
+                <PortfolioStatCard key={stat.title} {...stat} />
+              ))}
+            </div>
+          )}
         </motion.div>
 
         {/* Holdings */}
@@ -88,7 +116,7 @@ export default function PortfolioPage() {
               <p className="text-gray-500">Could not load portfolio. Please try again later.</p>
             </div>
           ) : (
-            <PortfolioTable holdings={holdings} isLoading={isLoading} />
+            <PortfolioTable holdings={holdings} />
           )}
         </motion.div>
       </div>

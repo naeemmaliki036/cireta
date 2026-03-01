@@ -89,6 +89,46 @@ class VestingService:
         )
         return list(result.scalars().all())
 
+    async def get_schedules(
+        self, user_id: UUID, token_id: UUID | None = None
+    ) -> list[VestingSchedule]:
+        """Get vesting schedules for a user, optionally filtered by token.
+
+        Args:
+            user_id: User UUID.
+            token_id: Optional token UUID filter.
+
+        Returns:
+            List of vesting schedules.
+        """
+        query = (
+            select(VestingSchedule)
+            .options(selectinload(VestingSchedule.token))
+            .where(VestingSchedule.user_id == user_id)
+        )
+        if token_id is not None:
+            query = query.where(VestingSchedule.token_id == token_id)
+        query = query.order_by(VestingSchedule.created_at.desc())
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_claimable(self, schedule_id: UUID) -> "Decimal":
+        """Get claimable amount for a vesting schedule.
+
+        Args:
+            schedule_id: Schedule UUID.
+
+        Returns:
+            Claimable amount (0 if before cliff).
+        """
+        result = await self.db.execute(
+            select(VestingSchedule).where(VestingSchedule.id == schedule_id)
+        )
+        schedule = result.scalar_one_or_none()
+        if not schedule:
+            return Decimal("0")
+        return schedule.claimable_amount
+
     async def get_schedule(self, schedule_id: UUID, user_id: UUID) -> VestingSchedule:
         """Get a specific vesting schedule.
 

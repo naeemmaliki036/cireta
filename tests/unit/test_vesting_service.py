@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.token import Token
 from apps.api.models.user import User
-from apps.api.models.vesting_schedule import VestingSchedule
 from apps.api.services.vesting_service import VestingService
 
 
@@ -130,7 +129,7 @@ class TestVestingServiceClaim:
         )
 
         with pytest.raises(HTTPException) as exc_info:
-            await service.claim_tranche(test_user.id, schedule.id)
+            await service.claim_tranche(schedule.id, test_user.id)
 
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["code"] == "NOTHING_TO_CLAIM"
@@ -142,6 +141,6 @@ class TestVestingServiceClaim:
         service = VestingService(db_session)
 
         with pytest.raises(HTTPException) as exc_info:
-            await service.claim_tranche(test_user.id, uuid4())
+            await service.claim_tranche(uuid4(), test_user.id)
 
         assert exc_info.value.status_code == 404

@@ -1,17 +1,14 @@
 """Unit tests for PortfolioService."""
 
 from decimal import Decimal
-from uuid import uuid4
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from tests.conftest import make_tx_hash
 
-from apps.api.models.token import Token
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
 from apps.api.services.portfolio_service import PortfolioService
 from apps.api.services.sale_service import SaleService
-from tests.conftest import make_tx_hash
 
 
 class TestPortfolioServiceHoldings:

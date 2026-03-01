@@ -4,17 +4,17 @@ Revision ID: 9cd097779a53
 Revises: 002
 Create Date: 2026-03-01 20:00:18.859325
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # Revision identifiers
 revision: str = '9cd097779a53'
-down_revision: Union[str, None] = '002'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '002'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
