@@ -5,6 +5,7 @@ from packages.common.middleware.logging_middleware import (
     correlation_id_ctx,
 )
 from packages.common.middleware.rate_limit import (
+    PathRateLimit,
     RateLimitConfig,
     RateLimitMiddleware,
 )
@@ -12,6 +13,7 @@ from packages.common.middleware.security_headers import SecurityHeadersMiddlewar
 
 __all__ = [
     "LoggingMiddleware",
+    "PathRateLimit",
     "RateLimitConfig",
     "RateLimitMiddleware",
     "SecurityHeadersMiddleware",

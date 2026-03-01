@@ -21,24 +21,53 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class PathRateLimit:
+    """Rate limit configuration for a specific path pattern.
+
+    Attributes:
+        path_pattern: Path prefix to match (e.g., "/api/v1/auth/login").
+        requests_per_minute: Maximum requests per minute for this path.
+    """
+
+    path_pattern: str
+    requests_per_minute: int
+
+
+@dataclass
 class RateLimitConfig:
     """Configuration for rate limiting.
 
     Attributes:
-        requests_per_minute: Maximum requests allowed per minute.
+        requests_per_minute: Maximum requests allowed per minute (default).
         burst_size: Additional requests allowed in burst (default: 10% of limit).
         exclude_paths: Paths to exclude from rate limiting.
+        path_limits: Path-specific rate limits (override default).
         key_func: Function to extract rate limit key from request.
     """
 
     requests_per_minute: int = 60
     burst_size: int | None = None
     exclude_paths: list[str] = field(default_factory=lambda: ["/health", "/metrics"])
+    path_limits: list[PathRateLimit] = field(default_factory=list)
     key_func: Callable[[Request], str] | None = None
 
     def __post_init__(self) -> None:
         if self.burst_size is None:
             self.burst_size = max(1, self.requests_per_minute // 10)
+
+    def get_limit_for_path(self, path: str) -> int:
+        """Get the rate limit for a specific path.
+
+        Args:
+            path: Request path.
+
+        Returns:
+            Rate limit for the path (path-specific or default).
+        """
+        for path_limit in self.path_limits:
+            if path.startswith(path_limit.path_pattern):
+                return path_limit.requests_per_minute
+        return self.requests_per_minute
 
 
 class SlidingWindowCounter:
@@ -144,25 +173,33 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process the request with rate limiting."""
+        path = request.url.path
+
         # Skip excluded paths
-        if self._is_excluded(request.url.path):
+        if self._is_excluded(path):
             return await call_next(request)
 
+        # Get path-specific or default rate limit
+        limit = self.config.get_limit_for_path(path)
+
+        # Use path + client key for path-specific limiting
         client_key = self._get_client_key(request)
+        rate_key = f"{client_key}:{path}" if limit != self.config.requests_per_minute else client_key
+
         allowed, remaining = self._counter.is_allowed(
-            client_key,
-            self.config.requests_per_minute,
+            rate_key,
+            limit,
             self.config.burst_size or 0,
         )
 
         if not allowed:
-            logger.warning(f"Rate limit exceeded for key: {client_key[:8]}...")
+            logger.warning(f"Rate limit exceeded for key: {client_key[:8]}... path: {path}")
             return Response(
                 content='{"detail": "Rate limit exceeded. Please try again later."}',
                 status_code=429,
                 media_type="application/json",
                 headers={
-                    "X-RateLimit-Limit": str(self.config.requests_per_minute),
+                    "X-RateLimit-Limit": str(limit),
                     "X-RateLimit-Remaining": "0",
                     "Retry-After": "60",
                 },
@@ -171,7 +208,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Add rate limit headers
-        response.headers["X-RateLimit-Limit"] = str(self.config.requests_per_minute)
+        response.headers["X-RateLimit-Limit"] = str(limit)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
 
         return response

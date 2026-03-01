@@ -17,6 +17,7 @@ from apps.api.api.v1.router import router as v1_router
 from apps.api.core.config import settings
 from packages.common.middleware import (
     LoggingMiddleware,
+    PathRateLimit,
     RateLimitConfig,
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
@@ -56,10 +57,15 @@ def create_app() -> FastAPI:
         expose_headers=["X-Correlation-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
     )
 
-    # 2. Rate limiting
+    # 2. Rate limiting with path-specific limits per CLAUDE.md
     rate_limit_config = RateLimitConfig(
         requests_per_minute=settings.rate_limit_default,
         exclude_paths=["/api/v1/health", "/api/docs", "/api/redoc", "/api/openapi.json"],
+        path_limits=[
+            PathRateLimit("/api/v1/auth/login", settings.rate_limit_login),  # 5/min
+            PathRateLimit("/api/v1/auth/register", settings.rate_limit_register),  # 10/min
+            PathRateLimit("/api/v1/sales/", settings.rate_limit_contribute),  # 20/min for contribute
+        ],
     )
     app.add_middleware(RateLimitMiddleware, config=rate_limit_config)
 
