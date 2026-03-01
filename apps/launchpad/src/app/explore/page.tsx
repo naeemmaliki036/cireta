@@ -29,8 +29,8 @@ export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [assetType, setAssetType] = useState("All");
   const [status, setStatus] = useState("All");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
@@ -40,10 +40,11 @@ export default function ExplorePage() {
         status,
         search: searchQuery || undefined,
       });
-      setProjects(response.items);
+      if (response.items.length > 0) {
+        setProjects(response.items);
+      }
     } catch {
-      // API unavailable — use mock data so UI remains functional
-      setProjects(MOCK_PROJECTS);
+      // API unavailable — keep showing mock data
     } finally {
       setIsLoading(false);
     }
