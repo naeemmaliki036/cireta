@@ -101,12 +101,6 @@
   font-display: swap;
 }
 
-* {
-  padding: 0;
-  margin: 0;
-  box-sizing: border-box;
-}
-
 body {
   background: #fff;
   color: #0C0C0C;
