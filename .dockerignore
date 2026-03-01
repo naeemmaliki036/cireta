@@ -52,9 +52,9 @@ docs/
 *.md
 !LICENSE.md
 
-# Frontend apps (built separately)
-apps/launchpad/
-apps/admin/
+# Frontend node_modules only
+apps/launchpad/node_modules/
+apps/admin/node_modules/
 
 # Contracts (deployed separately)
 contracts/
