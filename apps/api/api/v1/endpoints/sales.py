@@ -62,6 +62,14 @@ def _sale_to_response(sale) -> SaleResponse:
         hard_cap_reached=sale.hard_cap_reached,
         remaining_capacity=str(sale.remaining_capacity),
         phases=[_phase_to_response(p) for p in sale.phases],
+        token_name=sale.token.name if sale.token else None,
+        token_symbol=sale.token.symbol if sale.token else None,
+        token_slug=sale.token.slug if sale.token else None,
+        token_asset_type=(sale.token.asset_type.value if hasattr(sale.token.asset_type, "value") else sale.token.asset_type) if sale.token else None,
+        token_description=sale.token.description if sale.token else None,
+        token_image_url=sale.token.image_url if sale.token else None,
+        issuer_name=sale.issuer.name if sale.issuer else None,
+        issuer_slug=sale.issuer.slug if sale.issuer else None,
     )
 
 

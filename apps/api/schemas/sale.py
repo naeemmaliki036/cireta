@@ -71,6 +71,15 @@ class SaleResponse(BaseModel):
     hard_cap_reached: bool
     remaining_capacity: str
     phases: list[SalePhaseResponse]
+    # Joined token fields
+    token_name: str | None = None
+    token_symbol: str | None = None
+    token_slug: str | None = None
+    token_asset_type: str | None = None
+    token_description: str | None = None
+    token_image_url: str | None = None
+    issuer_name: str | None = None
+    issuer_slug: str | None = None
 
     class Config:
         from_attributes = True

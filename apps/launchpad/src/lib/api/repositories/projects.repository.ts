@@ -12,12 +12,12 @@ export interface ProjectPhase {
   name: string;
   price_per_token: string;
   allocation: string;
-  sold: string;
   min_contribution: string;
   max_contribution: string;
   start_time: string;
   end_time: string;
   whitelist_only: boolean;
+  is_active: boolean;
 }
 
 export interface Project {
@@ -32,6 +32,7 @@ export interface Project {
   investorCount: number;
   status: "active" | "upcoming" | "completed" | "paused";
   tokenSymbol: string;
+  description: string;
   issuer: ProjectIssuer;
   phases: ProjectPhase[];
 }
@@ -51,6 +52,74 @@ export interface ProjectListResponse {
   size: number;
 }
 
+// Raw API shapes from backend
+interface SalePhaseRaw {
+  id: string;
+  phase_number: number;
+  name: string;
+  price_per_token: string;
+  allocation: string;
+  min_contribution: string;
+  max_contribution: string;
+  start_time: string;
+  end_time: string;
+  whitelist_only: boolean;
+  is_active: boolean;
+}
+
+interface SaleRaw {
+  id: string;
+  token_id: string;
+  issuer_id: string;
+  payment_token: string;
+  soft_cap: string;
+  hard_cap: string;
+  status: string;
+  total_raised: string;
+  is_active: boolean;
+  phases: SalePhaseRaw[];
+  // Joined fields from token (returned by /api/v1/sales/ endpoint)
+  token_name?: string;
+  token_symbol?: string;
+  token_slug?: string;
+  token_asset_type?: string;
+  token_description?: string;
+  token_image_url?: string;
+  issuer_name?: string;
+  issuer_slug?: string;
+}
+
+interface SaleListRaw {
+  items: SaleRaw[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+function mapSaleToProject(sale: SaleRaw): Project {
+  const status = sale.status as "active" | "upcoming" | "completed" | "paused";
+  return {
+    id: sale.id,
+    title: sale.token_name ?? "Unnamed Project",
+    slug: sale.token_slug ?? sale.id,
+    imageUrl: sale.token_image_url ?? "",
+    assetType: sale.token_asset_type ?? "commodity",
+    fundingRound: sale.phases?.[0]?.name ?? "Public Sale",
+    currentRaised: parseFloat(sale.total_raised ?? "0"),
+    targetAmount: parseFloat(sale.hard_cap ?? "0"),
+    investorCount: 0,
+    status,
+    tokenSymbol: sale.token_symbol ?? "",
+    description: sale.token_description ?? "",
+    issuer: {
+      id: sale.issuer_id,
+      name: sale.issuer_name ?? "Cireta Capital",
+      slug: sale.issuer_slug ?? "cireta-capital",
+    },
+    phases: sale.phases ?? [],
+  };
+}
+
 export async function getProjects(
   filters?: ProjectFilters
 ): Promise<ProjectListResponse> {
@@ -68,9 +137,16 @@ export async function getProjects(
   params.set("size", String(filters?.size ?? 20));
 
   const query = params.toString();
-  return apiGet<ProjectListResponse>(`/api/v1/sales/?${query}`);
+  const raw = await apiGet<SaleListRaw>(`/api/v1/sales/?${query}`);
+  return {
+    items: raw.items.map(mapSaleToProject),
+    total: raw.total,
+    page: raw.page,
+    size: raw.size,
+  };
 }
 
 export async function getProject(slug: string): Promise<Project> {
-  return apiGet<Project>(`/api/v1/sales/by-slug/${slug}`);
+  const raw = await apiGet<SaleRaw>(`/api/v1/sales/by-slug/${slug}`);
+  return mapSaleToProject(raw);
 }

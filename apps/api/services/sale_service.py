@@ -398,7 +398,11 @@ class SaleService:
         """
         query = (
             select(TokenSale)
-            .options(selectinload(TokenSale.phases))
+            .options(
+                selectinload(TokenSale.phases),
+                selectinload(TokenSale.token),
+                selectinload(TokenSale.issuer),
+            )
             .order_by(TokenSale.created_at.desc())
         )
 
