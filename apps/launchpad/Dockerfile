@@ -1,12 +1,13 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY apps/launchpad/package*.json ./
+RUN apk add --no-cache python3 make g++
+COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY apps/launchpad/ .
+COPY . .
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 FROM node:20-alpine AS runner
