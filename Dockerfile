@@ -34,6 +34,8 @@ COPY --from=builder /app/.venv /app/.venv
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY infra ./infra
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app"
@@ -45,6 +47,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/api/v1/health/live || exit 1
 
-CMD ["/bin/sh", "-c", "echo STARTING PORT=${PORT:-8000} && exec /app/.venv/bin/uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["/app/entrypoint.sh"]
 
-# cache-bust: 1772376517
+# cache-bust: 1772377605
