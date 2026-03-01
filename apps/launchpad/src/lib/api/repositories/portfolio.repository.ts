@@ -42,7 +42,21 @@ export interface RedemptionRequest {
 }
 
 export async function getPortfolio(): Promise<PortfolioSummary> {
-  return apiGet<PortfolioSummary>("/api/v1/portfolio/holdings");
+  // /summary returns { holdings, total_value_usd, total_invested_usd }
+  // /holdings returns flat list — we call /summary for the full shape
+  try {
+    const summary = await apiGet<PortfolioSummary>("/api/v1/portfolio/summary");
+    return summary;
+  } catch {
+    // Fallback: call /holdings directly and build summary shape
+    const items = await apiGet<Holding[]>("/api/v1/portfolio/holdings");
+    const total = items.reduce((s, h) => s + parseFloat(h.value_usd || "0"), 0);
+    return {
+      holdings: items,
+      total_value_usd: total.toString(),
+      total_invested_usd: "0",
+    };
+  }
 }
 
 export async function getVesting(

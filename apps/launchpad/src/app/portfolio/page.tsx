@@ -1,105 +1,97 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Coins, TrendingUp, Clock, DollarSign } from "lucide-react";
 import { StatCard } from "@/components/molecules";
 import { PortfolioTable, type HoldingItem } from "@/components/organisms";
 import { DashboardLayout } from "@/components/templates";
-
-const MOCK_HOLDINGS: HoldingItem[] = [
-  {
-    id: "1",
-    tokenName: "West African Gold Reserve",
-    tokenSymbol: "WAGR",
-    projectSlug: "west-african-gold",
-    balance: 1250,
-    value: 125000,
-    claimable: 125,
-    vestingProgress: 45,
-  },
-  {
-    id: "2",
-    tokenName: "Chilean Copper Fund",
-    tokenSymbol: "CCF",
-    projectSlug: "chilean-copper",
-    balance: 500,
-    value: 50000,
-    claimable: 0,
-    vestingProgress: 20,
-  },
-  {
-    id: "3",
-    tokenName: "Moroccan Steel",
-    tokenSymbol: "MSTL",
-    projectSlug: "moroccan-steel",
-    balance: 2000,
-    value: 80000,
-    claimable: 500,
-    vestingProgress: 75,
-  },
-];
-
-const STATS = [
-  {
-    label: "Total Portfolio Value",
-    value: 255000,
-    prefix: "$",
-    trend: 12.5,
-    icon: <DollarSign className="h-5 w-5" />,
-  },
-  {
-    label: "Total Invested",
-    value: 200000,
-    prefix: "$",
-    icon: <Coins className="h-5 w-5" />,
-  },
-  {
-    label: "Unrealized Gains",
-    value: 55000,
-    prefix: "$",
-    trend: 27.5,
-    icon: <TrendingUp className="h-5 w-5" />,
-  },
-  {
-    label: "Claimable Tokens",
-    value: 625,
-    suffix: " tokens",
-    icon: <Clock className="h-5 w-5" />,
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  getPortfolio,
+  type PortfolioSummary,
+} from "@/lib/api/repositories/portfolio.repository";
+import { formatCurrency } from "@/lib/utils";
 
 export default function PortfolioPage() {
-  return (
-    <DashboardLayout
-      title="Portfolio"
-      description="View and manage your tokenized assets"
-    >
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {STATS.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <StatCard {...stat} />
-          </motion.div>
-        ))}
-      </div>
+  const { accessToken, isAuthenticated } = useAuth();
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-      {/* Holdings Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-3xl border border-darkBlack/10 overflow-hidden"
-      >
-        <div className="p-6 border-b border-darkBlack/5">
-          <h2 className="text-xl font-semibold text-text">Your Holdings</h2>
-        </div>
-        <PortfolioTable holdings={MOCK_HOLDINGS} />
-      </motion.div>
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) {
+      setIsLoading(false);
+      return;
+    }
+    async function load() {
+      setIsLoading(true);
+      try {
+        const data = await getPortfolio();
+        setPortfolio(data);
+      } catch {
+        setError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, [isAuthenticated, accessToken]);
+
+  const holdings: HoldingItem[] = (portfolio?.holdings ?? []).map((h) => ({
+    id: h.token_id,
+    tokenName: h.token_name,
+    tokenSymbol: h.token_symbol,
+    projectSlug: h.token_symbol.toLowerCase(),
+    balance: parseFloat(h.balance),
+    value: parseFloat(h.value_usd),
+    claimable: parseFloat(h.claimable),
+    vestingProgress: 0,
+  }));
+
+  const totalValue = parseFloat(portfolio?.total_value_usd ?? "0");
+  const totalInvested = parseFloat(portfolio?.total_invested_usd ?? "0");
+  const unrealizedGain = totalValue - totalInvested;
+
+  const stats = [
+    { title: "Total Portfolio Value", value: formatCurrency(totalValue), icon: DollarSign, trend: { value: 0, positive: true } },
+    { title: "Total Invested", value: formatCurrency(totalInvested), icon: Coins, trend: { value: 0, positive: true } },
+    { title: "Unrealised P&L", value: formatCurrency(unrealizedGain), icon: TrendingUp, trend: { value: 0, positive: unrealizedGain >= 0 } },
+    { title: "Active Positions", value: String(holdings.length), icon: Clock, trend: { value: 0, positive: true } },
+  ];
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="text-2xl font-bold text-text">Portfolio</h1>
+          <p className="text-gray-500 mt-1">Your tokenized asset holdings</p>
+        </motion.div>
+
+        {/* Stats */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map((stat) => (
+              <StatCard key={stat.title} {...stat} isLoading={isLoading} />
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Holdings */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          {!isAuthenticated && !isLoading ? (
+            <div className="bg-white rounded-3xl p-12 border border-darkBlack/10 text-center">
+              <p className="text-gray-500 text-lg">Sign in to view your portfolio</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-3xl p-12 border border-darkBlack/10 text-center">
+              <p className="text-gray-500">Could not load portfolio. Please try again later.</p>
+            </div>
+          ) : (
+            <PortfolioTable holdings={holdings} isLoading={isLoading} />
+          )}
+        </motion.div>
+      </div>
     </DashboardLayout>
   );
 }

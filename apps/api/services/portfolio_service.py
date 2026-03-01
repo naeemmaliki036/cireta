@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from apps.api.models.contribution import Contribution
+from apps.api.models.token_sale import TokenSale
 from apps.api.models.enums import ContributionStatus, RedemptionStatus
 from apps.api.models.redemption_request import RedemptionRequest
 from apps.api.models.vesting_schedule import VestingSchedule
@@ -39,7 +40,7 @@ class PortfolioService:
         contrib_result = await self.db.execute(
             select(Contribution)
             .options(
-                selectinload(Contribution.sale).selectinload(Contribution.sale.token)
+                selectinload(Contribution.sale).selectinload(TokenSale.token)
             )
             .where(Contribution.user_id == user_id)
             .where(Contribution.status == ContributionStatus.CLAIMED)
