@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from packages.common.config.defaults import DEFAULTS
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     # Server
     api_host: str = Field(default=DEFAULTS["API_HOST"])
-    api_port: int = Field(default=DEFAULTS["API_PORT"])
+    api_port: int = Field(default=DEFAULTS["API_PORT"], validation_alias=AliasChoices("api_port", "PORT"))
     workers: int = Field(default=DEFAULTS["WORKERS"])
 
     # CORS
