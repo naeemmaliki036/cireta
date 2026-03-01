@@ -1,0 +1,43 @@
+"""KYC schemas for request/response validation."""
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel
+
+
+class KYCInitiateResponse(BaseModel):
+    """Response for KYC initiation."""
+
+    applicant_id: str
+    access_token: str
+    expiration: datetime
+
+
+class KYCStatusResponse(BaseModel):
+    """KYC status response."""
+
+    status: str
+    level: int
+    review_status: str | None = None
+    submitted_at: datetime | None = None
+    reviewed_at: datetime | None = None
+
+
+class SumsubWebhookPayload(BaseModel):
+    """Sumsub webhook payload.
+
+    Note: This is a simplified model. Actual Sumsub payloads vary by event type.
+    """
+
+    applicantId: str
+    inspectionId: str | None = None
+    correlationId: str | None = None
+    externalUserId: str | None = None
+    type: str  # applicantCreated, applicantPending, applicantReviewed, etc.
+    reviewStatus: str | None = None  # completed, pending, init
+    reviewResult: dict[str, Any] | None = None
+    createdAt: str | None = None
+
+    class Config:
+        extra = "allow"  # Allow additional fields from Sumsub
