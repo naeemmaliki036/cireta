@@ -12,7 +12,6 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 fastapi = "^0.115.0"
-uvicorn = { extras = ["standard"], version = "^0.32.0" }
 sqlalchemy = { extras = ["asyncio"], version = "^2.0.0" }
 alembic = "^1.14.0"
 pydantic = "^2.10.0"
@@ -44,6 +43,10 @@ pre-commit = "^4.0.0"
 honcho = "^2.0.0"
 aiosqlite = "^0.20.0"
 greenlet = "^3.3.2"
+
+
+[tool.poetry.group.server.dependencies]
+uvicorn = {version = "^0.32.0", extras = ["standard"]}
 
 [build-system]
 requires = ["poetry-core"]
