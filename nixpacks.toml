@@ -1,5 +1,5 @@
 [phases.install]
-cmds = ["pip install poetry && poetry install --with server --no-interaction"]
+cmds = ["poetry config virtualenvs.create false && poetry install --with server --no-interaction --no-ansi"]
 
 [start]
 cmd = "python start.py"
