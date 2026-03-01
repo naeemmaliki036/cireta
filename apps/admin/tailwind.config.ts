@@ -1,0 +1,126 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    screens: {
+      xs: "410px",
+      sm: "480px",
+      md: "768px",
+      lg: "990px",
+      laptop: "1250px",
+      xl: "1550px",
+      xxl: "1800px",
+    },
+    colors: {
+      black: "#000",
+      darkBlack: "#180B2E",
+      white: "#fff",
+      paua: "#202254",
+      text: "#0C0C0C",
+      darkBlue: "#01033C",
+      darkAqua: "#13636F",
+      box: "#ECF3F4",
+      gold: "#C9913D",
+      transparent: "transparent",
+      current: "currentColor",
+      red: {
+        50: "#fef2f2",
+        100: "#fee2e2",
+        500: "#ef4444",
+        600: "#dc2626",
+        700: "#b91c1c",
+      },
+      green: {
+        50: "#f0fdf4",
+        100: "#dcfce7",
+        500: "#22c55e",
+        600: "#16a34a",
+        700: "#15803d",
+      },
+      gray: {
+        50: "#f9fafb",
+        100: "#f3f4f6",
+        200: "#e5e7eb",
+        300: "#d1d5db",
+        400: "#9ca3af",
+        500: "#6b7280",
+        600: "#4b5563",
+        700: "#374151",
+        800: "#1f2937",
+        900: "#111827",
+      },
+    },
+    extend: {
+      maxWidth: {
+        container: "1824px",
+        inner: "1624px",
+      },
+      fontFamily: {
+        sans: ["Gilroy", "system-ui", "sans-serif"],
+      },
+      fontSize: {
+        xsm: "14px",
+        sm: "16px",
+        base: "18px",
+        lg: "20px",
+        xl: "22px",
+        xxl: "36px",
+        "1xl": "48px",
+        "2xl": "60px",
+      },
+      letterSpacing: {
+        tighter: "-0.03em",
+        "03": "0.3px",
+        "07": "0.7px",
+        "08": "0.8px",
+        "09": "0.9px",
+        "04": "0.48px",
+        "05": "0.54px",
+        "1": "1px",
+        "11": "1.1px",
+        "12": "1.2px",
+        "16": "1.6px",
+        "21": "2.16px",
+        "28": "2.8px",
+        "37": "3.7px",
+      },
+      boxShadow: {
+        nav: "0px 0px 16px 0px rgba(255, 255, 255, 0.06) inset",
+        tag: "0px 0px 4px 0px rgba(255, 255, 255, 0.40) inset",
+        progress: "20px 0px 0px 0px #13636F inset",
+        tooltip: "0px 8px 40px 0px rgba(0, 0, 0, 0.20)",
+        aside: "-12px 0px 20px 0px rgba(0, 0, 0, 0.07)",
+        bulletIcon: "rgba(19, 99, 111, 0.40) 0px 0px 0px 1px",
+        card: "0px 4px 24px 0px rgba(0, 0, 0, 0.08)",
+        sidebar: "4px 0px 20px 0px rgba(0, 0, 0, 0.05)",
+      },
+      backgroundImage: {
+        "gradient-hero": "linear-gradient(180deg, #180B2E 0%, rgba(19, 99, 111, 0.3) 100%)",
+        "gradient-dark": "linear-gradient(180deg, #180B2E 0%, #13636F 100%)",
+      },
+      animation: {
+        "fade-in": "fadeIn 0.5s ease-out",
+        "slide-up": "slideUp 0.5s ease-out",
+        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

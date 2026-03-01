@@ -1,168 +1,225 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/atoms/Button";
-import { getSales, type Sale } from "@/lib/api/repositories/sales";
-import { formatCurrency } from "@/lib/utils";
+import { Search } from "lucide-react";
+import { Button, Spinner } from "@/components/atoms";
+import { ProjectCard } from "@/components/molecules";
+import { Navbar, Footer } from "@/components/organisms";
+import { cn } from "@/lib/utils";
 
-function ProjectCard({ sale }: { sale: Sale }) {
-  const progress =
-    (parseFloat(sale.total_raised) / parseFloat(sale.hard_cap)) * 100;
+const ASSET_TYPES = ["All", "Gold", "Copper", "Commodities", "Futures"];
+const STATUS_FILTERS = ["All", "Active", "Upcoming", "Completed"];
 
-  return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md">
-      <div className="h-48 bg-gradient-to-br from-[var(--brand-teal)]/20 to-[var(--brand-gold)]/20" />
-      <div className="p-6">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="rounded-full bg-[var(--brand-teal)]/10 px-3 py-1 text-sm text-[var(--brand-teal)]">
-            {sale.token.asset_type}
-          </span>
-          <span
-            className={`rounded-full px-3 py-1 text-sm ${
-              sale.status === "active"
-                ? "bg-green-100 text-green-700"
-                : sale.status === "paused"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-gray-100 text-gray-700"
-            }`}
-          >
-            {sale.status}
-          </span>
-        </div>
-
-        <h3 className="mb-2 text-xl font-semibold text-[var(--brand-dark)]">
-          {sale.token.name}
-        </h3>
-        <p className="mb-4 text-sm text-gray-500">by {sale.issuer.name}</p>
-
-        {/* Progress bar */}
-        <div className="mb-4">
-          <div className="mb-2 flex justify-between text-sm">
-            <span className="text-gray-600">Raised</span>
-            <span className="font-medium text-[var(--brand-teal)]">
-              {Math.round(progress)}%
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-            <div
-              className="h-full bg-[var(--brand-teal)] transition-all"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-sm text-gray-500">
-            <span>{formatCurrency(sale.total_raised)}</span>
-            <span>{formatCurrency(sale.hard_cap)}</span>
-          </div>
-        </div>
-
-        <Link href={`/project/${sale.id}`}>
-          <Button className="w-full">View Project</Button>
-        </Link>
-      </div>
-    </div>
-  );
-}
+const MOCK_PROJECTS = [
+  {
+    id: "1",
+    title: "West African Gold Reserve",
+    slug: "west-african-gold",
+    imageUrl: "",
+    assetType: "Gold",
+    fundingRound: "Seed",
+    currentRaised: 2450000,
+    targetAmount: 5000000,
+    investorCount: 847,
+  },
+  {
+    id: "2",
+    title: "Chilean Copper Fund",
+    slug: "chilean-copper",
+    imageUrl: "",
+    assetType: "Copper",
+    fundingRound: "Series A",
+    currentRaised: 8200000,
+    targetAmount: 10000000,
+    investorCount: 1234,
+  },
+  {
+    id: "3",
+    title: "Moroccan Steel Manufacturing",
+    slug: "moroccan-steel",
+    imageUrl: "",
+    assetType: "Commodities",
+    fundingRound: "Seed",
+    currentRaised: 1800000,
+    targetAmount: 3500000,
+    investorCount: 523,
+  },
+  {
+    id: "4",
+    title: "South American Silver",
+    slug: "south-american-silver",
+    imageUrl: "",
+    assetType: "Commodities",
+    fundingRound: "Pre-Seed",
+    currentRaised: 450000,
+    targetAmount: 2000000,
+    investorCount: 234,
+  },
+  {
+    id: "5",
+    title: "Australian Mining Futures",
+    slug: "australian-mining",
+    imageUrl: "",
+    assetType: "Futures",
+    fundingRound: "Seed",
+    currentRaised: 3100000,
+    targetAmount: 4000000,
+    investorCount: 678,
+  },
+  {
+    id: "6",
+    title: "Asian Precious Metals",
+    slug: "asian-metals",
+    imageUrl: "",
+    assetType: "Gold",
+    fundingRound: "Series A",
+    currentRaised: 12500000,
+    targetAmount: 15000000,
+    investorCount: 2100,
+  },
+];
 
 export default function ExplorePage() {
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(
-    "active"
-  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assetType, setAssetType] = useState("All");
+  const [status, setStatus] = useState("All");
+  const [isLoading] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["sales", statusFilter],
-    queryFn: () => getSales(1, 20, statusFilter),
+  const filteredProjects = MOCK_PROJECTS.filter((project) => {
+    const matchesSearch = project.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesAsset =
+      assetType === "All" || project.assetType === assetType;
+    return matchesSearch && matchesAsset;
   });
 
   return (
-    <main className="min-h-screen bg-[var(--brand-light)]">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 40 40"
-              fill="currentColor"
-              className="text-[var(--brand-teal)]"
-            >
-              <path d="M20 2 L22.5 17.5 L38 20 L22.5 22.5 L20 38 L17.5 22.5 L2 20 L17.5 17.5 Z" />
-            </svg>
-            <span className="text-xl font-bold text-[var(--brand-dark)]">
-              Cireta
-            </span>
-          </Link>
+    <div className="min-h-screen bg-box">
+      <Navbar variant="dark" />
 
-          <nav className="flex items-center gap-6">
-            <Link
-              href="/explore"
-              className="font-medium text-[var(--brand-teal)]"
-            >
-              Explore
-            </Link>
-            <Link
-              href="/portfolio"
-              className="text-gray-600 hover:text-[var(--brand-teal)]"
-            >
-              Portfolio
-            </Link>
-            <Link href="/login">
-              <Button variant="outline" size="sm">
-                Sign In
-              </Button>
-            </Link>
-          </nav>
+      {/* Hero */}
+      <section className="bg-darkBlack pt-32 pb-12 px-4">
+        <div className="max-w-inner mx-auto text-center">
+          <h1 className="text-xxl md:text-1xl font-semibold text-white tracking-tight mb-4">
+            Explore Projects
+          </h1>
+          <p className="text-white/60 text-lg max-w-2xl mx-auto">
+            Discover tokenized real-world assets from verified institutional
+            issuers
+          </p>
         </div>
-      </header>
+      </section>
 
-      {/* Content */}
-      <div className="px-6 py-12">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-[var(--brand-dark)]">
-              Explore Projects
-            </h1>
+      {/* Filters */}
+      <section className="bg-box border-b border-darkBlack/5 sticky top-0 z-30 py-4">
+        <div className="max-w-inner mx-auto px-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            {/* Search */}
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 rounded-xl bg-white border border-darkBlack/10 focus:border-darkAqua focus:ring-1 focus:ring-darkAqua outline-none text-text"
+              />
+            </div>
 
-            <div className="flex gap-2">
-              {["active", "paused", "finalized", undefined].map((status) => (
+            {/* Asset Type Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
+              {ASSET_TYPES.map((type) => (
                 <button
-                  key={status ?? "all"}
-                  onClick={() => setStatusFilter(status)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                    statusFilter === status
-                      ? "bg-[var(--brand-teal)] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-100"
-                  }`}
+                  key={type}
+                  onClick={() => setAssetType(type)}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border",
+                    assetType === type
+                      ? "bg-darkAqua text-white border-darkAqua"
+                      : "bg-white text-text border-darkAqua/30 hover:bg-darkAqua/10"
+                  )}
                 >
-                  {status ?? "All"}
+                  {type}
+                </button>
+              ))}
+            </div>
+
+            {/* Status Filter */}
+            <div className="hidden lg:flex items-center gap-2">
+              {STATUS_FILTERS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-sm font-medium transition-colors border",
+                    status === s
+                      ? "bg-darkBlack text-white border-darkBlack"
+                      : "bg-white text-gray-500 border-darkBlack/10 hover:text-text hover:border-darkBlack/30"
+                  )}
+                >
+                  {s}
                 </button>
               ))}
             </div>
           </div>
+        </div>
+      </section>
 
+      {/* Results */}
+      <section className="py-8 px-4">
+        <div className="max-w-inner mx-auto">
+          {/* Results Header */}
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-gray-500">
+              Showing{" "}
+              <span className="font-semibold text-text">
+                {filteredProjects.length}
+              </span>{" "}
+              projects
+            </p>
+          </div>
+
+          {/* Projects Grid */}
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--brand-teal)] border-t-transparent" />
+              <Spinner size="lg" />
             </div>
-          ) : error ? (
-            <div className="rounded-lg bg-red-50 p-6 text-center text-red-600">
-              Failed to load projects. Please try again.
-            </div>
-          ) : data?.items.length === 0 ? (
-            <div className="rounded-lg bg-gray-50 p-12 text-center">
-              <p className="text-gray-600">No projects found.</p>
+          ) : filteredProjects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-24 h-24 mb-6 rounded-full bg-darkAqua/10 flex items-center justify-center">
+                <Search className="w-12 h-12 text-darkAqua/40" />
+              </div>
+              <h3 className="text-xl font-semibold text-text mb-2">
+                No Projects Found
+              </h3>
+              <p className="text-gray-500 max-w-md">
+                Try adjusting your filters or search query to find more
+                projects.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-6"
+                onClick={() => {
+                  setSearchQuery("");
+                  setAssetType("All");
+                  setStatus("All");
+                }}
+              >
+                Clear Filters
+              </Button>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {data?.items.map((sale) => (
-                <ProjectCard key={sale.id} sale={sale} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map((project, index) => (
+                <ProjectCard key={project.id} {...project} index={index} />
               ))}
             </div>
           )}
         </div>
-      </div>
-    </main>
+      </section>
+
+      <Footer />
+    </div>
   );
 }

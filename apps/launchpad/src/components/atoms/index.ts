@@ -1,2 +1,10 @@
 export { Button, buttonVariants, type ButtonProps } from "./Button";
 export { Input, type InputProps } from "./Input";
+export { Badge, badgeVariants, type BadgeProps } from "./Badge";
+export { Avatar, avatarVariants, type AvatarProps } from "./Avatar";
+export { Spinner, type SpinnerProps } from "./Spinner";
+export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
+export { Tag, type TagProps } from "./Tag";
+export { Select, type SelectProps } from "./Select";
+export { Textarea, type TextareaProps } from "./Textarea";
+export { CiretaLogo, type CiretaLogoProps } from "./CiretaLogo";

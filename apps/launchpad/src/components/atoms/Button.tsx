@@ -1,48 +1,73 @@
-import { forwardRef, type ButtonHTMLAttributes } from "react";
+"use client";
+
+import { forwardRef } from "react";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-teal)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex justify-center items-center rounded-full outline-0 duration-300 cursor-pointer font-medium hover:opacity-80",
   {
     variants: {
       variant: {
-        primary:
-          "bg-[var(--brand-teal)] text-white hover:bg-[var(--brand-teal)]/90",
-        secondary:
-          "bg-[var(--brand-gold)] text-white hover:bg-[var(--brand-gold)]/90",
-        outline:
-          "border-2 border-[var(--brand-teal)] text-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/10",
-        ghost: "hover:bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]",
-        link: "text-[var(--brand-teal)] underline-offset-4 hover:underline",
+        primary: "bg-darkAqua text-white",
+        secondary: "bg-white text-text",
+        outline: "border border-darkAqua text-darkAqua bg-transparent",
+        outlineWhite: "border border-white text-white bg-transparent",
+        gold: "bg-gold text-white",
+        dark: "bg-darkBlack text-white",
+        ghost: "bg-transparent text-darkAqua hover:bg-darkAqua/10",
       },
       size: {
-        sm: "h-9 px-3 text-sm",
-        md: "h-11 px-5 text-base",
-        lg: "h-13 px-8 text-lg",
-        icon: "h-10 w-10",
+        sm: "text-xsm/4 py-2 px-4",
+        md: "text-xsm/4 md:text-sm/5 py-2.5 md:py-3 px-6 md:px-8",
+        lg: "text-xsm/4 md:text-sm/5 lg:text-base/6 py-2.5 md:py-[18px] px-6 md:px-10",
+        icon: "p-3",
       },
     },
     defaultVariants: {
       variant: "primary",
-      size: "md",
+      size: "lg",
     },
   }
 );
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<HTMLMotionProps<"button">, "children">,
     VariantProps<typeof buttonVariants> {
+  children?: React.ReactNode;
   isLoading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, isLoading, children, disabled, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      isLoading,
+      children,
+      disabled,
+      leftIcon,
+      rightIcon,
+      type = "button",
+      ...props
+    },
+    ref
+  ) => {
     return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
+      <motion.button
+        type={type}
+        className={cn(
+          buttonVariants({ variant, size }),
+          isLoading && "opacity-70 cursor-not-allowed",
+          className
+        )}
         ref={ref}
         disabled={disabled || isLoading}
+        whileTap={{ scale: 0.97 }}
         {...props}
       >
         {isLoading ? (
@@ -66,9 +91,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
+        ) : leftIcon ? (
+          <span className="mr-2 flex items-center">{leftIcon}</span>
         ) : null}
         {children}
-      </button>
+        {rightIcon && !isLoading ? (
+          <span className="ml-2 flex items-center">{rightIcon}</span>
+        ) : null}
+      </motion.button>
     );
   }
 );
