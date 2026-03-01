@@ -1,7 +1,7 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "deploy": {
-    "startCommand": "/app/entrypoint.sh",
+    "startCommand": "/app/.venv/bin/python -m uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}",
     "healthcheckPath": "/api/v1/health/live",
     "healthcheckTimeout": 60
   }
