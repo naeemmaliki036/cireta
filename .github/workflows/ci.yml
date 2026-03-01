@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cireta
+          POSTGRES_PASSWORD: cireta
+          POSTGRES_DB: cireta_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Ruff lint
+        run: poetry run ruff check .
+
+      - name: Run tests
+        run: poetry run pytest --tb=short -q
+        env:
+          DATABASE_URL: postgresql+asyncpg://cireta:cireta@localhost:5432/cireta_test
+          JWT_SECRET_KEY: test-secret-key-for-ci-only
+          ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw==
+          ENVIRONMENT: development
+
+  launchpad:
+    name: Launchpad (tsc + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/launchpad/package-lock.json
+
+      - name: Install dependencies
+        run: cd apps/launchpad && npm ci
+
+      - name: TypeScript check
+        run: cd apps/launchpad && npx tsc --noEmit
+
+      - name: Run Vitest
+        run: cd apps/launchpad && npx vitest run
+
+  admin:
+    name: Admin (tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/admin/package-lock.json
+
+      - name: Install dependencies
+        run: cd apps/admin && npm ci
+
+      - name: TypeScript check
+        run: cd apps/admin && npx tsc --noEmit
+
+  contracts:
+    name: Contracts (hardhat)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install dependencies
+        run: cd contracts && npm ci
+
+      - name: Run Hardhat tests
+        run: cd contracts && npx hardhat test

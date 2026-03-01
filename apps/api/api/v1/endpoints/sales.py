@@ -179,6 +179,21 @@ async def contribute(
         amount=request.amount,
         tx_hash=request.tx_hash,
     )
+    # Fire investment confirmed notification (non-blocking)
+    try:
+        from sqlalchemy import select as _select
+
+        from apps.api.models.user import User as _User
+        from apps.api.services.notification_service import NotificationService as _NS
+        _res = await sale_service.db.execute(_select(_User).where(_User.id == user_id))
+        _user = _res.scalar_one_or_none()
+        if _user:
+            _token_symbol = contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
+            await _NS(sale_service.db).notify_investment_confirmed(
+                user_id, _user.email, str(request.amount), _token_symbol, request.tx_hash
+            )
+    except Exception:
+        pass
     return _contribution_to_response(contribution)
 
 

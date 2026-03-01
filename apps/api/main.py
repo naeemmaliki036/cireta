@@ -64,6 +64,8 @@ def create_app() -> FastAPI:
         path_limits=[
             PathRateLimit("/api/v1/auth/login", settings.rate_limit_login),  # 5/min
             PathRateLimit("/api/v1/auth/register", settings.rate_limit_register),  # 10/min
+            PathRateLimit("/api/v1/auth/forgot-password", 5),  # 5/min anti-abuse
+            PathRateLimit("/api/v1/auth/reset-password", 5),  # 5/min anti-abuse
             PathRateLimit("/api/v1/sales/", settings.rate_limit_contribute),  # 20/min for contribute
         ],
     )

@@ -214,10 +214,28 @@ class KYCService:
             if review_answer == "GREEN":
                 user.kyc_status = KYCStatus.APPROVED
                 user.kyc_level = 2  # Basic KYC level
+                user.kyc_provider = "sumsub"
+                user.kyc_external_id = applicant_id
+                user.kyc_verified_at = datetime.now(UTC)
                 await self._issue_onchain_claims(user)
+                # Send notification + email
+                try:
+                    from apps.api.services.notification_service import NotificationService
+                    notif_service = NotificationService(self.db)
+                    await notif_service.notify_kyc_approved(user.id, user.email, 2)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning("KYC notification failed: %s", e)
             elif review_answer == "RED":
                 user.kyc_status = KYCStatus.REJECTED
                 user.kyc_level = 0
+                try:
+                    from apps.api.services.notification_service import NotificationService
+                    notif_service = NotificationService(self.db)
+                    await notif_service.notify_kyc_rejected(user.id, user.email)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning("KYC rejection notification failed: %s", e)
 
         # Write audit log
         await self._write_audit(
