@@ -47,6 +47,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/api/v1/health/live || exit 1
 
-CMD ["/app/entrypoint.sh"]
+CMD ["/app/.venv/bin/python", "-m", "apps.api.main"]
 
 # cache-bust: 1772377605
