@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-teal: #13636f;
+  --brand-gold: #c9913d;
+  --brand-light: #ecf3f4;
+  --brand-dark: #180b2e;
+  --brand-text: #0c0c0c;
+  --color-primary: var(--brand-teal);
+  --color-secondary: var(--brand-gold);
+  --color-background: #ffffff;
+  --color-foreground: var(--brand-text);
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+}
+
+body {
+  font-family: "Gilroy", system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  color: var(--color-foreground);
+  background: var(--color-background);
+}
