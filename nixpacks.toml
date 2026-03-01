@@ -1,2 +1,2 @@
 [start]
-cmd = "/app/.venv/bin/python -m apps.api.main"
+cmd = "python start.py"
