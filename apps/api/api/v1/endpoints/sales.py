@@ -87,6 +87,23 @@ def _contribution_to_response(contrib) -> ContributionResponse:
     )
 
 
+
+@router.get("/by-slug/{slug}", response_model=SaleResponse)
+async def get_sale_by_slug(
+    slug: str,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleResponse:
+    """Get a sale by its token slug.
+
+    Public endpoint.
+    """
+    sale = await sale_service.get_sale_by_token_slug(slug)
+    if not sale:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Project not found")
+    return _sale_to_response(sale)
+
+
 @router.get("/", response_model=SaleListResponse)
 async def list_sales(
     sale_service: Annotated[SaleService, Depends(get_sale_service)],

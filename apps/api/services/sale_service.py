@@ -383,6 +383,23 @@ class SaleService:
 
         return contributions
 
+
+    async def get_sale_by_token_slug(self, slug: str) -> TokenSale | None:
+        """Get a sale by the token's slug."""
+        from apps.api.models.token import Token
+        query = (
+            select(TokenSale)
+            .join(Token, TokenSale.token_id == Token.id)
+            .where(Token.slug == slug)
+            .options(
+                selectinload(TokenSale.phases),
+                selectinload(TokenSale.token),
+                selectinload(TokenSale.issuer),
+            )
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
     async def list_sales(
         self, page: int = 1, size: int = 20, status_filter: SaleStatus | None = None
     ) -> tuple[list[TokenSale], int]:
