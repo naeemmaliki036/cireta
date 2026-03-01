@@ -1,33 +1,39 @@
-"""Authentication dependencies for FastAPI."""
+"""Authentication dependencies for FastAPI.
+
+These are base dependencies. Application-specific user handling
+should be done in apps/api/ with the Cireta User model.
+"""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.db.session import get_db
-from packages.common.models.user import User, UserRole
 from packages.common.services.auth_service import AuthService
 
 security = HTTPBearer(auto_error=False)
 
 
 async def get_auth_service(
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthService:
     """Get AuthService instance with database session."""
     return AuthService(db)
 
 
-async def get_current_user(
+async def get_current_user_id(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> User:
-    """Get the current authenticated user from JWT token.
+) -> UUID:
+    """Get the current authenticated user ID from JWT token.
+
+    Returns the user UUID from the token. Use this when you only need
+    the user ID for permission checks or queries.
 
     Raises:
-        HTTPException: If token is missing, invalid, or user not found.
+        HTTPException: If token is missing or invalid.
     """
     if not credentials:
         raise HTTPException(
@@ -36,58 +42,27 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await auth_service.get_user_from_token(credentials.credentials)
-    if not user:
+    user_id = AuthService.get_user_id_from_token(credentials.credentials)
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "INVALID_TOKEN", "message": "Invalid or expired token"},
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "USER_INACTIVE", "message": "User account is disabled"},
-        )
-
-    return user
+    return user_id
 
 
-async def get_current_user_optional(
+async def get_current_user_id_optional(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> User | None:
-    """Get the current user if authenticated, None otherwise."""
+) -> UUID | None:
+    """Get the current user ID if authenticated, None otherwise."""
     if not credentials:
         return None
 
-    return await auth_service.get_user_from_token(credentials.credentials)
-
-
-def require_role(*roles: UserRole):
-    """Dependency factory that requires specific user roles.
-
-    Usage:
-        @router.get("/admin")
-        async def admin_only(user: User = Depends(require_role(UserRole.ADMIN))):
-            ...
-    """
-    async def role_checker(
-        user: Annotated[User, Depends(get_current_user)]
-    ) -> User:
-        if user.role not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "code": "INSUFFICIENT_PERMISSIONS",
-                    "message": f"Required roles: {[r.value for r in roles]}",
-                },
-            )
-        return user
-
-    return role_checker
+    return AuthService.get_user_id_from_token(credentials.credentials)
 
 
 # Type aliases for cleaner endpoint signatures
-CurrentUser = Annotated[User, Depends(get_current_user)]
-OptionalUser = Annotated[User | None, Depends(get_current_user_optional)]
+CurrentUserId = Annotated[UUID, Depends(get_current_user_id)]
+OptionalUserId = Annotated[UUID | None, Depends(get_current_user_id_optional)]

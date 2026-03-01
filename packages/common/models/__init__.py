@@ -1,7 +1,9 @@
-"""Database models."""
+"""Database models - base classes and encrypted types.
 
-from packages.common.models.api_key import APIKey
+Application-specific models are in apps/api/models/.
+"""
+
 from packages.common.models.base import BaseModel
-from packages.common.models.user import User, UserRole
+from packages.common.models.encrypted_types import EncryptedJSON, EncryptedString
 
-__all__ = ["APIKey", "BaseModel", "User", "UserRole"]
+__all__ = ["BaseModel", "EncryptedString", "EncryptedJSON"]
