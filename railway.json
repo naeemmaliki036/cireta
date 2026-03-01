@@ -1,16 +1,8 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
-  "services": {
-    "cireta-launchpad": {
-      "build": {
-        "builder": "DOCKERFILE",
-        "dockerfilePath": "apps/launchpad/Dockerfile"
-      },
-      "deploy": {
-        "startCommand": "node apps/launchpad/server.js",
-        "healthcheckPath": "/",
-        "healthcheckTimeout": 100
-      }
-    }
+  "deploy": {
+    "startCommand": "node server.js",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 100
   }
 }
