@@ -81,7 +81,9 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     className={cn(
                       "px-4 py-2 rounded-full text-base font-medium transition-colors duration-200",
                       pathname === link.href
-                        ? "bg-white/10 text-white"
+                        ? variant === "light" && !isScrolled
+                          ? "bg-darkAqua/10 text-darkAqua font-semibold"
+                          : "bg-white/20 text-white font-semibold"
                         : cn(
                             isScrolled
                               ? "text-white/70 hover:text-white hover:bg-white/10"

@@ -88,13 +88,13 @@ export default function HomePage() {
       <Navbar variant="dark" />
 
       {/* Hero Section - Content visible immediately */}
-      <section className="relative bg-darkBlack w-full min-h-screen overflow-hidden">
+      <section className="relative bg-darkBlack w-full overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-darkBlack via-darkBlack/90 to-darkAqua/30" />
         <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-darkAqua/20 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gold/10 rounded-full blur-[100px] pointer-events-none" />
 
-        <div className="relative z-10 flex items-center justify-center flex-col min-h-screen mx-auto max-w-[990px] px-4 text-center text-white pt-32 pb-20">
+        <div className="relative z-10 flex items-center justify-center flex-col min-h-[75vh] mx-auto max-w-[990px] px-4 text-center text-white pt-28 pb-16">
           {/* Cireta Star - visible immediately */}
           <motion.div
             initial={{ opacity: 1, scale: 1 }}

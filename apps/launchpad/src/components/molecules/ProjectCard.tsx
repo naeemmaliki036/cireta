@@ -66,7 +66,7 @@ export function ProjectCard({
 
         <div className="relative">
           {/* Image Area */}
-          <div className="rounded-[20px] h-[300px] md:h-[393px] overflow-hidden">
+          <div className="rounded-[20px] h-[220px] md:h-[260px] overflow-hidden">
             {imageUrl ? (
               <Image
                 src={imageUrl}
