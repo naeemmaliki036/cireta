@@ -19,9 +19,9 @@ const buttonVariants = cva(
         ghost: "bg-transparent text-darkAqua hover:bg-darkAqua/10",
       },
       size: {
-        sm: "text-xsm/4 py-2 px-4",
-        md: "text-xsm/4 md:text-sm/5 py-2.5 md:py-3 px-6 md:px-8",
-        lg: "text-xsm/4 md:text-sm/5 lg:text-base/6 py-2.5 md:py-[18px] px-6 md:px-10",
+        sm: "text-sm py-2 px-4",
+        md: "text-sm py-2.5 md:py-3 px-6 md:px-8",
+        lg: "text-sm lg:text-base py-2.5 md:py-[18px] px-6 md:px-10",
         icon: "p-3",
       },
     },
