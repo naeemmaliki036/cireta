@@ -41,7 +41,7 @@ export function ProjectCard({
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      animate={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{
         type: "spring",
