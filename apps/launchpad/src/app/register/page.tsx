@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -40,8 +42,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      // API call would go here
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await register(formData.email, formData.password);
       router.push("/verify");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");

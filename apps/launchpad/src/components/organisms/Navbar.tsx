@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Wallet } from "lucide-react";
-import { Button, CiretaLogo } from "@/components/atoms";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { CiretaLogo } from "@/components/atoms";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -102,14 +103,78 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <Button
-              variant={isScrolled ? "primary" : variant === "dark" ? "secondary" : "primary"}
-              size="md"
-              className="hidden sm:flex"
-            >
-              <Wallet className="h-4 w-4 mr-2" />
-              Connect Wallet
-            </Button>
+            <ConnectButton.Custom>
+              {({
+                account,
+                chain,
+                openAccountModal,
+                openChainModal,
+                openConnectModal,
+                mounted,
+              }) => {
+                const ready = mounted;
+                const connected = ready && account && chain;
+
+                return (
+                  <div
+                    {...(!ready && {
+                      "aria-hidden": true,
+                      style: {
+                        opacity: 0,
+                        pointerEvents: "none",
+                        userSelect: "none",
+                      },
+                    })}
+                    className="hidden sm:flex"
+                  >
+                    {(() => {
+                      if (!connected) {
+                        return (
+                          <button
+                            onClick={openConnectModal}
+                            className={cn(
+                              "inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-300 hover:opacity-80",
+                              isScrolled || variant === "dark"
+                                ? "bg-darkAqua text-white"
+                                : "bg-darkAqua text-white"
+                            )}
+                          >
+                            <Wallet className="h-4 w-4" />
+                            Connect Wallet
+                          </button>
+                        );
+                      }
+
+                      if (chain.unsupported) {
+                        return (
+                          <button
+                            onClick={openChainModal}
+                            className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold bg-red-500 text-white transition-all duration-300 hover:opacity-80"
+                          >
+                            Wrong Network
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          onClick={openAccountModal}
+                          className={cn(
+                            "inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-300 hover:opacity-80",
+                            isScrolled || variant === "dark"
+                              ? "bg-darkAqua text-white"
+                              : "bg-darkAqua text-white"
+                          )}
+                        >
+                          <Wallet className="h-4 w-4" />
+                          {account.displayName}
+                        </button>
+                      );
+                    })()}
+                  </div>
+                );
+              }}
+            </ConnectButton.Custom>
 
             {/* Mobile Menu Toggle */}
             <button
@@ -165,10 +230,68 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               </nav>
 
               <div className="mt-8">
-                <Button variant="primary" size="lg" className="w-full">
-                  <Wallet className="h-5 w-5 mr-2" />
-                  Connect Wallet
-                </Button>
+                <ConnectButton.Custom>
+                  {({
+                    account,
+                    chain,
+                    openAccountModal,
+                    openChainModal,
+                    openConnectModal,
+                    mounted,
+                  }) => {
+                    const ready = mounted;
+                    const connected = ready && account && chain;
+
+                    return (
+                      <div
+                        {...(!ready && {
+                          "aria-hidden": true,
+                          style: {
+                            opacity: 0,
+                            pointerEvents: "none",
+                            userSelect: "none",
+                          },
+                        })}
+                        className="w-full"
+                      >
+                        {(() => {
+                          if (!connected) {
+                            return (
+                              <button
+                                onClick={openConnectModal}
+                                className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold bg-darkAqua text-white transition-all duration-300 hover:opacity-80"
+                              >
+                                <Wallet className="h-5 w-5" />
+                                Connect Wallet
+                              </button>
+                            );
+                          }
+
+                          if (chain.unsupported) {
+                            return (
+                              <button
+                                onClick={openChainModal}
+                                className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold bg-red-500 text-white transition-all duration-300 hover:opacity-80"
+                              >
+                                Wrong Network
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              onClick={openAccountModal}
+                              className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold bg-darkAqua text-white transition-all duration-300 hover:opacity-80"
+                            >
+                              <Wallet className="h-5 w-5" />
+                              {account.displayName}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    );
+                  }}
+                </ConnectButton.Custom>
               </div>
             </div>
           </motion.div>

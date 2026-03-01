@@ -1,9 +1,5 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-interface RequestOptions extends RequestInit {
-  token?: string;
-}
-
 export class APIError extends Error {
   constructor(
     public status: number,
@@ -15,7 +11,41 @@ export class APIError extends Error {
   }
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
+interface FetchOptions {
+  method?: string;
+  body?: unknown;
+  token?: string;
+  headers?: Record<string, string>;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: FetchOptions = {}
+): Promise<T> {
+  const { method = "GET", body, token, headers: extraHeaders } = options;
+
+  const authToken = token ?? getStoredToken();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  };
+
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new APIError(
@@ -24,72 +54,37 @@ async function handleResponse<T>(response: Response): Promise<T> {
       error.detail?.message ?? response.statusText
     );
   }
+
   return response.json();
 }
 
 export async function apiGet<T>(
   path: string,
-  options?: RequestOptions
+  options?: { token?: string }
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (options?.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: "GET",
-    headers,
-    ...options,
-  });
-
-  return handleResponse<T>(response);
+  return apiFetch<T>(path, { method: "GET", token: options?.token });
 }
 
 export async function apiPost<T, D = unknown>(
   path: string,
   data?: D,
-  options?: RequestOptions
+  options?: { token?: string }
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (options?.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
+  return apiFetch<T>(path, {
     method: "POST",
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    ...options,
+    body: data,
+    token: options?.token,
   });
-
-  return handleResponse<T>(response);
 }
 
 export async function apiPatch<T, D = unknown>(
   path: string,
   data?: D,
-  options?: RequestOptions
+  options?: { token?: string }
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (options?.token) {
-    headers.Authorization = `Bearer ${options.token}`;
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
+  return apiFetch<T>(path, {
     method: "PATCH",
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    ...options,
+    body: data,
+    token: options?.token,
   });
-
-  return handleResponse<T>(response);
 }

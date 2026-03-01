@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { AppProviders } from "@/components/providers/AppProviders";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Cireta Launchpad | RWA Tokenization",
   description:

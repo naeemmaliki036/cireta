@@ -8,6 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import * as authRepo from "@/lib/api/repositories/auth.repository";
 
 interface User {
   id: string;
@@ -26,13 +27,30 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshAuth: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+function setAuthCookie(authenticated: boolean) {
+  if (authenticated) {
+    document.cookie = "cireta_auth=1; path=/; SameSite=Lax";
+  } else {
+    document.cookie = "cireta_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  }
+}
+
+function mapUser(raw: authRepo.User): User {
+  return {
+    id: raw.id,
+    email: raw.email,
+    role: raw.role,
+    kycStatus: raw.kyc_status,
+    kycLevel: raw.kyc_level,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -42,49 +60,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
   });
 
-  const refreshAuth = useCallback(async () => {
+  const refreshUser = useCallback(async () => {
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (!refreshToken) {
+      const storedRefresh = localStorage.getItem("refreshToken");
+      if (!storedRefresh) {
         setState((s) => ({ ...s, isLoading: false }));
         return;
       }
 
-      const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+      const tokens = await authRepo.refreshToken(storedRefresh);
+      localStorage.setItem("token", tokens.access_token);
+      localStorage.setItem("refreshToken", tokens.refresh_token);
+
+      const rawUser = await authRepo.me(tokens.access_token);
+      setAuthCookie(true);
+      setState({
+        user: mapUser(rawUser),
+        accessToken: tokens.access_token,
+        isAuthenticated: true,
+        isLoading: false,
       });
-
-      if (!res.ok) {
-        localStorage.removeItem("refreshToken");
-        setState({
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-        return;
-      }
-
-      const data = await res.json();
-      localStorage.setItem("refreshToken", data.refresh_token);
-
-      // Fetch user data
-      const userRes = await fetch(`${API_BASE}/api/v1/auth/me`, {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      });
-
-      if (userRes.ok) {
-        const user = await userRes.json();
-        setState({
-          user,
-          accessToken: data.access_token,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      }
     } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      setAuthCookie(false);
       setState({
         user: null,
         accessToken: null,
@@ -95,58 +94,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshAuth();
-  }, [refreshAuth]);
+    refreshUser();
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+    const tokens = await authRepo.login({ email, password });
+    localStorage.setItem("token", tokens.access_token);
+    localStorage.setItem("refreshToken", tokens.refresh_token);
+
+    const rawUser = await authRepo.me(tokens.access_token);
+    setAuthCookie(true);
+    setState({
+      user: mapUser(rawUser),
+      accessToken: tokens.access_token,
+      isAuthenticated: true,
+      isLoading: false,
     });
+  };
 
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.detail?.message ?? "Login failed");
-    }
+  const register = async (email: string, password: string) => {
+    const tokens = await authRepo.register({ email, password });
+    localStorage.setItem("token", tokens.access_token);
+    localStorage.setItem("refreshToken", tokens.refresh_token);
 
-    const data = await res.json();
-    localStorage.setItem("refreshToken", data.refresh_token);
-
-    // Fetch user data
-    const userRes = await fetch(`${API_BASE}/api/v1/auth/me`, {
-      headers: { Authorization: `Bearer ${data.access_token}` },
+    const rawUser = await authRepo.me(tokens.access_token);
+    setAuthCookie(true);
+    setState({
+      user: mapUser(rawUser),
+      accessToken: tokens.access_token,
+      isAuthenticated: true,
+      isLoading: false,
     });
-
-    if (userRes.ok) {
-      const user = await userRes.json();
-      setState({
-        user,
-        accessToken: data.access_token,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    }
   };
 
   const logout = async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (refreshToken && state.accessToken) {
+    const storedRefresh = localStorage.getItem("refreshToken");
+    if (storedRefresh && state.accessToken) {
       try {
-        await fetch(`${API_BASE}/api/v1/auth/logout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${state.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
+        await authRepo.logout(state.accessToken, storedRefresh);
       } catch {
         // Ignore logout errors
       }
     }
 
+    localStorage.removeItem("token");
     localStorage.removeItem("refreshToken");
+    setAuthCookie(false);
     setState({
       user: null,
       accessToken: null,
@@ -156,7 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshAuth }}>
+    <AuthContext.Provider
+      value={{ ...state, login, register, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
