@@ -1,0 +1,52 @@
+# Cireta RWA Platform - Docker Compose (Local Development)
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=cireta
+      - POSTGRES_PASSWORD=cireta_dev_password
+      - POSTGRES_DB=cireta_dev
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cireta"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cireta-local
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_local:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cireta-local
+
+  mailcatcher:
+    image: schickling/mailcatcher
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+    networks:
+      - cireta-local
+
+volumes:
+  postgres_data_local:
+  redis_data_local:
+
+networks:
+  cireta-local:
+    driver: bridge

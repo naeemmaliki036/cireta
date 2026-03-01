@@ -1,0 +1,84 @@
+# Cireta Docker Ignore
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Documentation
+docs/
+*.md
+!LICENSE.md
+
+# Frontend apps (built separately)
+apps/launchpad/
+apps/admin/
+
+# Contracts (deployed separately)
+contracts/
+
+# Local files
+*.local
+*.local.*
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Node (if any)
+node_modules/
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# Temp files
+tmp/
+temp/

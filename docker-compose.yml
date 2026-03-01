@@ -1,0 +1,76 @@
+# Cireta RWA Platform - Docker Compose (Production)
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SUMSUB_SECRET_KEY=${SUMSUB_SECRET_KEY}
+      - SUMSUB_APP_TOKEN=${SUMSUB_APP_TOKEN}
+      - WEB3_RPC_URL=${WEB3_RPC_URL}
+      - DEPLOYER_PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY}
+      - CHAIN_ID=${CHAIN_ID:-8453}
+      - PLATFORM_FEE_RECEIVER=${PLATFORM_FEE_RECEIVER}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - cireta-network
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-cireta}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-cireta}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cireta}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cireta-network
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cireta-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  cireta-network:
+    driver: bridge
