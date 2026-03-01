@@ -14,37 +14,27 @@ import {
 const ASSET_TYPES = ["All", "Gold", "Copper", "Commodities", "Futures"];
 const STATUS_FILTERS = ["All", "Active", "Upcoming", "Completed"];
 
-const MOCK_PROJECTS: Project[] = [
-  { id: "1", title: "West African Gold Reserve", slug: "west-african-gold", imageUrl: "", assetType: "Gold", fundingRound: "Seed Round", currentRaised: 2450000, targetAmount: 5000000, investorCount: 847, status: "active", tokenSymbol: "WAGR", issuer: { id: "1", name: "VanarChain", slug: "vanarchain" }, phases: [] },
-  { id: "2", title: "Chilean Copper Fund", slug: "chilean-copper", imageUrl: "", assetType: "Copper", fundingRound: "Series A", currentRaised: 8200000, targetAmount: 10000000, investorCount: 1234, status: "active", tokenSymbol: "CCF", issuer: { id: "1", name: "VanarChain", slug: "vanarchain" }, phases: [] },
-  { id: "3", title: "Moroccan Steel Manufacturing", slug: "moroccan-steel", imageUrl: "", assetType: "Commodities", fundingRound: "Seed Round", currentRaised: 1800000, targetAmount: 3500000, investorCount: 523, status: "active", tokenSymbol: "MSM", issuer: { id: "1", name: "VanarChain", slug: "vanarchain" }, phases: [] },
-  { id: "4", title: "South American Silver", slug: "south-american-silver", imageUrl: "", assetType: "Commodities", fundingRound: "Pre-Seed", currentRaised: 450000, targetAmount: 2000000, investorCount: 234, status: "upcoming", tokenSymbol: "SAS", issuer: { id: "1", name: "VanarChain", slug: "vanarchain" }, phases: [] },
-  { id: "5", title: "Australian Mining Futures", slug: "australian-mining", imageUrl: "", assetType: "Futures", fundingRound: "Seed Round", currentRaised: 3100000, targetAmount: 4000000, investorCount: 671, status: "active", tokenSymbol: "AMF", issuer: { id: "1", name: "VanarChain", slug: "vanarchain" }, phases: [] },
-  { id: "6", title: "Asian Precious Metals", slug: "asian-precious-metals", imageUrl: "", assetType: "Gold", fundingRound: "Series A", currentRaised: 12500000, targetAmount: 15000000, investorCount: 7, status: "active", tokenSymbol: "APM", issuer: { id: "1", name: "VanarChain", slug: "vanarchain" }, phases: [] },
-];
-
-
 
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [assetType, setAssetType] = useState("All");
   const [status, setStatus] = useState("All");
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
 
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
+    setApiError(false);
     try {
       const response = await getProjects({
         assetType,
         status,
         search: searchQuery || undefined,
       });
-      if (response.items.length > 0) {
-        setProjects(response.items);
-      }
+      setProjects(response.items);
     } catch {
-      // API unavailable — keep showing mock data
+      setApiError(true);
     } finally {
       setIsLoading(false);
     }
@@ -138,27 +128,20 @@ export default function ExplorePage() {
             <div className="flex items-center justify-center py-20">
               <Spinner size="lg" />
             </div>
+          ) : apiError ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <h3 className="text-xl font-semibold text-text mb-2">Unable to load projects</h3>
+              <p className="text-darkBlack/50 max-w-md mb-6">The platform is temporarily unavailable. Please try again shortly.</p>
+              <Button variant="outline" onClick={fetchProjects}>Retry</Button>
+            </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="w-24 h-24 mb-6 rounded-full bg-darkAqua/10 flex items-center justify-center">
                 <Search className="w-12 h-12 text-darkAqua/40" />
               </div>
-              <h3 className="text-xl font-semibold text-text mb-2">
-                No Projects Found
-              </h3>
-              <p className="text-darkBlack/50 max-w-md">
-                Try adjusting your filters or search query to find more
-                projects.
-              </p>
-              <Button
-                variant="outline"
-                className="mt-6"
-                onClick={() => {
-                  setSearchQuery("");
-                  setAssetType("All");
-                  setStatus("All");
-                }}
-              >
+              <h3 className="text-xl font-semibold text-text mb-2">No Projects Found</h3>
+              <p className="text-darkBlack/50 max-w-md">Try adjusting your filters or search query.</p>
+              <Button variant="outline" className="mt-6" onClick={() => { setSearchQuery(""); setAssetType("All"); setStatus("All"); }}>
                 Clear Filters
               </Button>
             </div>
