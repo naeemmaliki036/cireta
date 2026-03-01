@@ -131,10 +131,15 @@ export default function ExplorePage() {
               ))}
             </div>
           ) : apiError ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <h3 className="text-xl font-semibold text-text mb-2">Unable to load projects</h3>
-              <p className="text-darkBlack/50 max-w-md mb-6">The platform is temporarily unavailable. Please try again shortly.</p>
-              <Button variant="outline" onClick={fetchProjects}>Retry</Button>
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-20 h-20 mb-6 rounded-full bg-darkAqua/10 flex items-center justify-center">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-darkAqua/60">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-text mb-2">Projects Loading Soon</h3>
+              <p className="text-darkBlack/50 max-w-md mb-6">We&apos;re finalizing the platform. Check back shortly.</p>
+              <Button variant="outline" onClick={fetchProjects}>Refresh</Button>
             </div>
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
