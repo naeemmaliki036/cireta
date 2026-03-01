@@ -7,7 +7,6 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/apps/launchpad/node_modules ./apps/launchpad/node_modules
 COPY apps/launchpad/ ./apps/launchpad/
-COPY apps/launchpad/src/assets/ ./apps/launchpad/src/assets/
 RUN cd apps/launchpad && npm run build
 
 FROM node:20-alpine AS runner
