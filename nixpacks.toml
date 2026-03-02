@@ -1,5 +1,8 @@
 # Force Python provider — monorepo has package.json that confuses Nixpacks
 providers = ["python"]
 
+[phases.install]
+cmds = ["python -m venv --copies /opt/venv && . /opt/venv/bin/activate && pip install poetry && poetry install --only main --no-interaction --no-ansi --no-root"]
+
 [start]
 cmd = "python start.py"
