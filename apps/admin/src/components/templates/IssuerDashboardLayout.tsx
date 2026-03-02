@@ -59,7 +59,7 @@ export function IssuerDashboardLayout({
     <div className="min-h-screen bg-box">
       {/* Sidebar */}
       <aside
-        className="fixed left-0 top-0 h-screen w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar overflow-y-auto"
+        className="fixed left-0 top-0 bottom-0 w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar overflow-y-auto"
         style={{ transform: sidebarVisible ? "translateX(0)" : "translateX(-100%)" }}
       >
         <div className="flex flex-col h-full p-6">
