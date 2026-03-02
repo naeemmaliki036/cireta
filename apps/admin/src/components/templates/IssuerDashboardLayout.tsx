@@ -111,9 +111,9 @@ export function IssuerDashboardLayout({
       )}
 
       {/* Main Content */}
-      <div className="sidebar-offset overflow-x-hidden min-w-0">
+      <div className="sidebar-offset">
         {/* Top Bar */}
-        <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-6 py-4">
+        <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -162,7 +162,7 @@ export function IssuerDashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-8"><div className="max-w-[1400px] mx-auto">{children}</div></main>
+        <main className="p-8 min-h-screen">{children}</main>
       </div>
     </div>
   );
