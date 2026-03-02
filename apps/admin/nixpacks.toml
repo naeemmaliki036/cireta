@@ -1,0 +1,13 @@
+providers = ["node"]
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["cd /app && npm ci"]
+
+[phases.build]
+cmds = ["cd /app && npm run build --workspace=apps/admin"]
+
+[start]
+cmd = "PORT=${PORT:-3000} HOSTNAME=0.0.0.0 node /app/apps/admin/.next/standalone/apps/admin/server.js"
