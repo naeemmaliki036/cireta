@@ -11,7 +11,6 @@ WORKDIR /app
 # Copy workspace manifests
 COPY package.json ./
 COPY apps/admin/package.json ./apps/admin/
-COPY packages/common/package.json ./packages/common/
 
 RUN npm install --legacy-peer-deps
 
