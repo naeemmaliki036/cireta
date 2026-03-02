@@ -4,7 +4,7 @@ providers = ["node"]
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["cd /app && npm ci"]
+cmds = ["cd /app && npm install --legacy-peer-deps"]
 
 [phases.build]
 cmds = ["cd /app && npm run build --workspace=apps/admin"]
