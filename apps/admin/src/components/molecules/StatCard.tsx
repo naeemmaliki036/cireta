@@ -55,12 +55,12 @@ export function StatCard({
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "rounded-3xl p-6 border",
+        "rounded-3xl p-7 border",
         variants[variant],
         className
       )}
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-5">
         <p
           className={cn(
             "text-xs uppercase tracking-wide font-medium",

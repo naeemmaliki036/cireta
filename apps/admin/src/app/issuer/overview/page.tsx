@@ -36,7 +36,7 @@ export default function IssuerOverviewPage() {
   return (
     <IssuerDashboardLayout title="Dashboard Overview" description="Monitor your tokens and sales performance">
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <StatCard label="Total Raised" value={totalRaised} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Active Sales" value={activeSales.length} icon={<TrendingUp className="h-5 w-5" />} />
         <StatCard label="Total Investors" value={0} icon={<Users className="h-5 w-5" />} />
@@ -45,8 +45,8 @@ export default function IssuerOverviewPage() {
 
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-8">
-        <h2 className="text-lg font-semibold text-text mb-4">Quick Actions</h2>
+        className="bg-white rounded-3xl p-8 border border-darkBlack/10 mb-8">
+        <h2 className="text-lg font-semibold text-text mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             { href: "/issuer/tokens/new", icon: <Plus className="h-6 w-6 text-darkAqua" />, bg: "bg-darkAqua/10", label: "Create Token", sub: "Deploy new ERC-3643" },
@@ -54,7 +54,7 @@ export default function IssuerOverviewPage() {
             { href: "/issuer/compliance", icon: <Coins className="h-6 w-6 text-purple-600" />, bg: "bg-purple-100", label: "Compliance", sub: "Freeze, recover tokens" },
           ].map((a) => (
             <Link key={a.href} href={a.href}
-              className="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-darkAqua hover:bg-darkAqua/5 bg-white shadow-sm transition-colors group">
+              className="flex items-center gap-5 px-6 py-5 rounded-2xl border border-gray-200 hover:border-darkAqua hover:bg-darkAqua/5 bg-white shadow-sm transition-colors group">
               <div className={`w-12 h-12 rounded-xl ${a.bg} flex items-center justify-center`}>{a.icon}</div>
               <div>
                 <p className="font-semibold text-text">{a.label}</p>
@@ -67,8 +67,8 @@ export default function IssuerOverviewPage() {
 
       {/* Active Sales */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10">
-        <div className="flex items-center justify-between mb-6">
+        className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <div className="flex items-center justify-between mb-8">
           <h2 className="text-lg font-semibold text-text">Active Sales</h2>
           <Link href="/issuer/sales">
             <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" />}>View All</Button>
@@ -79,15 +79,15 @@ export default function IssuerOverviewPage() {
         ) : activeSales.length === 0 ? (
           <p className="text-center text-darkBlack/40 py-8">No active sales yet</p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {activeSales.map((sale) => {
               const raised = parseFloat(sale.total_raised || "0");
               const target = parseFloat(sale.hard_cap || "0");
               const pct = target > 0 ? (raised / target) * 100 : 0;
               return (
                 <Link key={sale.id} href={`/issuer/sales/${sale.id}`}
-                  className="block p-4 rounded-2xl bg-box hover:bg-darkAqua/5 transition-colors">
-                  <div className="flex items-center justify-between mb-3">
+                  className="block px-6 py-5 rounded-2xl bg-box hover:bg-darkAqua/5 transition-colors">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="font-semibold text-text">{sale.token_name ?? sale.id}</h3>
                       <p className="text-sm text-darkBlack/50">{sale.token_symbol}</p>
