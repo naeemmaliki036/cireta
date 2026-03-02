@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -67,7 +67,7 @@ export function IssuerDashboardLayout({
           <Link href="/issuer/overview" className="flex items-center gap-2 mb-10">
             <CiretaLogo variant="icon" color="teal" className="w-8 h-8" />
             <span className="text-xl font-bold text-white">Cireta</span>
-            <span className="text-xs text-white/50 ml-1">Issuer</span>
+            <span className="text-xs text-white/70 ml-1">Issuer</span>
           </Link>
 
           {/* Navigation */}
@@ -82,8 +82,8 @@ export function IssuerDashboardLayout({
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-white text-darkBlack font-semibold"
-                      : "text-white/80 hover:text-white hover:bg-white/15"
+                      ? "bg-darkAqua/25 text-darkAqua border border-darkAqua/30 font-semibold"
+                      : "text-white hover:text-white hover:bg-white/10"
                   )}
                 >
                   <link.icon className="h-5 w-5" />
@@ -97,7 +97,7 @@ export function IssuerDashboardLayout({
           <div className="mt-auto pt-6 border-t border-white/10 space-y-1">
             <Link
               href="/issuer/settings"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-colors text-sm font-medium"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
             >
               <Settings className="h-5 w-5" />
               Settings

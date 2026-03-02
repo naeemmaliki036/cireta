@@ -66,7 +66,7 @@ export function PlatformAdminLayout({
                 <Link key={link.href} href={link.href} onClick={() => setIsSidebarOpen(false)}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                    isActive ? "bg-white text-darkBlack font-semibold" : "text-white/80 hover:text-white hover:bg-white/15"
+                    isActive ? "bg-darkAqua/25 text-darkAqua border border-darkAqua/30 font-semibold" : "text-white hover:text-white hover:bg-white/10"
                   )}>
                   <link.icon className="h-5 w-5" />
                   {link.label}
@@ -76,7 +76,7 @@ export function PlatformAdminLayout({
           </nav>
           <div className="mt-auto pt-6 border-t border-white/10 space-y-1">
             <Link href="/platform/settings"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-colors text-sm font-medium">
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:text-white hover:bg-white/10 transition-colors text-sm font-medium">
               <Settings className="h-5 w-5" />Settings
             </Link>
             <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-sm font-medium w-full">
