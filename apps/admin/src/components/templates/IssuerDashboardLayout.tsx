@@ -44,23 +44,23 @@ export function IssuerDashboardLayout({
 }: IssuerDashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsDesktop(window.innerWidth >= 990);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  const sidebarVisible = isDesktop || isSidebarOpen;
 
   return (
-    <div className="min-h-screen bg-box">
+    <div className="flex min-h-screen">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className="fixed left-0 top-0 bottom-0 w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar overflow-y-auto"
-        style={{ transform: sidebarVisible ? "translateX(0)" : "translateX(-100%)" }}
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 w-64 bg-darkBlack shadow-sidebar flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-auto",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
       >
         <div className="flex flex-col h-full p-6">
           {/* Logo */}
@@ -110,27 +110,18 @@ export function IssuerDashboardLayout({
         </div>
       </aside>
 
-      {/* Mobile Overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 sidebar-mobile-only"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
       {/* Main Content */}
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0 bg-box">
         {/* Top Bar */}
         <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="sidebar-overlay-btn p-2 rounded-lg hover:bg-darkBlack/5 transition-colors"
+                className="lg:hidden p-2 rounded-lg hover:bg-darkBlack/5 transition-colors"
               >
                 <Menu className="h-6 w-6" />
               </button>
-
               <div>
                 {breadcrumbs && breadcrumbs.length > 0 && (
                   <nav className="flex items-center gap-1 text-sm text-gray-500 mb-1">
@@ -150,15 +141,10 @@ export function IssuerDashboardLayout({
                     ))}
                   </nav>
                 )}
-                {title && (
-                  <h1 className="text-xl font-semibold text-text">{title}</h1>
-                )}
-                {description && (
-                  <p className="text-sm text-gray-500">{description}</p>
-                )}
+                {title && <h1 className="text-xl font-semibold text-text">{title}</h1>}
+                {description && <p className="text-sm text-gray-500">{description}</p>}
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               {actions}
               <Button variant="outline" size="sm">
@@ -170,7 +156,7 @@ export function IssuerDashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-8 min-h-screen">{children}</main>
+        <main className="flex-1 p-8">{children}</main>
       </div>
     </div>
   );
