@@ -75,7 +75,7 @@ export default function TokensPage() {
   return (
     <IssuerDashboardLayout title="Tokens" description="Deploy and manage your ERC-3643 security tokens">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+        className="bg-white rounded-3xl p-6 border border-darkBlack/10 overflow-visible">
         <div className="flex items-center justify-between mb-6">
           <div className="flex-1 max-w-xs">
             <Input placeholder="Search tokens…" value={search} onChange={(e) => setSearch(e.target.value)} />

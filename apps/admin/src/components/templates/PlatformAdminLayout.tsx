@@ -163,7 +163,7 @@ export function PlatformAdminLayout({
         </header>
 
         {/* Page Content */}
-        <main className="p-6">{children}</main>
+        <main className="p-8"><div className="max-w-[1400px] mx-auto">{children}</div></main>
       </div>
     </div>
   );

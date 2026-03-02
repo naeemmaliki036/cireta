@@ -29,7 +29,7 @@ export function DataTable<T extends object>({
   className,
 }: DataTableProps<T>) {
   return (
-    <div className={cn("bg-white rounded-3xl border border-darkBlack/10 overflow-hidden", className)}>
+    <div className={cn("bg-white rounded-3xl border border-darkBlack/10 overflow-visible", className)}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>

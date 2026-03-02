@@ -81,7 +81,7 @@ export function StatCard({
         )}
       </div>
 
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between gap-3">
         <p
           className={cn(
             "text-2xl lg:text-3xl font-bold tracking-tight",

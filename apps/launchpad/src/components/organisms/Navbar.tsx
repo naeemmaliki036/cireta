@@ -102,7 +102,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-3">
             <ConnectButton.Custom>
               {({
                 account,

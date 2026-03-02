@@ -96,7 +96,7 @@ export function KYCFunnelChart({ delay = 0.4 }: { delay?: number }) {
   const convRate = first && last ? ((last.count / first.count) * 100).toFixed(1) : "0.0";
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+      className="bg-white rounded-3xl p-6 pb-8 border border-darkBlack/10 overflow-visible">
       <h3 className="text-lg font-semibold text-text mb-1">KYC Funnel</h3>
       <p className="text-sm text-gray-500 mb-6">User verification progress</p>
       <div className="space-y-4">

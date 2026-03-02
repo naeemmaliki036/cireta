@@ -71,7 +71,7 @@ export default function ExplorePage() {
             </div>
 
             {/* Asset Type Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
+            <div className="flex items-center gap-3 flex-wrap overflow-x-auto pb-2 md:pb-0 w-full md:w-auto pr-2">
               {ASSET_TYPES.map((type) => (
                 <button
                   key={type}
@@ -89,7 +89,7 @@ export default function ExplorePage() {
             </div>
 
             {/* Status Filter */}
-            <div className="hidden lg:flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-3">
               {STATUS_FILTERS.map((s) => (
                 <button
                   key={s}
