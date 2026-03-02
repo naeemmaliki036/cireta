@@ -1,26 +1,28 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat python3 make g++
 
 # Stage 1: install deps
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json ./
+COPY apps/launchpad/package.json ./apps/launchpad/
 COPY apps/admin/package.json ./apps/admin/
+RUN mkdir -p contracts subgraph && \
+    echo '{"name":"contracts","version":"1.0.0"}' > contracts/package.json && \
+    echo '{"name":"cireta-subgraph","version":"1.0.0"}' > subgraph/package.json
 RUN npm install --legacy-peer-deps
 
-# Stage 2: build
+# Stage 2: build admin
 FROM base AS builder
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV HOSTNAME="0.0.0.0"
 RUN npm run build --workspace=apps/admin
 
-# Stage 3: runner
-FROM base AS runner
+# Stage 3: lean runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -33,5 +35,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
 
 USER nextjs
-
 CMD ["node", "apps/admin/server.js"]

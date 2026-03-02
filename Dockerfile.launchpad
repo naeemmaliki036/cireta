@@ -1,26 +1,31 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat python3 make g++
 
 # Stage 1: install deps
+# We copy all app package.json files so npm workspaces resolves correctly.
+# contracts/ and subgraph/ are excluded by .dockerignore so we create empty stubs.
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json ./
 COPY apps/launchpad/package.json ./apps/launchpad/
+COPY apps/admin/package.json ./apps/admin/
+# Create stub package.json for contracts + subgraph (excluded by .dockerignore)
+RUN mkdir -p contracts subgraph && \
+    echo '{"name":"contracts","version":"1.0.0"}' > contracts/package.json && \
+    echo '{"name":"cireta-subgraph","version":"1.0.0"}' > subgraph/package.json
 RUN npm install --legacy-peer-deps
 
-# Stage 2: build
+# Stage 2: build launchpad
 FROM base AS builder
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV HOSTNAME="0.0.0.0"
 RUN npm run build --workspace=apps/launchpad
 
-# Stage 3: runner
-FROM base AS runner
+# Stage 3: lean runner — only standalone output, no source
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -34,6 +39,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/launchpad/.next/standalone .
 COPY --from=builder --chown=nextjs:nodejs /app/apps/launchpad/.next/static ./apps/launchpad/.next/static
 
 USER nextjs
-
-# Railway sets PORT at runtime; server.js reads process.env.PORT automatically
 CMD ["node", "apps/launchpad/server.js"]
