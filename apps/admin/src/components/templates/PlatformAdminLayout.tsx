@@ -49,8 +49,8 @@ export function PlatformAdminLayout({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 sidebar-show shadow-sidebar",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         <div className="flex flex-col h-full p-6">

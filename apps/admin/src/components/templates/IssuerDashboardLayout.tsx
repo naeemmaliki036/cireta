@@ -44,14 +44,22 @@ export function IssuerDashboardLayout({
 }: IssuerDashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 990);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   return (
     <div className="min-h-screen bg-box">
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 sidebar-show shadow-sidebar",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar",
+          (isDesktop || isSidebarOpen) ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full p-6">

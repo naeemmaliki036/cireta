@@ -154,7 +154,6 @@ body {
   -ms-text-size-adjust: none;
   font-size: 1rem;
   font-weight: 500;
-  overflow-x: hidden;
   font-family: "Gilroy", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -253,6 +252,13 @@ a {
   @apply bg-box rounded-3xl p-6 border border-darkBlack/10;
 }
 
+/* ── Admin Layout: sidebar offset (main content pushed right of fixed sidebar) ── */
+@media (min-width: 990px) {
+  .sidebar-offset {
+    padding-left: 16rem; /* 256px = w-64 sidebar width */
+  }
+}
+
 /* ── Admin Layout: sidebar visibility on desktop ── */
 @media (min-width: 990px) {
   .sidebar-show {
@@ -270,5 +276,15 @@ a {
   .sidebar-show {
     --tw-translate-x: 0 !important;
     transform: translateX(0) !important;
+  }
+}
+
+/* ── Sidebar: force visible on desktop regardless of Tailwind JIT ── */
+@media (min-width: 990px) {
+  aside[class*="fixed left-0 top-0 h-full w-64"] {
+    transform: translateX(0) !important;
+  }
+  .lg\:pl-64 {
+    padding-left: 16rem !important;
   }
 }
