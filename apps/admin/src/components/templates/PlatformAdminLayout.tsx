@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -43,6 +43,14 @@ export function PlatformAdminLayout({
 }: PlatformAdminLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 990);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   return (
     <div className="min-h-screen bg-box">
@@ -50,7 +58,7 @@ export function PlatformAdminLayout({
       <aside
         className={cn(
           "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          (isDesktop || isSidebarOpen) ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full p-6">
