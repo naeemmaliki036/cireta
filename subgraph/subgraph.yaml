@@ -1,0 +1,75 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  # CiretaToken (ERC-3643) - placeholder address for initial deployment
+  - kind: ethereum
+    name: CiretaToken
+    network: base
+    source:
+      address: "0x0000000000000000000000000000000000000001"
+      abi: CiretaToken
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Transfer
+        - FreezeEvent
+        - TokenStats
+      abis:
+        - name: CiretaToken
+          file: ./abis/CiretaToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: AddressFrozen(indexed address,indexed bool,indexed address)
+          handler: handleFreeze
+      file: ./src/mappings.ts
+
+  # Sale contract - placeholder address
+  - kind: ethereum
+    name: Sale
+    network: base
+    source:
+      address: "0x0000000000000000000000000000000000000002"
+      abi: Sale
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - SaleContribution
+        - SaleStats
+      abis:
+        - name: Sale
+          file: ./abis/Sale.json
+      eventHandlers:
+        - event: Contributed(indexed address,uint256,uint256)
+          handler: handleContributed
+      file: ./src/mappings.ts
+
+  # DividendDistributor - placeholder address
+  - kind: ethereum
+    name: DividendDistributor
+    network: base
+    source:
+      address: "0x0000000000000000000000000000000000000003"
+      abi: DividendDistributor
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - DividendClaim
+        - DividendStats
+      abis:
+        - name: DividendDistributor
+          file: ./abis/DividendDistributor.json
+      eventHandlers:
+        - event: DividendClaimed(indexed address,indexed uint256,uint256)
+          handler: handleClaimed
+      file: ./src/mappings.ts

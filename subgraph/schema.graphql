@@ -1,0 +1,70 @@
+# ERC-3643 Token Transfer events
+type Transfer @entity(immutable: true) {
+  id: Bytes!
+  from: Bytes!
+  to: Bytes!
+  value: BigInt!
+  token: Bytes!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+# Freeze/Unfreeze events from ERC-3643 tokens
+type FreezeEvent @entity(immutable: true) {
+  id: Bytes!
+  wallet: Bytes!
+  frozen: Boolean!
+  token: Bytes!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+# Sale contributions
+type SaleContribution @entity(immutable: true) {
+  id: Bytes!
+  contributor: Bytes!
+  sale: Bytes!
+  amount: BigInt!
+  tokensAllocated: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+# Dividend claims from DividendDistributor
+type DividendClaim @entity(immutable: true) {
+  id: Bytes!
+  holder: Bytes!
+  epoch: BigInt!
+  amount: BigInt!
+  distributor: Bytes!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+# Token aggregate stats
+type TokenStats @entity {
+  id: Bytes! # token address
+  totalTransfers: BigInt!
+  totalVolume: BigInt!
+  holderCount: BigInt!
+  frozenCount: BigInt!
+}
+
+# Sale aggregate stats
+type SaleStats @entity {
+  id: Bytes! # sale address
+  totalContributions: BigInt!
+  totalRaised: BigInt!
+  contributorCount: BigInt!
+}
+
+# Dividend distributor aggregate stats
+type DividendStats @entity {
+  id: Bytes! # distributor address
+  totalClaimed: BigInt!
+  claimCount: BigInt!
+}
