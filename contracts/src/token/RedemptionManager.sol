@@ -47,7 +47,6 @@ contract RedemptionManager is
 
     function initialize(address _token, address initialOwner) public initializer {
         __Ownable_init(initialOwner);
-        // ReentrancyGuard has no init (non-upgradeable)
         token = IERC20(_token);
     }
 

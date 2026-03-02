@@ -80,7 +80,8 @@ export default function InvestPage() {
   const activePhase = project?.phases.find((p) => p.is_active) ?? project?.phases[0] ?? null;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
-  const saleContractAddress = project?.phases[0] ? USDC_ADDRESS : USDC_ADDRESS; // TODO: use sale contract address
+  const _rawAddr = (project as unknown as { contract_address?: string | null })?.contract_address;
+  const saleContractAddress: `0x${string}` = (_rawAddr?.startsWith("0x") ? _rawAddr as `0x${string}` : null) ?? USDC_ADDRESS;
 
   const handleApprove = useCallback(() => {
     if (!saleContractAddress) return;

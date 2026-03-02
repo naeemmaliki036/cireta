@@ -177,9 +177,9 @@ async def seed():
 
         await db.commit()
         print("✅ Seed complete!")
-        print("  issuer@cireta.com / Cireta2026!")
-        print("  admin@cireta.com / Cireta2026!")
-        print("  investor@cireta.com / Cireta2026!")
+        print("  issuer@cireta.com / Cireta26")
+        print("  admin@cireta.com / Cireta26")
+        print("  investor@cireta.com / Cireta26")
 
 
 if __name__ == "__main__":

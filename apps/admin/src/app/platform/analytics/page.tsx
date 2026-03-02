@@ -1,12 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { TrendingUp, Users, DollarSign, BarChart3 } from "lucide-react";
 import { Select } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
-import {
-  TVLChart, FeeRevenueChart, KYCFunnelChart, TokenDistributionChart,
-} from "@/lib/analyticsCharts";
+
+// Dynamic imports to prevent SSR crash with recharts (uses browser SVG APIs)
+const TVLChart = dynamic(
+  () => import("@/lib/analyticsCharts").then((m) => ({ default: m.TVLChart })),
+  { ssr: false }
+);
+const FeeRevenueChart = dynamic(
+  () => import("@/lib/analyticsCharts").then((m) => ({ default: m.FeeRevenueChart })),
+  { ssr: false }
+);
+const KYCFunnelChart = dynamic(
+  () => import("@/lib/analyticsCharts").then((m) => ({ default: m.KYCFunnelChart })),
+  { ssr: false }
+);
+const TokenDistributionChart = dynamic(
+  () => import("@/lib/analyticsCharts").then((m) => ({ default: m.TokenDistributionChart })),
+  { ssr: false }
+);
 
 export default function AnalyticsPage() {
   return (
@@ -24,7 +40,6 @@ export default function AnalyticsPage() {
         />
       }
     >
-      {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard label="Total Value Locked" value={24500000} prefix="$" trend={15.2}
           icon={<TrendingUp className="h-5 w-5" />} />
@@ -35,12 +50,10 @@ export default function AnalyticsPage() {
         <StatCard label="Active Tokens" value={12}
           icon={<BarChart3 className="h-5 w-5" />} />
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         <TVLChart />
         <FeeRevenueChart />
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <KYCFunnelChart />
         <TokenDistributionChart />

@@ -85,6 +85,7 @@ export interface SaleRaw {
   token_asset_type?: string;
   token_description?: string;
   token_image_url?: string;
+  contract_address?: string | null;
   issuer_name?: string;
   issuer_slug?: string;
 }

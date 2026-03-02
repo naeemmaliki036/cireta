@@ -195,7 +195,6 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
           </div>
         </nav>
       </header>
-
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
@@ -228,7 +227,6 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   </Link>
                 ))}
               </nav>
-
               <div className="mt-8">
                 <ConnectButton.Custom>
                   {({
