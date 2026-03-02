@@ -11,6 +11,15 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@": path.resolve(__dirname, "src"),
+      // MetaMask SDK pulls in React Native deps not needed in browser builds
+      "@react-native-async-storage/async-storage": false,
+      "react-native": false,
+    };
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
     };
     return config;
   },
