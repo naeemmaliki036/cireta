@@ -253,13 +253,7 @@ a {
   @apply bg-box rounded-3xl p-6 border border-darkBlack/10;
 }
 
-/* ── Admin Layout: sidebar offset ── */
-@media (min-width: 990px) {
-  .sidebar-offset {
-    padding-left: 16rem; /* 256px = w-64 */
-  }
-}
-
+/* ── Admin Layout: sidebar visibility on desktop ── */
 @media (min-width: 990px) {
   .sidebar-show {
     transform: translateX(0) !important;

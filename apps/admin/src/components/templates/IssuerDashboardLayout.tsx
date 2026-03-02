@@ -111,7 +111,7 @@ export function IssuerDashboardLayout({
       )}
 
       {/* Main Content */}
-      <div className="sidebar-offset">
+      <div className="lg:pl-64">
         {/* Top Bar */}
         <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-8 py-4">
           <div className="flex items-center justify-between">
