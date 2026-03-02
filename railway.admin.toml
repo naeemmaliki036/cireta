@@ -1,0 +1,16 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs_20", "npm-10_x"]
+
+[build.nixpacksPlan.phases.install]
+cmds = ["npm install"]
+
+[build.nixpacksPlan.phases.build]
+cmds = ["npm run build --workspace=apps/admin"]
+
+[deploy]
+startCommand = "npm run start --workspace=apps/admin"
+healthcheckPath = "/"
+healthcheckTimeout = 120
