@@ -193,63 +193,122 @@ a {
 
 /* Status badges */
 .status-active {
-  @apply rounded-full px-3 py-1 text-xs font-semibold bg-darkAqua/10 text-darkAqua;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(19, 99, 111, 0.1);
+  color: #13636F;
 }
 
 .status-pending {
-  @apply rounded-full px-3 py-1 text-xs font-semibold bg-gold/10 text-gold;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgba(201, 145, 61, 0.1);
+  color: #C9913D;
 }
 
 .status-failed {
-  @apply rounded-full px-3 py-1 text-xs font-semibold bg-red-100 text-red-700;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #fee2e2;
+  color: #b91c1c;
 }
 
 .status-success {
-  @apply rounded-full px-3 py-1 text-xs font-semibold bg-green-100 text-green-700;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #dcfce7;
+  color: #15803d;
 }
 
 /* Form input styles */
-@layer components {
-  .input-field {
-    @apply w-full bg-box border border-darkBlack/10 rounded-xl px-4 py-3
-           focus:border-darkAqua focus:ring-1 focus:ring-darkAqua outline-none
-           text-text placeholder:text-gray-400 transition-colors duration-200;
-  }
+.input-field {
+  width: 100%;
+  background-color: #ECF3F4;
+  border: 1px solid rgba(24, 11, 46, 0.1);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+  color: #0C0C0C;
+  transition: border-color 200ms, box-shadow 200ms;
+}
+.input-field:focus {
+  border-color: #13636F;
+  box-shadow: 0 0 0 1px #13636F;
+}
+.input-field::placeholder {
+  color: #9ca3af;
+}
 
-  .input-label {
-    @apply text-sm font-semibold text-text mb-1.5 block;
-  }
+.input-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0C0C0C;
+  margin-bottom: 0.375rem;
+  display: block;
+}
 
-  .input-error {
-    @apply text-red-600 text-xs mt-1;
-  }
+.input-error {
+  color: #dc2626;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 /* Table styles */
 .table-header {
-  @apply bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wider border-b border-gray-200;
+  background-color: #f9fafb;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .table-row {
-  @apply hover:bg-box transition-colors;
+  transition: background-color 150ms;
+}
+.table-row:hover {
+  background-color: #ECF3F4;
 }
 
 .table-row-striped:nth-child(even) {
-  @apply bg-box/50;
+  background-color: rgba(236, 243, 244, 0.5);
 }
 
 /* Sidebar styles */
 .sidebar-item {
-  @apply flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-darkAqua/20 transition-colors;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  color: rgba(255,255,255,0.7);
+  transition: color 150ms, background-color 150ms;
+}
+.sidebar-item:hover {
+  color: #fff;
+  background-color: rgba(19, 99, 111, 0.2);
 }
 
 .sidebar-item-active {
-  @apply bg-darkAqua/20 text-darkAqua;
+  background-color: rgba(19, 99, 111, 0.2);
+  color: #13636F;
 }
 
 /* Dashboard card */
 .dashboard-card {
-  @apply bg-box rounded-3xl p-6 border border-darkBlack/10;
+  background-color: #ECF3F4;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  border: 1px solid rgba(24, 11, 46, 0.1);
 }
 
 /* ── Admin Layout: sidebar offset (main content pushed right of fixed sidebar) ── */
