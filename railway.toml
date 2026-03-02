@@ -7,3 +7,9 @@ healthcheckPath = "/api/v1/health/live"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+# Redis — provision via Railway plugin or shared Redis service
+# Set REDIS_URL in Railway service variables pointing to the Redis instance
+# e.g. REDIS_URL=redis://default:password@redis.railway.internal:6379
+[deploy.variables]
+REDIS_URL = "${{Redis.REDIS_URL}}"
