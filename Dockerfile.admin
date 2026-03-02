@@ -1,0 +1,53 @@
+# Multi-stage Dockerfile for apps/admin (Next.js standalone)
+# Based on: https://github.com/vercel/next.js/tree/canary/examples/with-docker
+
+FROM node:20-alpine AS base
+
+# Stage 1: install deps
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy workspace manifests
+COPY package.json ./
+COPY apps/admin/package.json ./apps/admin/
+COPY packages/common/package.json ./packages/common/
+
+RUN npm install --legacy-peer-deps
+
+# Stage 2: build
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy full source (workspace references, shared packages)
+COPY . .
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN npm run build --workspace=apps/admin
+
+# Stage 3: runner
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME="0.0.0.0"
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/admin/public ./public 2>/dev/null || true
+
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+CMD ["node", "apps/admin/server.js"]
