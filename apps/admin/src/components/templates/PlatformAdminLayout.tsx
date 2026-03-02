@@ -52,14 +52,14 @@ export function PlatformAdminLayout({
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  const sidebarVisible = isDesktop || isSidebarOpen;
+
   return (
     <div className="min-h-screen bg-box">
       {/* Sidebar */}
       <aside
-        className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar",
-          (isDesktop || isSidebarOpen) ? "translate-x-0" : "-translate-x-full"
-        )}
+        className="fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 shadow-sidebar"
+        style={{ transform: sidebarVisible ? "translateX(0)" : "translateX(-100%)" }}
       >
         <div className="flex flex-col h-full p-6">
           {/* Logo */}
