@@ -142,8 +142,8 @@
 - DividendDistributor.sol — not yet tested in Hardhat suite
 
 ### Architectural Notes
-- **FastAPI vs NestJS**: Spec says NestJS; we built FastAPI. Decision: keep FastAPI (working, tested, 108 tests).
-- **Refresh token**: In localStorage (spec says httpOnly cookie). AuthContext updated to try access token first.
+- **FastAPI vs NestJS**: FINAL DECISION — FastAPI. NestJS ruled out permanently. FastAPI is fully built, tested (108+ tests), deployed, and integrated with the entire stack (arq workers, SQLAlchemy 2.0, Pydantic v2). No migration path to NestJS is planned or desired.
+- **Refresh token**: RESOLVED — httpOnly cookie implemented. Access token in React memory only, zero localStorage token storage.
 
 ---
 

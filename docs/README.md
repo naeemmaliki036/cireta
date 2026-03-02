@@ -1,12 +1,22 @@
 # Documentation
 
-Project documentation.
+Project documentation for the Cireta RWA Launchpad.
+
+## Backend
+
+**Framework: FastAPI (Python 3.11+)** — Final decision. NestJS was evaluated and ruled out permanently.
+
+The backend uses FastAPI with SQLAlchemy 2.0 (async), Pydantic v2 validation, arq (Redis-backed) background workers, and JWT authentication with httpOnly cookie refresh tokens.
+
+See [SPEC_AUDIT.md](./SPEC_AUDIT.md) for the full architectural audit.
 
 ## Structure
 
 ```
 docs/
 ├── README.md           # This file
+├── SPEC_AUDIT.md       # Spec compliance audit
+├── BUILD_LOG.md        # Build progress tracker
 ├── architecture/       # Architecture decisions
 ├── api/                # API documentation
 └── guides/             # Developer guides
