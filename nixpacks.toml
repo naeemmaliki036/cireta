@@ -1,2 +1,6 @@
+[phases.install]
+dependsOn = ["setup"]
+cmds = ["pip install uvicorn[standard]==0.32.1 httptools uvloop watchfiles websockets"]
+
 [start]
 cmd = "python start.py"

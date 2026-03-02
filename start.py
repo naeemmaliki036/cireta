@@ -1,15 +1,9 @@
-"""Railway-compatible start script."""
+"""Railway start script — reads PORT from env, bypasses Railway's uvicorn injection."""
 import os
-import subprocess
-import sys
-
-# Ensure uvicorn is installed (it's in the server group, not main deps)
-subprocess.check_call([sys.executable, "-m", "pip", "install", "uvicorn[standard]", "-q"])
+import uvicorn
 
 port = int(os.environ.get("PORT", "8000"))
-host = os.environ.get("HOST", "0.0.0.0")
+host = "0.0.0.0"
 
-print(f"=== CIRETA API starting on {host}:{port} ===")
-
-import uvicorn
+print(f"=== CIRETA API starting on {host}:{port} ===", flush=True)
 uvicorn.run("apps.api.main:app", host=host, port=port, workers=1)
