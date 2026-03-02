@@ -7,9 +7,10 @@ import { Badge, Spinner, Input } from "@/components/atoms";
 import { StatCard, DataTable, type Column } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { getFrozenAddresses, getAuditLogs, type FrozenAddress, type AuditLogEntry } from "@/lib/api/repositories/compliance";
+import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? undefined : undefined;
+  return getAccessToken() ?? undefined;
 }
 
 const frozenCols: Column<FrozenAddress>[] = [

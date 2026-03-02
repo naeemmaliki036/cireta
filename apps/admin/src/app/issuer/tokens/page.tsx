@@ -7,9 +7,10 @@ import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
+import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? undefined : undefined;
+  return getAccessToken() ?? undefined;
 }
 
 const columns: Column<Token>[] = [

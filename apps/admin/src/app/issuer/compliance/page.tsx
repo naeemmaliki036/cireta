@@ -11,9 +11,10 @@ import {
   getAuditLogs, type AuditLogEntry,
 } from "@/lib/api/repositories/compliance";
 import type { ComplianceAction } from "@/components/molecules";
+import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+  return getAccessToken() ?? "";
 }
 
 type ActionType = "freeze" | "unfreeze" | "forced_transfer" | "recover" | null;

@@ -12,7 +12,6 @@ export interface RegisterRequest {
 
 export interface AuthTokens {
   access_token: string;
-  refresh_token?: string; // now sent as httpOnly cookie
   token_type: string;
 }
 
@@ -48,23 +47,17 @@ export async function me(token: string): Promise<User> {
   return apiFetch<User>("/api/v1/auth/me", { token });
 }
 
-export async function refreshToken(
-  refreshTokenValue: string
-): Promise<AuthTokens> {
+export async function refreshToken(): Promise<AuthTokens> {
   return apiFetch<AuthTokens>("/api/v1/auth/refresh", {
     method: "POST",
-    body: { refresh_token: refreshTokenValue },
+    body: {},
   });
 }
 
-export async function logout(
-  accessToken: string,
-  refreshTokenValue: string
-): Promise<void> {
+export async function logout(accessToken: string): Promise<void> {
   return apiFetch<void>("/api/v1/auth/logout", {
     method: "POST",
     token: accessToken,
-    body: { refresh_token: refreshTokenValue },
   });
 }
 

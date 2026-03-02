@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { DashboardLayout } from "@/components/templates";
+import { getAccessToken } from "@/lib/api/client";
 
 interface Transaction {
   type: string;
@@ -25,7 +26,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) { setLoading(false); return; }
     fetch("/api/v1/portfolio/transactions", {
       headers: { Authorization: `Bearer ${token}` },

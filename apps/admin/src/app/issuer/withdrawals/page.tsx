@@ -8,9 +8,10 @@ import { StatCard, DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import { getWithdrawals, type WithdrawalRecord } from "@/lib/api/repositories/withdrawals";
+import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+  return getAccessToken() ?? "";
 }
 
 const columns: Column<WithdrawalRecord>[] = [

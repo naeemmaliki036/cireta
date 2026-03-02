@@ -15,8 +15,9 @@ import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
 import { formatCurrency } from "@/lib/utils";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
+import { getAccessToken } from "@/lib/api/client";
 
-function getToken() { return typeof window !== "undefined" ? localStorage.getItem("token") ?? undefined : undefined; }
+function getToken() { return getAccessToken() ?? undefined; }
 function mapIssuer(i: APIIssuer): Issuer {
   return { id: i.id, name: i.name, legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
     wallet: i.wallet_address ?? "—", feeBps: i.fee_bps, status: i.status as Issuer["status"], tokens: 0, totalRaised: 0, createdAt: i.created_at.slice(0, 10) };

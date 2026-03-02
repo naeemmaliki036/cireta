@@ -13,6 +13,7 @@ import {
   getCorporateKYBStatus,
   type KYBDocumentRequest,
 } from "@/lib/api/repositories/kyc.repository";
+import { getAccessToken } from "@/lib/api/client";
 
 type Step = "form" | "sdk" | "processing" | "approved" | "error";
 
@@ -30,7 +31,7 @@ export default function CorporateVerifyPage() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) { setError("Please log in first"); setStep("error"); return; }
     (async () => {
       try {
@@ -42,7 +43,7 @@ export default function CorporateVerifyPage() {
   }, []);
 
   const handleSubmit = async () => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) { setError("Please log in first"); setStep("error"); return; }
     try {
       const result = await initiateCorporateKYB(token, form);
@@ -60,7 +61,7 @@ export default function CorporateVerifyPage() {
     if (type === "idCheck.applicantReviewComplete" || type === "idCheck.onApplicantStatusChanged") {
       setStep("processing");
       setTimeout(async () => {
-        const token = localStorage.getItem("token");
+        const token = getAccessToken();
         if (!token) return;
         try {
           const status = await getCorporateKYBStatus(token);
@@ -129,7 +130,7 @@ export default function CorporateVerifyPage() {
                 <SumsubWebSdk
                   accessToken={accessToken}
                   expirationHandler={() =>
-                    initiateCorporateKYB(localStorage.getItem("token")!, form).then((r) => r.access_token)
+                    initiateCorporateKYB(getAccessToken()!, form).then((r) => r.access_token)
                   }
                   config={{ lang: "en" }}
                   options={{ addViewportTag: false, adaptIframeHeight: true }}

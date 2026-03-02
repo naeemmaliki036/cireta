@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/atoms";
+import { getAccessToken } from "@/lib/api/client";
 
 interface Prefs {
   email_investments: boolean;
@@ -33,7 +34,7 @@ export default function NotificationsPage() {
   const toggle = (key: keyof Prefs) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
 
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return;
     try {
       await fetch("/api/v1/notifications/preferences", {

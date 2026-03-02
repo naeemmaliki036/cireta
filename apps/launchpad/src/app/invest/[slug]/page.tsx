@@ -23,6 +23,7 @@ import { getProject, getSaleRawBySlug } from "@/lib/api/repositories/projects.re
 import { contribute } from "@/lib/api/repositories/sales";
 import type { Project } from "@/lib/api/repositories/projects.repository";
 import { Spinner } from "@/components/atoms";
+import { getAccessToken } from "@/lib/api/client";
 
 const STEPS = ["amount", "approve", "confirm"] as const;
 
@@ -102,7 +103,7 @@ export default function InvestPage() {
     if (!saleId || !activePhase) return;
     setError(null);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const token = getAccessToken();
       if (!token) { setError("Please log in first"); return; }
       const res = await contribute(saleId, { phase_id: activePhase.id, amount }, token);
       setTxHash(res.tx_hash);

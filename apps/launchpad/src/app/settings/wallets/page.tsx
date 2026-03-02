@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAccount, useSignMessage, useConnect } from "wagmi";
 import { Button, Badge } from "@/components/atoms";
 import { listWallets, unlinkWallet, setPrimaryWallet, type Wallet } from "@/lib/api/repositories/wallets.repository";
+import { getAccessToken } from "@/lib/api/client";
 
 export default function WalletsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -14,7 +15,7 @@ export default function WalletsPage() {
   const { signMessageAsync } = useSignMessage();
   const { connect, connectors } = useConnect();
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+  const token = getAccessToken() ?? "";
 
   const fetchWallets = async () => {
     if (!token) return;

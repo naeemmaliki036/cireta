@@ -9,9 +9,10 @@ import { WalletBadge } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getToken as fetchToken, type Token } from "@/lib/api/repositories/tokens";
 import { pauseToken, unpauseToken } from "@/lib/api/repositories/compliance";
+import { getAccessToken } from "@/lib/api/client";
 
 function getAuthToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+  return getAccessToken() ?? "";
 }
 
 export default function TokenDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {

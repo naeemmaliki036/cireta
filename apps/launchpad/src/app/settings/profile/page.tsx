@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button, Input } from "@/components/atoms";
 import { me, updateProfile, type User } from "@/lib/api/repositories/auth.repository";
+import { getAccessToken } from "@/lib/api/client";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -11,7 +12,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return;
     me(token).then((u) => {
       setUser(u);
@@ -20,7 +21,7 @@ export default function ProfilePage() {
   }, []);
 
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return;
     setSaving(true);
     try {

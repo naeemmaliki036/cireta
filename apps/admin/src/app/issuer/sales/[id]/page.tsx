@@ -10,9 +10,10 @@ import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import { getSale, type Sale } from "@/lib/api/repositories/sales";
+import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? undefined : undefined;
+  return getAccessToken() ?? undefined;
 }
 
 export default function SaleDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {

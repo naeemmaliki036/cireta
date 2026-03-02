@@ -7,9 +7,10 @@ import { Input, Badge, Spinner } from "@/components/atoms";
 import { KYCBadge, WalletBadge, DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getInvestors, type Investor } from "@/lib/api/repositories/investors";
+import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("token") ?? undefined : undefined;
+  return getAccessToken() ?? undefined;
 }
 
 const columns: Column<Investor>[] = [

@@ -1,5 +1,16 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+/** In-memory access token store — set by AuthContext, never persisted to disk. */
+let _accessToken: string | null = null;
+
+export function setAccessToken(token: string | null): void {
+  _accessToken = token;
+}
+
+export function getAccessToken(): string | null {
+  return _accessToken;
+}
+
 export class APIError extends Error {
   constructor(
     public status: number,
@@ -9,11 +20,6 @@ export class APIError extends Error {
     super(message);
     this.name = "APIError";
   }
-}
-
-function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
 }
 
 interface FetchOptions {
@@ -29,7 +35,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const { method = "GET", body, token, headers: extraHeaders } = options;
 
-  const authToken = token ?? getStoredToken();
+  const authToken = token ?? _accessToken;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -48,6 +54,7 @@ export async function apiFetch<T>(
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: controller.signal,
+    credentials: "include",
   });
 
   clearTimeout(timeoutId);

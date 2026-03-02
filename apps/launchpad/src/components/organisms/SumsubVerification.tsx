@@ -7,6 +7,7 @@ const SumsubWebSdk = dynamic(() => import("@sumsub/websdk-react"), { ssr: false 
 import { Shield, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button, Spinner } from "@/components/atoms";
 import { initiateKYC, getKYCStatus } from "@/lib/api/repositories/kyc.repository";
+import { getAccessToken } from "@/lib/api/client";
 
 type VerificationState = "loading" | "ready" | "processing" | "approved" | "error";
 
@@ -22,7 +23,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   // Fetch SDK token on mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) {
       setError("Please log in first");
       setState("error");
@@ -66,7 +67,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         setState("processing");
         // Poll for final status after a short delay
         setTimeout(async () => {
-          const token = localStorage.getItem("token");
+          const token = getAccessToken();
           if (!token) return;
           try {
             const status = await getKYCStatus(token);
@@ -155,7 +156,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
       <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[500px]">
         <SumsubWebSdk
           accessToken={accessToken}
-          expirationHandler={() => initiateKYC(localStorage.getItem("token")!).then((r) => r.access_token)}
+          expirationHandler={() => initiateKYC(getAccessToken()!).then((r) => r.access_token)}
           config={{ lang: "en" }}
           options={{ addViewportTag: false, adaptIframeHeight: true }}
           onMessage={handleMessage}
