@@ -84,7 +84,7 @@ export function StatCard({
       <div className="flex items-center justify-between gap-3">
         <p
           className={cn(
-            "text-2xl lg:text-3xl font-bold tracking-tight",
+            "text-2xl font-bold tracking-tight tabular-nums",
             valueColors[variant]
           )}
         >

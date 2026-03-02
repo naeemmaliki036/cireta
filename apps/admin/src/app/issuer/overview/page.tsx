@@ -36,7 +36,7 @@ export default function IssuerOverviewPage() {
   return (
     <IssuerDashboardLayout title="Dashboard Overview" description="Monitor your tokens and sales performance">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard label="Total Raised" value={totalRaised} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Active Sales" value={activeSales.length} icon={<TrendingUp className="h-5 w-5" />} />
         <StatCard label="Total Investors" value={0} icon={<Users className="h-5 w-5" />} />
@@ -54,7 +54,7 @@ export default function IssuerOverviewPage() {
             { href: "/issuer/compliance", icon: <Coins className="h-6 w-6 text-purple-600" />, bg: "bg-purple-100", label: "Compliance", sub: "Freeze, recover tokens" },
           ].map((a) => (
             <Link key={a.href} href={a.href}
-              className="flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed border-darkBlack/10 hover:border-darkAqua hover:bg-darkAqua/5 transition-colors group">
+              className="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-darkAqua hover:bg-darkAqua/5 bg-white shadow-sm transition-colors group">
               <div className={`w-12 h-12 rounded-xl ${a.bg} flex items-center justify-center`}>{a.icon}</div>
               <div>
                 <p className="font-semibold text-text">{a.label}</p>

@@ -228,7 +228,7 @@ a {
 
 /* Table styles */
 .table-header {
-  @apply bg-darkAqua text-white text-sm font-semibold;
+  @apply bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wider border-b border-gray-200;
 }
 
 .table-row {
