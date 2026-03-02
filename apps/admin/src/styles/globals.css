@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colors - Cireta Brand */
+  /* ── Brand Colors ── */
   --color-black: #000;
   --color-darkBlack: #180B2E;
   --color-white: #fff;
@@ -14,7 +14,7 @@
   --color-transparent: transparent;
   --color-current: currentColor;
 
-  /* Extended colors */
+  /* ── Extended Colors ── */
   --color-red-50: #fef2f2;
   --color-red-100: #fee2e2;
   --color-red-500: #ef4444;
@@ -37,11 +37,24 @@
   --color-gray-900: #111827;
   --color-purple-100: #f3e8ff;
   --color-purple-600: #9333ea;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-yellow-500: #eab308;
+  --color-orange-500: #f97316;
 
-  /* Font family */
+  /* ── Custom Breakpoints (match tailwind.config.ts) ── */
+  --breakpoint-xs: 410px;
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 990px;
+  --breakpoint-laptop: 1250px;
+  --breakpoint-xl: 1550px;
+  --breakpoint-xxl: 1800px;
+
+  /* ── Font Family ── */
   --font-family-sans: "Gilroy", system-ui, sans-serif;
 
-  /* Font sizes */
+  /* ── Font Sizes ── */
   --font-size-xsm: 14px;
   --font-size-sm: 16px;
   --font-size-base: 18px;
@@ -51,29 +64,54 @@
   --font-size-1xl: 48px;
   --font-size-2xl: 60px;
 
-  /* Shadows */
-  --shadow-nav: 0px 0px 16px 0px rgba(255,255,255,0.06) inset;
-  --shadow-tag: 0px 0px 4px 0px rgba(255,255,255,0.40) inset;
+  /* ── Letter Spacing ── */
+  --letter-spacing-tighter: -0.03em;
+  --letter-spacing-03: 0.3px;
+  --letter-spacing-07: 0.7px;
+  --letter-spacing-08: 0.8px;
+  --letter-spacing-09: 0.9px;
+  --letter-spacing-04: 0.48px;
+  --letter-spacing-05: 0.54px;
+  --letter-spacing-1: 1px;
+  --letter-spacing-11: 1.1px;
+  --letter-spacing-12: 1.2px;
+  --letter-spacing-16: 1.6px;
+  --letter-spacing-21: 2.16px;
+  --letter-spacing-28: 2.8px;
+  --letter-spacing-37: 3.7px;
+
+  /* ── Box Shadows ── */
+  --shadow-nav: 0px 0px 16px 0px rgba(255, 255, 255, 0.06) inset;
+  --shadow-tag: 0px 0px 4px 0px rgba(255, 255, 255, 0.40) inset;
   --shadow-progress: 20px 0px 0px 0px #13636F inset;
-  --shadow-tooltip: 0px 8px 40px 0px rgba(0,0,0,0.20);
-  --shadow-aside: -12px 0px 20px 0px rgba(0,0,0,0.07);
-  --shadow-card: 0px 4px 24px 0px rgba(0,0,0,0.08);
-  --shadow-bulletIcon: rgba(19,99,111,0.40) 0px 0px 0px 1px;
+  --shadow-tooltip: 0px 8px 40px 0px rgba(0, 0, 0, 0.20);
+  --shadow-aside: -12px 0px 20px 0px rgba(0, 0, 0, 0.07);
+  --shadow-bulletIcon: rgba(19, 99, 111, 0.40) 0px 0px 0px 1px;
+  --shadow-card: 0px 4px 24px 0px rgba(0, 0, 0, 0.08);
+  --shadow-sidebar: 4px 0px 20px 0px rgba(0, 0, 0, 0.05);
 
-  /* Breakpoints */
-  --breakpoint-xs: 410px;
-  --breakpoint-sm: 480px;
-  --breakpoint-md: 768px;
-  --breakpoint-lg: 990px;
-  --breakpoint-laptop: 1250px;
-  --breakpoint-xl: 1550px;
-  --breakpoint-xxl: 1800px;
+  /* ── Background Images ── */
+  --background-image-gradient-hero: linear-gradient(180deg, #180B2E 0%, rgba(19, 99, 111, 0.3) 100%);
+  --background-image-gradient-dark: linear-gradient(180deg, #180B2E 0%, #13636F 100%);
 
-  /* Spacing / Max widths */
-  --container-max: 1824px;
-  --container-inner: 1624px;
+  /* ── Animations ── */
+  --animate-fade-in: fadeIn 0.5s ease-out;
+  --animate-slide-up: slideUp 0.5s ease-out;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  /* ── Max Widths ── */
+  --max-width-container: 1824px;
+  --max-width-inner: 1624px;
 }
 
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes slideUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
 
 * {
   padding: 0;
@@ -213,4 +251,30 @@ a {
 /* Dashboard card */
 .dashboard-card {
   @apply bg-box rounded-3xl p-6 border border-darkBlack/10;
+}
+
+/* ── Admin Layout: sidebar offset ── */
+@media (min-width: 990px) {
+  .sidebar-offset {
+    padding-left: 16rem; /* 256px = w-64 */
+  }
+}
+
+@media (min-width: 990px) {
+  .sidebar-show {
+    transform: translateX(0) !important;
+  }
+  .sidebar-mobile-only {
+    display: none;
+  }
+  .sidebar-overlay-btn {
+    display: none;
+  }
+}
+
+@media (min-width: 990px) {
+  .sidebar-show {
+    --tw-translate-x: 0 !important;
+    transform: translateX(0) !important;
+  }
 }

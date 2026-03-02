@@ -49,7 +49,7 @@ export function PlatformAdminLayout({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 lg:translate-x-0 shadow-sidebar",
+          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 sidebar-show shadow-sidebar",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -106,20 +106,20 @@ export function PlatformAdminLayout({
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 sidebar-mobile-only"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <div className="lg:pl-64">
+      <div className="sidebar-offset overflow-x-hidden min-w-0">
         {/* Top Bar */}
         <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-lg hover:bg-darkBlack/5 transition-colors"
+                className="sidebar-overlay-btn p-2 rounded-lg hover:bg-darkBlack/5 transition-colors"
               >
                 <Menu className="h-6 w-6" />
               </button>
