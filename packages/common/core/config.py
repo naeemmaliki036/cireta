@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     deployer_private_key: str = Field(default="")
     platform_fee_receiver: str = Field(default="")
 
+    # ONCHAINID
+    identity_factory_address: str = Field(default="")
+    identity_registry_address: str = Field(default="")
+
     # External services
     pinata_api_key: str = Field(default="")
     pinata_secret_key: str = Field(default="")

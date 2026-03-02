@@ -41,20 +41,32 @@ async def task_deploy_onchainid(
     ctx: dict[str, Any],  # noqa: ARG001
     user_id: str,
     wallet_address: str,
-) -> None:
-    """Deploy ONCHAINID identity contract for a newly KYC-verified user."""
+) -> str | None:
+    """Deploy ONCHAINID identity contract for a newly KYC-verified user.
+
+    Returns:
+        The deployed identity contract address, or None if skipped.
+    """
     logger.info("Deploying ONCHAINID for user=%s wallet=%s", user_id, wallet_address)
-    # TODO: call web3_identity_service.deploy_identity(wallet_address)
-    # Stub — logs intent, real deploy wired when ONCHAINID factory is deployed on-chain
     from packages.common.core.config import settings
+
     if not settings.deployer_private_key:
         logger.warning("DEPLOYER_PRIVATE_KEY not set — skipping ONCHAINID deploy")
-        return
+        return None
+    if not settings.identity_factory_address:
+        logger.warning("IDENTITY_FACTORY_ADDRESS not set — skipping ONCHAINID deploy")
+        return None
+
     try:
         from apps.api.services.web3_identity_service import Web3IdentityService
         svc = Web3IdentityService()
-        await svc.deploy_identity_async(wallet_address, user_id)
-        logger.info("ONCHAINID deployed for user=%s", user_id)
+        identity_address = await svc.deploy_identity(wallet_address)
+        logger.info(
+            "ONCHAINID deployed for user=%s identity=%s",
+            user_id,
+            identity_address,
+        )
+        return identity_address
     except Exception as e:
         logger.error("ONCHAINID deploy failed for user=%s: %s", user_id, e)
         raise
