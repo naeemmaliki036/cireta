@@ -258,14 +258,33 @@ class KYCService:
         await self.db.commit()
 
     async def _issue_onchain_claims(self, user: User) -> None:
-        """Issue ONCHAINID claims for verified user (no-op in dev mode)."""
+        """Issue ONCHAINID claims for verified user.
+
+        Issues KYC level, country, and investor type claims to the user's
+        ONCHAINID contract so they can participate in compliant ERC-3643 token sales.
+        Dev mode: logs and skips. Production: calls web3_identity_service.
+        """
         from packages.common.core.config import get_settings
         settings = get_settings()
         if _is_dev_mode(settings):
             log.info("Dev mode — skipping on-chain claim issuance for user %s", user.id)
             return
-        # Production: web3_identity_service.issue_claims(user) — implement when contracts deployed
-        log.info("On-chain claim issuance queued for user %s", user.id)
+        if not user.onchain_id_address:
+            log.warning("User %s has no ONCHAINID address — cannot issue claims", user.id)
+            return
+        try:
+            from apps.api.services.web3_identity_service import Web3IdentityService
+            identity_svc = Web3IdentityService()
+            await identity_svc.issue_kyc_claims(
+                onchain_id_address=user.onchain_id_address,
+                kyc_level=user.kyc_level or 1,
+                country_code=user.country_code or "XX",
+                investor_type=(user.investor_type or "individual"),
+            )
+            log.info("On-chain claims issued for user %s ONCHAINID %s", user.id, user.onchain_id_address)
+        except Exception as exc:
+            # Non-fatal: log error, admin can retry via compliance dashboard
+            log.error("Failed to issue on-chain claims for user %s: %s", user.id, exc)
 
     async def initiate_corporate(self, user_id: UUID, body: Any) -> dict[str, Any]:
         """Initiate corporate KYB — creates Sumsub business-level applicant."""

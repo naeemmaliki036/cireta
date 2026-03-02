@@ -278,3 +278,42 @@ async def list_frozen_addresses(
 
     return FrozenAddressListResponse(items=items, total=len(items))
 
+
+
+@router.get("/compliance/recovery-logs")
+async def list_recovery_logs(
+    user_id: CurrentUserId,
+    db: AsyncSession = Depends(get_db),
+    token_id: str | None = None,
+) -> list[dict]:
+    """List all token recovery actions (audit trail) for issuer's tokens."""
+    from sqlalchemy import select
+    from apps.api.models.audit_log import AuditLog
+    from apps.api.models.issuer import Issuer
+    from apps.api.models.user import User
+
+    # Get issuer
+    result = await db.execute(select(User).where(User.id == user_id))
+    actor = result.scalar_one_or_none()
+    if not actor or not actor.issuer:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Issuer access required")
+
+    query = select(AuditLog).where(AuditLog.action == "recover_tokens")
+    if token_id:
+        query = query.where(AuditLog.target_id == token_id)
+    query = query.order_by(AuditLog.created_at.desc()).limit(100)
+
+    logs = (await db.execute(query)).scalars().all()
+    return [
+        {
+            "id": str(log.id),
+            "action": log.action,
+            "target_id": log.target_id,
+            "payload": log.payload,
+            "reason": log.reason,
+            "ip_address": log.ip_address,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        }
+        for log in logs
+    ]

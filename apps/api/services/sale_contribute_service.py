@@ -96,6 +96,24 @@ class SaleContributeService:
             )
 
         # Check contribution limits
+        # Whitelist check for whitelist-only phases
+        if getattr(active_phase, 'whitelist_only', False):
+            from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist
+            from sqlalchemy import select as sa_select
+            from fastapi import HTTPException as _HTTPEx
+            from fastapi import status as _status
+            wallet_result = await self.db.execute(
+                sa_select(SalePhaseWhitelist).where(
+                    SalePhaseWhitelist.phase_id == active_phase.id,
+                    SalePhaseWhitelist.wallet_address == wallet_address.lower()
+                )
+            )
+            if not wallet_result.scalar_one_or_none():
+                raise _HTTPEx(
+                    status_code=_status.HTTP_403_FORBIDDEN,
+                    detail={"code": "NOT_WHITELISTED", "message": "This phase is restricted to whitelisted investors"},
+                )
+
         if active_phase.min_contribution > 0 and amount < active_phase.min_contribution:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

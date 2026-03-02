@@ -127,6 +127,9 @@ class Token(BaseModel):
     redemption_requests: Mapped[list[RedemptionRequest]] = relationship(
         back_populates="token",
     )
+    documents: Mapped[list["TokenDocument"]] = relationship(
+        "TokenDocument", back_populates="token", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Token(id={self.id}, symbol={self.symbol}, type={self.asset_type.value})>"

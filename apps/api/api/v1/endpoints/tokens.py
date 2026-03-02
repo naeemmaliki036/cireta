@@ -116,3 +116,126 @@ async def deploy_token(
     """
     token = await token_service.deploy_contract(user_id, token_id)
     return _token_to_response(token)
+
+
+@router.get("/{token_id}/por")
+async def get_proof_of_reserve(
+    token_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get Chainlink Proof of Reserve data for a commodity token.
+
+    Returns live oracle data: total supply, verified reserve, last update timestamp.
+    In dev mode (no feed configured) returns mock data.
+    """
+    svc = TokenService(db)
+    token = await svc.get_token(token_id)
+    if not token:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    feed = getattr(token, "chainlink_por_feed", None)
+    if not feed or feed in ("", "placeholder"):
+        # Dev mode: return mock PoR data
+        return {
+            "token_id": str(token_id),
+            "feed_address": None,
+            "total_supply": str(token.total_supply),
+            "verified_reserve": str(token.total_supply),
+            "reserve_ratio": 1.0,
+            "last_updated": None,
+            "is_live": False,
+        }
+
+    try:
+        from apps.api.services.web3_identity_service import Web3IdentityService
+        w3_svc = Web3IdentityService()
+        data = await w3_svc.get_proof_of_reserve(feed)
+        return {
+            "token_id": str(token_id),
+            "feed_address": feed,
+            "total_supply": str(token.total_supply),
+            "verified_reserve": str(data.get("answer", 0)),
+            "reserve_ratio": float(data.get("answer", 0)) / float(token.total_supply) if token.total_supply else 0,
+            "last_updated": data.get("updated_at"),
+            "is_live": True,
+        }
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("PoR fetch failed for token %s: %s", token_id, exc)
+        return {
+            "token_id": str(token_id),
+            "feed_address": feed,
+            "total_supply": str(token.total_supply),
+            "verified_reserve": None,
+            "reserve_ratio": None,
+            "last_updated": None,
+            "is_live": False,
+            "error": "Oracle unavailable",
+        }
+
+
+@router.post("/{token_id}/documents")
+async def upload_token_document(
+    token_id: UUID,
+    name: str,
+    doc_type: str = "other",
+    ipfs_hash: str | None = None,
+    url: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    user_id: CurrentUserId = None,
+) -> dict:
+    """Attach a legal document to a token (IPFS hash or URL).
+
+    In production, client should upload to Pinata first and pass the CID here.
+    """
+    from apps.api.models.token_document import TokenDocument
+    from apps.api.models.token import Token
+    from sqlalchemy import select
+
+    result = await db.execute(select(Token).where(Token.id == token_id))
+    token = result.scalar_one_or_none()
+    if not token:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    doc = TokenDocument(
+        token_id=token_id,
+        name=name,
+        doc_type=doc_type,
+        ipfs_hash=ipfs_hash,
+        url=url or (f"https://gateway.pinata.cloud/ipfs/{ipfs_hash}" if ipfs_hash else None),
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+    return {
+        "id": str(doc.id),
+        "token_id": str(token_id),
+        "name": doc.name,
+        "doc_type": doc.doc_type,
+        "ipfs_hash": doc.ipfs_hash,
+        "url": doc.url,
+        "created_at": doc.created_at.isoformat() if doc.created_at else None,
+    }
+
+
+@router.get("/{token_id}/documents")
+async def list_token_documents(token_id: UUID, db: AsyncSession = Depends(get_db)) -> list[dict]:
+    """List all documents for a token."""
+    from apps.api.models.token_document import TokenDocument
+    from sqlalchemy import select
+
+    results = await db.execute(select(TokenDocument).where(TokenDocument.token_id == token_id))
+    docs = results.scalars().all()
+    return [
+        {
+            "id": str(d.id),
+            "name": d.name,
+            "doc_type": d.doc_type,
+            "ipfs_hash": d.ipfs_hash,
+            "url": d.url,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d in docs
+    ]

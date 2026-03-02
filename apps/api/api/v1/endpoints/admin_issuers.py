@@ -149,3 +149,29 @@ async def activate_issuer(
 
 
 # ==================== Compliance Actions ====================
+
+
+@router.get("/platform/stats")
+async def get_platform_stats(db: AsyncSession = Depends(get_db)) -> dict:
+    """Platform-wide analytics: TVL, users, issuers, fees, active sales."""
+    from sqlalchemy import func, select
+    from apps.api.models.user import User
+    from apps.api.models.issuer import Issuer
+    from apps.api.models.token_sale import TokenSale
+    from apps.api.models.contribution import Contribution
+
+    total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
+    total_issuers = (await db.execute(select(func.count(Issuer.id)).where(Issuer.is_whitelisted == True))).scalar_one()  # noqa: E712
+    active_sales = (await db.execute(select(func.count(TokenSale.id)).where(TokenSale.status == "active"))).scalar_one()
+    tvl = (await db.execute(select(func.coalesce(func.sum(Contribution.amount), 0)).where(Contribution.tokens_claimed == True))).scalar_one()  # noqa: E712
+    total_raised = (await db.execute(select(func.coalesce(func.sum(Contribution.amount), 0)))).scalar_one()
+    fees_collected = (await db.execute(select(func.coalesce(func.sum(TokenSale.platform_fee_collected), 0)))).scalar_one()
+
+    return {
+        "total_users": total_users,
+        "total_issuers": total_issuers,
+        "active_sales": active_sales,
+        "tvl_usdc": float(tvl),
+        "total_raised_usdc": float(total_raised),
+        "platform_fees_collected_usdc": float(fees_collected),
+    }

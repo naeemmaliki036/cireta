@@ -32,3 +32,8 @@ __all__ = [
     "RedemptionRequest", "AuditLog", "Notification",
     "DividendDistribution",
 ]
+
+from apps.api.models.notification_preferences import NotificationPreferences
+from apps.api.models.recovery_log import RecoveryLog
+from apps.api.models.token_document import TokenDocument
+from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist

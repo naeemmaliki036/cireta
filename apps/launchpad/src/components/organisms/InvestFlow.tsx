@@ -171,6 +171,7 @@ interface InvestConfirmStepProps {
   tokensToReceive: number;
   isLoading: boolean;
   error: string | null;
+  isSafe?: boolean;
   onConfirm: () => void;
 }
 
@@ -180,6 +181,7 @@ export function InvestConfirmStep({
   tokensToReceive,
   isLoading,
   error,
+  isSafe = false,
   onConfirm,
 }: InvestConfirmStepProps) {
   return (
@@ -196,7 +198,7 @@ export function InvestConfirmStep({
       </div>
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
       <Button variant="primary" className="w-full" size="lg" onClick={onConfirm} isLoading={isLoading}>
-        {isLoading ? "Confirming..." : "Confirm Investment"}
+        {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming...") : (isSafe ? "Propose to Safe" : "Confirm Investment")}
       </Button>
     </>
   );

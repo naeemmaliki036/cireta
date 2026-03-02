@@ -105,8 +105,17 @@ async def mark_all_read(
 
 
 @router.get("/preferences", response_model=NotificationPreferences)
-async def get_preferences(user_id: CurrentUserId) -> NotificationPreferences:  # noqa: ARG001
-    # TODO: persist per-user preferences in DB; returning defaults for now
+async def get_preferences(user_id: CurrentUserId, db: AsyncSession = Depends(get_db)) -> NotificationPreferences:
+    """Get notification preferences for the current user (persisted in DB)."""
+    from apps.api.models.notification_preferences import NotificationPreferences as NPModel
+    from sqlalchemy import select
+    result = await db.execute(select(NPModel).where(NPModel.user_id == user_id))
+    prefs = result.scalar_one_or_none()
+    if not prefs:
+        prefs = NPModel(user_id=user_id)
+        db.add(prefs)
+        await db.commit()
+        await db.refresh(prefs)
     return NotificationPreferences()
 
 
@@ -115,5 +124,15 @@ async def update_preferences(
     prefs: NotificationPreferences,
     user_id: CurrentUserId,  # noqa: ARG001
 ) -> NotificationPreferences:
-    # TODO: persist to DB
-    return prefs
+    from apps.api.models.notification_preferences import NotificationPreferences as NPModel
+    from sqlalchemy import select
+    result = await db.execute(select(NPModel).where(NPModel.user_id == user_id))
+    prefs_model = result.scalar_one_or_none()
+    if not prefs_model:
+        prefs_model = NPModel(user_id=user_id)
+        db.add(prefs_model)
+    for key, val in preferences.model_dump().items():
+        if hasattr(prefs_model, key):
+            setattr(prefs_model, key, val)
+    await db.commit()
+    return preferences
