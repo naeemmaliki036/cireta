@@ -83,8 +83,8 @@ export function PlatformAdminLayout({
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-darkAqua/20 text-darkAqua"
-                      : "text-white/70 hover:text-white hover:bg-white/5"
+                      ? "bg-white text-darkBlack font-semibold"
+                      : "text-white/80 hover:text-white hover:bg-white/15"
                   )}
                 >
                   <link.icon className="h-5 w-5" />
@@ -98,7 +98,7 @@ export function PlatformAdminLayout({
           <div className="mt-auto pt-6 border-t border-white/10 space-y-1">
             <Link
               href="/platform/settings"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-colors text-sm font-medium"
             >
               <Settings className="h-5 w-5" />
               Settings
