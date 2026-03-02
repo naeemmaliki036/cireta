@@ -125,25 +125,47 @@
 
 ---
 
+## Resolved Items (Sprint 6 — 2026-03-02)
+
+### 1. Redis Infrastructure ✅ RESOLVED
+- `infra/docker-compose.yml` with api + worker + redis:7-alpine services
+- `railway.toml` updated with Redis plugin variable reference
+- REDIS_URL configured in common config and .env.example
+
+### 2. KYC Level 4 Corporate KYB ✅ RESOLVED
+- POST /kyc/corporate/initiate, GET /kyc/corporate/status, POST /kyc/corporate/webhook
+- KYBDocument schema with company_name, registration_number, jurisdiction, directors, ubo_list
+- Corporate approval sets kyc_level=4, investor_type='corporate'
+- `/verify` page: Personal | Corporate tabs
+- `/verify/corporate` page: company form + Sumsub SDK
+- Admin investors KYCBadge shows level labels (1=Basic, 4=Corporate)
+
+### 3. Refresh Token httpOnly Cookie ✅ RESOLVED
+- Backend: refresh_token as httpOnly+secure cookie on login/register; read from cookie on /refresh; clear on /logout
+- Frontend: access_token in React state only (module-level store), NOT localStorage
+- /refresh called on mount (cookie auto-sent with credentials: "include")
+- Zero localStorage token references in either frontend
+
+### 4. FastAPI Final Decision ✅ RESOLVED
+- FINAL DECISION — FastAPI. NestJS ruled out permanently.
+- FastAPI is fully built, tested (108+ tests), deployed, and integrated with the entire stack (arq workers, SQLAlchemy 2.0, Pydantic v2).
+- No migration path to NestJS is planned or desired.
+
+---
+
 ## Remaining Gaps (Low Priority / Phase 3)
 
 ### Tech Stack (non-blocking)
 - **The Graph subgraph** — Phase 3, no immediate need; on-chain data via direct RPC
 - **Turborepo + pnpm** — Developer tooling improvement; not functional impact
-- **Redis cache** — arq is installed, Redis not yet running in production; low risk for current scale
 
 ### KYC (Phase 3)
-- KYC Level 4 (Corporate KYB) — not implemented; Phase 3 feature
 - ONCHAINID deployment on KYC approval — not wired end-to-end; requires Hardhat task
 - Wallet registration in Identity Registry on KYC approval — `workers/tasks.py` has scaffold
 
 ### Contract Integration (Phase 3)
 - Chainlink Proof of Reserve feed — contract ready, frontend shows input, not wired to oracle
 - DividendDistributor.sol — not yet tested in Hardhat suite
-
-### Architectural Notes
-- **FastAPI vs NestJS**: FINAL DECISION — FastAPI. NestJS ruled out permanently. FastAPI is fully built, tested (108+ tests), deployed, and integrated with the entire stack (arq workers, SQLAlchemy 2.0, Pydantic v2). No migration path to NestJS is planned or desired.
-- **Refresh token**: RESOLVED — httpOnly cookie implemented. Access token in React memory only, zero localStorage token storage.
 
 ---
 
@@ -161,4 +183,4 @@
 | Files >300 LOC | ✅ 0 |
 
 ---
-*Updated by Zyda — 2026-03-02*
+*Updated by Zyda — 2026-03-02 (Sprint 6: 4 items resolved)*
