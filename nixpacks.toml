@@ -1,6 +1,5 @@
 [phases.install]
-dependsOn = ["setup"]
-cmds = ["pip install uvicorn[standard]==0.32.1 httptools uvloop watchfiles websockets"]
+cmds = ["pip install poetry && poetry install --only main --no-interaction && pip install 'uvicorn[standard]==0.32.1'"]
 
 [start]
 cmd = "python start.py"
