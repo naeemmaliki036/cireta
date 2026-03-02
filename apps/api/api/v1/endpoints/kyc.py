@@ -10,7 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.sumsub_crypto import validate_sumsub_signature
-from apps.api.schemas.kyc import KYCInitiateResponse, KYCStatusResponse
+from apps.api.schemas.kyc import (
+    KYBDocumentRequest,
+    KYBStatusResponse,
+    KYCInitiateResponse,
+    KYCStatusResponse,
+)
 from apps.api.services.kyc_service import KYCService
 from packages.common.core.auth_deps import CurrentUserId
 from packages.common.core.config import settings
@@ -109,4 +114,66 @@ async def sumsub_webhook(
     # Process webhook
     await kyc_service.handle_webhook(payload, ip_address)
 
+    return {"status": "ok"}
+
+
+@router.post("/corporate/initiate", response_model=KYCInitiateResponse)
+async def initiate_corporate_kyb(
+    user_id: CurrentUserId,
+    body: KYBDocumentRequest,
+    kyc_service: Annotated[KYCService, Depends(get_kyc_service)],
+) -> KYCInitiateResponse:
+    """Initiate corporate KYB process.
+
+    Stores company details and creates Sumsub applicant with business level.
+    Sets investor_type to 'corporate' on the user.
+    """
+    result = await kyc_service.initiate_corporate(user_id, body)
+    return KYCInitiateResponse(
+        applicant_id=result["applicant_id"],
+        access_token=result["access_token"],
+        expiration=result["expiration"],
+    )
+
+
+@router.get("/corporate/status", response_model=KYBStatusResponse)
+async def get_corporate_kyb_status(
+    user_id: CurrentUserId,
+    kyc_service: Annotated[KYCService, Depends(get_kyc_service)],
+) -> KYBStatusResponse:
+    """Get corporate KYB status for authenticated user."""
+    result = await kyc_service.get_corporate_status(user_id)
+    return KYBStatusResponse(**result)
+
+
+@router.post("/corporate/webhook", status_code=status.HTTP_200_OK)
+async def corporate_kyb_webhook(
+    request: Request,
+    kyc_service: Annotated[KYCService, Depends(get_kyc_service)],
+) -> dict[str, str]:
+    """Handle Sumsub corporate KYB webhook.
+
+    Same HMAC validation as personal KYC webhook.
+    On GREEN review, sets kyc_level=4.
+    """
+    body = await request.body()
+    sig_header = request.headers.get("X-Payload-Digest", "")
+    if not validate_sumsub_signature(body, sig_header, settings.sumsub_secret_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_SIGNATURE", "message": "Invalid webhook signature"},
+        )
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_PAYLOAD", "message": "Invalid JSON payload"},
+        ) from None
+
+    forwarded = request.headers.get("X-Forwarded-For")
+    ip_address = forwarded.split(",")[0].strip() if forwarded else (
+        request.client.host if request.client else None
+    )
+    await kyc_service.handle_corporate_webhook(payload, ip_address)
     return {"status": "ok"}

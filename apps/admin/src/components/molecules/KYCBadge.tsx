@@ -76,7 +76,7 @@ export function KYCBadge({
       <span>{config.label}</span>
       {showLevel && status === "approved" && level !== undefined && (
         <span className="ml-1 px-1.5 py-0.5 bg-white/50 rounded-full text-xs">
-          L{level}
+          {level === 4 ? "Corporate" : level === 1 ? "Basic" : `L${level}`}
         </span>
       )}
     </div>

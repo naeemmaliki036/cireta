@@ -108,7 +108,7 @@ class KYCService:
                 # Create applicant
                 applicant_resp = await _sumsub_request(
                     "POST",
-                    f"/resources/applicants?levelName=basic-kyc-level",
+                    "/resources/applicants?levelName=basic-kyc-level",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                     json={"externalUserId": str(user_id), "email": user.email},
@@ -266,6 +266,158 @@ class KYCService:
             return
         # Production: web3_identity_service.issue_claims(user) — implement when contracts deployed
         log.info("On-chain claim issuance queued for user %s", user.id)
+
+    async def initiate_corporate(self, user_id: UUID, body: Any) -> dict[str, Any]:
+        """Initiate corporate KYB — creates Sumsub business-level applicant."""
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+        if user.kyc_status == KYCStatus.APPROVED and user.kyc_level >= 4:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail={"code": "ALREADY_VERIFIED", "message": "Corporate KYB already approved"})
+
+        from packages.common.core.config import get_settings
+        settings = get_settings()
+
+        applicant_id = f"cireta-corp-{user_id}"
+        access_token = f"dev-corp-token-{user_id}"
+
+        if _is_dev_mode(settings):
+            log.warning("Sumsub dev mode — returning mock corporate token for user %s", user_id)
+        else:
+            try:
+                applicant_resp = await _sumsub_request(
+                    "POST", "/resources/applicants?levelName=business-kyb-level",
+                    settings.sumsub_app_token, settings.sumsub_secret_key,
+                    json={"externalUserId": str(user_id), "email": user.email,
+                          "type": "company",
+                          "info": {"companyInfo": {
+                              "companyName": body.company_name,
+                              "registrationNumber": body.registration_number,
+                              "country": body.jurisdiction,
+                          }}},
+                )
+                applicant_id = applicant_resp.get("id", applicant_id)
+                token_resp = await _sumsub_request(
+                    "POST", f"/resources/accessTokens?userId={applicant_id}&levelName=business-kyb-level",
+                    settings.sumsub_app_token, settings.sumsub_secret_key,
+                )
+                access_token = token_resp.get("token", access_token)
+            except Exception as exc:
+                log.error("Sumsub corporate API error: %s", exc)
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                                    detail={"code": "KYC_PROVIDER_ERROR",
+                                            "message": "KYC provider unavailable"}) from exc
+
+        application = KYCApplication()
+        application.user_id = user_id
+        application.sumsub_review_id = applicant_id
+        application.status = "pending"
+        application.submitted_at = datetime.now(UTC)
+        application.result_payload = {
+            "type": "corporate",
+            "company_name": body.company_name,
+            "registration_number": body.registration_number,
+            "jurisdiction": body.jurisdiction,
+            "directors": body.directors,
+            "ubo_list": body.ubo_list,
+        }
+        self.db.add(application)
+
+        user.kyc_status = KYCStatus.PENDING
+        user.sumsub_applicant_id = applicant_id
+        user.investor_type = "corporate"
+        await self.db.commit()
+
+        return {
+            "applicant_id": applicant_id,
+            "access_token": access_token,
+            "expiration": datetime.now(UTC),
+        }
+
+    async def get_corporate_status(self, user_id: UUID) -> dict[str, Any]:
+        """Get corporate KYB status."""
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+        app_result = await self.db.execute(
+            select(KYCApplication).where(KYCApplication.user_id == user_id)
+            .order_by(KYCApplication.created_at.desc())
+        )
+        application = app_result.scalar_one_or_none()
+        company_name = None
+        if application and application.result_payload:
+            company_name = application.result_payload.get("company_name")
+        return {
+            "status": user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status,
+            "level": user.kyc_level,
+            "company_name": company_name,
+            "review_status": application.status if application else None,
+            "submitted_at": application.submitted_at if application else None,
+            "reviewed_at": application.reviewed_at if application else None,
+        }
+
+    async def handle_corporate_webhook(self, payload: dict[str, Any], ip_address: str | None = None) -> None:
+        """Handle Sumsub corporate KYB webhook — sets kyc_level=4 on GREEN."""
+        applicant_id = payload.get("applicantId")
+        external_user_id = payload.get("externalUserId")
+        event_type = payload.get("type")
+        review_result = payload.get("reviewResult", {})
+
+        if not applicant_id:
+            return
+
+        result = await self.db.execute(select(User).where(User.sumsub_applicant_id == applicant_id))
+        user = result.scalar_one_or_none()
+        if not user and external_user_id:
+            try:
+                result = await self.db.execute(select(User).where(User.id == UUID(external_user_id)))
+                user = result.scalar_one_or_none()
+            except ValueError:
+                pass
+        if not user:
+            return
+
+        app_result = await self.db.execute(
+            select(KYCApplication).where(KYCApplication.user_id == user.id)
+            .order_by(KYCApplication.created_at.desc())
+        )
+        application = app_result.scalar_one_or_none()
+        if application:
+            application.status = payload.get("reviewStatus") or event_type
+            application.result_payload = {**(application.result_payload or {}), "webhook": payload}
+            if payload.get("reviewStatus") == "completed":
+                application.reviewed_at = datetime.now(UTC)
+
+        if event_type == "applicantReviewed" and review_result:
+            review_answer = review_result.get("reviewAnswer")
+            if review_answer == "GREEN":
+                user.kyc_status = KYCStatus.APPROVED
+                user.kyc_level = 4
+                user.kyc_provider = "sumsub"
+                user.kyc_external_id = applicant_id
+                user.kyc_verified_at = datetime.now(UTC)
+                try:
+                    notif_service = NotificationService(self.db)
+                    await notif_service.notify_kyc_approved(user.id, user.email, 4)
+                except Exception as e:
+                    log.warning("Corporate KYC notification failed: %s", e)
+            elif review_answer == "RED":
+                user.kyc_status = KYCStatus.REJECTED
+                user.kyc_level = 0
+
+        await self._write_audit(
+            actor_id=None, action=f"kyb_webhook_{event_type}",
+            target_type="user", target_id=str(user.id),
+            payload={"applicant_id": applicant_id, "event_type": event_type,
+                     "review_answer": review_result.get("reviewAnswer") if review_result else None},
+            ip_address=ip_address,
+        )
+        await self.db.commit()
 
     async def _write_audit(self, actor_id: UUID | None, action: str, target_type: str,
                            target_id: str, payload: dict | None = None,

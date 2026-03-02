@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class KYCInitiateResponse(BaseModel):
@@ -41,3 +41,24 @@ class SumsubWebhookPayload(BaseModel):
 
     class Config:
         extra = "allow"  # Allow additional fields from Sumsub
+
+
+class KYBDocumentRequest(BaseModel):
+    """Corporate KYB initiation request."""
+
+    company_name: str = Field(..., min_length=1, max_length=255)
+    registration_number: str = Field(..., min_length=1, max_length=100)
+    jurisdiction: str = Field(..., min_length=2, max_length=100)
+    directors: list[dict[str, str]] = Field(default_factory=list)
+    ubo_list: list[dict[str, str]] = Field(default_factory=list)
+
+
+class KYBStatusResponse(BaseModel):
+    """Corporate KYB status response."""
+
+    status: str
+    level: int
+    company_name: str | None = None
+    review_status: str | None = None
+    submitted_at: datetime | None = None
+    reviewed_at: datetime | None = None
