@@ -1,11 +1,8 @@
 # Force Python provider — monorepo has both package.json and pyproject.toml
 providers = ["python"]
 
-[phases.setup]
-nixPkgs = ["python311"]
-
 [phases.install]
-cmds = ["pip install poetry && poetry config virtualenvs.in-project true && poetry install --no-interaction --no-ansi --only main --no-root"]
+cmds = ["/opt/venv/bin/pip install poetry && /opt/venv/bin/poetry config virtualenvs.create false && /opt/venv/bin/poetry install --no-interaction --no-ansi --only main --no-root"]
 
 [start]
 cmd = "python start.py"
