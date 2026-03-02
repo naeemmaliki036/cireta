@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // typedRoutes disabled: dynamic routes cause false TS errors
-  // experimental: { typedRoutes: true },
+  outputFileTracingRoot: path.join(__dirname, "../../"),
 };
 
 export default nextConfig;

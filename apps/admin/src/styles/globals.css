@@ -1,6 +1,79 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Colors - Cireta Brand */
+  --color-black: #000;
+  --color-darkBlack: #180B2E;
+  --color-white: #fff;
+  --color-paua: #202254;
+  --color-text: #0C0C0C;
+  --color-darkBlue: #01033C;
+  --color-darkAqua: #13636F;
+  --color-box: #ECF3F4;
+  --color-gold: #C9913D;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Extended colors */
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-purple-100: #f3e8ff;
+  --color-purple-600: #9333ea;
+
+  /* Font family */
+  --font-family-sans: "Gilroy", system-ui, sans-serif;
+
+  /* Font sizes */
+  --font-size-xsm: 14px;
+  --font-size-sm: 16px;
+  --font-size-base: 18px;
+  --font-size-lg: 20px;
+  --font-size-xl: 22px;
+  --font-size-xxl: 36px;
+  --font-size-1xl: 48px;
+  --font-size-2xl: 60px;
+
+  /* Shadows */
+  --shadow-nav: 0px 0px 16px 0px rgba(255,255,255,0.06) inset;
+  --shadow-tag: 0px 0px 4px 0px rgba(255,255,255,0.40) inset;
+  --shadow-progress: 20px 0px 0px 0px #13636F inset;
+  --shadow-tooltip: 0px 8px 40px 0px rgba(0,0,0,0.20);
+  --shadow-aside: -12px 0px 20px 0px rgba(0,0,0,0.07);
+  --shadow-card: 0px 4px 24px 0px rgba(0,0,0,0.08);
+  --shadow-bulletIcon: rgba(19,99,111,0.40) 0px 0px 0px 1px;
+
+  /* Breakpoints */
+  --breakpoint-xs: 410px;
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 990px;
+  --breakpoint-laptop: 1250px;
+  --breakpoint-xl: 1550px;
+  --breakpoint-xxl: 1800px;
+
+  /* Spacing / Max widths */
+  --container-max: 1824px;
+  --container-inner: 1624px;
+}
+
 
 * {
   padding: 0;
@@ -37,8 +110,8 @@
 
 body {
   position: relative;
-  background: theme("colors.white");
-  color: theme("colors.text");
+  background: #ffffff;
+  color: #0C0C0C;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: none;
   font-size: 1rem;
@@ -62,7 +135,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: theme("colors.darkAqua/80");
+  background: rgba(19, 99, 111, 0.8);
   border-radius: 8px;
 }
 
