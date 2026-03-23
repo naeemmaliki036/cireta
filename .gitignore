@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.*.local
+.env.backend
+.env.production
+apps/*/.env.production
 !.env.example
 !.env.backend.example
 !.env.dockerfile.*

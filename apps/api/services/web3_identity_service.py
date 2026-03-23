@@ -33,9 +33,7 @@ class Web3IdentityService(Web3TokenService):
             raise ValueError("IDENTITY_FACTORY_ADDRESS not configured")
 
         # Generate deterministic salt from wallet address
-        salt = Web3.keccak(
-            Web3.to_bytes(hexstr=Web3.to_checksum_address(wallet_address))
-        )
+        salt = Web3.keccak(Web3.to_bytes(hexstr=Web3.to_checksum_address(wallet_address)))
 
         abi = [
             {
@@ -63,17 +61,13 @@ class Web3IdentityService(Web3TokenService):
         for log in receipt.get("logs", []):
             if len(log.get("topics", [])) >= 2:
                 # The identity address is in the data field (not indexed)
-                identity_address = Web3.to_checksum_address(
-                    "0x" + log["data"].hex()[-40:]
-                )
+                identity_address = Web3.to_checksum_address("0x" + log["data"].hex()[-40:])
                 return identity_address
 
         # Fallback: compute CREATE2 address deterministically
         return self._compute_identity_address(wallet_address, salt)
 
-    def _compute_identity_address(
-        self, wallet_address: str, salt: bytes
-    ) -> str:
+    def _compute_identity_address(self, wallet_address: str, salt: bytes) -> str:
         """Compute CREATE2 address for identity contract."""
         # This is a simplified placeholder — actual implementation depends on
         # the exact bytecode hash of the Identity contract in the factory
@@ -151,9 +145,60 @@ class Web3IdentityService(Web3TokenService):
             uri,
         )
 
-    async def freeze_wallet(
-        self, token_address: str, wallet_address: str
-    ) -> TxReceipt:
+    async def issue_kyc_claims(
+        self,
+        onchain_id_address: str,
+        kyc_level: int,
+        country_code: str,
+        investor_type: str,
+    ) -> list[TxReceipt]:
+        """Issue KYC level, country, and investor type claims to an ONCHAINID.
+
+        Args:
+            onchain_id_address: The ONCHAINID identity contract address.
+            kyc_level: KYC verification level (1, 2, etc.).
+            country_code: ISO country code (e.g. "US", "GB").
+            investor_type: Investor classification (e.g. "individual", "institutional").
+
+        Returns:
+            List of transaction receipts for the three claim transactions.
+        """
+        deployer = self.deployer_address
+        if not deployer:
+            raise ValueError("No deployer account configured for claim issuance")
+
+        issuer_addr = Web3.to_checksum_address(deployer)
+        scheme = 1  # ECDSA
+
+        # Claim topics: 1=KYC level, 2=Country, 3=Investor type
+        claims = [
+            (1, str(kyc_level).encode()),
+            (2, country_code.encode()),
+            (3, investor_type.encode()),
+        ]
+
+        receipts: list[TxReceipt] = []
+        for topic, data in claims:
+            # Sign the claim data: keccak256(identity + topic + data)
+            message = Web3.keccak(
+                Web3.to_bytes(hexstr=onchain_id_address) + topic.to_bytes(32, "big") + data
+            )
+            signature = message  # Placeholder signature; real impl uses account.sign
+
+            receipt = await self.issue_claim(
+                identity_address=onchain_id_address,
+                topic=topic,
+                scheme=scheme,
+                issuer=issuer_addr,
+                signature=signature,
+                data=data,
+                uri="",
+            )
+            receipts.append(receipt)
+
+        return receipts
+
+    async def freeze_wallet(self, token_address: str, wallet_address: str) -> TxReceipt:
         """Freeze a wallet address for a specific ERC-3643 token."""
         abi = [
             {
@@ -168,13 +213,14 @@ class Web3IdentityService(Web3TokenService):
             }
         ]
         return await self.execute_contract(
-            token_address, abi, "setAddressFrozen",
-            Web3.to_checksum_address(wallet_address), True,
+            token_address,
+            abi,
+            "setAddressFrozen",
+            Web3.to_checksum_address(wallet_address),
+            True,
         )
 
-    async def unfreeze_wallet(
-        self, token_address: str, wallet_address: str
-    ) -> TxReceipt:
+    async def unfreeze_wallet(self, token_address: str, wallet_address: str) -> TxReceipt:
         """Unfreeze a wallet address for a specific ERC-3643 token."""
         abi = [
             {
@@ -189,12 +235,19 @@ class Web3IdentityService(Web3TokenService):
             }
         ]
         return await self.execute_contract(
-            token_address, abi, "setAddressFrozen",
-            Web3.to_checksum_address(wallet_address), False,
+            token_address,
+            abi,
+            "setAddressFrozen",
+            Web3.to_checksum_address(wallet_address),
+            False,
         )
 
     async def forced_transfer(
-        self, token_address: str, from_address: str, to_address: str, amount: int,
+        self,
+        token_address: str,
+        from_address: str,
+        to_address: str,
+        amount: int,
     ) -> TxReceipt:
         """Execute a forced transfer (compliance / court order)."""
         abi = [
@@ -211,7 +264,9 @@ class Web3IdentityService(Web3TokenService):
             }
         ]
         return await self.execute_contract(
-            token_address, abi, "forcedTransfer",
+            token_address,
+            abi,
+            "forcedTransfer",
             Web3.to_checksum_address(from_address),
             Web3.to_checksum_address(to_address),
             amount,

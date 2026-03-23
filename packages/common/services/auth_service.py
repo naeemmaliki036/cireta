@@ -1,5 +1,7 @@
 """Authentication service with async support."""
 
+import hashlib
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -8,6 +10,66 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.core.config import settings
+
+_logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Redis-backed JWT blacklist (falls back to in-memory set if Redis unavailable)
+# ---------------------------------------------------------------------------
+_in_memory_blacklist: set[str] = set()
+_redis_client = None
+_BLACKLIST_KEY_PREFIX = "jwt:blacklist:"
+_BLACKLIST_TTL = settings.refresh_token_expire_seconds + 60  # outlive longest token
+
+
+def _get_redis():
+    """Lazily initialise a Redis client from settings.redis_url."""
+    global _redis_client  # noqa: PLW0603
+    if _redis_client is not None:
+        return _redis_client
+    if not settings.redis_url:
+        return None
+    try:
+        import redis as _redis_mod
+
+        _redis_client = _redis_mod.Redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+        )
+        _redis_client.ping()
+        _logger.info("JWT blacklist: using Redis at %s", settings.redis_url)
+        return _redis_client
+    except Exception:
+        _logger.warning("JWT blacklist: Redis unavailable, falling back to in-memory set")
+        _redis_client = None
+        return None
+
+
+class _TokenBlacklist:
+    """Unified interface: uses Redis when available, else in-memory set."""
+
+    def add(self, token_hash: str) -> None:
+        r = _get_redis()
+        if r is not None:
+            try:
+                r.setex(f"{_BLACKLIST_KEY_PREFIX}{token_hash}", _BLACKLIST_TTL, "1")
+                return
+            except Exception:
+                _logger.warning("Redis SET failed, falling back to in-memory")
+        _in_memory_blacklist.add(token_hash)
+
+    def __contains__(self, token_hash: str) -> bool:
+        r = _get_redis()
+        if r is not None:
+            try:
+                return r.exists(f"{_BLACKLIST_KEY_PREFIX}{token_hash}") > 0
+            except Exception:
+                _logger.warning("Redis EXISTS failed, falling back to in-memory")
+        return token_hash in _in_memory_blacklist
+
+
+_token_blacklist = _TokenBlacklist()
 
 
 class AuthService:
@@ -51,9 +113,12 @@ class AuthService:
             "type": "access",
         }
 
+        secret = settings.jwt_secret_key
+        if not secret:
+            raise RuntimeError("jwt_secret_key is not configured — refusing to sign tokens")
         return jwt.encode(
             payload,
-            settings.jwt_secret_key or "dev-secret",
+            secret,
             algorithm=settings.jwt_algorithm,
         )
 
@@ -73,9 +138,12 @@ class AuthService:
             "type": "refresh",
         }
 
+        secret = settings.jwt_secret_key
+        if not secret:
+            raise RuntimeError("jwt_secret_key is not configured — refusing to sign tokens")
         return jwt.encode(
             payload,
-            settings.jwt_secret_key or "dev-secret",
+            secret,
             algorithm=settings.jwt_algorithm,
         )
 
@@ -83,12 +151,20 @@ class AuthService:
     def decode_token(token: str) -> dict | None:
         """Decode and validate a JWT token.
 
-        Returns the payload if valid, None otherwise.
+        Returns the payload if valid, None if invalid or blacklisted.
         """
         try:
+            # Check if token has been blacklisted (logout / rotation)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            if token_hash in _token_blacklist:
+                return None
+
+            secret = settings.jwt_secret_key
+            if not secret:
+                return None
             payload = jwt.decode(
                 token,
-                settings.jwt_secret_key or "dev-secret",
+                secret,
                 algorithms=[settings.jwt_algorithm],
             )
             return payload
@@ -102,9 +178,12 @@ class AuthService:
         Returns the user UUID if token is valid, None otherwise.
         """
         try:
+            secret = settings.jwt_secret_key
+            if not secret:
+                return None
             payload = jwt.decode(
                 token,
-                settings.jwt_secret_key or "dev-secret",
+                secret,
                 algorithms=[settings.jwt_algorithm],
             )
             user_id = payload.get("sub")
