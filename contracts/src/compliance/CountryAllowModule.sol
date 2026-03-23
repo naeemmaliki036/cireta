@@ -111,15 +111,15 @@ contract CountryAllowModule is
         address,
         uint256
     ) external override {
-        // No state changes needed on transfer
+        require(_complianceBound[msg.sender], "not bound");
     }
 
     function moduleMintAction(address, uint256) external override {
-        // No state changes needed on mint
+        require(_complianceBound[msg.sender], "not bound");
     }
 
     function moduleBurnAction(address, uint256) external override {
-        // No state changes needed on burn
+        require(_complianceBound[msg.sender], "not bound");
     }
 
     // ============ Transfer Check ============

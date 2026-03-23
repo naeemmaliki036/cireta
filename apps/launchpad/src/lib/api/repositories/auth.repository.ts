@@ -43,8 +43,8 @@ export async function register(data: RegisterRequest): Promise<AuthTokens> {
   });
 }
 
-export async function me(token: string): Promise<User> {
-  return apiFetch<User>("/api/v1/auth/me", { token });
+export async function me(): Promise<User> {
+  return apiFetch<User>("/api/v1/auth/me");
 }
 
 export async function refreshToken(): Promise<AuthTokens> {
@@ -54,10 +54,9 @@ export async function refreshToken(): Promise<AuthTokens> {
   });
 }
 
-export async function logout(accessToken: string): Promise<void> {
+export async function logout(): Promise<void> {
   return apiFetch<void>("/api/v1/auth/logout", {
     method: "POST",
-    token: accessToken,
   });
 }
 
@@ -75,10 +74,9 @@ export async function resetPassword(token: string, new_password: string): Promis
   });
 }
 
-export async function updateProfile(token: string, data: { display_name?: string }): Promise<User> {
+export async function updateProfile(data: { display_name?: string }): Promise<User> {
   return apiFetch<User>("/api/v1/users/profile", {
     method: "PATCH",
-    token,
     body: data,
   });
 }

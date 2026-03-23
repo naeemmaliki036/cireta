@@ -49,6 +49,16 @@ export default function CompliancePage() {
 
   const handleSubmit = async () => {
     if (!targetAddress || !reason) return;
+
+    // Destructive compliance actions require explicit confirmation
+    if (modalAction === "freeze" || modalAction === "unfreeze") {
+      const verb = modalAction === "freeze" ? "freeze" : "unfreeze";
+      const confirmed = window.confirm(
+        `Are you sure you want to ${verb} address ${targetAddress}? This action will be recorded in the immutable audit log.`
+      );
+      if (!confirmed) return;
+    }
+
     setIsSubmitting(true);
     const token = getToken();
     try {

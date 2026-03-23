@@ -16,7 +16,6 @@ import { Button, Badge, Input, Spinner } from "@/components/atoms";
 import { KYCBadge, WalletBadge } from "@/components/molecules";
 import { DashboardLayout } from "@/components/templates";
 import { me, type User as AuthUser } from "@/lib/api/repositories/auth.repository";
-import { getAccessToken } from "@/lib/api/client";
 
 
 export default function AccountPage() {
@@ -27,10 +26,8 @@ export default function AccountPage() {
 
   useEffect(() => {
     (async () => {
-      const token = getAccessToken();
-      if (!token) { setLoading(false); return; }
       try {
-        const data = await me(token);
+        const data = await me();
         setUser(data);
       } catch { /* redirect to login */ }
       finally { setLoading(false); }

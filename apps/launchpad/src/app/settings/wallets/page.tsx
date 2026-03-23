@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useAccount, useSignMessage, useConnect } from "wagmi";
 import { Button, Badge } from "@/components/atoms";
 import { listWallets, unlinkWallet, setPrimaryWallet, type Wallet } from "@/lib/api/repositories/wallets.repository";
-import { getAccessToken } from "@/lib/api/client";
 
 export default function WalletsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -15,12 +14,9 @@ export default function WalletsPage() {
   const { signMessageAsync } = useSignMessage();
   const { connect, connectors } = useConnect();
 
-  const token = getAccessToken() ?? "";
-
   const fetchWallets = async () => {
-    if (!token) return;
     try {
-      const data = await listWallets(token);
+      const data = await listWallets();
       setWallets(data);
     } catch {
       setError("Failed to load wallets");
@@ -29,17 +25,17 @@ export default function WalletsPage() {
     }
   };
 
-  useEffect(() => { fetchWallets(); }, [token]);
+  useEffect(() => { fetchWallets(); }, []);
 
   const handleLink = async () => {
-    if (!address || !token) return;
+    if (!address) return;
     setLinking(true);
     setError("");
     try {
       const nonce = crypto.randomUUID();
       const signature = await signMessageAsync({ message: `Link wallet to Cireta account: ${nonce}` });
       const { linkWallet } = await import("@/lib/api/repositories/wallets.repository");
-      await linkWallet(token, { address, signature, nonce });
+      await linkWallet({ address, signature, nonce });
       await fetchWallets();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to link wallet");
@@ -49,9 +45,8 @@ export default function WalletsPage() {
   };
 
   const handleRemove = async (addr: string) => {
-    if (!token) return;
     try {
-      await unlinkWallet(token, addr);
+      await unlinkWallet(addr);
       await fetchWallets();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to remove wallet");
@@ -59,9 +54,8 @@ export default function WalletsPage() {
   };
 
   const handleSetPrimary = async (addr: string) => {
-    if (!token) return;
     try {
-      await setPrimaryWallet(token, addr);
+      await setPrimaryWallet(addr);
       await fetchWallets();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to set primary");

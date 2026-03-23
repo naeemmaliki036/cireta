@@ -4,7 +4,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import IssuerStatus
@@ -17,6 +16,7 @@ from apps.api.schemas.admin import (
 )
 from apps.api.services.compliance_service import ComplianceService
 from apps.api.services.issuer_service import IssuerService
+from apps.api.services.platform_settings_service import PlatformSettingsService
 from packages.common.core.auth_deps import RequireAdmin
 from packages.common.db.session import get_db
 
@@ -194,58 +194,32 @@ async def get_platform_stats(_user_id: RequireAdmin, db: AsyncSession = Depends(
     }
 
 
-_DEFAULT_SETTINGS: dict[str, str] = {
-    "default_fee_bps": "200",
-    "blocked_countries": "US",
-    "kyc_min_level": "2",
-}
-
-
-async def _load_settings(db: AsyncSession) -> dict[str, str]:
-    """Load platform settings from the database, falling back to defaults."""
-    from apps.api.models.platform_setting import PlatformSetting
-
-    result = await db.execute(select(PlatformSetting))
-    rows = result.scalars().all()
-    stored = {row.key: row.value for row in rows}
-    return {**_DEFAULT_SETTINGS, **stored}
-
-
-async def _upsert_setting(db: AsyncSession, key: str, value: str) -> None:
-    """Insert or update a single platform setting in the database."""
-    from apps.api.models.platform_setting import PlatformSetting
-
-    result = await db.execute(select(PlatformSetting).where(PlatformSetting.key == key))
-    existing = result.scalar_one_or_none()
-    if existing:
-        existing.value = value
-    else:
-        db.add(PlatformSetting(key=key, value=value))
+async def get_settings_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PlatformSettingsService:
+    """Get platform settings service instance."""
+    return PlatformSettingsService(db)
 
 
 @router.get("/platform/settings")
 async def get_platform_settings(
     _user_id: RequireAdmin,
-    db: AsyncSession = Depends(get_db),
+    service: Annotated[PlatformSettingsService, Depends(get_settings_service)],
 ) -> dict:
     """Get current platform settings."""
-    return await _load_settings(db)
+    return await service.load()
 
 
 @router.patch("/platform/settings")
 async def update_platform_settings(
     _user_id: RequireAdmin,
     request: PlatformSettingsRequest,
-    db: AsyncSession = Depends(get_db),
+    service: Annotated[PlatformSettingsService, Depends(get_settings_service)],
 ) -> dict:
     """Update platform-wide settings (fee rates, blocked countries, etc.)."""
-    if request.default_fee_bps is not None:
-        await _upsert_setting(db, "default_fee_bps", request.default_fee_bps)
-    if request.blocked_countries is not None:
-        await _upsert_setting(db, "blocked_countries", request.blocked_countries)
-    if request.kyc_min_level is not None:
-        await _upsert_setting(db, "kyc_min_level", request.kyc_min_level)
-
-    await db.commit()
-    current = await _load_settings(db)
+    current = await service.update_many(
+        default_fee_bps=request.default_fee_bps,
+        blocked_countries=request.blocked_countries,
+        kyc_min_level=request.kyc_min_level,
+    )
     return {"message": "Settings updated", **current}

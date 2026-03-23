@@ -53,9 +53,15 @@ contract MaxBalanceModule is
     }
 
     // ============ Module Actions ============
-    function moduleTransferAction(address, address, uint256) external override {}
-    function moduleMintAction(address, uint256) external override {}
-    function moduleBurnAction(address, uint256) external override {}
+    function moduleTransferAction(address, address, uint256) external override {
+        require(_complianceBound[msg.sender], "not bound");
+    }
+    function moduleMintAction(address, uint256) external override {
+        require(_complianceBound[msg.sender], "not bound");
+    }
+    function moduleBurnAction(address, uint256) external override {
+        require(_complianceBound[msg.sender], "not bound");
+    }
 
     // ============ Transfer Check ============
     function moduleCheck(

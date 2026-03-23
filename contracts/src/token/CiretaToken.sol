@@ -46,6 +46,9 @@ contract CiretaToken is
     // Partially frozen tokens per address
     mapping(address => uint256) private _frozenTokens;
 
+    // Flag to bypass _update validation during forced operations (transfer/recovery)
+    bool private _forcedOperation;
+
     // Events from IToken
     event UpdatedTokenInformation(
         string indexed newName,
@@ -288,8 +291,11 @@ contract CiretaToken is
             emit TokensUnfrozen(from, unfreezeAmount);
         }
 
+        // Bypass _update validation (frozen checks, compliance canTransfer)
+        // but still notify compliance modules via transferred() for holder tracking
+        _forcedOperation = true;
         _transfer(from, to, amount);
-        // Note: _update() already calls _compliance.transferred(), so no duplicate call here.
+        _forcedOperation = false;
         return true;
     }
 
@@ -301,6 +307,7 @@ contract CiretaToken is
         require(fromList.length == toList.length, "length mismatch");
         require(fromList.length == amounts.length, "length mismatch");
 
+        _forcedOperation = true;
         for (uint256 i = 0; i < fromList.length; i++) {
             require(_identityRegistry.isVerified(toList[i]), "to identity not verified");
 
@@ -313,8 +320,8 @@ contract CiretaToken is
             }
 
             _transfer(fromList[i], toList[i], amounts[i]);
-            // Note: _update() already calls _compliance.transferred(), so no duplicate call here.
         }
+        _forcedOperation = false;
     }
 
     // ============ Recovery ============
@@ -332,8 +339,11 @@ contract CiretaToken is
 
         uint256 balance = balanceOf(lostWallet);
         if (balance > 0) {
+            // Bypass _update validation — lost wallet may be frozen.
+            // _update() already calls compliance.transferred() once for holder tracking.
+            _forcedOperation = true;
             _transfer(lostWallet, newWallet, balance);
-            _compliance.transferred(lostWallet, newWallet, balance);
+            _forcedOperation = false;
         }
 
         // Transfer frozen tokens count
@@ -371,8 +381,8 @@ contract CiretaToken is
         address to,
         uint256 value
     ) internal virtual override(ERC20Upgradeable, ERC20PausableUpgradeable) {
-        // Skip checks for mint (from == 0) and burn (to == 0)
-        if (from != address(0) && to != address(0)) {
+        // Skip validation for mint/burn and forced operations (forcedTransfer, recovery)
+        if (from != address(0) && to != address(0) && !_forcedOperation) {
             require(!_frozen[from], "sender frozen");
             require(!_frozen[to], "recipient frozen");
             require(
@@ -385,7 +395,7 @@ contract CiretaToken is
 
         super._update(from, to, value);
 
-        // Notify compliance of transfer
+        // Always notify compliance of transfers (including forced) for holder tracking
         if (from != address(0) && to != address(0)) {
             _compliance.transferred(from, to, value);
         }

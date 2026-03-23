@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api/client";
-
-interface Distribution {
-  id: string;
-  token_id: string;
-  epoch_index: number;
-  total_amount: string;
-  created_at: string;
-}
+import { listDistributions, depositDividend, type Distribution } from "@/lib/api/repositories/dividends";
 
 export default function DividendsPage() {
   const [form, setForm] = useState({ token_id: "", amount_usdc: "", contract_address: "" });
@@ -19,8 +11,7 @@ export default function DividendsPage() {
 
   const fetchDistributions = async () => {
     try {
-      const data = await apiFetch<{ distributions: Distribution[] }>("/api/v1/admin/dividends");
-      setDistributions(data.distributions ?? []);
+      setDistributions(await listDistributions());
     } catch { /* ignore */ }
   };
 
@@ -31,9 +22,10 @@ export default function DividendsPage() {
     setSubmitting(true);
     setMessage("");
     try {
-      await apiFetch("/api/v1/admin/dividends/deposit", {
-        method: "POST",
-        body: { ...form, amount_usdc: parseFloat(form.amount_usdc) },
+      await depositDividend({
+        token_id: form.token_id,
+        amount_usdc: parseFloat(form.amount_usdc),
+        contract_address: form.contract_address || undefined,
       });
       setMessage("Dividend deposit recorded.");
       setForm({ token_id: "", amount_usdc: "", contract_address: "" });

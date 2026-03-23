@@ -1,14 +1,17 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/**
+ * Admin API client — all requests go through /api/proxy/ which reads
+ * the httpOnly cookie and attaches the Authorization header server-side.
+ * The JWT is NEVER accessible to client-side JavaScript.
+ */
 
-/** In-memory access token store — set by AuthContext, never persisted to disk. */
-let _accessToken: string | null = null;
-
-export function setAccessToken(token: string | null): void {
-  _accessToken = token;
+/** @deprecated Token is managed via httpOnly cookie. Returns null (kept for backward compat). */
+export function setAccessToken(_token: string | null): void {
+  // No-op: JWT is now stored in httpOnly cookie, not in JS memory
 }
 
+/** @deprecated Token is managed via httpOnly cookie. Returns null (kept for backward compat). */
 export function getAccessToken(): string | null {
-  return _accessToken;
+  return null;
 }
 
 export class APIError extends Error {
@@ -25,6 +28,7 @@ export class APIError extends Error {
 interface FetchOptions {
   method?: string;
   body?: unknown;
+  /** @deprecated Token is now managed via httpOnly cookie. This param is ignored. */
   token?: string;
   headers?: Record<string, string>;
 }
@@ -33,23 +37,19 @@ export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, token, headers: extraHeaders } = options;
-
-  const authToken = token ?? _accessToken;
+  const { method = "GET", body, headers: extraHeaders } = options;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...extraHeaders,
   };
 
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-
+  // All API calls are proxied through Next.js route handler which
+  // reads the httpOnly cookie and attaches Authorization server-side.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`/api/proxy${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,

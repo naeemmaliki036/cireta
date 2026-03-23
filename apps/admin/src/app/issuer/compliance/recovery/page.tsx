@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api/client";
+import { recoverTokens } from "@/lib/api/repositories/compliance";
+import { getAccessToken } from "@/lib/api/client";
 
 export default function TokenRecoveryPage() {
   const [form, setForm] = useState({
@@ -21,10 +22,15 @@ export default function TokenRecoveryPage() {
     setSubmitting(true);
     setMessage("");
     try {
-      await apiFetch("/api/v1/admin/compliance/recover", {
-        method: "POST",
-        body: form,
-      });
+      await recoverTokens(
+        {
+          token_id: form.token_id,
+          from_address: form.lost_wallet,
+          amount: "0", // full recovery — amount determined server-side
+          reason: form.reason,
+        },
+        getAccessToken() ?? "",
+      );
       setMessage("Token recovery submitted successfully. Tokens will be moved to the new wallet.");
       setForm({ lost_wallet: "", new_wallet: "", onchain_id: "", reason: "", token_id: "" });
     } catch (e: unknown) {
@@ -44,7 +50,7 @@ export default function TokenRecoveryPage() {
         Move tokens from a lost wallet to a new verified wallet. All actions are logged in the audit trail.
       </p>
       <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
-        <p className="text-yellow-400 text-sm font-medium">⚠️ Sensitive Action</p>
+        <p className="text-yellow-400 text-sm font-medium">Sensitive Action</p>
         <p className="text-yellow-400/70 text-sm mt-1">
           Ensure investor identity has been verified off-platform before proceeding.
           This action is irreversible and recorded on-chain.

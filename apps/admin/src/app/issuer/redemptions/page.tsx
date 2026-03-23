@@ -1,20 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api/client";
-
-interface Redemption {
-  id: string;
-  user_id: string;
-  token_id: string;
-  amount: string;
-  status: string;
-  delivery_name: string | null;
-  delivery_address: string | null;
-  delivery_phone: string | null;
-  tx_hash: string | null;
-  created_at: string | null;
-}
+import {
+  listRedemptions,
+  updateRedemptionStatus,
+  type Redemption,
+} from "@/lib/api/repositories/redemptions";
 
 const STATUS_FLOW = ["pending", "processing", "shipped", "fulfilled"];
 
@@ -25,20 +16,16 @@ export default function RedemptionsPage() {
 
   const fetchRedemptions = async () => {
     try {
-      const data = await apiFetch<{ redemptions: Redemption[] }>("/api/v1/admin/redemptions");
-      setRedemptions(data.redemptions ?? []);
+      setRedemptions(await listRedemptions());
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchRedemptions(); }, []);
 
-  const updateStatus = async (id: string, status: string) => {
+  const handleUpdateStatus = async (id: string, status: string) => {
     setUpdating(id);
     try {
-      await apiFetch(`/api/v1/admin/redemptions/${id}`, {
-        method: "PATCH",
-        body: { status },
-      });
+      await updateRedemptionStatus(id, status);
       fetchRedemptions();
     } catch { /* ignore */ } finally { setUpdating(null); }
   };
@@ -61,7 +48,7 @@ export default function RedemptionsPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="text-white font-medium">{Number(r.amount).toLocaleString()} tokens</p>
-                    <p className="text-white/40 text-xs mt-0.5">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</p>
+                    <p className="text-white/40 text-xs mt-0.5">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "\u2014"}</p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     r.status === "fulfilled" ? "bg-green-500/20 text-green-400" :
@@ -79,7 +66,7 @@ export default function RedemptionsPage() {
                 )}
                 {next && r.status !== "cancelled" && (
                   <button
-                    onClick={() => updateStatus(r.id, next)}
+                    onClick={() => handleUpdateStatus(r.id, next)}
                     disabled={updating === r.id}
                     className="mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-1.5"
                   >

@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Try refreshing via httpOnly cookie (auto-sent with credentials: "include")
       const tokens = await authRepo.refreshToken();
       setAccessToken(tokens.access_token);
-      const rawUser = await authRepo.me(tokens.access_token);
+      const rawUser = await authRepo.me();
       setAuthCookie(true);
       setState({
         user: mapUser(rawUser),
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const tokens = await authRepo.login({ email, password });
     setAccessToken(tokens.access_token);
-    const rawUser = await authRepo.me(tokens.access_token);
+    const rawUser = await authRepo.me();
     setAuthCookie(true);
     setState({
       user: mapUser(rawUser),
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string) => {
     const tokens = await authRepo.register({ email, password });
     setAccessToken(tokens.access_token);
-    const rawUser = await authRepo.me(tokens.access_token);
+    const rawUser = await authRepo.me();
     setAuthCookie(true);
     setState({
       user: mapUser(rawUser),
@@ -118,12 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    if (state.accessToken) {
-      try {
-        await authRepo.logout(state.accessToken);
-      } catch {
-        // Ignore logout errors
-      }
+    try {
+      await authRepo.logout();
+    } catch {
+      // Ignore logout errors
     }
 
     setAccessToken(null);

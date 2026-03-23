@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, setAccessToken } from "@/lib/api/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,11 +15,18 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await apiFetch<{ access_token: string }>("/api/v1/auth/login", {
+      // Login via Next.js route handler which sets httpOnly cookie —
+      // the JWT is never exposed to client-side JavaScript.
+      const res = await fetch("/api/auth/login", {
         method: "POST",
-        body: { email, password },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
-      setAccessToken(data.access_token);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail?.message ?? "Login failed");
+      }
       router.push("/");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Login failed");

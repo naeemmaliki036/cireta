@@ -19,31 +19,26 @@ export interface LinkWalletRequest {
   label?: string;
 }
 
-export async function listWallets(token: string): Promise<Wallet[]> {
-  const res = await apiFetch<{ wallets: Wallet[]; total: number }>("/api/v1/wallets", {
-    token,
-  });
+export async function listWallets(): Promise<Wallet[]> {
+  const res = await apiFetch<{ wallets: Wallet[]; total: number }>("/api/v1/wallets");
   return res.wallets;
 }
 
-export async function linkWallet(token: string, data: LinkWalletRequest): Promise<Wallet> {
+export async function linkWallet(data: LinkWalletRequest): Promise<Wallet> {
   return apiFetch<Wallet>("/api/v1/wallets", {
     method: "POST",
-    token,
     body: data,
   });
 }
 
-export async function unlinkWallet(token: string, address: string): Promise<void> {
+export async function unlinkWallet(address: string): Promise<void> {
   await apiFetch<void>(`/api/v1/wallets/${address}`, {
     method: "DELETE",
-    token,
   });
 }
 
-export async function setPrimaryWallet(token: string, address: string): Promise<Wallet> {
+export async function setPrimaryWallet(address: string): Promise<Wallet> {
   return apiFetch<Wallet>(`/api/v1/wallets/${address}/primary`, {
     method: "PATCH",
-    token,
   });
 }

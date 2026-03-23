@@ -105,6 +105,15 @@ contract MaxHolderCountModule is
         require(_complianceBound[compliance], "not bound");
 
         address token = ICompliance(compliance).getTokenBound();
+        require(token != address(0), "no token bound");
+
+        // Handle recipient becoming holder (check BEFORE sender removal
+        // so self-transfers are handled correctly)
+        if (to != address(0) && !_isHolder[compliance][to]) {
+            _isHolder[compliance][to] = true;
+            _holderCount[compliance]++;
+            emit HolderAdded(compliance, to);
+        }
 
         // Handle sender becoming non-holder (post-transfer: balance already reduced)
         if (from != address(0) && _isHolder[compliance][from]) {
@@ -114,13 +123,6 @@ contract MaxHolderCountModule is
                 _holderCount[compliance]--;
                 emit HolderRemoved(compliance, from);
             }
-        }
-
-        // Handle recipient becoming holder
-        if (to != address(0) && !_isHolder[compliance][to]) {
-            _isHolder[compliance][to] = true;
-            _holderCount[compliance]++;
-            emit HolderAdded(compliance, to);
         }
     }
 
