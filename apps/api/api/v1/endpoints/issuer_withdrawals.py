@@ -115,13 +115,15 @@ async def execute_withdrawal(
     """Execute a withdrawal of raised funds from a finalized sale."""
     issuer = await _get_issuer(str(user_id), db)
 
-    # Verify sale belongs to issuer and is finalized
+    # Verify sale belongs to issuer and is finalized (FOR UPDATE prevents race condition)
     sale_result = await db.execute(
-        select(TokenSale).where(
+        select(TokenSale)
+        .where(
             TokenSale.id == sale_id,
             TokenSale.issuer_id == issuer.id,
             TokenSale.status == "finalized",
         )
+        .with_for_update()
     )
     sale = sale_result.scalar_one_or_none()
     if not sale:

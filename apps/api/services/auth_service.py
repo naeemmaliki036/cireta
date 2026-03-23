@@ -163,15 +163,25 @@ class CiretaAuthService(BaseAuthService):
 
         return user
 
-    async def logout(self, _user_id: UUID, access_token: str) -> None:
-        """Logout user by invalidating the access token.
+    async def logout(
+        self,
+        _user_id: UUID,
+        access_token: str,
+        refresh_token: str | None = None,
+    ) -> None:
+        """Logout user by invalidating the access and refresh tokens.
 
         Args:
             _user_id: User UUID (unused but kept for interface consistency).
             access_token: Current access token to invalidate.
+            refresh_token: Current refresh token to invalidate (prevents reuse).
         """
-        token_hash = hashlib.sha256(access_token.encode()).hexdigest()
-        _token_blacklist.add(token_hash)
+        if access_token:
+            token_hash = hashlib.sha256(access_token.encode()).hexdigest()
+            _token_blacklist.add(token_hash)
+        if refresh_token:
+            refresh_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+            _token_blacklist.add(refresh_hash)
 
     async def check_brute_force(self, user: User) -> None:
         """Raise 429 if account is locked from too many failed attempts."""

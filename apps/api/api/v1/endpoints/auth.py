@@ -126,10 +126,11 @@ async def logout(
     response: Response,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     auth_service: Annotated[CiretaAuthService, Depends(get_auth_service)],
+    refresh_cookie: Annotated[str | None, Cookie(alias=_REFRESH_COOKIE)] = None,
 ) -> MessageResponse:
     """Logout and clear refresh cookie."""
-    token = credentials.credentials if credentials else ""
-    await auth_service.logout(user_id, token)
+    access_token = credentials.credentials if credentials else ""
+    await auth_service.logout(user_id, access_token, refresh_token=refresh_cookie)
     _clear_refresh_cookie(response)
     return MessageResponse(message="Successfully logged out")
 
