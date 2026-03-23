@@ -8,8 +8,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.models.user import User
 from apps.api.core.sumsub_crypto import validate_sumsub_signature
+from apps.api.models.user import User
 from apps.api.services.kyc_service import KYCService
 
 
@@ -74,7 +74,6 @@ class TestKYCServiceWebhook:
         body = b'{"type": "applicantReviewed"}'
         expected_sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
-        service = KYCService.__new__(KYCService)  # Skip __init__
         result = validate_sumsub_signature(body, expected_sig, secret)
 
         assert result is True
@@ -85,7 +84,6 @@ class TestKYCServiceWebhook:
         body = b'{"type": "applicantReviewed"}'
         wrong_sig = "wrong-signature"
 
-        service = KYCService.__new__(KYCService)
         result = validate_sumsub_signature(body, wrong_sig, secret)
 
         assert result is False

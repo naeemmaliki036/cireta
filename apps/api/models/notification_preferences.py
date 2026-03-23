@@ -37,4 +37,4 @@ class NotificationPreferences(BaseModel):
     email_security: Mapped[bool] = mapped_column(Boolean, default=True)
     inapp_security: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    user: Mapped["User"] = relationship("User", back_populates="notification_preferences")  # type: ignore[name-defined]
+    user: Mapped["User"] = relationship("User", back_populates="notification_preferences")  # type: ignore[name-defined]  # noqa: F821

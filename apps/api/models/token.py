@@ -16,6 +16,7 @@ from packages.common.models.base import BaseModel
 if TYPE_CHECKING:
     from apps.api.models.issuer import Issuer
     from apps.api.models.redemption_request import RedemptionRequest
+    from apps.api.models.token_document import TokenDocument
     from apps.api.models.token_sale import TokenSale
     from apps.api.models.vesting_schedule import VestingSchedule
 
@@ -127,7 +128,7 @@ class Token(BaseModel):
     redemption_requests: Mapped[list[RedemptionRequest]] = relationship(
         back_populates="token",
     )
-    documents: Mapped[list["TokenDocument"]] = relationship(
+    documents: Mapped[list[TokenDocument]] = relationship(
         "TokenDocument", back_populates="token", cascade="all, delete-orphan"
     )
 

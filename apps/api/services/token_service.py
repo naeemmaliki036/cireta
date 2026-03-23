@@ -133,9 +133,18 @@ class TokenService:
                 detail={"code": "ALREADY_DEPLOYED", "message": "Token already deployed"},
             )
 
-        # TODO: Call Web3Service to deploy ERC-3643 contract
-        # For now, set placeholder address
-        token.contract_address = "0x" + "0" * 40  # Placeholder
+        # Deploy ERC-3643 contract via CiretaTokenFactory
+        from apps.api.services.web3_token_service import Web3TokenService
+        web3_svc = Web3TokenService()
+        issuer_wallet = token.issuer.wallet_address or web3_svc.deployer_address or ""
+
+        contract_address, _receipt = await web3_svc.deploy_erc3643_token(
+            name=token.name,
+            symbol=token.symbol,
+            decimals=token.decimals,
+            issuer_wallet=issuer_wallet,
+        )
+        token.contract_address = contract_address
 
         await self.db.commit()
         await self.db.refresh(token)

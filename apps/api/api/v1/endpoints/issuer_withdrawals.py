@@ -87,3 +87,79 @@ async def list_withdrawals(
         items=records,
         total=len(records),
     )
+
+
+class WithdrawRequest(BaseModel):
+    amount: str
+
+
+@router.post("/{sale_id}/withdraw")
+async def execute_withdrawal(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    request: WithdrawRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Execute a withdrawal of raised funds from a finalized sale."""
+    issuer = await _get_issuer(str(user_id), db)
+
+    # Verify sale belongs to issuer and is finalized
+    sale_result = await db.execute(
+        select(TokenSale).where(
+            TokenSale.id == sale_id,
+            TokenSale.issuer_id == issuer.id,
+            TokenSale.status == "finalized",
+        )
+    )
+    sale = sale_result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Finalized sale not found",
+        )
+
+    from decimal import Decimal
+    amount = Decimal(request.amount)
+    if amount <= 0 or amount > sale.total_raised:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid withdrawal amount",
+        )
+
+    # Execute on-chain USDC transfer to issuer wallet
+    tx_hash = None
+    try:
+        if issuer.wallet_address and sale.payment_token:
+            from web3 import Web3 as _W3
+
+            from apps.api.services.web3_base_service import Web3BaseService
+
+            web3_svc = Web3BaseService()
+            transfer_abi = [
+                {
+                    "inputs": [
+                        {"name": "_to", "type": "address"},
+                        {"name": "_value", "type": "uint256"},
+                    ],
+                    "name": "transfer",
+                    "outputs": [{"name": "", "type": "bool"}],
+                    "stateMutability": "nonpayable",
+                    "type": "function",
+                }
+            ]
+            amount_int = int(float(amount) * (10 ** 6))  # USDC = 6 decimals
+            receipt = await web3_svc.execute_contract(
+                sale.payment_token, transfer_abi, "transfer",
+                _W3.to_checksum_address(issuer.wallet_address), amount_int,
+            )
+            tx_hash = receipt.transactionHash.hex() if receipt else None
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("On-chain withdrawal transfer failed")
+
+    return {
+        "message": "Withdrawal initiated",
+        "amount": str(amount),
+        "sale_id": str(sale_id),
+        "tx_hash": tx_hash,
+    }

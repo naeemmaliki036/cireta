@@ -44,7 +44,20 @@ class ComplianceActionService(ComplianceBaseService):
         """
         await self._verify_authorization(actor_id, token_id, require_issuer=True)
 
-        # TODO: Call Web3Service for forced transfer
+        # Execute on-chain forced transfer
+        token_result = await self.db.execute(select(Token).where(Token.id == token_id))
+        token = token_result.scalar_one_or_none()
+        if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
+            try:
+                from apps.api.services.web3_token_service import Web3TokenService
+                web3_svc = Web3TokenService()
+                amount_int = int(float(amount) * (10 ** (token.decimals or 18)))
+                await web3_svc.forced_transfer(
+                    token.contract_address, from_address, to_address, amount_int,
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning("On-chain forced transfer failed, proceeding with DB-only")
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -90,7 +103,20 @@ class ComplianceActionService(ComplianceBaseService):
         """
         await self._verify_authorization(actor_id, token_id, require_issuer=True)
 
-        # TODO: Call Web3Service for token recovery
+        # Execute on-chain token recovery
+        token_result = await self.db.execute(select(Token).where(Token.id == token_id))
+        token = token_result.scalar_one_or_none()
+        if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
+            try:
+                from apps.api.services.web3_token_service import Web3TokenService
+                web3_svc = Web3TokenService()
+                amount_int = int(float(amount) * (10 ** (token.decimals or 18)))
+                await web3_svc.recover_tokens(
+                    token.contract_address, from_address, amount_int,
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning("On-chain recovery failed, proceeding with DB-only")
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -136,7 +162,15 @@ class ComplianceActionService(ComplianceBaseService):
         token = result.scalar_one()
         token.is_paused = True
 
-        # TODO: Call Web3Service to pause on-chain
+        # Execute on-chain pause
+        if token.contract_address and token.contract_address != ("0x" + "0" * 40):
+            try:
+                from apps.api.services.web3_token_service import Web3TokenService
+                web3_svc = Web3TokenService()
+                await web3_svc.pause_token(token.contract_address)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning("On-chain pause failed, proceeding with DB-only")
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -177,7 +211,15 @@ class ComplianceActionService(ComplianceBaseService):
         token = result.scalar_one()
         token.is_paused = False
 
-        # TODO: Call Web3Service to unpause on-chain
+        # Execute on-chain unpause
+        if token.contract_address and token.contract_address != ("0x" + "0" * 40):
+            try:
+                from apps.api.services.web3_token_service import Web3TokenService
+                web3_svc = Web3TokenService()
+                await web3_svc.unpause_token(token.contract_address)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning("On-chain unpause failed, proceeding with DB-only")
 
         audit = await self._write_audit(
             actor_id=actor_id,

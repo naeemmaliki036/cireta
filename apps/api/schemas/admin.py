@@ -154,3 +154,17 @@ class DividendDepositRequest(BaseModel):
     token_id: str
     amount_usdc: float
     contract_address: str | None = None
+
+
+class PlatformSettingsRequest(BaseModel):
+    """Request to update platform-wide settings."""
+    default_fee_bps: str | None = None
+    blocked_countries: str | None = None
+    kyc_min_level: str | None = None
+
+
+class PlatformSettingsResponse(BaseModel):
+    """Platform settings response."""
+    default_fee_bps: str
+    blocked_countries: str
+    kyc_min_level: str

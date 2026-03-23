@@ -108,7 +108,7 @@ async def mark_all_read(
 async def get_preferences(user_id: CurrentUserId, db: AsyncSession = Depends(get_db)) -> NotificationPreferences:
     """Get notification preferences for the current user (persisted in DB)."""
     from apps.api.models.notification_preferences import NotificationPreferences as NPModel
-    from sqlalchemy import select
+
     result = await db.execute(select(NPModel).where(NPModel.user_id == user_id))
     prefs = result.scalar_one_or_none()
     if not prefs:
@@ -116,23 +116,33 @@ async def get_preferences(user_id: CurrentUserId, db: AsyncSession = Depends(get
         db.add(prefs)
         await db.commit()
         await db.refresh(prefs)
-    return NotificationPreferences()
+    return NotificationPreferences(
+        email_investments=prefs.email_investment_updates,
+        email_kyc=prefs.email_kyc_status,
+        email_sales=prefs.email_sale_announcements,
+        email_dividends=prefs.email_dividends,
+        inapp_investments=prefs.inapp_investment_updates,
+        inapp_kyc=prefs.inapp_kyc_status,
+        inapp_sales=prefs.inapp_sale_announcements,
+        inapp_dividends=prefs.inapp_dividends,
+    )
 
 
 @router.patch("/preferences", response_model=NotificationPreferences)
 async def update_preferences(
     prefs: NotificationPreferences,
-    user_id: CurrentUserId,  # noqa: ARG001
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> NotificationPreferences:
     from apps.api.models.notification_preferences import NotificationPreferences as NPModel
-    from sqlalchemy import select
+
     result = await db.execute(select(NPModel).where(NPModel.user_id == user_id))
     prefs_model = result.scalar_one_or_none()
     if not prefs_model:
         prefs_model = NPModel(user_id=user_id)
         db.add(prefs_model)
-    for key, val in preferences.model_dump().items():
+    for key, val in prefs.model_dump().items():
         if hasattr(prefs_model, key):
             setattr(prefs_model, key, val)
     await db.commit()
-    return preferences
+    return prefs

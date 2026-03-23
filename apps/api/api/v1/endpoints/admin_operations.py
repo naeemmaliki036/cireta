@@ -12,7 +12,7 @@ from apps.api.models.dividend_distribution import DividendDistribution
 from apps.api.models.issuer import Issuer
 from apps.api.models.redemption_request import RedemptionRequest
 from apps.api.schemas.admin import DividendDepositRequest, RedemptionUpdateRequest
-from packages.common.core.auth_deps import CurrentUserId
+from packages.common.core.auth_deps import CurrentUserId, RequireIssuerOrAdmin
 from packages.common.db.session import get_db
 
 router = APIRouter(tags=["admin"])
@@ -22,7 +22,7 @@ router = APIRouter(tags=["admin"])
 async def update_redemption_status(
     redemption_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    user_id: CurrentUserId,  # noqa: ARG001 — auth guard
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001 — role guard
     request: RedemptionUpdateRequest,
 ) -> dict:
     """Update redemption status (issuer action: processing, shipped, fulfilled, cancelled)."""
@@ -44,7 +44,7 @@ async def update_redemption_status(
 @router.get("/redemptions")
 async def list_redemptions(
     db: Annotated[AsyncSession, Depends(get_db)],
-    user_id: CurrentUserId,  # noqa: ARG001 — auth guard
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001 — role guard
     status_filter: str | None = None,
 ) -> dict:
     """List all redemption requests (issuer view)."""
@@ -99,7 +99,7 @@ async def deposit_dividend(
 @router.get("/dividends")
 async def list_dividends(
     db: Annotated[AsyncSession, Depends(get_db)],
-    user_id: CurrentUserId,  # noqa: ARG001 — auth guard
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001 — role guard
     token_id: UUID | None = None,
 ) -> dict:
     """List dividend distributions (issuer view)."""

@@ -20,7 +20,7 @@ from apps.api.schemas.admin import (
     UnfreezeRequest,
 )
 from apps.api.services.compliance_service import ComplianceService
-from packages.common.core.auth_deps import CurrentUserId
+from packages.common.core.auth_deps import CurrentUserId, RequireIssuerOrAdmin
 from packages.common.db.session import get_db
 
 router = APIRouter(tags=["admin"])
@@ -47,7 +47,7 @@ async def get_compliance_service(
 async def freeze_address(
     request_data: FreezeRequest,
     http_request: Request,
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
 ) -> ComplianceActionResponse:
     """Freeze a wallet address.
@@ -73,7 +73,7 @@ async def freeze_address(
 async def unfreeze_address(
     request_data: UnfreezeRequest,
     http_request: Request,
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
 ) -> ComplianceActionResponse:
     """Unfreeze a wallet address.
@@ -99,7 +99,7 @@ async def unfreeze_address(
 async def forced_transfer(
     request_data: ForcedTransferRequest,
     http_request: Request,
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
 ) -> ComplianceActionResponse:
     """Execute a forced token transfer.
@@ -127,7 +127,7 @@ async def forced_transfer(
 async def recover_tokens(
     request_data: RecoverRequest,
     http_request: Request,
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
 ) -> ComplianceActionResponse:
     """Recover tokens from an address.
@@ -154,7 +154,7 @@ async def recover_tokens(
 async def pause_token(
     token_id: UUID,
     http_request: Request,
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
     reason: str = Query(..., min_length=1),
 ) -> ComplianceActionResponse:
@@ -180,7 +180,7 @@ async def pause_token(
 async def unpause_token(
     token_id: UUID,
     http_request: Request,
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
     reason: str = Query(..., min_length=1),
 ) -> ComplianceActionResponse:
@@ -207,7 +207,7 @@ async def unpause_token(
 
 @router.get("/compliance/audit-logs", response_model=AuditLogListResponse)
 async def list_audit_logs(
-    user_id: CurrentUserId,  # noqa: ARG001
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
@@ -240,7 +240,7 @@ async def list_audit_logs(
 
 @router.get("/compliance/frozen", response_model=FrozenAddressListResponse)
 async def list_frozen_addresses(
-    user_id: CurrentUserId,  # noqa: ARG001
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> FrozenAddressListResponse:
     """Return addresses that are currently frozen (freeze without matching unfreeze)."""
@@ -288,8 +288,8 @@ async def list_recovery_logs(
 ) -> list[dict]:
     """List all token recovery actions (audit trail) for issuer's tokens."""
     from sqlalchemy import select
+
     from apps.api.models.audit_log import AuditLog
-    from apps.api.models.issuer import Issuer
     from apps.api.models.user import User
 
     # Get issuer

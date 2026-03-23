@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from apps.api.models.issuer import Issuer
     from apps.api.models.kyc_application import KYCApplication
     from apps.api.models.notification import Notification
+    from apps.api.models.notification_preferences import NotificationPreferences
     from apps.api.models.redemption_request import RedemptionRequest
     from apps.api.models.vesting_schedule import VestingSchedule
     from apps.api.models.wallet import Wallet
@@ -67,7 +68,7 @@ class User(BaseModel):
     vesting_schedules: Mapped[list[VestingSchedule]] = relationship(back_populates="user")
     redemption_requests: Mapped[list[RedemptionRequest]] = relationship(back_populates="user")
     notifications: Mapped[list[Notification]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    notification_preferences: Mapped["NotificationPreferences | None"] = relationship("NotificationPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    notification_preferences: Mapped[NotificationPreferences | None] = relationship("NotificationPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

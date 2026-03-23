@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.user import User
-from packages.common.core.auth_deps import CurrentUserId
+from packages.common.core.auth_deps import RequireIssuerOrAdmin
 from packages.common.db.session import get_db
 
 router = APIRouter(tags=["admin"])
@@ -37,7 +37,7 @@ class InvestorListResponse(BaseModel):
 
 @router.get("/investors/", response_model=InvestorListResponse)
 async def list_investors(
-    _user_id: CurrentUserId,  # noqa: ARG001
+    _user_id: RequireIssuerOrAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),

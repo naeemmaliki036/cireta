@@ -183,15 +183,16 @@ async def upload_token_document(
     ipfs_hash: str | None = None,
     url: str | None = None,
     db: AsyncSession = Depends(get_db),
-    user_id: CurrentUserId = None,
+    _user_id: CurrentUserId = None,
 ) -> dict:
     """Attach a legal document to a token (IPFS hash or URL).
 
     In production, client should upload to Pinata first and pass the CID here.
     """
-    from apps.api.models.token_document import TokenDocument
-    from apps.api.models.token import Token
     from sqlalchemy import select
+
+    from apps.api.models.token import Token
+    from apps.api.models.token_document import TokenDocument
 
     result = await db.execute(select(Token).where(Token.id == token_id))
     token = result.scalar_one_or_none()
@@ -223,8 +224,9 @@ async def upload_token_document(
 @router.get("/{token_id}/documents")
 async def list_token_documents(token_id: UUID, db: AsyncSession = Depends(get_db)) -> list[dict]:
     """List all documents for a token."""
-    from apps.api.models.token_document import TokenDocument
     from sqlalchemy import select
+
+    from apps.api.models.token_document import TokenDocument
 
     results = await db.execute(select(TokenDocument).where(TokenDocument.token_id == token_id))
     docs = results.scalars().all()

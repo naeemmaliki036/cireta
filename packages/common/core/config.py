@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     identity_factory_address: str = Field(default="")
     identity_registry_address: str = Field(default="")
 
+    # Token factory (deployed via contracts/scripts/deploy.ts)
+    token_factory_address: str = Field(default="")
+
     # External services
     pinata_api_key: str = Field(default="")
     pinata_secret_key: str = Field(default="")

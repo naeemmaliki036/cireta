@@ -66,3 +66,48 @@ async def get_current_user_id_optional(
 # Type aliases for cleaner endpoint signatures
 CurrentUserId = Annotated[UUID, Depends(get_current_user_id)]
 OptionalUserId = Annotated[UUID | None, Depends(get_current_user_id_optional)]
+
+
+async def require_admin(
+    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> UUID:
+    """Require user to have admin role. Returns user_id if authorized."""
+    from sqlalchemy import select
+
+    # Import lazily to avoid circular imports
+    from apps.api.models.enums import UserRole
+    from apps.api.models.user import User
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "ADMIN_REQUIRED", "message": "Platform admin role required"},
+        )
+    return user_id
+
+
+async def require_issuer_or_admin(
+    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> UUID:
+    """Require user to have issuer or admin role. Returns user_id if authorized."""
+    from sqlalchemy import select
+
+    from apps.api.models.enums import UserRole
+    from apps.api.models.user import User
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or user.role not in (UserRole.ADMIN, UserRole.ISSUER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "ROLE_REQUIRED", "message": "Issuer or admin role required"},
+        )
+    return user_id
+
+
+RequireAdmin = Annotated[UUID, Depends(require_admin)]
+RequireIssuerOrAdmin = Annotated[UUID, Depends(require_issuer_or_admin)]

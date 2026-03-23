@@ -12,10 +12,11 @@ from apps.api.schemas.admin import (
     IssuerFeeUpdateRequest,
     IssuerListResponse,
     IssuerResponse,
+    PlatformSettingsRequest,
 )
 from apps.api.services.compliance_service import ComplianceService
 from apps.api.services.issuer_service import IssuerService
-from packages.common.core.auth_deps import CurrentUserId
+from packages.common.core.auth_deps import RequireAdmin
 from packages.common.db.session import get_db
 
 router = APIRouter(tags=["admin"])
@@ -64,7 +65,7 @@ def _issuer_to_response(issuer) -> IssuerResponse:
 
 @router.get("/issuers/", response_model=IssuerListResponse)
 async def list_issuers(
-    _user_id: CurrentUserId,  # Platform admin check would go here
+    _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
@@ -87,7 +88,7 @@ async def list_issuers(
 @router.post("/issuers/", response_model=IssuerResponse, status_code=status.HTTP_201_CREATED)
 async def create_issuer(
     request: IssuerCreateRequest,
-    _user_id: CurrentUserId,  # Platform admin check
+    _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
 ) -> IssuerResponse:
     """Onboard a new issuer.
@@ -109,7 +110,7 @@ async def create_issuer(
 async def update_issuer_fee(
     issuer_id: UUID,
     request: IssuerFeeUpdateRequest,
-    _user_id: CurrentUserId,  # Platform admin check
+    _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
 ) -> IssuerResponse:
     """Update issuer platform fee.
@@ -123,7 +124,7 @@ async def update_issuer_fee(
 @router.post("/issuers/{issuer_id}/revoke", response_model=IssuerResponse)
 async def revoke_issuer(
     issuer_id: UUID,
-    _user_id: CurrentUserId,  # Platform admin check
+    _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
 ) -> IssuerResponse:
     """Revoke/suspend an issuer.
@@ -137,7 +138,7 @@ async def revoke_issuer(
 @router.post("/issuers/{issuer_id}/activate", response_model=IssuerResponse)
 async def activate_issuer(
     issuer_id: UUID,
-    _user_id: CurrentUserId,  # Platform admin check
+    _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
 ) -> IssuerResponse:
     """Activate a pending issuer.
@@ -152,13 +153,14 @@ async def activate_issuer(
 
 
 @router.get("/platform/stats")
-async def get_platform_stats(db: AsyncSession = Depends(get_db)) -> dict:
+async def get_platform_stats(_user_id: RequireAdmin, db: AsyncSession = Depends(get_db)) -> dict:
     """Platform-wide analytics: TVL, users, issuers, fees, active sales."""
     from sqlalchemy import func, select
-    from apps.api.models.user import User
+
+    from apps.api.models.contribution import Contribution
     from apps.api.models.issuer import Issuer
     from apps.api.models.token_sale import TokenSale
-    from apps.api.models.contribution import Contribution
+    from apps.api.models.user import User
 
     total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
     total_issuers = (await db.execute(select(func.count(Issuer.id)).where(Issuer.is_whitelisted == True))).scalar_one()  # noqa: E712
@@ -175,3 +177,33 @@ async def get_platform_stats(db: AsyncSession = Depends(get_db)) -> dict:
         "total_raised_usdc": float(total_raised),
         "platform_fees_collected_usdc": float(fees_collected),
     }
+
+
+# In-memory platform settings store (in production, persist to DB or Redis)
+_platform_settings: dict[str, str] = {
+    "default_fee_bps": "200",
+    "blocked_countries": "US",
+    "kyc_min_level": "2",
+}
+
+
+@router.get("/platform/settings")
+async def get_platform_settings(_user_id: RequireAdmin) -> dict:
+    """Get current platform settings."""
+    return _platform_settings
+
+
+@router.patch("/platform/settings")
+async def update_platform_settings(
+    _user_id: RequireAdmin,
+    request: PlatformSettingsRequest,
+) -> dict:
+    """Update platform-wide settings (fee rates, blocked countries, etc.)."""
+    if request.default_fee_bps is not None:
+        _platform_settings["default_fee_bps"] = request.default_fee_bps
+    if request.blocked_countries is not None:
+        _platform_settings["blocked_countries"] = request.blocked_countries
+    if request.kyc_min_level is not None:
+        _platform_settings["kyc_min_level"] = request.kyc_min_level
+
+    return {"message": "Settings updated", **_platform_settings}

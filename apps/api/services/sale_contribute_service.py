@@ -28,6 +28,7 @@ class SaleContributeService:
         sale_id: UUID,
         amount: Decimal,
         tx_hash: str,
+        wallet_address: str | None = None,
     ) -> Contribution:
         """Record a contribution to a token sale.
 
@@ -95,24 +96,42 @@ class SaleContributeService:
                 detail={"code": "NO_ACTIVE_PHASE", "message": "No active sale phase"},
             )
 
-        # Check contribution limits
         # Whitelist check for whitelist-only phases
         if getattr(active_phase, 'whitelist_only', False):
             from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist
-            from sqlalchemy import select as sa_select
-            from fastapi import HTTPException as _HTTPEx
-            from fastapi import status as _status
-            wallet_result = await self.db.execute(
-                sa_select(SalePhaseWhitelist).where(
+
+            # Resolve wallet address from parameter or user's primary wallet
+            resolved_wallet = wallet_address
+            if not resolved_wallet:
+                from apps.api.models.wallet import Wallet
+                wallet_q = await self.db.execute(
+                    select(Wallet).where(
+                        Wallet.user_id == user_id,
+                        Wallet.is_primary.is_(True),
+                    )
+                )
+                primary_wallet = wallet_q.scalar_one_or_none()
+                resolved_wallet = primary_wallet.address if primary_wallet else None
+
+            if not resolved_wallet:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"code": "NO_WALLET", "message": "Wallet address required for whitelist-only phases"},
+                )
+
+            whitelist_result = await self.db.execute(
+                select(SalePhaseWhitelist).where(
                     SalePhaseWhitelist.phase_id == active_phase.id,
-                    SalePhaseWhitelist.wallet_address == wallet_address.lower()
+                    SalePhaseWhitelist.wallet_address == resolved_wallet.lower(),
                 )
             )
-            if not wallet_result.scalar_one_or_none():
-                raise _HTTPEx(
-                    status_code=_status.HTTP_403_FORBIDDEN,
+            if not whitelist_result.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
                     detail={"code": "NOT_WHITELISTED", "message": "This phase is restricted to whitelisted investors"},
                 )
+
+        # Check contribution limits
 
         if active_phase.min_contribution > 0 and amount < active_phase.min_contribution:
             raise HTTPException(
@@ -256,6 +275,35 @@ class SaleContributeService:
             contrib.status = ContributionStatus.CLAIMED
             contrib.claimed_at = now
 
+        # Trigger on-chain token transfer
+        sale_result = await self.db.execute(
+            select(TokenSale)
+            .options(selectinload(TokenSale.token))
+            .where(TokenSale.id == sale_id)
+        )
+        sale = sale_result.scalar_one_or_none()
+        if sale and sale.token and sale.token.contract_address and sale.token.contract_address != ("0x" + "0" * 40):
+            try:
+                from apps.api.models.wallet import Wallet
+                from apps.api.services.web3_token_service import Web3TokenService
+                wallet_result = await self.db.execute(
+                    select(Wallet).where(Wallet.user_id == user_id, Wallet.is_primary.is_(True))
+                )
+                wallet = wallet_result.scalar_one_or_none()
+                if wallet:
+                    web3_svc = Web3TokenService()
+                    total_tokens = sum(c.tokens_allocated for c in contributions)
+                    amount_int = int(float(total_tokens) * (10 ** (sale.token.decimals or 18)))
+                    await web3_svc.forced_transfer(
+                        sale.token.contract_address,
+                        web3_svc.deployer_address or "",
+                        wallet.address,
+                        amount_int,
+                    )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning("On-chain token transfer failed during claim")
+
         await self.db.commit()
 
         return contributions
@@ -309,6 +357,40 @@ class SaleContributeService:
         # Mark as refunded
         for contrib in contributions:
             contrib.status = ContributionStatus.REFUNDED
+
+        # Trigger on-chain USDC refund
+        try:
+            from apps.api.models.wallet import Wallet
+            from apps.api.services.web3_base_service import Web3BaseService
+            wallet_result = await self.db.execute(
+                select(Wallet).where(Wallet.user_id == user_id, Wallet.is_primary.is_(True))
+            )
+            wallet = wallet_result.scalar_one_or_none()
+            if wallet and sale.payment_token:
+                web3_svc = Web3BaseService()
+                total_refund = sum(c.amount for c in contributions)
+                # ERC-20 transfer ABI for USDC refund
+                transfer_abi = [
+                    {
+                        "inputs": [
+                            {"name": "_to", "type": "address"},
+                            {"name": "_value", "type": "uint256"},
+                        ],
+                        "name": "transfer",
+                        "outputs": [{"name": "", "type": "bool"}],
+                        "stateMutability": "nonpayable",
+                        "type": "function",
+                    }
+                ]
+                from web3 import Web3 as _W3
+                amount_int = int(float(total_refund) * (10 ** 6))  # USDC = 6 decimals
+                await web3_svc.execute_contract(
+                    sale.payment_token, transfer_abi, "transfer",
+                    _W3.to_checksum_address(wallet.address), amount_int,
+                )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("On-chain USDC refund failed during claim_refund")
 
         await self.db.commit()
 
