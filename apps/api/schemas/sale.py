@@ -70,6 +70,13 @@ class SaleResponse(BaseModel):
     soft_cap_reached: bool
     hard_cap_reached: bool
     remaining_capacity: str
+    platform_fee_bps: int = 250
+    fee_cap_usdc: str | None = None
+    total_raised_on_platform: str = "0"
+    platform_fee_collected: str = "0"
+    sale_mode: str = "vested"
+    vault_address: str | None = None
+    fraction_token_address: str | None = None
     phases: list[SalePhaseResponse]
     # Joined token fields
     token_name: str | None = None
@@ -105,6 +112,7 @@ class ContributionResponse(BaseModel):
     tx_hash: str
     status: str
     claimed_at: datetime | None
+    is_otc: bool = False
 
     class Config:
         from_attributes = True
@@ -118,6 +126,7 @@ class MessageResponse(BaseModel):
 
 class OTCAllocateRequest(BaseModel):
     """OTC allocation request."""
+
     investor_wallet: str = Field(..., min_length=42, max_length=42)
     token_amount: float = Field(..., gt=0)
     payment_reference: str = Field(..., min_length=1, max_length=255)
