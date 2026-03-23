@@ -58,7 +58,7 @@ export default function WithdrawalsPage() {
         setPending(parseFloat(data.summary.pending));
         setTotalWithdrawn(parseFloat(data.summary.total_withdrawn));
         setRecords(data.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load withdrawals:", err); }
       finally { setLoading(false); }
     })();
   }, []);

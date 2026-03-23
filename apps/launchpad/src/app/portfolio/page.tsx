@@ -22,9 +22,9 @@ interface PortfolioStat {
 
 function PortfolioStatCard({ title, value, icon: Icon, positive }: PortfolioStat & { isLoading?: boolean }) {
   return (
-    <div className="bg-box rounded-3xl p-6 border border-darkBlack/10">
+    <div className="bg-white rounded-3xl p-6 border border-darkBlack/10">
       <div className="flex items-start justify-between mb-4">
-        <p className="text-xs uppercase tracking-wide font-medium text-gray-500">{title}</p>
+        <p className="text-xs uppercase tracking-wide font-medium text-darkBlack/50">{title}</p>
         <Icon className="h-4 w-4 text-darkAqua" />
       </div>
       <p className="text-2xl font-bold text-text">{value}</p>
@@ -89,7 +89,7 @@ export default function PortfolioPage() {
       <div className="space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold text-text">Portfolio</h1>
-          <p className="text-gray-500 mt-1">Your tokenized asset holdings</p>
+          <p className="text-darkBlack/50 mt-1">Your tokenized asset holdings</p>
         </motion.div>
 
         {/* Stats */}

@@ -20,8 +20,8 @@ class SaleService(SaleCreateService, SaleContributeService, SaleQueryService):
     """
 
     def __init__(self, db: AsyncSession) -> None:
-        """Initialise with async DB session."""
-        self.db = db
+        """Initialise with async DB session — properly delegates via MRO."""
+        super().__init__(db)
 
 
 __all__ = [

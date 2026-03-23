@@ -172,7 +172,9 @@ async def execute_withdrawal(
                 _W3.to_checksum_address(issuer.wallet_address),
                 amount_int,
             )
-            tx_hash = receipt.transactionHash.hex() if receipt else None
+            if not receipt or getattr(receipt, "status", 1) == 0:
+                raise RuntimeError("Transaction failed or no receipt returned")
+            tx_hash = receipt.transactionHash.hex()
     except Exception:
         import logging
 

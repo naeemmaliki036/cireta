@@ -32,7 +32,7 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
         const found = (data.investors ?? []).find((i: InvestorDetail) => i.id === id);
         setInvestor(found ?? null);
       })
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load investor details:", err))
       .finally(() => setLoading(false));
   }, [id]);
 

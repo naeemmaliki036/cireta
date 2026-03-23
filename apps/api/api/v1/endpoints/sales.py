@@ -202,7 +202,14 @@ async def contribute(
                 user_id, _user.email, str(request.amount), _token_symbol, request.tx_hash
             )
     except Exception:
-        pass
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Failed to send investment notification for user=%s sale=%s",
+            user_id,
+            sale_id,
+            exc_info=True,
+        )
     return _contribution_to_response(contribution)
 
 

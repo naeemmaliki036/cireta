@@ -12,6 +12,7 @@ import { getProjects, type Project } from "@/lib/api/repositories/projects.repos
 
 const CountUp = dynamic(() => import("react-countup"), { ssr: false, loading: () => <span>0</span> });
 
+// TODO: Fetch real platform stats from /api/v1/admin/platform/stats
 const STATS = [
   { value: 2.4, suffix: "B", label: "Assets Tokenized", prefix: "$" },
   { value: 12, suffix: "K+", label: "Investors", prefix: "" },
@@ -34,7 +35,7 @@ export default function HomePage() {
       try {
         const data = await getProjects({ status: "active", size: 6 });
         setProjects(data.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load projects:", err); }
       finally { setLoading(false); }
     })();
   }, []);

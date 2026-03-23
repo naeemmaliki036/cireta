@@ -11,11 +11,6 @@ import { StatCard } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import { getSales, type Sale } from "@/lib/api/repositories/sales";
-import { getAccessToken } from "@/lib/api/client";
-
-function getToken() {
-  return getAccessToken() ?? undefined;
-}
 
 export default function IssuerOverviewPage() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -24,9 +19,9 @@ export default function IssuerOverviewPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getSales(1, 20, getToken());
+        const data = await getSales(1, 20);
         setSales(data.items);
-      } catch { /* show empty state */ }
+      } catch (err) { console.error("Failed to load sales:", err); }
       finally { setLoading(false); }
     })();
   }, []);
@@ -40,8 +35,8 @@ export default function IssuerOverviewPage() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <StatCard label="Total Raised" value={totalRaised} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Active Sales" value={activeSales.length} icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard label="Total Investors" value={0} icon={<Users className="h-5 w-5" />} />
-        <StatCard label="Fees Earned" value={0} prefix="$" icon={<Wallet className="h-5 w-5" />} />
+        <StatCard label="Total Investors" value={0} icon={<Users className="h-5 w-5" />} />{/* TODO: fetch from /investors endpoint */}
+        <StatCard label="Fees Earned" value={0} prefix="$" icon={<Wallet className="h-5 w-5" />} />{/* TODO: fetch from /platform/stats endpoint */}
       </div>
 
       {/* Quick Actions */}

@@ -38,10 +38,7 @@ async def get_compliance_service(
 
 
 def _get_client_ip(request: Request) -> str | None:
-    """Extract client IP from request."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Extract client IP from request using trusted proxy connection info."""
     return request.client.host if request.client else None
 
 

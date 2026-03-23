@@ -169,7 +169,7 @@ async def get_proof_of_reserve(
             "last_updated": data.get("updated_at"),
             "is_live": True,
         }
-    except Exception as exc:
+    except (ConnectionError, TimeoutError, ValueError, KeyError) as exc:
         import logging
 
         logging.getLogger(__name__).error("PoR fetch failed for token %s: %s", token_id, exc)
@@ -246,8 +246,12 @@ async def upload_token_document(
 
 
 @router.get("/{token_id}/documents")
-async def list_token_documents(token_id: UUID, db: AsyncSession = Depends(get_db)) -> list[dict]:
-    """List all documents for a token."""
+async def list_token_documents(
+    token_id: UUID,
+    _user_id: CurrentUserId,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """List all documents for a token. Requires authentication."""
     from sqlalchemy import select
 
     from apps.api.models.token_document import TokenDocument

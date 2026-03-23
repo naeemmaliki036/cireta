@@ -9,7 +9,8 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 /**
  * @title CiretaSaleFactory
  * @dev Platform-level factory for deploying Sale contracts per token.
- * Deploys UUPS proxies pointing to the shared Sale implementation.
+ *      Deploys UUPS proxies pointing to the shared Sale implementation.
+ *      Canonical sale implementation: ../sale/Sale.sol
  */
 contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     address public saleImplementation;

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, Users, Shield, ExternalLink, TrendingUp, Clock } from "lucide-react";
+import { ArrowLeft, FileText, Users, Shield, TrendingUp, Clock } from "lucide-react";
 import { Badge, ProgressBar, Spinner } from "@/components/atoms";
 import { PhaseCard } from "@/components/molecules";
 import { Navbar, Footer, InvestSidebar } from "@/components/organisms";
@@ -185,16 +185,20 @@ function PhasesTab({ project }: { project: Project }) {
 }
 
 function DocumentsTab() {
-  const docs = [{ name: "Whitepaper", url: "#" }, { name: "Legal Framework", url: "#" }, { name: "Audit Report", url: "#" }];
+  const docs = [
+    { name: "Whitepaper", available: false },
+    { name: "Legal Framework", available: false },
+    { name: "Audit Report", available: false },
+  ];
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-8 border border-darkBlack/10">
       <h2 className="text-xl font-semibold text-text mb-6">Project Documents</h2>
       <div className="space-y-3">
         {docs.map((d) => (
-          <a key={d.name} href={d.url} className="flex items-center justify-between p-4 rounded-xl bg-box hover:bg-darkAqua/5 transition-colors">
+          <div key={d.name} className="flex items-center justify-between p-4 rounded-xl bg-box">
             <div className="flex items-center gap-3"><FileText className="h-5 w-5 text-darkAqua" /><span className="font-medium">{d.name}</span></div>
-            <ExternalLink className="h-4 w-4 text-gray-400" />
-          </a>
+            <Badge variant="glass" size="sm">Coming soon</Badge>
+          </div>
         ))}
       </div>
     </motion.div>

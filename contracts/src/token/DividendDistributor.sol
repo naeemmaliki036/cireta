@@ -64,7 +64,7 @@ contract DividendDistributor is ReentrancyGuard, Ownable {
     }
 
     /// @notice Issuer deposits USDC to create a new distribution epoch.
-    function deposit(uint256 amount) external nonReentrant {
+    function deposit(uint256 amount) external nonReentrant onlyOwner {
         if (amount == 0) revert ZeroAmount();
         uint256 supply = token.totalSupply();
         require(supply > 0, "No token holders");

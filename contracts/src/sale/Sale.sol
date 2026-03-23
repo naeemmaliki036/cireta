@@ -59,6 +59,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     mapping(uint256 => mapping(address => bool)) public whitelisted;
     mapping(address => Contribution) public contributions;
     mapping(address => uint256) public totalContributed;
+    mapping(address => uint256) public otcAllocations;
 
     /// @notice Per-block contribution limit to mitigate front-running attacks.
     /// @dev Prevents a single block from accumulating excessive USDC contributions,
@@ -114,6 +115,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         if (_paymentToken == address(0)) revert ZeroAddress();
         if (_identityRegistry == address(0)) revert ZeroAddress();
         if (_issuer == address(0)) revert ZeroAddress();
+        if (_feeManager == address(0)) revert ZeroAddress();
 
         __Ownable_init(msg.sender);
 
@@ -238,7 +240,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         require(identityRegistry.isVerified(investor), "investor not verified");
 
         contributions[investor].tokensAllocated += tokenAmount;
-        contributions[investor].isOtc = true;
+        otcAllocations[investor] += tokenAmount;
         totalOtcAllocated += tokenAmount;
 
         emit OTCAllocation(investor, tokenAmount, paymentReference);
@@ -296,7 +298,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         Contribution storage contrib = contributions[msg.sender];
         if (contrib.amount == 0) revert NothingToClaim();
         if (contrib.refunded) revert AlreadyClaimed();
-        if (contrib.isOtc) revert NothingToClaim(); // OTC = no on-platform USDC to refund
+        if (otcAllocations[msg.sender] > 0 && contrib.amount == 0) revert NothingToClaim(); // OTC-only = no on-platform USDC to refund
 
         contrib.refunded = true;
         uint256 refundAmount = contrib.amount;

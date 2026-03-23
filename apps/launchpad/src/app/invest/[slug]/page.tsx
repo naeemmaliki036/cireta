@@ -82,7 +82,10 @@ export default function InvestPage() {
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
   const _rawAddr = (project as unknown as { contract_address?: string | null })?.contract_address;
-  const saleContractAddress: `0x${string}` = (_rawAddr?.startsWith("0x") ? _rawAddr as `0x${string}` : null) ?? USDC_ADDRESS;
+  const saleContractAddress: `0x${string}` =
+    typeof _rawAddr === "string" && /^0x[0-9a-fA-F]{40}$/.test(_rawAddr)
+      ? (_rawAddr as `0x${string}`)
+      : USDC_ADDRESS;
 
   const handleApprove = useCallback(() => {
     if (!saleContractAddress) return;

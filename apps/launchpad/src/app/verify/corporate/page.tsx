@@ -38,7 +38,7 @@ export default function CorporateVerifyPage() {
         const status = await getCorporateKYBStatus(token);
         if (status.status === "approved" && status.level >= 4) { setStep("approved"); return; }
         if (status.review_status === "pending") { setStep("processing"); }
-      } catch { /* first time */ }
+      } catch (err) { console.error("Failed to check KYB status:", err); }
     })();
   }, []);
 
@@ -69,7 +69,7 @@ export default function CorporateVerifyPage() {
             setStep("approved");
             setTimeout(() => router.push("/explore"), 2000);
           }
-        } catch { /* keep processing */ }
+        } catch (err) { console.error("Failed to poll KYB status:", err); }
       }, 3000);
     }
   }, [router]);
@@ -129,9 +129,11 @@ export default function CorporateVerifyPage() {
               <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[500px]">
                 <SumsubWebSdk
                   accessToken={accessToken}
-                  expirationHandler={() =>
-                    initiateCorporateKYB(getAccessToken()!, form).then((r) => r.access_token)
-                  }
+                  expirationHandler={async () => {
+                    const t = getAccessToken();
+                    if (!t) throw new Error("Not authenticated");
+                    return initiateCorporateKYB(t, form).then((r) => r.access_token);
+                  }}
                   config={{ lang: "en" }}
                   options={{ addViewportTag: false, adaptIframeHeight: true }}
                   onMessage={handleMessage}

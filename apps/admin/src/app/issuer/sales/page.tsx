@@ -69,7 +69,7 @@ export default function SalesPage() {
       try {
         const data = await getSales(1, 50, getToken());
         setSales(data.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load sales:", err); }
       finally { setLoading(false); }
     })();
   }, []);

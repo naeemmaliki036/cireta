@@ -29,7 +29,7 @@ export default function AccountPage() {
       try {
         const data = await me();
         setUser(data);
-      } catch { /* redirect to login */ }
+      } catch (err) { console.error("Failed to load user:", err); }
       finally { setLoading(false); }
     })();
   }, []);
@@ -103,7 +103,9 @@ export default function AccountPage() {
                   level={user.kyc_level}
                 />
                 <p className="text-sm text-gray-500 mt-2">
-                  Verified on March 1, 2024
+                  {user.kyc_status === "approved"
+                    ? "Identity verified"
+                    : `Status: ${user.kyc_status}`}
                 </p>
               </div>
               <Button variant="outline" size="sm">

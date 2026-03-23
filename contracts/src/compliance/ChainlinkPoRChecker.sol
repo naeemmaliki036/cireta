@@ -147,7 +147,13 @@ contract ChainlinkPoRChecker is
     /**
      * @notice Check if a transfer is allowed based on PoR feed data.
      * @dev Reverts if feed data is stale (>24h) or shows zero/negative reserves.
-     *      Returns true if no feed is configured (fail-open for unconfigured tokens).
+     *
+     *      IMPORTANT — FAIL-OPEN DESIGN: If no Chainlink PoR feed is configured
+     *      for a compliance contract, this module returns `true` and does NOT block
+     *      transfers. This is intentional to avoid locking tokens when a feed has
+     *      not yet been provisioned. Deployers MUST call `setFeed()` for every
+     *      bound compliance contract before relying on PoR checks. Monitor the
+     *      `FeedSet` event to verify configuration.
      */
     function moduleCheck(
         address,

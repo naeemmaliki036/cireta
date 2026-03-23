@@ -27,7 +27,7 @@ export default function ClaimTokenPage({ params: paramsPromise }: { params: Prom
       try {
         const schedules = await getVesting(resolvedParams.token);
         if (schedules.length > 0) setSchedule(schedules[0] ?? null);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load vesting schedule:", err); }
       finally { setLoading(false); }
     })();
   }, [resolvedParams]);

@@ -20,33 +20,33 @@ export default function DividendsPage() {
   useEffect(() => {
     apiFetch<{ dividends: DividendEntry[] }>("/api/v1/portfolio/dividends")
       .then((data) => setDividends(data.dividends ?? []))
-      .catch(() => {})
+      .catch((err) => console.error("Failed to load dividends:", err))
       .finally(() => setLoading(false));
   }, []);
 
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-6">Dividend Claims</h1>
+        <h1 className="text-2xl font-bold text-text mb-6">Dividend Claims</h1>
         {loading ? (
-          <div className="text-white/40 text-sm">Loading...</div>
+          <div className="text-darkBlack/40 text-sm">Loading...</div>
         ) : dividends.length === 0 ? (
-          <div className="bg-white/5 rounded-xl p-12 text-center">
-            <Coins className="w-10 h-10 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40">No dividend distributions available.</p>
-            <p className="text-white/20 text-sm mt-1">Dividends appear here when issuers distribute revenue to token holders.</p>
+          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
+            <Coins className="w-10 h-10 text-darkBlack/20 mx-auto mb-3" />
+            <p className="text-darkBlack/40">No dividend distributions available.</p>
+            <p className="text-darkBlack/20 text-sm mt-1">Dividends appear here when issuers distribute revenue to token holders.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {dividends.map((d, i) => (
-              <div key={i} className="bg-white/5 rounded-xl p-6 flex items-center justify-between">
+              <div key={i} className="bg-white rounded-xl border border-darkBlack/10 p-6 flex items-center justify-between">
                 <div>
-                  <p className="text-white font-medium">{d.token_name}</p>
-                  <p className="text-white/40 text-sm">{d.token_symbol}</p>
-                  <p className="text-white/30 text-xs mt-1">Total earned: {d.total_earned} USDC</p>
+                  <p className="text-text font-medium">{d.token_name}</p>
+                  <p className="text-darkBlack/40 text-sm">{d.token_symbol}</p>
+                  <p className="text-darkBlack/30 text-xs mt-1">Total earned: {d.total_earned} USDC</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-green-400 font-bold text-lg">{d.claimable_usdc} USDC</p>
+                  <p className="text-green-600 font-bold text-lg">{d.claimable_usdc} USDC</p>
                   <Button variant="primary" size="sm" className="mt-2">Claim</Button>
                 </div>
               </div>

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { CiretaLogo } from "@/components/atoms";
 import { Twitter, Github, MessageCircle } from "lucide-react";
 
-const FOOTER_LINKS = {
+type FooterLink = { href: string; label: string; external?: boolean };
+
+const FOOTER_LINKS: Record<string, FooterLink[]> = {
   Platform: [
     { href: "/explore", label: "Explore Projects" },
     { href: "/portfolio", label: "Portfolio" },
@@ -69,7 +71,7 @@ export function Footer() {
               <ul className="space-y-3">
                 {links.map((link) => (
                   <li key={link.href}>
-                    {(link as any).external ? (
+                    {link.external ? (
                       <a
                         href={link.href}
                         target="_blank"

@@ -43,7 +43,7 @@ export default function CompliancePage() {
       try {
         const data = await getAuditLogs(1, 20, undefined, getToken());
         setAuditLogs(data.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load compliance data:", err); }
       finally { setLogsLoading(false); }
     })();
   }, []);

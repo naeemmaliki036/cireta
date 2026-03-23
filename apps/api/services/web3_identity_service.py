@@ -3,8 +3,6 @@
 Extends Web3TokenService with identity and compliance operations.
 """
 
-import hashlib
-
 from web3 import Web3
 from web3.types import TxReceipt
 
@@ -73,7 +71,7 @@ class Web3IdentityService(Web3TokenService):
         # the exact bytecode hash of the Identity contract in the factory
         factory = Web3.to_checksum_address(settings.identity_factory_address)
         combined = factory + salt.hex() + wallet_address[2:].lower()
-        addr_hash = hashlib.sha256(combined.encode()).hexdigest()[-40:]
+        addr_hash = Web3.keccak(text=combined).hex()[-40:]
         return Web3.to_checksum_address("0x" + addr_hash)
 
     async def register_identity(

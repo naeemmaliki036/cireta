@@ -62,7 +62,7 @@ export default function TokensPage() {
       try {
         const data = await getTokens(1, 50, undefined, getToken());
         setTokens(data.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load tokens:", err); }
       finally { setLoading(false); }
     })();
   }, []);

@@ -111,11 +111,21 @@ contract ModularCompliance is
         return _moduleBound[module];
     }
 
+    // Allowed function selectors that can be called via callModuleFunction
+    mapping(bytes4 => bool) private _allowedSelectors;
+
+    function setAllowedSelector(bytes4 selector, bool allowed) external onlyOwner {
+        _allowedSelectors[selector] = allowed;
+    }
+
     function callModuleFunction(
         bytes calldata callData,
         address module
     ) external override onlyOwner {
         require(_moduleBound[module], "module not bound");
+        require(callData.length >= 4, "calldata too short");
+        bytes4 selector = bytes4(callData[:4]);
+        require(_allowedSelectors[selector], "selector not allowed");
 
         (bool success, ) = module.call(callData);
         require(success, "module call failed");

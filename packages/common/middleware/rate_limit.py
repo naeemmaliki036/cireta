@@ -131,6 +131,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Implements sliding window rate limiting with configurable
     limits and optional Redis backend for distributed limiting.
 
+    LIMITATION: This implementation uses in-memory storage only and does NOT
+    share state across multiple workers or processes. In production with
+    multiple workers, each worker maintains its own counters, meaning the
+    effective rate limit is multiplied by the number of workers. For accurate
+    distributed rate limiting, integrate a Redis-backed counter (e.g. via
+    redis-py with MULTI/EXEC or a Lua script for atomic sliding-window ops).
+
     Usage:
         from packages.common.middleware.rate_limit import (
             RateLimitMiddleware,

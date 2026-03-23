@@ -28,7 +28,7 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
         const portfolio = await getPortfolio();
         const h = portfolio.holdings.find((h) => h.token_id === resolvedParams.token);
         if (h) setHolding(h);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load holdings:", err); }
       finally { setLoading(false); }
     })();
   }, [resolvedParams]);

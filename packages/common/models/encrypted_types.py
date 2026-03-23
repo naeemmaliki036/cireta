@@ -1,13 +1,15 @@
 """Encrypted field types for sensitive data."""
 
-import base64
 import json
+import logging
 from typing import Any
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import Text, TypeDecorator
 
 from packages.common.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_fernet() -> Fernet | None:
@@ -40,11 +42,11 @@ class EncryptedString(TypeDecorator[str]):
 
         fernet = get_fernet()
         if fernet is None:
-            # Development mode: store plaintext
+            logger.warning("No ENCRYPTION_KEY configured — storing value as plaintext")
             return value
 
         encrypted = fernet.encrypt(value.encode())
-        return base64.urlsafe_b64encode(encrypted).decode()
+        return encrypted.decode()
 
     def process_result_value(self, value: str | None, _dialect: Any) -> str | None:
         """Decrypt value when reading from database."""
@@ -53,14 +55,15 @@ class EncryptedString(TypeDecorator[str]):
 
         fernet = get_fernet()
         if fernet is None:
-            # Development mode: return as-is
+            logger.warning("No ENCRYPTION_KEY configured — returning plaintext value")
             return value
 
         try:
-            decoded = base64.urlsafe_b64decode(value.encode())
-            return fernet.decrypt(decoded).decode()
-        except Exception:
-            # If decryption fails, return as-is (might be unencrypted data)
+            return fernet.decrypt(value.encode()).decode()
+        except InvalidToken:
+            logger.warning(
+                "Decryption failed — returning raw value (may be unencrypted legacy data)"
+            )
             return value
 
 
@@ -91,7 +94,7 @@ class EncryptedJSON(TypeDecorator[dict[str, Any]]):
             return json_str
 
         encrypted = fernet.encrypt(json_str.encode())
-        return base64.urlsafe_b64encode(encrypted).decode()
+        return encrypted.decode()
 
     def process_result_value(self, value: str | None, _dialect: Any) -> dict[str, Any] | None:
         """Decrypt JSON value when reading from database."""
@@ -104,11 +107,12 @@ class EncryptedJSON(TypeDecorator[dict[str, Any]]):
             return json.loads(value)
 
         try:
-            decoded = base64.urlsafe_b64decode(value.encode())
-            decrypted = fernet.decrypt(decoded).decode()
+            decrypted = fernet.decrypt(value.encode()).decode()
             return json.loads(decrypted)
-        except Exception:
-            # If decryption fails, try to parse as JSON
+        except InvalidToken:
+            logger.warning(
+                "EncryptedJSON decryption failed — attempting raw JSON parse"
+            )
             try:
                 return json.loads(value)
             except json.JSONDecodeError:

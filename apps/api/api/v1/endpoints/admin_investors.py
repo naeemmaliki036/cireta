@@ -69,7 +69,9 @@ async def list_investors(
             kyc_status=u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status),
             kyc_level=u.kyc_level,
             onchain_id=u.onchain_id,
-            wallet_address=u.wallets[0].address if u.wallets else None,
+            wallet_address=(u.wallets[0].address[:6] + "…" + u.wallets[0].address[-4:])
+            if u.wallets and u.wallets[0].address and len(u.wallets[0].address) > 10
+            else (u.wallets[0].address if u.wallets else None),
             created_at=u.created_at,
         )
         for u in rows

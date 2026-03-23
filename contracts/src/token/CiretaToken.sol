@@ -49,6 +49,10 @@ contract CiretaToken is
     // Flag to bypass _update validation during forced operations (transfer/recovery)
     bool private _forcedOperation;
 
+    // Custom name/symbol overrides (ERC20Upgradeable doesn't support post-init changes)
+    string private _nameOverride;
+    string private _symbolOverride;
+
     // Events from IToken
     event UpdatedTokenInformation(
         string indexed newName,
@@ -107,6 +111,14 @@ contract CiretaToken is
         return _decimals;
     }
 
+    function name() public view virtual override returns (string memory) {
+        return bytes(_nameOverride).length > 0 ? _nameOverride : super.name();
+    }
+
+    function symbol() public view virtual override returns (string memory) {
+        return bytes(_symbolOverride).length > 0 ? _symbolOverride : super.symbol();
+    }
+
     // ============ Identity & Compliance ============
 
     function setIdentityRegistry(
@@ -136,12 +148,12 @@ contract CiretaToken is
     // ============ Token Info ============
 
     function setName(string calldata newName) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        // Note: ERC20Upgradeable doesn't allow name change after init
-        // This would require custom storage
+        _nameOverride = newName;
         emit UpdatedTokenInformation(newName, symbol(), _decimals, "1.0", _onchainID);
     }
 
     function setSymbol(string calldata newSymbol) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _symbolOverride = newSymbol;
         emit UpdatedTokenInformation(name(), newSymbol, _decimals, "1.0", _onchainID);
     }
 

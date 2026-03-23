@@ -34,7 +34,7 @@ export default function PlatformCompliancePage() {
         ]);
         setFrozen(f.items);
         setLogs(l.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load compliance data:", err); }
       finally { setLoading(false); }
     })();
   }, []);

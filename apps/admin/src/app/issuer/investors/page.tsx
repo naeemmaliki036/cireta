@@ -7,11 +7,6 @@ import { Input, Badge, Spinner } from "@/components/atoms";
 import { KYCBadge, WalletBadge, DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getInvestors, type Investor } from "@/lib/api/repositories/investors";
-import { getAccessToken } from "@/lib/api/client";
-
-function getToken() {
-  return getAccessToken() ?? undefined;
-}
 
 const columns: Column<Investor>[] = [
   {
@@ -27,7 +22,7 @@ const columns: Column<Investor>[] = [
   {
     key: "kyc_status",
     header: "KYC",
-    render: (row) => <KYCBadge status={row.kyc_status as any} level={row.kyc_level} />,
+    render: (row) => <KYCBadge status={row.kyc_status as "none" | "pending" | "approved" | "rejected"} level={row.kyc_level} />,
   },
   {
     key: "wallet_address",
@@ -49,9 +44,9 @@ export default function InvestorsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getInvestors(1, 100, undefined, getToken());
+        const data = await getInvestors(1, 100);
         setInvestors(data.items);
-      } catch { /* empty */ }
+      } catch (err) { console.error("Failed to load investors:", err); }
       finally { setLoading(false); }
     })();
   }, []);

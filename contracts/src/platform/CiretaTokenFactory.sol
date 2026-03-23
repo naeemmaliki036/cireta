@@ -11,7 +11,10 @@ import "../token/ModularCompliance.sol";
 
 /**
  * @title CiretaTokenFactory
- * @dev Factory for deploying ERC-3643 compliant tokens
+ * @dev Factory for deploying ERC-3643 compliant tokens.
+ *      Canonical token implementation: ../token/CiretaToken.sol
+ *      Canonical identity registry: ../token/IdentityRegistry.sol
+ *      Canonical compliance: ../token/ModularCompliance.sol
  */
 contract CiretaTokenFactory is
     Initializable,

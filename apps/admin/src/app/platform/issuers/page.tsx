@@ -15,12 +15,9 @@ import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
 import { formatCurrency } from "@/lib/utils";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
-import { getAccessToken } from "@/lib/api/client";
-
-function getToken() { return getAccessToken() ?? undefined; }
 function mapIssuer(i: APIIssuer): Issuer {
   return { id: i.id, name: i.name, legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
-    wallet: i.wallet_address ?? "—", feeBps: i.fee_bps, status: i.status as Issuer["status"], tokens: 0, totalRaised: 0, createdAt: i.created_at.slice(0, 10) };
+    wallet: i.wallet_address ?? "—", feeBps: i.fee_bps, status: i.status as Issuer["status"], tokens: 0, totalRaised: 0, /* TODO: fetch real token count + raised totals per issuer */ createdAt: i.created_at.slice(0, 10) };
 }
 
 type Issuer = IssuerRow;
@@ -34,8 +31,8 @@ export default function IssuersPage() {
 
   useEffect(() => {
     (async () => {
-      try { const d = await getIssuers(1, 50, getToken()); setApiIssuers(d.items.map(mapIssuer)); }
-      catch { /* API unavailable — show empty state */ }
+      try { const d = await getIssuers(1, 50); setApiIssuers(d.items.map(mapIssuer)); }
+      catch (err) { console.error("Failed to load issuers:", err); }
     })();
   }, []);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -56,19 +53,18 @@ export default function IssuersPage() {
   const handleAction = async () => {
     if (!selectedIssuer || !modalType) return;
     setIsSubmitting(true);
-    const token = getToken() ?? "";
     try {
       if (modalType === "approve") {
-        await activateIssuer(selectedIssuer.id, token);
+        await activateIssuer(selectedIssuer.id, "");
         setApiIssuers(prev => prev.map(i => i.id === selectedIssuer.id ? { ...i, status: "active" as const } : i));
       } else if (modalType === "revoke") {
-        await revokeIssuer(selectedIssuer.id, token);
+        await revokeIssuer(selectedIssuer.id, "");
         setApiIssuers(prev => prev.map(i => i.id === selectedIssuer.id ? { ...i, status: "suspended" as const } : i));
       } else if (modalType === "fee") {
-        await updateIssuerFee(selectedIssuer.id, parseInt(newFee), token);
+        await updateIssuerFee(selectedIssuer.id, parseInt(newFee), "");
         setApiIssuers(prev => prev.map(i => i.id === selectedIssuer.id ? { ...i, feeBps: parseInt(newFee) } : i));
       }
-    } catch { /* Action failed — state unchanged */ }
+    } catch (err) { console.error("Issuer action failed:", err); }
     setIsSubmitting(false);
     setModalType(null); setSelectedIssuer(null); setNewFee(""); setRevokeReason("");
   };

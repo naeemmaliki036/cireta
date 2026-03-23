@@ -102,12 +102,9 @@ async def sumsub_webhook(
             detail={"code": "INVALID_PAYLOAD", "message": "Invalid JSON payload"},
         ) from None
 
-    # Get client IP for audit logging
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        ip_address = forwarded.split(",")[0].strip()
-    else:
-        ip_address = request.client.host if request.client else None
+    # Get client IP for audit logging — use request.client (set by trusted proxy)
+    # rather than X-Forwarded-For which can be spoofed by untrusted clients
+    ip_address = request.client.host if request.client else None
 
     # Process webhook
     await kyc_service.handle_webhook(payload, ip_address)
@@ -169,11 +166,6 @@ async def corporate_kyb_webhook(
             detail={"code": "INVALID_PAYLOAD", "message": "Invalid JSON payload"},
         ) from None
 
-    forwarded = request.headers.get("X-Forwarded-For")
-    ip_address = (
-        forwarded.split(",")[0].strip()
-        if forwarded
-        else (request.client.host if request.client else None)
-    )
+    ip_address = request.client.host if request.client else None
     await kyc_service.handle_corporate_webhook(payload, ip_address)
     return {"status": "ok"}
