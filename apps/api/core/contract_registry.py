@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Directories searched for ABI files (order matters)
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
-_HARDHAT_ARTIFACTS = _PROJECT_ROOT / "contracts" / "artifacts" / "contracts"
+_HARDHAT_ARTIFACTS = _PROJECT_ROOT / "contracts" / "artifacts" / "src"
 _FALLBACK_ABI_DIR = Path(__file__).resolve().parent / "abi"
 
 # Well-known contract names → settings attribute that holds the address
@@ -84,7 +84,7 @@ class ContractRegistry:
         if abi is None:
             raise FileNotFoundError(
                 f"ABI for '{name}' not found. Looked in:\n"
-                f"  1. {_HARDHAT_ARTIFACTS / name}.sol/{name}.json\n"
+                f"  1. {_HARDHAT_ARTIFACTS} (recursive search for {name}.json)\n"
                 f"  2. {_FALLBACK_ABI_DIR / name}.json"
             )
 
