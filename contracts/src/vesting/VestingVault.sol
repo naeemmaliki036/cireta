@@ -63,6 +63,8 @@ contract VestingVault is
         require(_token != address(0), "zero token");
 
         __Ownable_init(initialOwner);
+        // Note: __UUPSUpgradeable_init() removed in OZ 5.x — no initializer state needed.
+        // _authorizeUpgrade is the sole guard, protected by onlyOwner.
 
         token = IERC20(_token);
     }

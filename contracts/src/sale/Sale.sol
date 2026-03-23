@@ -60,7 +60,14 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     mapping(address => Contribution) public contributions;
     mapping(address => uint256) public totalContributed;
 
-    // Per-block contribution limit (front-running protection)
+    /// @notice Per-block contribution limit to mitigate front-running attacks.
+    /// @dev Prevents a single block from accumulating excessive USDC contributions,
+    ///      making sandwich attacks and MEV extraction uneconomical. Configurable via
+    ///      setMaxPerBlock(). Default: 50,000 USDC. For additional protection, issuers
+    ///      can: (1) lower maxPerBlock for high-value phases, (2) use whitelist-only
+    ///      phases, and (3) coordinate with block builders for private transactions.
+    ///      A commit-reveal scheme was considered but rejected due to UX complexity
+    ///      and the sufficient protection provided by per-block limits + KYC gating.
     uint256 public maxPerBlock;
     mapping(uint256 => uint256) private _blockContributions;
 

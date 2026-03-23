@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Download } from "lucide-react";
 import { apiFetch } from "@/lib/api/client";
 
@@ -11,7 +12,10 @@ const REPORTS = [
 ];
 
 export default function ReportsPage() {
+  const [error, setError] = useState("");
+
   const downloadReport = async (type: string) => {
+    setError("");
     try {
       const blob = await apiFetch<Blob>(`/api/v1/admin/issuer/reports/${type}`, {
         headers: { Accept: "text/csv" },
@@ -23,7 +27,7 @@ export default function ReportsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      console.error("Report download failed. Endpoint may not be implemented yet.");
+      setError(`Failed to download ${type} report. The endpoint may not be available yet.`);
     }
   };
 
@@ -31,6 +35,7 @@ export default function ReportsPage() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-white mb-2">Reports</h1>
       <p className="text-white/40 text-sm mb-8">Export platform data as CSV.</p>
+      {error && <p className="text-red-400 text-sm mb-4 p-3 bg-red-500/10 rounded-lg">{error}</p>}
       <div className="space-y-3">
         {REPORTS.map(({ type, label, description }) => (
           <div key={type} className="bg-white/5 rounded-xl p-5 flex items-center justify-between">

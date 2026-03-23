@@ -44,6 +44,10 @@ contract DividendDistributor is ReentrancyGuard, Ownable {
 
     uint256 public totalDistributedAmount;
 
+    /// @notice Maximum number of epochs processed in a single claim() call.
+    ///         Prevents unbounded loops from exceeding block gas limit.
+    uint256 public constant MAX_CLAIM_BATCH = 100;
+
     event DividendDeposited(uint256 indexed epoch, uint256 amount, uint256 totalSupplySnapshot, uint256 snapshotBlock);
     event DividendClaimed(address indexed holder, uint256 indexed epoch, uint256 amount);
     event BalanceSnapshotted(address indexed holder, uint256 indexed epoch, uint256 balance);
@@ -95,13 +99,18 @@ contract DividendDistributor is ReentrancyGuard, Ownable {
         emit BalanceSnapshotted(msg.sender, epochIndex, balance);
     }
 
-    /// @notice Holder claims all unclaimed dividends from lastClaimedEpoch to current epoch.
+    /// @notice Holder claims unclaimed dividends from lastClaimedEpoch, up to MAX_CLAIM_BATCH epochs.
     ///         Requires snapshotBalance() to have been called for each epoch.
+    ///         Call repeatedly if more than MAX_CLAIM_BATCH epochs are pending.
     function claim() external nonReentrant {
         uint256 start = lastClaimedEpoch[msg.sender];
-        uint256 totalOwed = _claimRange(msg.sender, start, epochCount);
+        uint256 end = epochCount;
+        if (end > start + MAX_CLAIM_BATCH) {
+            end = start + MAX_CLAIM_BATCH;
+        }
+        uint256 totalOwed = _claimRange(msg.sender, start, end);
         if (totalOwed == 0) revert NothingToClaim();
-        lastClaimedEpoch[msg.sender] = epochCount;
+        lastClaimedEpoch[msg.sender] = end;
         totalClaimedByHolder[msg.sender] += totalOwed;
         usdc.safeTransfer(msg.sender, totalOwed);
     }

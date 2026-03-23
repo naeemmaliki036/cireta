@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "./AuthContext";
+import { apiFetch } from "@/lib/api/client";
 
 interface KYCStatus {
   status: "none" | "pending" | "approved" | "rejected" | "expired";
@@ -26,8 +27,6 @@ interface KYCContextValue {
 
 const KYCContext = createContext<KYCContextValue | null>(null);
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 export function KYCProvider({ children }: { children: ReactNode }) {
   const { accessToken, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -42,19 +41,16 @@ export function KYCProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/kyc/status`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const data = await apiFetch<{ status: string; level: number; message?: string }>(
+        "/api/v1/kyc/status",
+        { token: accessToken },
+      );
+      setKYCStatus({
+        status: data.status as KYCStatus["status"],
+        level: data.level,
+        canInvest: data.level >= 2,
+        message: data.message,
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        setKYCStatus({
-          status: data.status,
-          level: data.level,
-          canInvest: data.level >= 2,
-          message: data.message,
-        });
-      }
     } catch {
       // Keep current status on error
     } finally {
@@ -80,20 +76,10 @@ export function KYCProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/kyc/initiate`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.detail?.message ?? "Failed to initiate KYC");
-      }
-
-      const data = await res.json();
+      const data = await apiFetch<{ verification_url: string }>(
+        "/api/v1/kyc/initiate",
+        { method: "POST", token: accessToken },
+      );
       return data.verification_url;
     } finally {
       setIsLoading(false);

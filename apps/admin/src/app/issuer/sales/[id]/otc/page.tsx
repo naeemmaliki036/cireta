@@ -22,9 +22,12 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
   const [success, setSuccess] = useState("");
 
   const fetchRecords = async () => {
-    // In production: fetch OTC contributions for this sale
-    // For now show empty state
-    setRecords([]);
+    try {
+      const data = await apiFetch<{ items: OTCRecord[] }>(`/api/v1/sales/${id}/contributions?is_otc=true`);
+      setRecords(data.items ?? []);
+    } catch {
+      setRecords([]);
+    }
   };
 
   useEffect(() => { fetchRecords(); }, [id]);
@@ -36,7 +39,7 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
     try {
       await apiFetch(`/api/v1/sales/${id}/otc`, {
         method: "POST",
-        body: { ...form, token_amount: parseFloat(form.token_amount) },
+        body: { ...form, token_amount: form.token_amount },
       });
       setSuccess("OTC allocation recorded successfully.");
       setForm({ investor_wallet: "", token_amount: "", payment_reference: "", notes: "" });

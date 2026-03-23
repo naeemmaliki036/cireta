@@ -30,10 +30,12 @@ const CATEGORIES = [
 export default function NotificationsPage() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULTS);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   const toggle = (key: keyof Prefs) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
 
   const handleSave = async () => {
+    setError("");
     try {
       await apiFetch("/api/v1/notifications/preferences", {
         method: "PATCH",
@@ -41,7 +43,9 @@ export default function NotificationsPage() {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch { /* ignore */ }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save preferences");
+    }
   };
 
   return (
@@ -50,6 +54,7 @@ export default function NotificationsPage() {
         <h2 className="text-lg font-semibold text-white mb-1">Notifications</h2>
         <p className="text-white/40 text-sm">Choose how you want to be notified.</p>
       </div>
+      {error && <p className="text-red-400 text-sm p-3 bg-red-500/10 rounded-lg">{error}</p>}
       <div className="bg-white/5 rounded-xl p-6">
         <div className="grid grid-cols-3 gap-4 mb-4 text-xs text-white/40 font-medium uppercase">
           <div>Category</div>

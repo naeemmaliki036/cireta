@@ -35,10 +35,9 @@ export default function IssuersPage() {
   useEffect(() => {
     (async () => {
       try { const d = await getIssuers(1, 50, getToken()); setApiIssuers(d.items.map(mapIssuer)); }
-      catch { /* use mocks */ }
+      catch { /* API unavailable — show empty state */ }
     })();
   }, []);
-  // API-only data — no mocks
   const [statusFilter, setStatusFilter] = useState("all");
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedIssuer, setSelectedIssuer] = useState<Issuer | null>(null);
@@ -69,7 +68,7 @@ export default function IssuersPage() {
         await updateIssuerFee(selectedIssuer.id, parseInt(newFee), token);
         setApiIssuers(prev => prev.map(i => i.id === selectedIssuer.id ? { ...i, feeBps: parseInt(newFee) } : i));
       }
-    } catch { /* TODO: toast */ }
+    } catch { /* Action failed — state unchanged */ }
     setIsSubmitting(false);
     setModalType(null); setSelectedIssuer(null); setNewFee(""); setRevokeReason("");
   };

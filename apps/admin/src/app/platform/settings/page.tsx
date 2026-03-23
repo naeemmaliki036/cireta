@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api/client";
 
 export default function PlatformSettingsPage() {
@@ -10,8 +10,25 @@ export default function PlatformSettingsPage() {
     kyc_min_level: "2",
   });
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await apiFetch<Record<string, string>>("/api/v1/admin/platform/settings");
+        setSettings({
+          default_fee_bps: data.default_fee_bps ?? "200",
+          blocked_countries: data.blocked_countries ?? "US",
+          kyc_min_level: data.kyc_min_level ?? "2",
+        });
+      } catch {
+        // Use defaults on load failure
+      }
+    })();
+  }, []);
 
   const handleSave = async () => {
+    setError("");
     try {
       await apiFetch("/api/v1/admin/platform/settings", {
         method: "PATCH",
@@ -19,13 +36,16 @@ export default function PlatformSettingsPage() {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch { /* ignore */ }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save settings");
+    }
   };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-white mb-2">Platform Settings</h1>
       <p className="text-white/40 text-sm mb-8">Configure global platform defaults.</p>
+      {error && <p className="text-red-400 text-sm mb-4 p-3 bg-red-500/10 rounded-lg">{error}</p>}
       <div className="bg-white/5 rounded-xl p-6 space-y-5">
         <div>
           <label className="block text-sm text-white/60 mb-1">Default Fee Rate (basis points)</label>

@@ -116,6 +116,6 @@ class VestingSchedule(BaseModel):
         if total_vesting_seconds <= 0:
             return self.remaining_amount
 
-        vesting_ratio = Decimal(str(elapsed_seconds / total_vesting_seconds))
+        vesting_ratio = Decimal(str(elapsed_seconds)) / Decimal(str(total_vesting_seconds))
         vested_amount = self.total_amount * vesting_ratio
         return max(Decimal("0"), vested_amount - self.claimed_amount)

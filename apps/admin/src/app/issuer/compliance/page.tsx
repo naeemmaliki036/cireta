@@ -34,6 +34,7 @@ export default function CompliancePage() {
   const [reason, setReason] = useState("");
   const [selectedToken, setSelectedToken] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
 
@@ -50,16 +51,8 @@ export default function CompliancePage() {
   const handleSubmit = async () => {
     if (!targetAddress || !reason) return;
 
-    // Destructive compliance actions require explicit confirmation
-    if (modalAction === "freeze" || modalAction === "unfreeze") {
-      const verb = modalAction === "freeze" ? "freeze" : "unfreeze";
-      const confirmed = window.confirm(
-        `Are you sure you want to ${verb} address ${targetAddress}? This action will be recorded in the immutable audit log.`
-      );
-      if (!confirmed) return;
-    }
-
     setIsSubmitting(true);
+    setFeedback(null);
     const token = getToken();
     try {
       if (modalAction === "freeze") {
@@ -73,7 +66,12 @@ export default function CompliancePage() {
       }
       const data = await getAuditLogs(1, 20, undefined, token);
       setAuditLogs(data.items);
-    } catch { /* TODO: toast */ }
+      setFeedback({ type: "success", message: `${modalAction?.replace("_", " ")} action completed successfully.` });
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (e: unknown) {
+      setFeedback({ type: "error", message: e instanceof Error ? e.message : "Action failed. Please try again." });
+      setTimeout(() => setFeedback(null), 5000);
+    }
     setIsSubmitting(false);
     setModalAction(null);
     setTargetAddress(""); setReason(""); setDestinationAddress(""); setAmount(""); setSelectedToken("");
@@ -83,6 +81,11 @@ export default function CompliancePage() {
 
   return (
     <IssuerDashboardLayout title="Compliance Actions" description="Freeze addresses, force transfers, recover tokens">
+      {feedback && (
+        <div className={`mb-6 p-4 rounded-2xl border ${feedback.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+          <p className="text-sm font-medium">{feedback.message}</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {ACTION_CARDS.map((card) => (
           <motion.button key={card.action} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}

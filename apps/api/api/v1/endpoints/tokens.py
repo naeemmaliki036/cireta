@@ -1,5 +1,6 @@
 """Token endpoints for ERC-3643 security tokens."""
 
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
@@ -162,9 +163,9 @@ async def get_proof_of_reserve(
             "feed_address": feed,
             "total_supply": str(token.total_supply),
             "verified_reserve": str(data.get("answer", 0)),
-            "reserve_ratio": float(data.get("answer", 0)) / float(token.total_supply)
+            "reserve_ratio": str(Decimal(str(data.get("answer", 0))) / Decimal(str(token.total_supply)))
             if token.total_supply
-            else 0,
+            else "0",
             "last_updated": data.get("updated_at"),
             "is_live": True,
         }

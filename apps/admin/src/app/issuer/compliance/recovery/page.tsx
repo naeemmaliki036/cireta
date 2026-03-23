@@ -11,14 +11,16 @@ export default function TokenRecoveryPage() {
     lost_wallet: "", new_wallet: "", onchain_id: "", reason: "", token_id: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const confirmed = window.confirm(
-      "Are you sure you want to execute this token recovery? This action is irreversible and will be recorded on-chain."
-    );
-    if (!confirmed) return;
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
     setSubmitting(true);
     setMessage("");
     try {
@@ -80,12 +82,19 @@ export default function TokenRecoveryPage() {
             />
           </div>
         ))}
+        {confirming && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <p className="text-red-400 text-sm font-medium">
+              Are you sure? This action is irreversible and will be recorded on-chain.
+            </p>
+          </div>
+        )}
         <button
           type="submit"
           disabled={submitting}
           className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 text-sm"
         >
-          {submitting ? "Processing..." : "Execute Token Recovery"}
+          {submitting ? "Processing..." : confirming ? "Click Again to Confirm" : "Execute Token Recovery"}
         </button>
       </form>
     </div>

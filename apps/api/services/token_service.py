@@ -131,7 +131,16 @@ class TokenService:
         from apps.api.services.web3_token_service import Web3TokenService
 
         web3_svc = Web3TokenService()
-        issuer_wallet = token.issuer.wallet_address or web3_svc.deployer_address or ""
+        issuer_wallet = token.issuer.wallet_address or web3_svc.deployer_address
+        if not issuer_wallet:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "NO_WALLET",
+                    "message": "Issuer has no wallet address and no deployer account is configured. "
+                    "Set the issuer wallet address or configure DEPLOYER_PRIVATE_KEY.",
+                },
+            )
 
         contract_address, _receipt = await web3_svc.deploy_erc3643_token(
             name=token.name,

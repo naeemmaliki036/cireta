@@ -4,6 +4,7 @@ Chain ID: 8453 (Base Mainnet)
 """
 
 import asyncio
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -13,6 +14,8 @@ from web3 import Web3
 from web3.types import TxReceipt
 
 from packages.common.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class Web3BaseService:
@@ -31,17 +34,17 @@ class Web3BaseService:
         """Get deployer wallet address."""
         return self._account.address if self._account else None
 
-    def is_connected(self) -> bool:
+    async def is_connected(self) -> bool:
         """Check if connected to blockchain."""
-        return self.w3.is_connected()
+        return await asyncio.to_thread(self.w3.is_connected)
 
-    def get_balance(self, address: str) -> Decimal:
+    async def get_balance(self, address: str) -> Decimal:
         """Get ETH balance for an address in ETH."""
         checksum_address = Web3.to_checksum_address(address)
-        balance_wei = self.w3.eth.get_balance(checksum_address)
+        balance_wei = await asyncio.to_thread(self.w3.eth.get_balance, checksum_address)
         return Decimal(str(Web3.from_wei(balance_wei, "ether")))
 
-    def get_token_balance(
+    async def get_token_balance(
         self, contract_address: str, wallet_address: str, decimals: int = 18
     ) -> Decimal:
         """Get ERC-20 token balance."""
@@ -55,7 +58,8 @@ class Web3BaseService:
             }
         ]
         contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
-        balance = contract.functions.balanceOf(Web3.to_checksum_address(wallet_address)).call()
+        fn = contract.functions.balanceOf(Web3.to_checksum_address(wallet_address))
+        balance = await asyncio.to_thread(fn.call)
         return Decimal(balance) / Decimal(10**decimals)
 
     async def send_transaction(self, to: str, value: int = 0, data: bytes = b"") -> TxReceipt:
@@ -83,9 +87,17 @@ class Web3BaseService:
         self, contract_address: str, abi: list, function_name: str, *args: Any
     ) -> Any:
         """Call a contract view function (no gas)."""
-        contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
-        function = getattr(contract.functions, function_name)
-        return function(*args).call()
+        try:
+            contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
+            function = getattr(contract.functions, function_name)
+            return await asyncio.to_thread(function(*args).call)
+        except Exception:
+            logger.error(
+                "On-chain view call failed: %s.%s at %s",
+                contract_address, function_name, contract_address,
+                exc_info=True,
+            )
+            raise
 
     async def execute_contract(
         self, contract_address: str, abi: list, function_name: str, *args: Any
@@ -93,20 +105,28 @@ class Web3BaseService:
         """Execute a state-changing contract function."""
         if not self._account:
             raise ValueError("No deployer account configured")
-        contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
-        function = getattr(contract.functions, function_name)
-        nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
-        gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
-        tx = function(*args).build_transaction(
-            {
-                "chainId": self.chain_id,
-                "from": self._account.address,
-                "gas": 500000,
-                "gasPrice": gas_price,
-                "nonce": nonce,
-            }
-        )
-        tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
-        signed = self._account.sign_transaction(tx)
-        tx_hash = await asyncio.to_thread(self.w3.eth.send_raw_transaction, signed.raw_transaction)
-        return await asyncio.to_thread(self.w3.eth.wait_for_transaction_receipt, tx_hash)
+        try:
+            contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
+            function = getattr(contract.functions, function_name)
+            nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
+            gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
+            tx = function(*args).build_transaction(
+                {
+                    "chainId": self.chain_id,
+                    "from": self._account.address,
+                    "gas": 500000,
+                    "gasPrice": gas_price,
+                    "nonce": nonce,
+                }
+            )
+            tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
+            signed = self._account.sign_transaction(tx)
+            tx_hash = await asyncio.to_thread(self.w3.eth.send_raw_transaction, signed.raw_transaction)
+            return await asyncio.to_thread(self.w3.eth.wait_for_transaction_receipt, tx_hash)
+        except Exception:
+            logger.error(
+                "On-chain execute failed: %s.%s at %s",
+                contract_address, function_name, contract_address,
+                exc_info=True,
+            )
+            raise
