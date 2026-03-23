@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eagle — AI-First SOC Platform</title>
+<meta name="description" content="Eagle is the AI-first Security Operations Center platform. See every threat. Miss nothing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   DESIGN TOKENS
+   ============================================ */
+:root {
+  --void: #030B1A;
+  --abyss: #060E22;
+  --depth: #0B1730;
+  --surface: #112040;
+  --rim: #1A3158;
+  --primary: #38BDF8;
+  --primary-glow: rgba(56, 189, 248, 0.15);
+  --primary-glow-strong: rgba(56, 189, 248, 0.25);
+  --gold: #F59E0B;
+  --gold-glow: rgba(245, 158, 11, 0.15);
+  --success: #34D399;
+  --danger: #F87171;
+  --text: #EFF6FF;
+  --text-muted: #7FA3C4;
+  --text-dim: #4A6785;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+  --space-5xl: 128px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--abyss);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
+a:hover { color: var(--gold); }
+
+img { max-width: 100%; display: block; }
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 5vw, 3rem);
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; line-height: 1.15; }
+
+.display { font-size: clamp(2.8rem, 6vw, 5rem); letter-spacing: -0.03em; }
+h1 { font-size: clamp(2.2rem, 4.5vw, 3.5rem); letter-spacing: -0.025em; }
+h2 { font-size: clamp(1.8rem, 3.5vw, 2.8rem); letter-spacing: -0.02em; }
+h3 { font-size: clamp(1.2rem, 2vw, 1.5rem); letter-spacing: -0.01em; }
+h4 { font-size: 1.1rem; }
+
+.text-muted { color: var(--text-muted); }
+.text-dim { color: var(--text-dim); }
+.text-primary { color: var(--primary); }
+.text-gold { color: var(--gold); }
+.text-center { text-align: center; }
+.mono { font-family: var(--font-mono); }
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--void);
+  box-shadow: 0 0 20px var(--primary-glow), 0 0 60px rgba(56, 189, 248, 0.08);
+}
+.btn-primary:hover {
+  background: #5fcbfa;
+  box-shadow: 0 0 30px var(--primary-glow-strong), 0 0 80px rgba(56, 189, 248, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--rim);
+}
+.btn-ghost:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.btn-sm { padding: 10px 20px; font-size: 0.85rem; }
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 16px 0;
+  transition: all 0.3s ease;
+  background: rgba(6, 14, 34, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid transparent;
+}
+
+.nav.scrolled {
+  border-bottom-color: var(--rim);
+  background: rgba(6, 14, 34, 0.9);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 5vw, 3rem);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-logo svg { width: 36px; height: 36px; }
+
+.nav-logo-text {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  list-style: none;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--text); }
+
+.nav-mobile-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 8px;
+}
+
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .nav-mobile-toggle { display: block; }
+  .nav-links.open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--depth);
+    padding: 24px;
+    border-bottom: 1px solid var(--rim);
+    gap: 16px;
+  }
+}
+
+/* ============================================
+   HERO
+   ============================================ */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 120px 24px 80px;
+  overflow: hidden;
+}
+
+/* Particle grid background */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.hero-bg canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Radial gradient overlay */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 40%, transparent, var(--abyss) 70%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+}
+
+.hero-headline {
+  margin-bottom: 24px;
+}
+
+.hero-headline .line1 {
+  display: block;
+  color: var(--text);
+}
+
+.hero-headline .line2 {
+  display: block;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 80px;
+}
+
+/* Pipeline flow visualization */
+.pipeline-hero {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 0 20px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.pipeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.pipeline-node-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--depth);
+  border: 1.5px solid var(--rim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.pipeline-node-circle svg {
+  width: 24px;
+  height: 24px;
+  color: var(--primary);
+}
+
+.pipeline-node-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pipeline-connector {
+  width: 60px;
+  height: 2px;
+  background: var(--rim);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.pipeline-connector::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30px;
+  width: 30px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  animation: flowPulse 2s ease-in-out infinite;
+}
+
+.pipeline-connector:nth-child(4)::after { animation-delay: 0.3s; }
+.pipeline-connector:nth-child(6)::after { animation-delay: 0.6s; }
+.pipeline-connector:nth-child(8)::after { animation-delay: 0.9s; }
+.pipeline-connector:nth-child(10)::after { animation-delay: 1.2s; }
+
+@keyframes flowPulse {
+  0% { left: -30px; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { left: calc(100% + 30px); opacity: 0; }
+}
+
+@media (max-width: 640px) {
+  .pipeline-hero { gap: 8px; }
+  .pipeline-connector { width: 24px; }
+  .pipeline-node-circle { width: 44px; height: 44px; }
+  .pipeline-node-circle svg { width: 18px; height: 18px; }
+  .pipeline-node-label { font-size: 0.6rem; }
+}
+
+/* ============================================
+   STATS BAR
+   ============================================ */
+.stats-bar {
+  background: var(--depth);
+  border-top: 1px solid var(--rim);
+  border-bottom: 1px solid var(--rim);
+  padding: 48px 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  text-align: center;
+}
+
+.stat-item h3 {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.stat-item p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================
+   SECTIONS
+   ============================================ */
+.section {
+  padding: var(--space-5xl) 0;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: var(--space-3xl);
+}
+
+.section-header h2 {
+  margin-bottom: var(--space-md);
+}
+
+.section-header p {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-label {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--primary);
+  margin-bottom: var(--space-md);
+  padding: 6px 14px;
+  background: var(--primary-glow);
+  border-radius: 100px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+/* ============================================
+   PROBLEM SECTION
+   ============================================ */
+.problem-section {
+  background: var(--void);
+}
+
+.problem-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: var(--space-3xl);
+}
+
+.problem-card {
+  background: var(--depth);
+  border: 1px solid var(--rim);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.problem-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--danger), var(--gold));
+}
+
+.problem-card-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-md);
+  border-radius: 50%;
+  background: rgba(248, 113, 113, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+}
+
+.problem-card h3 {
+  margin-bottom: 8px;
+  font-size: 1.3rem;
+}
+
+.problem-card p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.problem-transition {
+  text-align: center;
+  font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .problem-cards { grid-template-columns: 1fr; }
+}
+
+/* ============================================
+   PIPELINE SECTION
+   ============================================ */
+.pipeline-section {
+  background: var(--abyss);
+}
+
+.pipeline-steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  position: relative;
+}
+
+/* Horizontal connecting line */
+.pipeline-steps::before {
+  content: '';
+  position: absolute;
+  top: 48px;
+  left: calc(8.33% + 24px);
+  right: calc(8.33% + 24px);
+  height: 2px;
+  background: var(--rim);
+  z-index: 0;
+}
+
+.pipeline-step {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.pipeline-step-number {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-md);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--primary);
+  position: relative;
+}
+
+.pipeline-step-number svg {
+  width: 22px;
+  height: 22px;
+  color: var(--primary);
+}
+
+.pipeline-step h4 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.pipeline-step p {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .pipeline-steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+  .pipeline-steps::before { display: none; }
+}
+
+@media (max-width: 500px) {
+  .pipeline-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ============================================
+   FEATURES GRID
+   ============================================ */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.feature-card {
+  background: var(--depth);
+  border: 1px solid var(--rim);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
+}
+
+.feature-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+  color: var(--primary);
+}
+
+.feature-card h3 {
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+}
+
+.feature-card p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 500px) {
+  .features-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================
+   SOC UI PREVIEW / BROWSER MOCKUP
+   ============================================ */
+.mockup-section {
+  background: var(--void);
+}
+
+.browser-mockup {
+  background: var(--depth);
+  border: 1px solid var(--rim);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  max-width: 1000px;
+  margin: 0 auto;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.browser-chrome {
+  background: var(--surface);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--rim);
+}
+
+.browser-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.browser-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.browser-dot.red { background: #F87171; }
+.browser-dot.yellow { background: #F59E0B; }
+.browser-dot.green { background: #34D399; }
+
+.browser-url {
+  flex: 1;
+  background: var(--depth);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.browser-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 420px;
+}
+
+.mock-sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--rim);
+  padding: 16px;
+}
+
+.mock-sidebar-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mock-sidebar-item.active {
+  background: var(--primary-glow);
+  color: var(--primary);
+}
+
+.mock-sidebar-item .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mock-main {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mock-header h4 {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.mock-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.mock-filter {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--rim);
+}
+
+.mock-filter.active {
+  background: var(--primary-glow);
+  color: var(--primary);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.mock-incident {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--rim);
+}
+
+.severity-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.severity-critical { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+.severity-high { background: rgba(245, 158, 11, 0.15); color: var(--gold); }
+.severity-medium { background: rgba(56, 189, 248, 0.15); color: var(--primary); }
+.severity-low { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+
+.mock-incident-title {
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.mock-incident-meta {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.mock-incident-time {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.mockup-caption {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: var(--space-xl);
+}
+
+@media (max-width: 640px) {
+  .browser-body {
+    grid-template-columns: 1fr;
+  }
+  .mock-sidebar { display: none; }
+}
+
+/* ============================================
+   INTEGRATIONS
+   ============================================ */
+.integrations-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+}
+
+.integration-badge {
+  padding: 12px 24px;
+  background: var(--depth);
+  border: 1px solid var(--rim);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.integration-badge:hover {
+  border-color: var(--primary);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.integration-more {
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--primary);
+  border: 1px dashed var(--rim);
+}
+
+/* ============================================
+   TRUST / COMPLIANCE
+   ============================================ */
+.trust-section {
+  background: var(--void);
+}
+
+.trust-badges {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.trust-badge {
+  text-align: center;
+  padding: var(--space-xl);
+  background: var(--depth);
+  border: 1px solid var(--rim);
+  border-radius: var(--radius-md);
+}
+
+.trust-badge-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--space-md);
+  border-radius: 50%;
+  background: var(--primary-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.trust-badge h4 {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.trust-badge p {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .trust-badges { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .trust-badges { grid-template-columns: 1fr; }
+}
+
+/* ============================================
+   CTA SECTION
+   ============================================ */
+.cta-section {
+  position: relative;
+  background: var(--depth);
+  border-top: 1px solid var(--rim);
+  border-bottom: 1px solid var(--rim);
+  overflow: hidden;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, var(--primary-glow), transparent 60%);
+  pointer-events: none;
+}
+
+.cta-watermark {
+  position: absolute;
+  right: -100px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+.cta-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cta-content h2 {
+  margin-bottom: var(--space-md);
+}
+
+.cta-content > p {
+  color: var(--text-muted);
+  margin-bottom: var(--space-xl);
+  font-size: 1.05rem;
+}
+
+.cta-form {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta-input {
+  flex: 1;
+  min-width: 260px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--rim);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.cta-input::placeholder { color: var(--text-dim); }
+.cta-input:focus { border-color: var(--primary); }
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  padding: var(--space-3xl) 0 var(--space-xl);
+  border-top: 1px solid var(--rim);
+}
+
+.footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-brand-logo svg { width: 28px; height: 28px; }
+
+.footer-brand-logo span {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.footer-tagline {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+
+.footer-links a {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.footer-links a:hover { color: var(--text); }
+
+.footer-bottom {
+  text-align: center;
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid rgba(26, 49, 88, 0.5);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered entrance */
+.stagger > * {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.stagger.visible > *:nth-child(1) { transition-delay: 0s; }
+.stagger.visible > *:nth-child(2) { transition-delay: 0.1s; }
+.stagger.visible > *:nth-child(3) { transition-delay: 0.2s; }
+.stagger.visible > *:nth-child(4) { transition-delay: 0.3s; }
+.stagger.visible > *:nth-child(5) { transition-delay: 0.4s; }
+.stagger.visible > *:nth-child(6) { transition-delay: 0.5s; }
+
+.stagger.visible > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Glow pulse for hero pipeline nodes */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(56, 189, 248, 0); }
+  50% { box-shadow: 0 0 20px var(--primary-glow); }
+}
+
+.pipeline-node-circle {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+.pipeline-node:nth-child(1) .pipeline-node-circle { animation-delay: 0s; }
+.pipeline-node:nth-child(3) .pipeline-node-circle { animation-delay: 0.4s; }
+.pipeline-node:nth-child(5) .pipeline-node-circle { animation-delay: 0.8s; }
+.pipeline-node:nth-child(7) .pipeline-node-circle { animation-delay: 1.2s; }
+.pipeline-node:nth-child(9) .pipeline-node-circle { animation-delay: 1.6s; }
+.pipeline-node:nth-child(11) .pipeline-node-circle { animation-delay: 2s; }
+
+/* Stat counter */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- ====================================
+     NAVIGATION
+     ==================================== -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <!-- Eagle Eye / Radar SVG Logo -->
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="24" r="22" stroke="#38BDF8" stroke-width="1.5" opacity="0.3"/>
+        <circle cx="24" cy="24" r="16" stroke="#38BDF8" stroke-width="1.5" opacity="0.5"/>
+        <circle cx="24" cy="24" r="10" stroke="#38BDF8" stroke-width="1.5" opacity="0.7"/>
+        <!-- Eagle eye diamond -->
+        <path d="M24 14 L34 24 L24 34 L14 24 Z" fill="none" stroke="#38BDF8" stroke-width="2"/>
+        <!-- Gold pupil -->
+        <circle cx="24" cy="24" r="3.5" fill="#F59E0B"/>
+        <!-- Inner highlight -->
+        <circle cx="22.5" cy="22.5" r="1" fill="#FDE68A" opacity="0.7"/>
+      </svg>
+      <span class="nav-logo-text">Eagle</span>
+    </a>
+    <button class="nav-mobile-toggle" id="navToggle" aria-label="Menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#pipeline">Platform</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#integrations">Integrations</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#cta" class="btn btn-primary btn-sm">Request Access</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ====================================
+     HERO
+     ==================================== -->
+<section class="hero" id="hero">
+  <div class="hero-bg">
+    <canvas id="heroCanvas"></canvas>
+  </div>
+
+  <div class="hero-content">
+    <h1 class="display hero-headline" style="animation: fadeInUp 0.8s ease both;">
+      <span class="line1">See every threat.</span>
+      <span class="line2">Miss nothing.</span>
+    </h1>
+    <p class="hero-sub" style="animation: fadeInUp 0.8s ease 0.15s both;">
+      Eagle is the AI-first SOC platform built for teams that can't afford gaps. Ingest any source, score every threat, investigate faster.
+    </p>
+    <div class="hero-ctas" style="animation: fadeInUp 0.8s ease 0.3s both;">
+      <a href="#cta" class="btn btn-primary">Request Early Access</a>
+      <a href="#mockup" class="btn btn-ghost">View the Platform</a>
+    </div>
+  </div>
+
+  <!-- Pipeline flow visualization -->
+  <div class="pipeline-hero" style="animation: fadeInUp 0.8s ease 0.5s both;">
+    <div class="pipeline-node">
+      <div class="pipeline-node-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <span class="pipeline-node-label">Ingest</span>
+    </div>
+    <div class="pipeline-connector"></div>
+    <div class="pipeline-node">
+      <div class="pipeline-node-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </div>
+      <span class="pipeline-node-label">Normalize</span>
+    </div>
+    <div class="pipeline-connector"></div>
+    <div class="pipeline-node">
+      <div class="pipeline-node-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      </div>
+      <span class="pipeline-node-label">Enrich</span>
+    </div>
+    <div class="pipeline-connector"></div>
+    <div class="pipeline-node">
+      <div class="pipeline-node-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <span class="pipeline-node-label">Score</span>
+    </div>
+    <div class="pipeline-connector"></div>
+    <div class="pipeline-node">
+      <div class="pipeline-node-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="4" cy="4" r="2"/><circle cx="20" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><line x1="8.5" y1="8.5" x2="5.5" y2="5.5"/><line x1="15.5" y1="8.5" x2="18.5" y2="5.5"/><line x1="8.5" y1="15.5" x2="5.5" y2="18.5"/><line x1="15.5" y1="15.5" x2="18.5" y2="18.5"/></svg>
+      </div>
+      <span class="pipeline-node-label">Correlate</span>
+    </div>
+    <div class="pipeline-connector"></div>
+    <div class="pipeline-node">
+      <div class="pipeline-node-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      </div>
+      <span class="pipeline-node-label">Investigate</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     STATS BAR
+     ==================================== -->
+<section class="stats-bar">
+  <div class="container">
+    <div class="stats-grid stagger" id="statsGrid">
+      <div class="stat-item">
+        <h3>70%</h3>
+        <p>Reduction in alert fatigue</p>
+      </div>
+      <div class="stat-item">
+        <h3>&lt;100ms</h3>
+        <p>ML inference (P95)</p>
+      </div>
+      <div class="stat-item">
+        <h3>10,000+</h3>
+        <p>Alerts processed per day</p>
+      </div>
+      <div class="stat-item">
+        <h3>5</h3>
+        <p>Expert ML models</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     PROBLEM SECTION
+     ==================================== -->
+<section class="section problem-section">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">The SOC Crisis</span>
+      <h2>Your analysts are drowning.</h2>
+    </div>
+    <div class="problem-cards stagger">
+      <div class="problem-card">
+        <div class="problem-card-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        </div>
+        <h3>10,000+ alerts per day</h3>
+        <p>Modern SOCs are buried under an avalanche of security alerts from dozens of tools.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h3>50%+ false positive rate</h3>
+        <p>More than half of all alerts are noise. Analysts waste hours chasing phantoms.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        </div>
+        <h3>Threats buried in noise</h3>
+        <p>Real attacks hide among thousands of benign alerts. One missed signal can cost millions.</p>
+      </div>
+    </div>
+    <p class="problem-transition fade-in">Eagle was built to fix this.</p>
+  </div>
+</section>
+
+<!-- ====================================
+     HOW IT WORKS — PIPELINE
+     ==================================== -->
+<section class="section pipeline-section" id="pipeline">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">How It Works</span>
+      <h2>Six stages. One unified platform.</h2>
+    </div>
+    <div class="pipeline-steps stagger">
+      <div class="pipeline-step">
+        <div class="pipeline-step-number">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <h4>Ingest</h4>
+        <p>Connect any source. Kafka-native, vendor agnostic.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-step-number">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </div>
+        <h4>Normalize</h4>
+        <p>OCSF standard. Every event in one language.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-step-number">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        </div>
+        <h4>Enrich</h4>
+        <p>MITRE ATT&CK, GeoIP, threat intel. Context on every event.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-step-number">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h4>Score</h4>
+        <p>XGBoost ML. TP/FP scoring with explainability.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-step-number">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="4" cy="4" r="2"/><circle cx="20" cy="4" r="2"/><line x1="8.5" y1="8.5" x2="5.5" y2="5.5"/><line x1="15.5" y1="8.5" x2="18.5" y2="5.5"/></svg>
+        </div>
+        <h4>Correlate</h4>
+        <p>Smart grouping. Alerts become incidents.</p>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-step-number">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </div>
+        <h4>Investigate</h4>
+        <p>AI summaries. Entity graph. Full case management.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     FEATURES
+     ==================================== -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Features</span>
+      <h2>Everything a modern SOC needs.</h2>
+    </div>
+    <div class="features-grid stagger">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>AI Threat Scoring</h3>
+        <p>ML-powered TP/FP classification with feature importance. Know why every score was assigned.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="4" cy="4" r="2"/><circle cx="20" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><line x1="8.5" y1="8.5" x2="5.5" y2="5.5"/><line x1="15.5" y1="8.5" x2="18.5" y2="5.5"/><line x1="8.5" y1="15.5" x2="5.5" y2="18.5"/><line x1="15.5" y1="15.5" x2="18.5" y2="18.5"/></svg>
+        </div>
+        <h3>Real-time Correlation</h3>
+        <p>Configurable strategies group alerts into incidents instantly. Stop investigating one alert at a time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
+        </div>
+        <h3>Entity Graph</h3>
+        <p>Visual relationship mapping across IPs, users, hosts, and domains. See how entities connect.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3>Case Management</h3>
+        <p>Full alert → investigation → incident → task → evidence lifecycle. Everything in one place.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        </div>
+        <h3>Continuous Learning</h3>
+        <p>Analyst dispositions retrain your models automatically. Eagle gets smarter with every decision.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+        </div>
+        <h3>Multi-tenant</h3>
+        <p>Enterprise RBAC, full audit trail, SOC 2 ready. Designed for the most demanding security teams.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     SOC UI PREVIEW / BROWSER MOCKUP
+     ==================================== -->
+<section class="section mockup-section" id="mockup">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">The Interface</span>
+      <h2>Built for the analyst.</h2>
+    </div>
+    <div class="browser-mockup fade-in">
+      <div class="browser-chrome">
+        <div class="browser-dots">
+          <span class="browser-dot red"></span>
+          <span class="browser-dot yellow"></span>
+          <span class="browser-dot green"></span>
+        </div>
+        <div class="browser-url">eagle.internal / incidents / triage</div>
+      </div>
+      <div class="browser-body">
+        <div class="mock-sidebar">
+          <div class="mock-sidebar-item active">
+            <span class="dot" style="background: var(--primary);"></span> Triage
+          </div>
+          <div class="mock-sidebar-item">
+            <span class="dot" style="background: var(--text-dim);"></span> Incidents
+          </div>
+          <div class="mock-sidebar-item">
+            <span class="dot" style="background: var(--text-dim);"></span> Investigations
+          </div>
+          <div class="mock-sidebar-item">
+            <span class="dot" style="background: var(--text-dim);"></span> Entity Graph
+          </div>
+          <div class="mock-sidebar-item">
+            <span class="dot" style="background: var(--text-dim);"></span> ML Models
+          </div>
+          <div class="mock-sidebar-item">
+            <span class="dot" style="background: var(--text-dim);"></span> Sources
+          </div>
+          <div class="mock-sidebar-item">
+            <span class="dot" style="background: var(--text-dim);"></span> Settings
+          </div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-header">
+            <h4>Active Incidents</h4>
+            <div class="mock-filters">
+              <span class="mock-filter active">All</span>
+              <span class="mock-filter">Critical</span>
+              <span class="mock-filter">High</span>
+              <span class="mock-filter">Unassigned</span>
+            </div>
+          </div>
+          <div class="mock-incident">
+            <span class="severity-badge severity-critical">CRITICAL</span>
+            <span class="mock-incident-title">Lateral movement detected — DC01 to FILESERVER02</span>
+            <span class="mock-incident-meta">12 alerts</span>
+            <span class="mock-incident-time">2m ago</span>
+          </div>
+          <div class="mock-incident">
+            <span class="severity-badge severity-critical">CRITICAL</span>
+            <span class="mock-incident-title">Credential stuffing attack — Azure AD brute force</span>
+            <span class="mock-incident-meta">47 alerts</span>
+            <span class="mock-incident-time">8m ago</span>
+          </div>
+          <div class="mock-incident">
+            <span class="severity-badge severity-high">HIGH</span>
+            <span class="mock-incident-title">Suspicious PowerShell execution — WORKSTATION-114</span>
+            <span class="mock-incident-meta">6 alerts</span>
+            <span class="mock-incident-time">14m ago</span>
+          </div>
+          <div class="mock-incident">
+            <span class="severity-badge severity-high">HIGH</span>
+            <span class="mock-incident-title">Data exfiltration attempt — unusual S3 bucket access</span>
+            <span class="mock-incident-meta">9 alerts</span>
+            <span class="mock-incident-time">22m ago</span>
+          </div>
+          <div class="mock-incident">
+            <span class="severity-badge severity-medium">MEDIUM</span>
+            <span class="mock-incident-title">Anomalous DNS queries — possible C2 beacon</span>
+            <span class="mock-incident-meta">3 alerts</span>
+            <span class="mock-incident-time">31m ago</span>
+          </div>
+          <div class="mock-incident">
+            <span class="severity-badge severity-low">LOW</span>
+            <span class="mock-incident-title">Failed SSH login attempts — bastion host</span>
+            <span class="mock-incident-meta">2 alerts</span>
+            <span class="mock-incident-time">45m ago</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="mockup-caption fade-in">Real-time triage. Keyboard-native. Every incident, one view.</p>
+  </div>
+</section>
+
+<!-- ====================================
+     INTEGRATIONS
+     ==================================== -->
+<section class="section" id="integrations">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Integrations</span>
+      <h2>Connect everything.</h2>
+      <p>Eagle ingests data from any security tool. Vendor agnostic, OCSF normalized.</p>
+    </div>
+    <div class="integrations-grid stagger">
+      <span class="integration-badge">Splunk</span>
+      <span class="integration-badge">AWS GuardDuty</span>
+      <span class="integration-badge">CrowdStrike</span>
+      <span class="integration-badge">Palo Alto</span>
+      <span class="integration-badge">Microsoft Sentinel</span>
+      <span class="integration-badge">QRadar</span>
+      <span class="integration-badge">Elastic SIEM</span>
+      <span class="integration-badge">Google Chronicle</span>
+      <span class="integration-more">...and more</span>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     TRUST / COMPLIANCE
+     ==================================== -->
+<section class="section trust-section">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Enterprise Ready</span>
+      <h2>Enterprise-ready from day one.</h2>
+    </div>
+    <div class="trust-badges stagger">
+      <div class="trust-badge">
+        <div class="trust-badge-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h4>SOC 2 Ready</h4>
+        <p>Full audit trail, access controls, and compliance-ready architecture.</p>
+      </div>
+      <div class="trust-badge">
+        <div class="trust-badge-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </div>
+        <h4>Self-hosted AI</h4>
+        <p>All ML inference runs on your infrastructure. No data leaves your network.</p>
+      </div>
+      <div class="trust-badge">
+        <div class="trust-badge-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <h4>OCSF Compliant</h4>
+        <p>Open Cybersecurity Schema Framework. Industry-standard normalization.</p>
+      </div>
+      <div class="trust-badge">
+        <div class="trust-badge-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+        </div>
+        <h4>Multi-tenant Isolated</h4>
+        <p>Complete data isolation between tenants. Enterprise RBAC built in.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     CTA SECTION
+     ==================================== -->
+<section class="section cta-section" id="cta">
+  <div class="cta-watermark">
+    <svg width="400" height="400" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="22" stroke="#38BDF8" stroke-width="1"/>
+      <circle cx="24" cy="24" r="16" stroke="#38BDF8" stroke-width="1"/>
+      <circle cx="24" cy="24" r="10" stroke="#38BDF8" stroke-width="1"/>
+      <path d="M24 14 L34 24 L24 34 L14 24 Z" fill="none" stroke="#38BDF8" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="3.5" fill="#F59E0B"/>
+    </svg>
+  </div>
+  <div class="container">
+    <div class="cta-content fade-in">
+      <h2>Built for teams that can't afford to miss a threat.</h2>
+      <p>Join the early access program.</p>
+      <form class="cta-form" onsubmit="event.preventDefault();">
+        <input type="email" class="cta-input" placeholder="Enter your work email" aria-label="Email address">
+        <button type="submit" class="btn btn-primary">Request Access</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================
+     FOOTER
+     ==================================== -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-brand-logo">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="22" stroke="#38BDF8" stroke-width="1.5" opacity="0.3"/>
+            <circle cx="24" cy="24" r="16" stroke="#38BDF8" stroke-width="1.5" opacity="0.5"/>
+            <circle cx="24" cy="24" r="10" stroke="#38BDF8" stroke-width="1.5" opacity="0.7"/>
+            <path d="M24 14 L34 24 L24 34 L14 24 Z" fill="none" stroke="#38BDF8" stroke-width="2"/>
+            <circle cx="24" cy="24" r="3.5" fill="#F59E0B"/>
+          </svg>
+          <span>Eagle</span>
+        </div>
+        <p class="footer-tagline">See every threat. Miss nothing.</p>
+      </div>
+      <ul class="footer-links">
+        <li><a href="#pipeline">Platform</a></li>
+        <li><a href="#">Docs</a></li>
+        <li><a href="#">Privacy</a></li>
+        <li><a href="#">Terms</a></li>
+      </ul>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 Eagle Security. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<!-- ====================================
+     SCRIPTS
+     ==================================== -->
+<script>
+// === Particle grid background ===
+(function() {
+  const canvas = document.getElementById('heroCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let w, h, particles = [], mouse = { x: -1000, y: -1000 };
+
+  function resize() {
+    w = canvas.width = canvas.offsetWidth;
+    h = canvas.height = canvas.offsetHeight;
+  }
+
+  function initParticles() {
+    particles = [];
+    const count = Math.min(Math.floor((w * h) / 12000), 120);
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 1.5 + 0.5
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    // Draw connections
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(56, 189, 248, ${0.08 * (1 - dist / 120)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw particles
+    for (const p of particles) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.fill();
+
+      // Move
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Bounce
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  initParticles();
+  draw();
+  window.addEventListener('resize', () => { resize(); initParticles(); });
+})();
+
+// === Scroll-triggered nav style ===
+(function() {
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 60);
+  });
+})();
+
+// === Mobile nav toggle ===
+(function() {
+  const toggle = document.getElementById('navToggle');
+  const links = document.getElementById('navLinks');
+  toggle.addEventListener('click', () => {
+    links.classList.toggle('open');
+  });
+})();
+
+// === Intersection observer for fade-in / stagger ===
+(function() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.fade-in, .stagger').forEach(el => observer.observe(el));
+})();
+</script>
+
+</body>
+</html>
