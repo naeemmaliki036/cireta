@@ -1,4 +1,5 @@
 """Seed script — creates issuer, tokens, and active sales for dev/demo."""
+
 import asyncio
 import os
 import sys
@@ -78,6 +79,7 @@ async def seed():
 
         # Check if already seeded
         from sqlalchemy import select
+
         result = await db.execute(select(User).where(User.email == "issuer@cireta.com"))
         existing = result.scalar_one_or_none()
         if existing:

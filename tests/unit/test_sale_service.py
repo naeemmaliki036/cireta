@@ -236,9 +236,7 @@ class TestSaleServiceContribute:
 class TestSaleServiceList:
     """Tests for listing sales."""
 
-    async def test_list_sales(
-        self, db_session: AsyncSession, test_sale: TokenSale
-    ) -> None:
+    async def test_list_sales(self, db_session: AsyncSession, test_sale: TokenSale) -> None:
         """Test listing sales."""
         service = SaleService(db_session)
 
@@ -255,9 +253,7 @@ class TestSaleServiceList:
         service = SaleService(db_session)
         from apps.api.models.enums import SaleStatus
 
-        sales, total = await service.list_sales(
-            page=1, size=20, status_filter=SaleStatus.ACTIVE
-        )
+        sales, total = await service.list_sales(page=1, size=20, status_filter=SaleStatus.ACTIVE)
 
         assert all(s.status == SaleStatus.ACTIVE for s in sales)
 
@@ -265,9 +261,7 @@ class TestSaleServiceList:
 class TestSaleServiceGet:
     """Tests for getting a sale."""
 
-    async def test_get_sale_success(
-        self, db_session: AsyncSession, test_sale: TokenSale
-    ) -> None:
+    async def test_get_sale_success(self, db_session: AsyncSession, test_sale: TokenSale) -> None:
         """Test getting a sale by ID."""
         service = SaleService(db_session)
 

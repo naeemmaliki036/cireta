@@ -10,12 +10,6 @@ import { getPortfolio, createRedemption, type Holding } from "@/lib/api/reposito
 
 export default function RedeemTokenPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
   const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
-
-  useEffect(() => {
-    paramsPromise.then(setResolvedParams);
-  }, [paramsPromise]);
-
-  if (!resolvedParams) return null;
   const [holding, setHolding] = useState<Holding | null>(null);
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("");
@@ -24,6 +18,11 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
+    paramsPromise.then(setResolvedParams);
+  }, [paramsPromise]);
+
+  useEffect(() => {
+    if (!resolvedParams) return;
     (async () => {
       try {
         const portfolio = await getPortfolio();
@@ -32,7 +31,9 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
       } catch { /* empty */ }
       finally { setLoading(false); }
     })();
-  }, [resolvedParams.token]);
+  }, [resolvedParams]);
+
+  if (!resolvedParams) return null;
 
   const handleRedeem = async () => {
     if (!holding || !amount) return;

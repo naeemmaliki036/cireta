@@ -16,11 +16,10 @@ from apps.api.services.kyc_service import KYCService
 class TestKYCServiceInitiate:
     """Tests for KYC initiation."""
 
-    async def test_initiate_kyc_success(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_initiate_kyc_success(self, db_session: AsyncSession) -> None:
         """Test successful KYC initiation with a fresh unverified user."""
         from apps.api.models.enums import KYCStatus, UserRole
+
         # Create a fresh user with no KYC
         user = User()
         user.id = uuid4()
@@ -38,9 +37,7 @@ class TestKYCServiceInitiate:
         assert "applicant_id" in result
         assert "access_token" in result
 
-    async def test_initiate_kyc_user_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_initiate_kyc_user_not_found(self, db_session: AsyncSession) -> None:
         """Test KYC initiation for non-existent user fails."""
         service = KYCService(db_session)
 
@@ -53,9 +50,7 @@ class TestKYCServiceInitiate:
 class TestKYCServiceStatus:
     """Tests for KYC status."""
 
-    async def test_get_status(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_get_status(self, db_session: AsyncSession, test_user: User) -> None:
         """Test getting KYC status."""
         service = KYCService(db_session)
 
@@ -88,9 +83,7 @@ class TestKYCServiceWebhook:
 
         assert result is False
 
-    async def test_handle_webhook_unknown_type(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_handle_webhook_unknown_type(self, db_session: AsyncSession) -> None:
         """Test webhook handling with unknown type does nothing (no error)."""
         service = KYCService(db_session)
         # Service handle_webhook takes a pre-validated payload dict

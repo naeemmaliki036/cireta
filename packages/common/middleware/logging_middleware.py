@@ -28,9 +28,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     CORRELATION_ID_HEADER = "X-Correlation-ID"
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """Process request with logging and correlation ID."""
         # Get or generate correlation ID
         correlation_id = request.headers.get(

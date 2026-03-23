@@ -87,9 +87,7 @@ async def sumsub_webhook(
     sig_header = request.headers.get("X-Payload-Digest", "")
 
     # CRITICAL: Validate HMAC BEFORE any processing
-    if not validate_sumsub_signature(
-        body, sig_header, settings.sumsub_secret_key
-    ):
+    if not validate_sumsub_signature(body, sig_header, settings.sumsub_secret_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "INVALID_SIGNATURE", "message": "Invalid webhook signature"},
@@ -172,8 +170,10 @@ async def corporate_kyb_webhook(
         ) from None
 
     forwarded = request.headers.get("X-Forwarded-For")
-    ip_address = forwarded.split(",")[0].strip() if forwarded else (
-        request.client.host if request.client else None
+    ip_address = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else None)
     )
     await kyc_service.handle_corporate_webhook(payload, ip_address)
     return {"status": "ok"}

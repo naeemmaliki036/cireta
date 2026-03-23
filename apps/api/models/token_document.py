@@ -19,7 +19,12 @@ class TokenDocument(BaseModel):
 
     __tablename__ = "token_documents"
 
-    token_id: Mapped[PGUUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("tokens.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_id: Mapped[PGUUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("tokens.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     doc_type: Mapped[str] = mapped_column(
         Enum("prospectus", "subscription", "audit", "other", name="token_doc_type"),

@@ -45,6 +45,7 @@ async def _sumsub_request(
     body = b""
     if json:
         import json as _json
+
         body = _json.dumps(json).encode()
     sig = _sumsub_sign(secret_key, ts, method.upper(), path, body)
     headers = {
@@ -92,10 +93,14 @@ class KYCService:
         if user.kyc_status == KYCStatus.PENDING:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "APPLICATION_PENDING", "message": "KYC application already pending"},
+                detail={
+                    "code": "APPLICATION_PENDING",
+                    "message": "KYC application already pending",
+                },
             )
 
         from packages.common.core.config import get_settings
+
         settings = get_settings()
 
         applicant_id = f"cireta-{user_id}"
@@ -164,7 +169,9 @@ class KYCService:
         )
         application = app_result.scalar_one_or_none()
         return {
-            "status": user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status,
+            "status": user.kyc_status.value
+            if hasattr(user.kyc_status, "value")
+            else user.kyc_status,
             "level": user.kyc_level,
             "review_status": application.status if application else None,
             "submitted_at": application.submitted_at if application else None,
@@ -182,9 +189,7 @@ class KYCService:
         if not applicant_id:
             return
 
-        result = await self.db.execute(
-            select(User).where(User.sumsub_applicant_id == applicant_id)
-        )
+        result = await self.db.execute(select(User).where(User.sumsub_applicant_id == applicant_id))
         user = result.scalar_one_or_none()
 
         if not user and external_user_id:
@@ -226,14 +231,20 @@ class KYCService:
                     log.warning("KYC notification failed: %s", e)
                 try:
                     from packages.common.core.config import get_settings
+
                     settings = get_settings()
                     if settings.redis_url:
                         from arq import create_pool
                         from arq.connections import RedisSettings
+
                         pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
                         primary_wallet = next((w for w in user.wallets if w.is_primary), None)
                         if primary_wallet:
-                            await pool.enqueue_job("task_deploy_onchainid", str(user.id), primary_wallet.address_checksum)
+                            await pool.enqueue_job(
+                                "task_deploy_onchainid",
+                                str(user.id),
+                                primary_wallet.address_checksum,
+                            )
                 except Exception as e:
                     log.warning("ONCHAINID queue failed: %s", e)
             elif review_answer == "RED":
@@ -250,9 +261,12 @@ class KYCService:
             action=f"kyc_webhook_{event_type}",
             target_type="user",
             target_id=str(user.id),
-            payload={"applicant_id": applicant_id, "event_type": event_type,
-                     "review_status": review_status,
-                     "review_answer": review_result.get("reviewAnswer") if review_result else None},
+            payload={
+                "applicant_id": applicant_id,
+                "event_type": event_type,
+                "review_status": review_status,
+                "review_answer": review_result.get("reviewAnswer") if review_result else None,
+            },
             ip_address=ip_address,
         )
         await self.db.commit()
@@ -265,6 +279,7 @@ class KYCService:
         Dev mode: logs and skips. Production: calls web3_identity_service.
         """
         from packages.common.core.config import get_settings
+
         settings = get_settings()
         if _is_dev_mode(settings):
             log.info("Dev mode — skipping on-chain claim issuance for user %s", user.id)
@@ -274,6 +289,7 @@ class KYCService:
             return
         try:
             from apps.api.services.web3_identity_service import Web3IdentityService
+
             identity_svc = Web3IdentityService()
             await identity_svc.issue_kyc_claims(
                 onchain_id_address=user.onchain_id_address,
@@ -281,7 +297,9 @@ class KYCService:
                 country_code=user.country_code or "XX",
                 investor_type=(user.investor_type or "individual"),
             )
-            log.info("On-chain claims issued for user %s ONCHAINID %s", user.id, user.onchain_id_address)
+            log.info(
+                "On-chain claims issued for user %s ONCHAINID %s", user.id, user.onchain_id_address
+            )
         except Exception as exc:
             # Non-fatal: log error, admin can retry via compliance dashboard
             log.error("Failed to issue on-chain claims for user %s: %s", user.id, exc)
@@ -291,13 +309,18 @@ class KYCService:
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"},
+            )
         if user.kyc_status == KYCStatus.APPROVED and user.kyc_level >= 4:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail={"code": "ALREADY_VERIFIED", "message": "Corporate KYB already approved"})
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "ALREADY_VERIFIED", "message": "Corporate KYB already approved"},
+            )
 
         from packages.common.core.config import get_settings
+
         settings = get_settings()
 
         applicant_id = f"cireta-corp-{user_id}"
@@ -308,27 +331,37 @@ class KYCService:
         else:
             try:
                 applicant_resp = await _sumsub_request(
-                    "POST", "/resources/applicants?levelName=business-kyb-level",
-                    settings.sumsub_app_token, settings.sumsub_secret_key,
-                    json={"externalUserId": str(user_id), "email": user.email,
-                          "type": "company",
-                          "info": {"companyInfo": {
-                              "companyName": body.company_name,
-                              "registrationNumber": body.registration_number,
-                              "country": body.jurisdiction,
-                          }}},
+                    "POST",
+                    "/resources/applicants?levelName=business-kyb-level",
+                    settings.sumsub_app_token,
+                    settings.sumsub_secret_key,
+                    json={
+                        "externalUserId": str(user_id),
+                        "email": user.email,
+                        "type": "company",
+                        "info": {
+                            "companyInfo": {
+                                "companyName": body.company_name,
+                                "registrationNumber": body.registration_number,
+                                "country": body.jurisdiction,
+                            }
+                        },
+                    },
                 )
                 applicant_id = applicant_resp.get("id", applicant_id)
                 token_resp = await _sumsub_request(
-                    "POST", f"/resources/accessTokens?userId={applicant_id}&levelName=business-kyb-level",
-                    settings.sumsub_app_token, settings.sumsub_secret_key,
+                    "POST",
+                    f"/resources/accessTokens?userId={applicant_id}&levelName=business-kyb-level",
+                    settings.sumsub_app_token,
+                    settings.sumsub_secret_key,
                 )
                 access_token = token_resp.get("token", access_token)
             except Exception as exc:
                 log.error("Sumsub corporate API error: %s", exc)
-                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
-                                    detail={"code": "KYC_PROVIDER_ERROR",
-                                            "message": "KYC provider unavailable"}) from exc
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail={"code": "KYC_PROVIDER_ERROR", "message": "KYC provider unavailable"},
+                ) from exc
 
         application = KYCApplication()
         application.user_id = user_id
@@ -361,10 +394,13 @@ class KYCService:
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"},
+            )
         app_result = await self.db.execute(
-            select(KYCApplication).where(KYCApplication.user_id == user_id)
+            select(KYCApplication)
+            .where(KYCApplication.user_id == user_id)
             .order_by(KYCApplication.created_at.desc())
         )
         application = app_result.scalar_one_or_none()
@@ -372,7 +408,9 @@ class KYCService:
         if application and application.result_payload:
             company_name = application.result_payload.get("company_name")
         return {
-            "status": user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status,
+            "status": user.kyc_status.value
+            if hasattr(user.kyc_status, "value")
+            else user.kyc_status,
             "level": user.kyc_level,
             "company_name": company_name,
             "review_status": application.status if application else None,
@@ -380,7 +418,9 @@ class KYCService:
             "reviewed_at": application.reviewed_at if application else None,
         }
 
-    async def handle_corporate_webhook(self, payload: dict[str, Any], ip_address: str | None = None) -> None:
+    async def handle_corporate_webhook(
+        self, payload: dict[str, Any], ip_address: str | None = None
+    ) -> None:
         """Handle Sumsub corporate KYB webhook — sets kyc_level=4 on GREEN."""
         applicant_id = payload.get("applicantId")
         external_user_id = payload.get("externalUserId")
@@ -394,7 +434,9 @@ class KYCService:
         user = result.scalar_one_or_none()
         if not user and external_user_id:
             try:
-                result = await self.db.execute(select(User).where(User.id == UUID(external_user_id)))
+                result = await self.db.execute(
+                    select(User).where(User.id == UUID(external_user_id))
+                )
                 user = result.scalar_one_or_none()
             except ValueError:
                 pass
@@ -402,7 +444,8 @@ class KYCService:
             return
 
         app_result = await self.db.execute(
-            select(KYCApplication).where(KYCApplication.user_id == user.id)
+            select(KYCApplication)
+            .where(KYCApplication.user_id == user.id)
             .order_by(KYCApplication.created_at.desc())
         )
         application = app_result.scalar_one_or_none()
@@ -430,17 +473,29 @@ class KYCService:
                 user.kyc_level = 0
 
         await self._write_audit(
-            actor_id=None, action=f"kyb_webhook_{event_type}",
-            target_type="user", target_id=str(user.id),
-            payload={"applicant_id": applicant_id, "event_type": event_type,
-                     "review_answer": review_result.get("reviewAnswer") if review_result else None},
+            actor_id=None,
+            action=f"kyb_webhook_{event_type}",
+            target_type="user",
+            target_id=str(user.id),
+            payload={
+                "applicant_id": applicant_id,
+                "event_type": event_type,
+                "review_answer": review_result.get("reviewAnswer") if review_result else None,
+            },
             ip_address=ip_address,
         )
         await self.db.commit()
 
-    async def _write_audit(self, actor_id: UUID | None, action: str, target_type: str,
-                           target_id: str, payload: dict | None = None,
-                           ip_address: str | None = None, reason: str | None = None) -> AuditLog:
+    async def _write_audit(
+        self,
+        actor_id: UUID | None,
+        action: str,
+        target_type: str,
+        target_id: str,
+        payload: dict | None = None,
+        ip_address: str | None = None,
+        reason: str | None = None,
+    ) -> AuditLog:
         audit = AuditLog()
         audit.actor_id = actor_id
         audit.action = action

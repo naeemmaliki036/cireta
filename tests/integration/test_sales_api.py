@@ -15,9 +15,7 @@ from apps.api.services.auth_service import CiretaAuthService
 class TestListSalesEndpoint:
     """Tests for GET /api/v1/sales/."""
 
-    async def test_list_sales_public(
-        self, client: AsyncClient, test_sale: TokenSale
-    ) -> None:
+    async def test_list_sales_public(self, client: AsyncClient, test_sale: TokenSale) -> None:
         """Test listing sales without auth."""
         response = await client.get("/api/v1/sales/")
 
@@ -41,9 +39,7 @@ class TestListSalesEndpoint:
 class TestGetSaleEndpoint:
     """Tests for GET /api/v1/sales/{id}."""
 
-    async def test_get_sale_success(
-        self, client: AsyncClient, test_sale: TokenSale
-    ) -> None:
+    async def test_get_sale_success(self, client: AsyncClient, test_sale: TokenSale) -> None:
         """Test getting a sale by ID."""
         response = await client.get(f"/api/v1/sales/{test_sale.id}")
 
@@ -144,9 +140,7 @@ class TestContributeEndpoint:
         assert float(data["amount"]) == 1000.0
         assert data["status"] == "pending"
 
-    async def test_contribute_unauthorized(
-        self, client: AsyncClient, test_sale: TokenSale
-    ) -> None:
+    async def test_contribute_unauthorized(self, client: AsyncClient, test_sale: TokenSale) -> None:
         """Test contribution without auth."""
         response = await client.post(
             f"/api/v1/sales/{test_sale.id}/contribute",

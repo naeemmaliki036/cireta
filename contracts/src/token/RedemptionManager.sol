@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../interfaces/IToken.sol";
 
 /**
  * @title RedemptionManager
@@ -86,6 +87,10 @@ contract RedemptionManager is
         require(req.status == RedemptionStatus.Pending || req.status == RedemptionStatus.Processing, "invalid status");
         req.status = RedemptionStatus.Fulfilled;
         req.fulfilledAt = block.timestamp;
+
+        // Burn the held tokens from this contract
+        IToken(address(token)).burn(address(this), req.amount);
+
         emit RedemptionFulfilled(id, req.investor);
     }
 

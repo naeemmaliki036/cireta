@@ -34,8 +34,8 @@ contract LockModule is
 
     function name() external pure override returns (string memory) { return "LockModule"; }
 
-    function bindCompliance(address c) external override { _complianceBound[c] = true; emit ComplianceBound(c); }
-    function unbindCompliance(address c) external override { _complianceBound[c] = false; emit ComplianceUnbound(c); }
+    function bindCompliance(address c) external override onlyOwner { _complianceBound[c] = true; emit ComplianceBound(c); }
+    function unbindCompliance(address c) external override onlyOwner { _complianceBound[c] = false; emit ComplianceUnbound(c); }
     function isComplianceBound(address c) external view override returns (bool) { return _complianceBound[c]; }
     function canComplianceBind(address) external pure override returns (bool) { return true; }
 

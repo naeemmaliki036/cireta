@@ -71,13 +71,13 @@ contract ChainlinkPoRChecker is
 
     // ============ Compliance Binding ============
 
-    function bindCompliance(address compliance) external override {
+    function bindCompliance(address compliance) external override onlyOwner {
         require(compliance != address(0), "zero address");
         _complianceBound[compliance] = true;
         emit ComplianceBound(compliance);
     }
 
-    function unbindCompliance(address compliance) external override {
+    function unbindCompliance(address compliance) external override onlyOwner {
         require(_complianceBound[compliance], "not bound");
         _complianceBound[compliance] = false;
         emit ComplianceUnbound(compliance);

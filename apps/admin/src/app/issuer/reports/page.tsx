@@ -1,6 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
+import { apiFetch } from "@/lib/api/client";
 
 const REPORTS = [
   { type: "sales", label: "Sales Report", description: "Per-sale breakdown of contributions, phases, and OTC." },
@@ -10,16 +11,11 @@ const REPORTS = [
 ];
 
 export default function ReportsPage() {
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-
   const downloadReport = async (type: string) => {
     try {
-      const res = await fetch(`${apiBase}/api/v1/admin/issuer/reports/${type}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const blob = await apiFetch<Blob>(`/api/v1/admin/issuer/reports/${type}`, {
+        headers: { Accept: "text/csv" },
       });
-      if (!res.ok) throw new Error("Report generation failed");
-      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -27,7 +23,7 @@ export default function ReportsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert("Report download failed. Endpoint may not be implemented yet.");
+      console.error("Report download failed. Endpoint may not be implemented yet.");
     }
   };
 

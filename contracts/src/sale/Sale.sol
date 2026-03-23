@@ -60,6 +60,10 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     mapping(address => Contribution) public contributions;
     mapping(address => uint256) public totalContributed;
 
+    // Per-block contribution limit (front-running protection)
+    uint256 public maxPerBlock;
+    mapping(uint256 => uint256) private _blockContributions;
+
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
     event ContributionMade(address indexed contributor, uint256 indexed phaseId, uint256 amount, uint256 tokensAllocated);
@@ -115,6 +119,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         hardCap = _hardCap;
         feeBasisPoints = _feeBasisPoints;
         feeCapUsdc = _feeCapUsdc;
+        maxPerBlock = 50_000 * 1e6; // 50,000 USDC default per-block cap
         status = SaleStatus.Draft;
     }
 
@@ -171,6 +176,11 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         }
     }
 
+    function setMaxPerBlock(uint256 _maxPerBlock) external onlyOwner {
+        require(_maxPerBlock > 0, "zero max per block");
+        maxPerBlock = _maxPerBlock;
+    }
+
     // ── Contribute ───────────────────────────────────────────────────────────
 
     function contribute(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
@@ -181,6 +191,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         require(amount >= phase.minContribution, "below min");
         require(totalContributed[msg.sender] + amount <= phase.maxContribution, "exceeds max");
         require(totalRaised + amount <= hardCap, "exceeds hard cap");
+        require(_blockContributions[block.number] + amount <= maxPerBlock, "exceeds block limit");
         require(identityRegistry.isVerified(msg.sender), "KYC required");
         if (phase.whitelistOnly) require(whitelisted[phaseId][msg.sender], "not whitelisted");
 
@@ -192,6 +203,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         phase.sold += tokensToAllocate;
         totalRaised += amount;
         totalContributed[msg.sender] += amount;
+        _blockContributions[block.number] += amount;
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
 
@@ -227,7 +239,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
 
     // ── Finalization ─────────────────────────────────────────────────────────
 
-    function finalizeSale() external onlyIssuerOrOwner {
+    function finalizeSale() external onlyIssuerOrOwner nonReentrant {
         require(
             status == SaleStatus.Active || status == SaleStatus.Paused,
             "cannot finalize"

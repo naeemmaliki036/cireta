@@ -195,9 +195,7 @@ async def test_token(db_session: AsyncSession, test_issuer: Issuer) -> Token:
 
 
 @pytest_asyncio.fixture
-async def test_sale(
-    db_session: AsyncSession, test_token: Token, test_issuer: Issuer
-) -> TokenSale:
+async def test_sale(db_session: AsyncSession, test_token: Token, test_issuer: Issuer) -> TokenSale:
     """Create a test token sale with phases."""
     sale = TokenSale()
     sale.id = uuid4()
@@ -256,18 +254,14 @@ def auth_headers(test_user: User, auth_service: CiretaAuthService) -> dict[str, 
 
 
 @pytest.fixture
-def issuer_auth_headers(
-    test_issuer_user: User, auth_service: CiretaAuthService
-) -> dict[str, str]:
+def issuer_auth_headers(test_issuer_user: User, auth_service: CiretaAuthService) -> dict[str, str]:
     """Generate authorization headers for issuer user."""
     access_token = auth_service.create_access_token(test_issuer_user.id)
     return {"Authorization": f"Bearer {access_token}"}
 
 
 @pytest.fixture
-def admin_auth_headers(
-    test_admin_user: User, auth_service: CiretaAuthService
-) -> dict[str, str]:
+def admin_auth_headers(test_admin_user: User, auth_service: CiretaAuthService) -> dict[str, str]:
     """Generate authorization headers for admin user."""
     access_token = auth_service.create_access_token(test_admin_user.id)
     return {"Authorization": f"Bearer {access_token}"}

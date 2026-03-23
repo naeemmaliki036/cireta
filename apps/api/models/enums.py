@@ -41,6 +41,11 @@ class SaleStatus(str, Enum):
     FAILED = "failed"
 
 
+class SaleMode(str, Enum):
+    DIRECT = "direct"
+    VESTED = "vested"
+
+
 class ContributionStatus(str, Enum):
     PENDING = "pending"
     CONFIRMED = "confirmed"

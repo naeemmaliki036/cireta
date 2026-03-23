@@ -1,5 +1,7 @@
 """Railway start script — reads PORT from env, bypasses Railway's uvicorn injection."""
+
 import os
+
 import uvicorn
 
 port = int(os.environ.get("PORT", "8000"))

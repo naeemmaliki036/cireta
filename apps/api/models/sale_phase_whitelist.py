@@ -13,7 +13,9 @@ class SalePhaseWhitelist(BaseModel):
     __tablename__ = "sale_phase_whitelists"
 
     phase_id: Mapped[PGUUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("sale_phases.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("sale_phases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     wallet_address: Mapped[str] = mapped_column(String(42), nullable=False, index=True)

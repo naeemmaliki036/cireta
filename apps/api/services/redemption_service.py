@@ -62,9 +62,7 @@ class RedemptionService:
             )
 
         # Check token exists
-        token_result = await self.db.execute(
-            select(Token).where(Token.id == token_id)
-        )
+        token_result = await self.db.execute(select(Token).where(Token.id == token_id))
         token = token_result.scalar_one_or_none()
 
         if not token:

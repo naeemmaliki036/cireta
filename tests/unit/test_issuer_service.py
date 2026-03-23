@@ -14,9 +14,7 @@ from apps.api.services.issuer_service import IssuerService
 class TestIssuerServiceOnboard:
     """Tests for issuer onboarding."""
 
-    async def test_onboard_issuer_success(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_onboard_issuer_success(self, db_session: AsyncSession, test_user: User) -> None:
         """Test successful issuer onboarding."""
         service = IssuerService(db_session)
 
@@ -35,9 +33,7 @@ class TestIssuerServiceOnboard:
         assert issuer.slug is not None
         assert issuer.status == "pending"
 
-    async def test_onboard_issuer_user_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_onboard_issuer_user_not_found(self, db_session: AsyncSession) -> None:
         """Test onboarding fails for non-existent user."""
         service = IssuerService(db_session)
 
@@ -57,9 +53,7 @@ class TestIssuerServiceOnboard:
 class TestIssuerServiceList:
     """Tests for listing issuers."""
 
-    async def test_list_issuers(
-        self, db_session: AsyncSession, test_issuer: Issuer
-    ) -> None:
+    async def test_list_issuers(self, db_session: AsyncSession, test_issuer: Issuer) -> None:
         """Test listing issuers."""
         service = IssuerService(db_session)
 
@@ -99,9 +93,7 @@ class TestIssuerServiceFee:
 
         assert issuer.fee_bps == 300
 
-    async def test_set_fee_issuer_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_set_fee_issuer_not_found(self, db_session: AsyncSession) -> None:
         """Test setting fee for non-existent issuer fails."""
         service = IssuerService(db_session)
 
@@ -135,9 +127,7 @@ class TestIssuerServiceRevoke:
 
         assert issuer.status == "suspended"
 
-    async def test_revoke_issuer_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_revoke_issuer_not_found(self, db_session: AsyncSession) -> None:
         """Test revoking non-existent issuer fails."""
         service = IssuerService(db_session)
 

@@ -29,9 +29,7 @@ class MetricsCollector:
 
     # Request metrics
     request_count: dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    request_latency: dict[str, list[float]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    request_latency: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
     error_count: dict[str, dict[str, int]] = field(
         default_factory=lambda: defaultdict(lambda: defaultdict(int))
     )
@@ -83,9 +81,7 @@ class MetricsCollector:
             self.db_query_count += 1
             self.db_query_latency.append(duration_ms)
             if len(self.db_query_latency) > self._max_latency_samples:
-                self.db_query_latency = self.db_query_latency[
-                    -self._max_latency_samples :
-                ]
+                self.db_query_latency = self.db_query_latency[-self._max_latency_samples :]
 
     def record_cache_hit(self) -> None:
         """Record a cache hit."""
@@ -105,9 +101,7 @@ class MetricsCollector:
         """
         with self._lock:
             total_requests = sum(self.request_count.values())
-            total_errors = sum(
-                sum(errors.values()) for errors in self.error_count.values()
-            )
+            total_errors = sum(sum(errors.values()) for errors in self.error_count.values())
 
             # Compute endpoint stats
             endpoint_stats = {}

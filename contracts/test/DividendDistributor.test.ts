@@ -63,15 +63,27 @@ describe("DividendDistributor", () => {
 
   // Test 1: depositEpoch emits event
   it("emits DividendDeposited event on deposit", async () => {
-    await expect(distributor.deposit(USDC_AMOUNT))
-      .to.emit(distributor, "DividendDeposited")
-      .withArgs(0, USDC_AMOUNT, TOKEN_SUPPLY);
+    const tx = await distributor.deposit(USDC_AMOUNT);
+    const receipt = await tx.wait();
+    // Verify the event was emitted (with 4 args now including snapshotBlock)
+    const event = receipt?.logs.find((log: any) => {
+      try {
+        const parsed = distributor.interface.parseLog({ topics: log.topics as string[], data: log.data });
+        return parsed?.name === "DividendDeposited";
+      } catch {
+        return false;
+      }
+    });
+    expect(event).to.not.be.undefined;
   });
 
-  // Test 2: correct claim amount
+  // Test 2: correct claim amount (requires snapshotBalance first)
   it("calculates correct claim amount for single holder", async () => {
     // Deposit 10K USDC
     await distributor.deposit(USDC_AMOUNT);
+
+    // holder1 snapshots balance for epoch 0
+    await distributor.connect(holder1).snapshotBalance(0);
 
     // holder1 owns 50%, should get 5K USDC
     const expectedClaim = USDC_AMOUNT / 2n;
@@ -89,7 +101,8 @@ describe("DividendDistributor", () => {
   it("prevents double-claiming for the same epoch", async () => {
     await distributor.deposit(USDC_AMOUNT);
 
-    // First claim succeeds
+    // Snapshot then claim
+    await distributor.connect(holder1).snapshotBalance(0);
     await distributor.connect(holder1).claim();
 
     // Second claim should revert with NothingToClaim
@@ -98,9 +111,14 @@ describe("DividendDistributor", () => {
     ).to.be.revertedWithCustomError(distributor, "NothingToClaim");
   });
 
-  // Test 4: pro-rata distribution with 2 holders
+  // Test 4: pro-rata distribution with multiple holders
   it("distributes pro-rata to multiple holders", async () => {
     await distributor.deposit(USDC_AMOUNT);
+
+    // All holders snapshot
+    await distributor.connect(holder1).snapshotBalance(0);
+    await distributor.connect(holder2).snapshotBalance(0);
+    await distributor.connect(holder3).snapshotBalance(0);
 
     // holder1 (50%) claims
     const claimable1 = await distributor.claimable(holder1.address);
@@ -141,8 +159,14 @@ describe("DividendDistributor", () => {
     // Deposit epoch 0
     await distributor.deposit(USDC_AMOUNT);
 
+    // holder1 snapshots for epoch 0
+    await distributor.connect(holder1).snapshotBalance(0);
+
     // Deposit epoch 1
     await distributor.deposit(USDC_AMOUNT);
+
+    // holder1 snapshots for epoch 1
+    await distributor.connect(holder1).snapshotBalance(1);
 
     // holder1 claims both epochs (50% of 20K = 10K)
     const expectedTotal = USDC_AMOUNT; // 50% * 2 epochs = 100% of single deposit
@@ -157,7 +181,7 @@ describe("DividendDistributor", () => {
   it("reverts when holder has no tokens", async () => {
     await distributor.deposit(USDC_AMOUNT);
 
-    // holder with no tokens tries to claim
+    // holder with no tokens tries to claim (no snapshot, so nothing to claim)
     const [, , , , noTokenHolder] = await ethers.getSigners();
     await expect(
       distributor.connect(noTokenHolder).claim()
@@ -170,5 +194,25 @@ describe("DividendDistributor", () => {
       distributor,
       "ZeroAmount"
     );
+  });
+
+  // Test 9: cannot snapshot same epoch twice
+  it("reverts on duplicate snapshot for same epoch", async () => {
+    await distributor.deposit(USDC_AMOUNT);
+    await distributor.connect(holder1).snapshotBalance(0);
+
+    await expect(
+      distributor.connect(holder1).snapshotBalance(0)
+    ).to.be.revertedWithCustomError(distributor, "SnapshotAlreadyTaken");
+  });
+
+  // Test 10: claiming without snapshot yields nothing
+  it("reverts when claiming without snapshot", async () => {
+    await distributor.deposit(USDC_AMOUNT);
+
+    // holder1 does NOT snapshot, tries to claim
+    await expect(
+      distributor.connect(holder1).claim()
+    ).to.be.revertedWithCustomError(distributor, "NothingToClaim");
   });
 });

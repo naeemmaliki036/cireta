@@ -47,7 +47,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(
-        request: Request, exc: StarletteHTTPException  # noqa: ARG001
+        request: Request,  # noqa: ARG001
+        exc: StarletteHTTPException,
     ) -> JSONResponse:
         """Handle HTTP exceptions with consistent error format."""
         if isinstance(exc.detail, dict):
@@ -70,7 +71,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def request_validation_handler(
-        request: Request, exc: RequestValidationError  # noqa: ARG001
+        request: Request,  # noqa: ARG001
+        exc: RequestValidationError,
     ) -> JSONResponse:
         """Handle FastAPI request validation errors."""
         return JSONResponse(
@@ -94,7 +96,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(ValidationError)
     async def validation_handler(
-        request: Request, exc: ValidationError  # noqa: ARG001
+        request: Request,  # noqa: ARG001
+        exc: ValidationError,
     ) -> JSONResponse:
         """Handle Pydantic validation errors."""
         return JSONResponse(
@@ -118,7 +121,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def general_exception_handler(
-        request: Request, exc: Exception  # noqa: ARG001
+        request: Request,  # noqa: ARG001
+        exc: Exception,
     ) -> JSONResponse:
         """Handle unexpected exceptions."""
         logger.error(f"Unexpected error: {exc}", exc_info=True)

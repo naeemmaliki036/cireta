@@ -78,7 +78,7 @@ export async function resetPassword(token: string, new_password: string): Promis
 export async function updateProfile(token: string, data: { display_name?: string }): Promise<User> {
   return apiFetch<User>("/api/v1/users/profile", {
     method: "PATCH",
-    headers: { Authorization: `Bearer ${token}` },
+    token,
     body: data,
   });
 }

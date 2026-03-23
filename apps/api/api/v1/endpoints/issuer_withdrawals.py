@@ -1,4 +1,5 @@
 """Issuer withdrawal endpoints — withdraw raised funds from finalized sales."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,7 +15,9 @@ from apps.api.models.token_sale import TokenSale
 from packages.common.core.auth_deps import CurrentUserId
 from packages.common.db.session import get_db
 
-router = APIRouter(prefix="/issuer/withdrawals", tags=["issuer"])  # mounted under /api/v1 by router.py
+router = APIRouter(
+    prefix="/issuer/withdrawals", tags=["issuer"]
+)  # mounted under /api/v1 by router.py
 
 
 class WithdrawalSummary(BaseModel):
@@ -42,7 +45,9 @@ class WithdrawalListResponse(BaseModel):
 
 
 async def _get_issuer(user_id: str, db: AsyncSession) -> Issuer:
-    row = (await db.execute(select(Issuer).where(Issuer.user_id == UUID(user_id)))).scalar_one_or_none()
+    row = (
+        await db.execute(select(Issuer).where(Issuer.user_id == UUID(user_id)))
+    ).scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not an issuer")
     return row
@@ -62,15 +67,22 @@ async def list_withdrawals(
     )
     sales = (await db.execute(q)).scalars().all()
 
+    from decimal import Decimal
+
     total_raised = sum(s.total_raised for s in sales)
+    total_withdrawn = sum(getattr(s, "total_withdrawn", None) or Decimal("0") for s in sales)
+    available = total_raised - total_withdrawn
+
     records = [
         WithdrawalRecord(
             id=str(s.id),
             sale_id=str(s.id),
             sale_name=None,
-            amount=str(s.total_raised),
+            amount=str(s.total_raised - (getattr(s, "total_withdrawn", None) or Decimal("0"))),
             token="USDC",
-            status="available",
+            status="available"
+            if (s.total_raised - (getattr(s, "total_withdrawn", None) or Decimal("0"))) > 0
+            else "withdrawn",
             tx_hash=None,
             requested_at=s.created_at,
             completed_at=None,
@@ -80,9 +92,9 @@ async def list_withdrawals(
 
     return WithdrawalListResponse(
         summary=WithdrawalSummary(
-            available=str(total_raised),
+            available=str(available),
             pending="0",
-            total_withdrawn="0",
+            total_withdrawn=str(total_withdrawn),
         ),
         items=records,
         total=len(records),
@@ -119,8 +131,11 @@ async def execute_withdrawal(
         )
 
     from decimal import Decimal
+
     amount = Decimal(request.amount)
-    if amount <= 0 or amount > sale.total_raised:
+    total_withdrawn = getattr(sale, "total_withdrawn", None) or Decimal("0")
+    available = sale.total_raised - total_withdrawn
+    if amount <= 0 or amount > available:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid withdrawal amount",
@@ -147,15 +162,33 @@ async def execute_withdrawal(
                     "type": "function",
                 }
             ]
-            amount_int = int(float(amount) * (10 ** 6))  # USDC = 6 decimals
+            amount_int = int(Decimal(str(amount)) * Decimal(10**6))  # USDC = 6 decimals
             receipt = await web3_svc.execute_contract(
-                sale.payment_token, transfer_abi, "transfer",
-                _W3.to_checksum_address(issuer.wallet_address), amount_int,
+                sale.payment_token,
+                transfer_abi,
+                "transfer",
+                _W3.to_checksum_address(issuer.wallet_address),
+                amount_int,
             )
             tx_hash = receipt.transactionHash.hex() if receipt else None
     except Exception:
         import logging
-        logging.getLogger(__name__).warning("On-chain withdrawal transfer failed")
+
+        logging.getLogger(__name__).error(
+            "On-chain withdrawal transfer failed for sale=%s amount=%s",
+            sale_id,
+            amount,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="On-chain withdrawal transfer failed. Please retry.",
+        ) from None
+
+    # Track withdrawn amount on the sale to prevent double-withdrawal
+    current_withdrawn = getattr(sale, "total_withdrawn", None) or Decimal("0")
+    sale.total_withdrawn = current_withdrawn + amount
+    await db.commit()
 
     return {
         "message": "Withdrawal initiated",

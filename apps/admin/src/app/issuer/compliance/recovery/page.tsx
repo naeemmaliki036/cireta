@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api/client";
 
 export default function TokenRecoveryPage() {
   const [form, setForm] = useState({
@@ -11,20 +12,19 @@ export default function TokenRecoveryPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const confirmed = window.confirm(
+      "Are you sure you want to execute this token recovery? This action is irreversible and will be recorded on-chain."
+    );
+    if (!confirmed) return;
     setSubmitting(true);
     setMessage("");
     try {
-      const res = await fetch(`${apiBase}/api/v1/admin/compliance/recover`, {
+      await apiFetch("/api/v1/admin/compliance/recover", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: form,
       });
-      if (!res.ok) throw new Error("Recovery request failed");
       setMessage("Token recovery submitted successfully. Tokens will be moved to the new wallet.");
       setForm({ lost_wallet: "", new_wallet: "", onchain_id: "", reason: "", token_id: "" });
     } catch (e: unknown) {

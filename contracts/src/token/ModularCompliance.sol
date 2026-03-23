@@ -77,7 +77,8 @@ contract ModularCompliance is
 
         _modules.push(module);
         _moduleBound[module] = true;
-        IComplianceModule(module).bindCompliance(address(this));
+        // NOTE: Owner must call module.bindCompliance(address(this)) separately
+        // since compliance modules restrict binding to onlyOwner.
 
         emit ModuleAdded(module);
     }
@@ -86,7 +87,8 @@ contract ModularCompliance is
         require(_moduleBound[module], "module not bound");
 
         _moduleBound[module] = false;
-        IComplianceModule(module).unbindCompliance(address(this));
+        // NOTE: Owner must call module.unbindCompliance(address(this)) separately
+        // since compliance modules restrict unbinding to onlyOwner.
 
         // Remove from array
         uint256 length = _modules.length;

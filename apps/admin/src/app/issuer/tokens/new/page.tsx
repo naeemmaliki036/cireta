@@ -10,6 +10,8 @@ import {
   StepTokenDetails, StepDocumentation, StepCompliance, StepDeploy,
   type TokenFormData,
 } from "@/lib/tokenFormSteps";
+import { createToken, deployToken } from "@/lib/api/repositories/tokens";
+import { getAccessToken } from "@/lib/api/client";
 
 const STEPS = [
   { id: 1, title: "Token Details", icon: Coins },
@@ -26,10 +28,34 @@ export default function CreateTokenPage() {
     name: "", symbol: "", assetType: "commodity", totalSupply: "", decimals: "18", description: "",
   });
 
+  const [deployError, setDeployError] = useState<string | null>(null);
+  const [deploySuccess, setDeploySuccess] = useState(false);
+
   const handleDeploy = async () => {
     setIsDeploying(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    setIsDeploying(false);
+    setDeployError(null);
+    try {
+      const token = getAccessToken() ?? "";
+      // Step 1: Create the token in the backend
+      const created = await createToken(
+        {
+          name: formData.name,
+          symbol: formData.symbol,
+          asset_type: formData.assetType,
+          total_supply: formData.totalSupply,
+          decimals: formData.decimals,
+          description: formData.description,
+        },
+        token,
+      );
+      // Step 2: Deploy the token contract on-chain
+      await deployToken(created.id, token);
+      setDeploySuccess(true);
+    } catch (err) {
+      setDeployError(err instanceof Error ? err.message : "Deployment failed");
+    } finally {
+      setIsDeploying(false);
+    }
   };
 
   const toggleModule = (id: string) => {
@@ -84,9 +110,16 @@ export default function CreateTokenPage() {
           <Button variant="primary" onClick={() => setCurrentStep(currentStep + 1)}
             rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
         ) : (
-          <Button variant="primary" onClick={handleDeploy} isLoading={isDeploying}>
-            {isDeploying ? "Deploying..." : "Deploy Token"}
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            {deployError && <p className="text-red-600 text-sm">{deployError}</p>}
+            {deploySuccess ? (
+              <Button variant="primary" disabled>Token Deployed</Button>
+            ) : (
+              <Button variant="primary" onClick={handleDeploy} isLoading={isDeploying}>
+                {isDeploying ? "Deploying..." : "Deploy Token"}
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </IssuerDashboardLayout>

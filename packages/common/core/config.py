@@ -43,19 +43,17 @@ class Settings(BaseSettings):
     # Security
     jwt_secret_key: str = Field(default="")
     jwt_algorithm: str = Field(default=DEFAULTS["JWT_ALGORITHM"])
-    access_token_expire_seconds: int = Field(
-        default=DEFAULTS["ACCESS_TOKEN_EXPIRE_SECONDS"]
-    )
-    refresh_token_expire_seconds: int = Field(
-        default=DEFAULTS["REFRESH_TOKEN_EXPIRE_SECONDS"]
-    )
+    access_token_expire_seconds: int = Field(default=DEFAULTS["ACCESS_TOKEN_EXPIRE_SECONDS"])
+    refresh_token_expire_seconds: int = Field(default=DEFAULTS["REFRESH_TOKEN_EXPIRE_SECONDS"])
 
     # Encryption
     encryption_key: str = Field(default="")
 
     # Server
     api_host: str = Field(default=DEFAULTS["API_HOST"])
-    api_port: int = Field(default=DEFAULTS["API_PORT"], validation_alias=AliasChoices("api_port", "PORT"))
+    api_port: int = Field(
+        default=DEFAULTS["API_PORT"], validation_alias=AliasChoices("api_port", "PORT")
+    )
     workers: int = Field(default=DEFAULTS["WORKERS"])
 
     # CORS
@@ -88,6 +86,7 @@ class Settings(BaseSettings):
 
     # Token factory (deployed via contracts/scripts/deploy.ts)
     token_factory_address: str = Field(default="")
+    modular_compliance_address: str = Field(default=DEFAULTS["MODULAR_COMPLIANCE_ADDRESS"])
 
     # External services
     pinata_api_key: str = Field(default="")
@@ -119,21 +118,13 @@ class Settings(BaseSettings):
         """Fail fast if security settings are missing in production."""
         if self.environment in ("production", "staging"):
             if not self.jwt_secret_key:
-                raise ValueError(
-                    "JWT_SECRET_KEY must be set in production/staging environments"
-                )
+                raise ValueError("JWT_SECRET_KEY must be set in production/staging environments")
             if not self.encryption_key:
-                raise ValueError(
-                    "ENCRYPTION_KEY must be set in production/staging environments"
-                )
+                raise ValueError("ENCRYPTION_KEY must be set in production/staging environments")
             if not self.sumsub_secret_key:
-                raise ValueError(
-                    "SUMSUB_SECRET_KEY must be set in production/staging environments"
-                )
+                raise ValueError("SUMSUB_SECRET_KEY must be set in production/staging environments")
             if self.debug:
-                raise ValueError(
-                    "DEBUG must be False in production/staging environments"
-                )
+                raise ValueError("DEBUG must be False in production/staging environments")
 
     @property
     def is_development(self) -> bool:

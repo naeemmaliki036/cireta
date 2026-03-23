@@ -103,7 +103,7 @@ contract CiretaTokenFactory is
         string calldata symbol,
         uint8 decimals,
         address issuer
-    ) external returns (
+    ) external onlyOwner returns (
         address tokenProxy,
         address identityRegistryProxy,
         address complianceProxy

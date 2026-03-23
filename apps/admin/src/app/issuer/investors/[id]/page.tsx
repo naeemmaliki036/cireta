@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { apiFetch, getAccessToken } from "@/lib/api/client";
 
 interface InvestorDetail {
   id: string;
@@ -21,15 +22,12 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const [investor, setInvestor] = useState<InvestorDetail | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    fetch(`${apiBase}/api/v1/admin/investors/`, {
-      headers: { Authorization: `Bearer ${token}` },
+    apiFetch<{ investors: InvestorDetail[] }>("/api/v1/admin/investors/", {
+      token: getAccessToken() ?? undefined,
     })
-      .then((r) => r.json())
       .then((data) => {
         const found = (data.investors ?? []).find((i: InvestorDetail) => i.id === id);
         setInvestor(found ?? null);
@@ -41,13 +39,20 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
   const handleFreeze = async () => {
     if (!investor) return;
     const wallet = investor.wallet_addresses[0];
-    if (!wallet) return alert("No wallet to freeze");
-    await fetch(`${apiBase}/api/v1/admin/compliance/freeze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ address: wallet, reason: "Admin action from investor detail" }),
-    });
-    alert("Freeze action submitted.");
+    if (!wallet) { setActionMessage({ type: "error", text: "No wallet to freeze" }); return; }
+    const confirmed = window.confirm(
+      `Are you sure you want to freeze tokens for wallet ${wallet}? This action will be logged in the audit trail.`
+    );
+    if (!confirmed) return;
+    try {
+      await apiFetch("/api/v1/admin/compliance/freeze", {
+        method: "POST",
+        body: { address: wallet, reason: "Admin action from investor detail" },
+      });
+      setActionMessage({ type: "success", text: "Freeze action submitted." });
+    } catch {
+      setActionMessage({ type: "error", text: "Failed to freeze tokens." });
+    }
   };
 
   if (loading) return <div className="p-8 text-white/40 text-sm">Loading...</div>;
@@ -84,6 +89,13 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
           ))
         )}
       </div>
+      {actionMessage && (
+        <div className={`rounded-lg px-4 py-3 mb-4 text-sm ${
+          actionMessage.type === "success" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
+        }`}>
+          {actionMessage.text}
+        </div>
+      )}
       <div className="flex gap-3">
         {!investor.is_frozen && (
           <button onClick={handleFreeze}

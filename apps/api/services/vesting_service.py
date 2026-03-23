@@ -42,9 +42,7 @@ class VestingService:
             Created vesting schedule.
         """
         # Verify token exists
-        token_result = await self.db.execute(
-            select(Token).where(Token.id == token_id)
-        )
+        token_result = await self.db.execute(select(Token).where(Token.id == token_id))
         if not token_result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

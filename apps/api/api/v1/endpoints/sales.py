@@ -67,7 +67,13 @@ def _sale_to_response(sale) -> SaleResponse:
         token_name=sale.token.name if sale.token else None,
         token_symbol=sale.token.symbol if sale.token else None,
         token_slug=sale.token.slug if sale.token else None,
-        token_asset_type=(sale.token.asset_type.value if hasattr(sale.token.asset_type, "value") else sale.token.asset_type) if sale.token else None,
+        token_asset_type=(
+            sale.token.asset_type.value
+            if hasattr(sale.token.asset_type, "value")
+            else sale.token.asset_type
+        )
+        if sale.token
+        else None,
         token_description=sale.token.description if sale.token else None,
         token_image_url=sale.token.image_url if sale.token else None,
         issuer_name=sale.issuer.name if sale.issuer else None,
@@ -89,7 +95,6 @@ def _contribution_to_response(contrib) -> ContributionResponse:
     )
 
 
-
 @router.get("/by-slug/{slug}", response_model=SaleResponse)
 async def get_sale_by_slug(
     slug: str,
@@ -102,6 +107,7 @@ async def get_sale_by_slug(
     sale = await sale_service.get_sale_by_token_slug(slug)
     if not sale:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Project not found")
     return _sale_to_response(sale)
 
@@ -185,10 +191,13 @@ async def contribute(
 
         from apps.api.models.user import User as _User
         from apps.api.services.notification_service import NotificationService as _NS
+
         _res = await sale_service.db.execute(_select(_User).where(_User.id == user_id))
         _user = _res.scalar_one_or_none()
         if _user:
-            _token_symbol = contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
+            _token_symbol = (
+                contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
+            )
             await _NS(sale_service.db).notify_investment_confirmed(
                 user_id, _user.email, str(request.amount), _token_symbol, request.tx_hash
             )
@@ -260,24 +269,48 @@ async def otc_allocate(
     issuer = issuer_result.scalar_one_or_none()
     if not issuer:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=403, detail="Issuer access required")
 
-    sale_result = await db.execute(select(TokenSale).where(TokenSale.id == sale_id, TokenSale.issuer_id == issuer.id))
+    sale_result = await db.execute(
+        select(TokenSale).where(TokenSale.id == sale_id, TokenSale.issuer_id == issuer.id)
+    )
     sale = sale_result.scalar_one_or_none()
     if not sale:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Sale not found")
+
+    # Look up investor by wallet address to attribute contribution correctly
+    from apps.api.models.wallet import Wallet
+
+    wallet_result = await db.execute(
+        select(Wallet).where(Wallet.address == request.investor_wallet)
+    )
+    investor_wallet = wallet_result.scalar_one_or_none()
+    investor_user_id = investor_wallet.user_id if investor_wallet else None
 
     # Create OTC contribution (is_otc=True, excluded from fee base)
     contrib = Contribution()
-    contrib.user_id = user_id  # issuer's user_id as placeholder — in prod link to investor user
+    contrib.user_id = investor_user_id  # attribute to investor, not issuer
     contrib.sale_id = sale_id
-    contrib.phase_id = (await db.execute(
-        select(SalePhase).where(SalePhase.sale_id == sale_id).order_by(SalePhase.phase_number).limit(1)
-    )).scalar_one().id
+    contrib.phase_id = (
+        (
+            await db.execute(
+                select(SalePhase)
+                .where(SalePhase.sale_id == sale_id)
+                .order_by(SalePhase.phase_number)
+                .limit(1)
+            )
+        )
+        .scalar_one()
+        .id
+    )
     contrib.amount = Decimal("0")  # OTC — no on-platform USDC
     contrib.tokens_allocated = Decimal(str(request.token_amount))
-    contrib.tx_hash = f"otc-{sale_id}-{request.investor_wallet[:8]}-{int(__import__('time').time())}"
+    contrib.tx_hash = (
+        f"otc-{sale_id}-{request.investor_wallet[:8]}-{int(__import__('time').time())}"
+    )
     contrib.is_otc = True
     contrib.otc_reference = request.payment_reference
     contrib.wallet_address = request.investor_wallet

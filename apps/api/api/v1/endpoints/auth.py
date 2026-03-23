@@ -82,6 +82,7 @@ async def login(
     from sqlalchemy import select
 
     from apps.api.models.user import User
+
     # Pre-check for brute force before calling login
     db = auth_service.db
     result = await db.execute(select(User).where(User.email == request.email.lower()))
@@ -90,7 +91,9 @@ async def login(
         await auth_service.check_brute_force(user)
 
     try:
-        user_obj, access_token, refresh_token = await auth_service.login(request.email, request.password)
+        user_obj, access_token, refresh_token = await auth_service.login(
+            request.email, request.password
+        )
     except HTTPException:
         if user:
             await auth_service.record_failed_login(user)
@@ -151,7 +154,9 @@ async def reset_password(
     """Reset password using signed token."""
     success = await auth_service.reset_password(request.token, request.new_password)
     if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token"
+        )
     return MessageResponse(message="Password reset successfully. Please log in.")
 
 
@@ -163,7 +168,9 @@ async def verify_email(
     """Verify email address from signed token link."""
     user = await auth_service.verify_email(token)
     if not user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification link")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification link"
+        )
     return MessageResponse(message="Email verified successfully.")
 
 
@@ -178,7 +185,9 @@ async def get_current_user(
         id=str(user.id),
         email=user.email,
         role=(user.role.value if hasattr(user.role, "value") else user.role),
-        kyc_status=(user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status),
+        kyc_status=(
+            user.kyc_status.value if hasattr(user.kyc_status, "value") else user.kyc_status
+        ),
         kyc_level=user.kyc_level,
         display_name=user.display_name,
         email_verified=user.email_verified,

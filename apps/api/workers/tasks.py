@@ -17,6 +17,7 @@ async def task_send_email(
 ) -> None:
     """Send a transactional email via Resend."""
     from apps.api.services import email_service as es
+
     dispatch = {
         "email_verify": es.send_email_verify,
         "password_reset": es.send_password_reset,
@@ -56,6 +57,7 @@ async def task_deploy_onchainid(
 
     try:
         from apps.api.services.web3_identity_service import Web3IdentityService
+
         svc = Web3IdentityService()
         identity_address = await svc.deploy_identity(wallet_address)
         logger.info("ONCHAINID deployed for user=%s identity=%s", user_id, identity_address)
@@ -73,7 +75,9 @@ async def task_register_wallet_on_chain(
     country_code: int = 0,
 ) -> None:
     """Register a wallet in Identity Registry for each token after KYC approval."""
-    logger.info("Registering wallet=%s in %d identity registries", wallet_address, len(token_addresses))
+    logger.info(
+        "Registering wallet=%s in %d identity registries", wallet_address, len(token_addresses)
+    )
     from packages.common.core.config import settings
 
     if getattr(settings, "environment", "development") == "development":
@@ -82,14 +86,23 @@ async def task_register_wallet_on_chain(
 
     try:
         from apps.api.services.web3_identity_service import Web3IdentityService
+
         svc = Web3IdentityService()
         for token_addr in token_addresses:
-            await svc.register_identity(wallet_address, onchain_id_address, country_code, token_addr)
-            logger.info("Registered wallet=%s in IdentityRegistry of token=%s", wallet_address, token_addr)
+            await svc.register_identity(
+                wallet_address, onchain_id_address, country_code, token_addr
+            )
+            logger.info(
+                "Registered wallet=%s in IdentityRegistry of token=%s", wallet_address, token_addr
+            )
     except AttributeError:
         # register_identity not yet implemented on web3_identity_service
         for token_addr in token_addresses:
-            logger.info("Would register wallet=%s in IdentityRegistry of token=%s", wallet_address, token_addr)
+            logger.info(
+                "Would register wallet=%s in IdentityRegistry of token=%s",
+                wallet_address,
+                token_addr,
+            )
     except Exception as e:
         logger.error("Identity registry failed: %s", e)
         raise
@@ -104,13 +117,12 @@ async def task_index_contribution(
     """Verify on-chain contribution and update DB status."""
     logger.info("Indexing contribution tx=%s sale=%s", tx_hash, sale_id)
     from sqlalchemy import select
-    from packages.common.db.session import AsyncSessionLocal
+
     from apps.api.models.contribution import Contribution
+    from packages.common.db.session import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(Contribution).where(Contribution.tx_hash == tx_hash)
-        )
+        result = await db.execute(select(Contribution).where(Contribution.tx_hash == tx_hash))
         contribution = result.scalar_one_or_none()
         if not contribution:
             logger.warning("Contribution not found for tx=%s", tx_hash)
@@ -121,6 +133,7 @@ async def task_index_contribution(
 
         try:
             from apps.api.services.web3_service import Web3Service
+
             svc = Web3Service()
             receipt = svc.w3.eth.get_transaction_receipt(tx_hash)
             if receipt is None:
@@ -146,20 +159,21 @@ async def task_release_vesting(
     """Check all active vesting schedules and release claimable tokens (off-chain accounting)."""
     logger.info("Running vesting release sweep")
     from sqlalchemy import select
-    from packages.common.db.session import AsyncSessionLocal
+
     from apps.api.models.vesting_schedule import VestingSchedule
+    from packages.common.db.session import AsyncSessionLocal
 
     now = datetime.now(UTC)
     released_count = 0
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(VestingSchedule).where(VestingSchedule.status == "active")
-        )
+        result = await db.execute(select(VestingSchedule).where(VestingSchedule.status == "active"))
         schedules = result.scalars().all()
 
         for schedule in schedules:
-            cliff_end = getattr(schedule, "cliff_end_date", None) or getattr(schedule, "cliff_end", None)
+            cliff_end = getattr(schedule, "cliff_end_date", None) or getattr(
+                schedule, "cliff_end", None
+            )
             if cliff_end and cliff_end > now:
                 continue  # Still in cliff period
 
@@ -207,5 +221,7 @@ class WorkerSettings:
     @classmethod
     def redis_settings(cls):  # type: ignore[override]
         from arq.connections import RedisSettings
+
         from packages.common.core.config import settings
+
         return RedisSettings.from_dsn(settings.redis_url or "redis://localhost:6379")

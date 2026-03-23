@@ -49,9 +49,7 @@ class TokenService:
             HTTPException: If user is not an issuer.
         """
         # Get issuer for user
-        result = await self.db.execute(
-            select(Issuer).where(Issuer.user_id == user_id)
-        )
+        result = await self.db.execute(select(Issuer).where(Issuer.user_id == user_id))
         issuer = result.scalar_one_or_none()
 
         if not issuer:
@@ -67,9 +65,7 @@ class TokenService:
             )
 
         # Check symbol uniqueness
-        existing = await self.db.execute(
-            select(Token).where(Token.symbol == symbol.upper())
-        )
+        existing = await self.db.execute(select(Token).where(Token.symbol == symbol.upper()))
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -108,9 +104,7 @@ class TokenService:
         """
         # Get token with issuer
         result = await self.db.execute(
-            select(Token)
-            .options(selectinload(Token.issuer))
-            .where(Token.id == token_id)
+            select(Token).options(selectinload(Token.issuer)).where(Token.id == token_id)
         )
         token = result.scalar_one_or_none()
 
@@ -135,6 +129,7 @@ class TokenService:
 
         # Deploy ERC-3643 contract via CiretaTokenFactory
         from apps.api.services.web3_token_service import Web3TokenService
+
         web3_svc = Web3TokenService()
         issuer_wallet = token.issuer.wallet_address or web3_svc.deployer_address or ""
 

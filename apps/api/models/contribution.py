@@ -25,14 +25,24 @@ class Contribution(BaseModel):
 
     __tablename__ = "contributions"
 
-    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    sale_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("token_sales.id", ondelete="CASCADE"), index=True)
-    phase_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("sale_phases.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    sale_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("token_sales.id", ondelete="CASCADE"), index=True
+    )
+    phase_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("sale_phases.id", ondelete="CASCADE"), index=True
+    )
     amount: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18))
     tokens_allocated: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18))
     tx_hash: Mapped[str] = mapped_column(String(66), unique=True, index=True)
-    status: Mapped[ContributionStatus] = mapped_column(String(20), default=ContributionStatus.PENDING)
-    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    status: Mapped[ContributionStatus] = mapped_column(
+        String(20), default=ContributionStatus.PENDING
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     # OTC fields
     is_otc: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.common.models.base import BaseModel
+from packages.common.models.encrypted_types import EncryptedString
 
 
 class AuditLog(BaseModel):
@@ -63,7 +64,7 @@ class AuditLog(BaseModel):
     )
 
     ip_address: Mapped[str | None] = mapped_column(
-        String(45),  # IPv6 max length
+        EncryptedString(),  # IPv6 max length — encrypted for GDPR
         nullable=True,
     )
 

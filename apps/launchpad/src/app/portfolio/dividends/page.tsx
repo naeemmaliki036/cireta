@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Coins } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
-import { getAccessToken } from "@/lib/api/client";
+import { apiFetch } from "@/lib/api/client";
 
 interface DividendEntry {
   token_symbol: string;
@@ -18,12 +18,7 @@ export default function DividendsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) { setLoading(false); return; }
-    fetch("/api/v1/portfolio/dividends", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    apiFetch<{ dividends: DividendEntry[] }>("/api/v1/portfolio/dividends")
       .then((data) => setDividends(data.dividends ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));

@@ -7,7 +7,7 @@ import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { StatCard, DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
-import { getWithdrawals, type WithdrawalRecord } from "@/lib/api/repositories/withdrawals";
+import { getWithdrawals, executeWithdrawal, type WithdrawalRecord } from "@/lib/api/repositories/withdrawals";
 import { getAccessToken } from "@/lib/api/client";
 
 function getToken() {
@@ -43,6 +43,8 @@ export default function WithdrawalsPage() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [available, setAvailable] = useState(0);
   const [pending, setPending] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
@@ -103,6 +105,7 @@ export default function WithdrawalsPage() {
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-box rounded-xl"><X className="h-5 w-5" /></button>
             </div>
             <p className="text-sm text-darkBlack/50 mb-4">Available: {formatCurrency(available)} USDC</p>
+            {withdrawError && <p className="text-sm text-red-600 mb-4">{withdrawError}</p>}
             <Input label="Amount (USDC)" type="number" value={withdrawAmount}
               onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" className="mb-2" />
             <button onClick={() => setWithdrawAmount(available.toString())}
@@ -112,8 +115,29 @@ export default function WithdrawalsPage() {
             <div className="flex gap-4">
               <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
               <Button variant="primary" className="flex-1"
-                disabled={!withdrawAmount || parseFloat(withdrawAmount) > available}>
-                Confirm Withdrawal
+                disabled={!withdrawAmount || parseFloat(withdrawAmount) > available || withdrawing}
+                onClick={async () => {
+                  setWithdrawError(null);
+                  setWithdrawing(true);
+                  try {
+                    const firstAvailable = records.find((r) => r.status === "available");
+                    if (!firstAvailable) throw new Error("No available sale found");
+                    await executeWithdrawal(firstAvailable.sale_id, withdrawAmount, getToken());
+                    setShowModal(false);
+                    setWithdrawAmount("");
+                    // Refresh data
+                    const data = await getWithdrawals(getToken());
+                    setAvailable(parseFloat(data.summary.available));
+                    setPending(parseFloat(data.summary.pending));
+                    setTotalWithdrawn(parseFloat(data.summary.total_withdrawn));
+                    setRecords(data.items);
+                  } catch (err) {
+                    setWithdrawError(err instanceof Error ? err.message : "Withdrawal failed");
+                  } finally {
+                    setWithdrawing(false);
+                  }
+                }}>
+                {withdrawing ? "Processing..." : "Confirm Withdrawal"}
               </Button>
             </div>
           </motion.div>

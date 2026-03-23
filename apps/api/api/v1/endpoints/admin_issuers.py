@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import IssuerStatus
@@ -163,11 +164,25 @@ async def get_platform_stats(_user_id: RequireAdmin, db: AsyncSession = Depends(
     from apps.api.models.user import User
 
     total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
-    total_issuers = (await db.execute(select(func.count(Issuer.id)).where(Issuer.is_whitelisted == True))).scalar_one()  # noqa: E712
-    active_sales = (await db.execute(select(func.count(TokenSale.id)).where(TokenSale.status == "active"))).scalar_one()
-    tvl = (await db.execute(select(func.coalesce(func.sum(Contribution.amount), 0)).where(Contribution.tokens_claimed == True))).scalar_one()  # noqa: E712
-    total_raised = (await db.execute(select(func.coalesce(func.sum(Contribution.amount), 0)))).scalar_one()
-    fees_collected = (await db.execute(select(func.coalesce(func.sum(TokenSale.platform_fee_collected), 0)))).scalar_one()
+    total_issuers = (
+        await db.execute(select(func.count(Issuer.id)).where(Issuer.is_whitelisted.is_(True)))
+    ).scalar_one()
+    active_sales = (
+        await db.execute(select(func.count(TokenSale.id)).where(TokenSale.status == "active"))
+    ).scalar_one()
+    tvl = (
+        await db.execute(
+            select(func.coalesce(func.sum(Contribution.amount), 0)).where(
+                Contribution.tokens_claimed.is_(True)
+            )
+        )
+    ).scalar_one()
+    total_raised = (
+        await db.execute(select(func.coalesce(func.sum(Contribution.amount), 0)))
+    ).scalar_one()
+    fees_collected = (
+        await db.execute(select(func.coalesce(func.sum(TokenSale.platform_fee_collected), 0)))
+    ).scalar_one()
 
     return {
         "total_users": total_users,
@@ -179,31 +194,58 @@ async def get_platform_stats(_user_id: RequireAdmin, db: AsyncSession = Depends(
     }
 
 
-# In-memory platform settings store (in production, persist to DB or Redis)
-_platform_settings: dict[str, str] = {
+_DEFAULT_SETTINGS: dict[str, str] = {
     "default_fee_bps": "200",
     "blocked_countries": "US",
     "kyc_min_level": "2",
 }
 
 
+async def _load_settings(db: AsyncSession) -> dict[str, str]:
+    """Load platform settings from the database, falling back to defaults."""
+    from apps.api.models.platform_setting import PlatformSetting
+
+    result = await db.execute(select(PlatformSetting))
+    rows = result.scalars().all()
+    stored = {row.key: row.value for row in rows}
+    return {**_DEFAULT_SETTINGS, **stored}
+
+
+async def _upsert_setting(db: AsyncSession, key: str, value: str) -> None:
+    """Insert or update a single platform setting in the database."""
+    from apps.api.models.platform_setting import PlatformSetting
+
+    result = await db.execute(select(PlatformSetting).where(PlatformSetting.key == key))
+    existing = result.scalar_one_or_none()
+    if existing:
+        existing.value = value
+    else:
+        db.add(PlatformSetting(key=key, value=value))
+
+
 @router.get("/platform/settings")
-async def get_platform_settings(_user_id: RequireAdmin) -> dict:
+async def get_platform_settings(
+    _user_id: RequireAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """Get current platform settings."""
-    return _platform_settings
+    return await _load_settings(db)
 
 
 @router.patch("/platform/settings")
 async def update_platform_settings(
     _user_id: RequireAdmin,
     request: PlatformSettingsRequest,
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Update platform-wide settings (fee rates, blocked countries, etc.)."""
     if request.default_fee_bps is not None:
-        _platform_settings["default_fee_bps"] = request.default_fee_bps
+        await _upsert_setting(db, "default_fee_bps", request.default_fee_bps)
     if request.blocked_countries is not None:
-        _platform_settings["blocked_countries"] = request.blocked_countries
+        await _upsert_setting(db, "blocked_countries", request.blocked_countries)
     if request.kyc_min_level is not None:
-        _platform_settings["kyc_min_level"] = request.kyc_min_level
+        await _upsert_setting(db, "kyc_min_level", request.kyc_min_level)
 
-    return {"message": "Settings updated", **_platform_settings}
+    await db.commit()
+    current = await _load_settings(db)
+    return {"message": "Settings updated", **current}

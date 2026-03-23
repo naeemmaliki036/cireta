@@ -50,15 +50,17 @@ class WalletService:
         if not verify_wallet_signature(address, signature, nonce):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "INVALID_SIGNATURE", "message": "Wallet signature verification failed"},
+                detail={
+                    "code": "INVALID_SIGNATURE",
+                    "message": "Wallet signature verification failed",
+                },
             )
 
         # Check not already linked
         from web3 import Web3
+
         checksum = Web3.to_checksum_address(address)
-        existing = await self.db.execute(
-            select(Wallet).where(Wallet.address_checksum == checksum)
-        )
+        existing = await self.db.execute(select(Wallet).where(Wallet.address_checksum == checksum))
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -84,6 +86,7 @@ class WalletService:
 
     async def unlink_wallet(self, user_id: UUID, address: str) -> None:
         from web3 import Web3
+
         checksum = Web3.to_checksum_address(address)
         result = await self.db.execute(
             select(Wallet).where(Wallet.user_id == user_id, Wallet.address_checksum == checksum)
@@ -94,13 +97,17 @@ class WalletService:
         if wallet.is_primary:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "PRIMARY_WALLET", "message": "Cannot remove primary wallet. Set another as primary first."},
+                detail={
+                    "code": "PRIMARY_WALLET",
+                    "message": "Cannot remove primary wallet. Set another as primary first.",
+                },
             )
         await self.db.delete(wallet)
         await self.db.commit()
 
     async def set_primary(self, user_id: UUID, address: str) -> Wallet:
         from web3 import Web3
+
         checksum = Web3.to_checksum_address(address)
         # Unset all primaries for this user
         all_wallets = await self.list_wallets(user_id)

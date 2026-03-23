@@ -156,7 +156,7 @@ class BaseHttpClient:
 
             # Exponential backoff
             if attempt < self.max_retries - 1:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
 
         raise last_error or RuntimeError("Request failed after all retries")
 

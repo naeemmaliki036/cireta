@@ -41,6 +41,11 @@ class TokenResponse(BaseModel):
     slug: str | None = None
     description: str | None = None
     image_url: str | None = None
+    identity_registry_address: str | None = None
+    compliance_address: str | None = None
+    sale_contract_address: str | None = None
+    vault_address: str | None = None
+    fraction_token_address: str | None = None
 
     class Config:
         from_attributes = True

@@ -65,6 +65,7 @@ class NotificationService:
         self, user_id: UUID, user_email: str, amount: str, token_symbol: str, tx_hash: str
     ) -> None:
         from apps.api.services.email_service import send_investment_confirmed
+
         await self.create(
             user_id=user_id,
             notif_type=INVESTMENT_CONFIRMED,
@@ -78,6 +79,7 @@ class NotificationService:
 
     async def notify_kyc_approved(self, user_id: UUID, user_email: str, kyc_level: int) -> None:
         from apps.api.services.email_service import send_kyc_approved
+
         await self.create(
             user_id=user_id,
             notif_type=KYC_APPROVED,
@@ -91,6 +93,7 @@ class NotificationService:
 
     async def notify_kyc_rejected(self, user_id: UUID, user_email: str, reason: str = "") -> None:
         from apps.api.services.email_service import send_kyc_rejected
+
         await self.create(
             user_id=user_id,
             notif_type=KYC_REJECTED,
@@ -106,6 +109,7 @@ class NotificationService:
         self, user_id: UUID, user_email: str, token_symbol: str, success: bool
     ) -> None:
         from apps.api.services.email_service import send_sale_finalized
+
         if success:
             title = "Tokens Available to Claim"
             message = f"The {token_symbol} sale has finalized. Your tokens are ready to claim."
@@ -127,6 +131,7 @@ class NotificationService:
         self, user_id: UUID, user_email: str, token_symbol: str
     ) -> None:
         from apps.api.services.email_service import send_redemption_fulfilled
+
         await self.create(
             user_id=user_id,
             notif_type=REDEMPTION_FULFILLED,

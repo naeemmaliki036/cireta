@@ -13,8 +13,11 @@ class NotificationPreferences(BaseModel):
     __tablename__ = "notification_preferences"
 
     user_id: Mapped[PGUUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
-        unique=True, nullable=False, index=True
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
     )
 
     # Investment updates

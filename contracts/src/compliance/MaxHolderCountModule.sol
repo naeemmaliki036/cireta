@@ -52,13 +52,13 @@ contract MaxHolderCountModule is
 
     // ============ Compliance Binding ============
 
-    function bindCompliance(address compliance) external override {
+    function bindCompliance(address compliance) external override onlyOwner {
         require(compliance != address(0), "zero address");
         _complianceBound[compliance] = true;
         emit ComplianceBound(compliance);
     }
 
-    function unbindCompliance(address compliance) external override {
+    function unbindCompliance(address compliance) external override onlyOwner {
         require(_complianceBound[compliance], "not bound");
         _complianceBound[compliance] = false;
         emit ComplianceUnbound(compliance);
@@ -106,10 +106,10 @@ contract MaxHolderCountModule is
 
         address token = ICompliance(compliance).getTokenBound();
 
-        // Handle sender becoming non-holder
+        // Handle sender becoming non-holder (post-transfer: balance already reduced)
         if (from != address(0) && _isHolder[compliance][from]) {
-            // Check if sender will have zero balance after transfer
-            if (IToken(token).balanceOf(from) == amount) {
+            // After transfer, if balance is zero the holder has fully exited
+            if (IToken(token).balanceOf(from) == 0) {
                 _isHolder[compliance][from] = false;
                 _holderCount[compliance]--;
                 emit HolderRemoved(compliance, from);
@@ -141,7 +141,7 @@ contract MaxHolderCountModule is
 
         address token = ICompliance(compliance).getTokenBound();
 
-        if (_isHolder[compliance][from] && IToken(token).balanceOf(from) == amount) {
+        if (_isHolder[compliance][from] && IToken(token).balanceOf(from) == 0) {
             _isHolder[compliance][from] = false;
             _holderCount[compliance]--;
             emit HolderRemoved(compliance, from);

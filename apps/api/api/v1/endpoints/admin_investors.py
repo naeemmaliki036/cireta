@@ -1,4 +1,5 @@
 """Admin investors endpoint — list users with investor role."""
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -1,11 +1,15 @@
 """Health check endpoints for Kubernetes liveness and readiness probes."""
 
+import logging
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.common.db.session import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -41,7 +45,8 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> HealthResponse:
         await db.execute(text("SELECT 1"))
         details["database"] = "connected"
     except Exception as e:
-        details["database"] = f"error: {str(e)}"
+        logger.error("Readiness probe database check failed: %s", str(e))
+        details["database"] = "database unavailable"
         return HealthResponse(status="unhealthy", details=details)
 
     return HealthResponse(status="ok", details=details)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api/client";
 
 interface Redemption {
   id: string;
@@ -22,15 +23,9 @@ export default function RedemptionsPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-
   const fetchRedemptions = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/v1/admin/redemptions`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await apiFetch<{ redemptions: Redemption[] }>("/api/v1/admin/redemptions");
       setRedemptions(data.redemptions ?? []);
     } catch { /* ignore */ } finally { setLoading(false); }
   };
@@ -40,10 +35,9 @@ export default function RedemptionsPage() {
   const updateStatus = async (id: string, status: string) => {
     setUpdating(id);
     try {
-      await fetch(`${apiBase}/api/v1/admin/redemptions/${id}`, {
+      await apiFetch(`/api/v1/admin/redemptions/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status }),
+        body: { status },
       });
       fetchRedemptions();
     } catch { /* ignore */ } finally { setUpdating(null); }

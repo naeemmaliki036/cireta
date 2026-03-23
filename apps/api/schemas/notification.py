@@ -27,11 +27,11 @@ class UnreadCountResponse(BaseModel):
 
 
 class NotificationPreferences(BaseModel):
-    email_investments: bool = True
-    email_kyc: bool = True
-    email_sales: bool = True
+    email_investment_updates: bool = True
+    email_kyc_status: bool = True
+    email_sale_announcements: bool = True
     email_dividends: bool = True
-    inapp_investments: bool = True
-    inapp_kyc: bool = True
-    inapp_sales: bool = True
+    inapp_investment_updates: bool = True
+    inapp_kyc_status: bool = True
+    inapp_sale_announcements: bool = True
     inapp_dividends: bool = True

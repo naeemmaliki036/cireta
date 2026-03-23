@@ -1,6 +1,5 @@
 """Unit tests for ComplianceService."""
 
-
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession

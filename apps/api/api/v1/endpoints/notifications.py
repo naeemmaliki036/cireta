@@ -49,9 +49,9 @@ async def list_notifications(
 
     # Count unread
     count_result = await db.execute(
-        select(func.count()).select_from(Notification).where(
-            Notification.user_id == user_id, Notification.read.is_(False)
-        )
+        select(func.count())
+        .select_from(Notification)
+        .where(Notification.user_id == user_id, Notification.read.is_(False))
     )
     unread_count = count_result.scalar() or 0
 
@@ -68,9 +68,9 @@ async def unread_count(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UnreadCountResponse:
     result = await db.execute(
-        select(func.count()).select_from(Notification).where(
-            Notification.user_id == user_id, Notification.read.is_(False)
-        )
+        select(func.count())
+        .select_from(Notification)
+        .where(Notification.user_id == user_id, Notification.read.is_(False))
     )
     return UnreadCountResponse(count=result.scalar() or 0)
 
@@ -95,17 +95,15 @@ async def mark_all_read(
     user_id: CurrentUserId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    await db.execute(
-        update(Notification)
-        .where(Notification.user_id == user_id)
-        .values(read=True)
-    )
+    await db.execute(update(Notification).where(Notification.user_id == user_id).values(read=True))
     await db.commit()
     return {"message": "All marked as read"}
 
 
 @router.get("/preferences", response_model=NotificationPreferences)
-async def get_preferences(user_id: CurrentUserId, db: AsyncSession = Depends(get_db)) -> NotificationPreferences:
+async def get_preferences(
+    user_id: CurrentUserId, db: AsyncSession = Depends(get_db)
+) -> NotificationPreferences:
     """Get notification preferences for the current user (persisted in DB)."""
     from apps.api.models.notification_preferences import NotificationPreferences as NPModel
 
@@ -117,13 +115,13 @@ async def get_preferences(user_id: CurrentUserId, db: AsyncSession = Depends(get
         await db.commit()
         await db.refresh(prefs)
     return NotificationPreferences(
-        email_investments=prefs.email_investment_updates,
-        email_kyc=prefs.email_kyc_status,
-        email_sales=prefs.email_sale_announcements,
+        email_investment_updates=prefs.email_investment_updates,
+        email_kyc_status=prefs.email_kyc_status,
+        email_sale_announcements=prefs.email_sale_announcements,
         email_dividends=prefs.email_dividends,
-        inapp_investments=prefs.inapp_investment_updates,
-        inapp_kyc=prefs.inapp_kyc_status,
-        inapp_sales=prefs.inapp_sale_announcements,
+        inapp_investment_updates=prefs.inapp_investment_updates,
+        inapp_kyc_status=prefs.inapp_kyc_status,
+        inapp_sale_announcements=prefs.inapp_sale_announcements,
         inapp_dividends=prefs.inapp_dividends,
     )
 

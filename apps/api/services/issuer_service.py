@@ -54,9 +54,7 @@ class IssuerService:
             )
 
         # Check not already an issuer
-        existing_result = await self.db.execute(
-            select(Issuer).where(Issuer.user_id == user_id)
-        )
+        existing_result = await self.db.execute(select(Issuer).where(Issuer.user_id == user_id))
         if existing_result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -64,9 +62,7 @@ class IssuerService:
             )
 
         # Check slug uniqueness
-        slug_result = await self.db.execute(
-            select(Issuer).where(Issuer.slug == slug)
-        )
+        slug_result = await self.db.execute(select(Issuer).where(Issuer.slug == slug))
         if slug_result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

@@ -3,6 +3,7 @@
 Chain ID: 8453 (Base Mainnet)
 """
 
+import asyncio
 from decimal import Decimal
 from typing import Any
 
@@ -53,23 +54,17 @@ class Web3BaseService:
                 "type": "function",
             }
         ]
-        contract = self.w3.eth.contract(
-            address=Web3.to_checksum_address(contract_address), abi=abi
-        )
-        balance = contract.functions.balanceOf(
-            Web3.to_checksum_address(wallet_address)
-        ).call()
+        contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
+        balance = contract.functions.balanceOf(Web3.to_checksum_address(wallet_address)).call()
         return Decimal(balance) / Decimal(10**decimals)
 
-    async def send_transaction(
-        self, to: str, value: int = 0, data: bytes = b""
-    ) -> TxReceipt:
+    async def send_transaction(self, to: str, value: int = 0, data: bytes = b"") -> TxReceipt:
         """Sign and send a raw transaction."""
         if not self._account:
             raise ValueError("No deployer account configured")
         checksum_to = Web3.to_checksum_address(to)
-        nonce = self.w3.eth.get_transaction_count(self._account.address)
-        gas_price = self.w3.eth.gas_price
+        nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
+        gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
         tx: dict[str, Any] = {
             "chainId": self.chain_id,
             "to": checksum_to,
@@ -79,18 +74,16 @@ class Web3BaseService:
             "nonce": nonce,
             "data": data,
         }
-        tx["gas"] = self.w3.eth.estimate_gas(tx)
+        tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
         signed = self._account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        return self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_hash = await asyncio.to_thread(self.w3.eth.send_raw_transaction, signed.raw_transaction)
+        return await asyncio.to_thread(self.w3.eth.wait_for_transaction_receipt, tx_hash)
 
     async def call_contract(
         self, contract_address: str, abi: list, function_name: str, *args: Any
     ) -> Any:
         """Call a contract view function (no gas)."""
-        contract = self.w3.eth.contract(
-            address=Web3.to_checksum_address(contract_address), abi=abi
-        )
+        contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
         function = getattr(contract.functions, function_name)
         return function(*args).call()
 
@@ -100,12 +93,10 @@ class Web3BaseService:
         """Execute a state-changing contract function."""
         if not self._account:
             raise ValueError("No deployer account configured")
-        contract = self.w3.eth.contract(
-            address=Web3.to_checksum_address(contract_address), abi=abi
-        )
+        contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
         function = getattr(contract.functions, function_name)
-        nonce = self.w3.eth.get_transaction_count(self._account.address)
-        gas_price = self.w3.eth.gas_price
+        nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
+        gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
         tx = function(*args).build_transaction(
             {
                 "chainId": self.chain_id,
@@ -115,7 +106,7 @@ class Web3BaseService:
                 "nonce": nonce,
             }
         )
-        tx["gas"] = self.w3.eth.estimate_gas(tx)
+        tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
         signed = self._account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        return self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_hash = await asyncio.to_thread(self.w3.eth.send_raw_transaction, signed.raw_transaction)
+        return await asyncio.to_thread(self.w3.eth.wait_for_transaction_receipt, tx_hash)

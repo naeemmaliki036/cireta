@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api/client";
 
 interface OTCRecord {
   id: string;
@@ -20,8 +21,6 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-
   const fetchRecords = async () => {
     // In production: fetch OTC contributions for this sale
     // For now show empty state
@@ -35,12 +34,10 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/sales/${id}/otc`, {
+      await apiFetch(`/api/v1/sales/${id}/otc`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...form, token_amount: parseFloat(form.token_amount) }),
+        body: { ...form, token_amount: parseFloat(form.token_amount) },
       });
-      if (!res.ok) throw new Error("Failed to create OTC allocation");
       setSuccess("OTC allocation recorded successfully.");
       setForm({ investor_wallet: "", token_amount: "", payment_reference: "", notes: "" });
       fetchRecords();

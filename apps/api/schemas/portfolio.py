@@ -36,6 +36,8 @@ class VestingScheduleResponse(BaseModel):
     vesting_end: datetime
     cliff_passed: bool
     last_claim_at: datetime | None
+    is_revocable: bool = True
+    is_revoked: bool = False
 
     class Config:
         from_attributes = True
@@ -71,6 +73,8 @@ class RedemptionResponse(BaseModel):
     tx_hash: str | None
     fulfilled_at: datetime | None
     notes: str | None
+    rejection_reason: str | None = None
+    delivery_details: str | None = None
     created_at: datetime
 
     class Config:

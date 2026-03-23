@@ -80,8 +80,14 @@ def _redemption_to_response(redemption) -> RedemptionResponse:
         token_id=str(redemption.token_id),
         token_symbol=redemption.token.symbol,
         amount=str(redemption.amount),
-        fulfillment_method=(redemption.fulfillment_method.value if hasattr(redemption.fulfillment_method, "value") else redemption.fulfillment_method),
-        status=(redemption.status.value if hasattr(redemption.status, "value") else redemption.status),
+        fulfillment_method=(
+            redemption.fulfillment_method.value
+            if hasattr(redemption.fulfillment_method, "value")
+            else redemption.fulfillment_method
+        ),
+        status=(
+            redemption.status.value if hasattr(redemption.status, "value") else redemption.status
+        ),
         tx_hash=redemption.tx_hash,
         fulfilled_at=redemption.fulfilled_at,
         notes=redemption.notes,
@@ -172,7 +178,11 @@ async def create_redemption(
         user_id=user_id,
         token_id=UUID(request.token_id),
         amount=request.amount,
-        fulfillment_method=(request.fulfillment_method.value if hasattr(request.fulfillment_method, "value") else request.fulfillment_method),
+        fulfillment_method=(
+            request.fulfillment_method.value
+            if hasattr(request.fulfillment_method, "value")
+            else request.fulfillment_method
+        ),
         notes=request.notes,
     )
 
@@ -224,30 +234,38 @@ async def get_transactions(
     txs = []
 
     contribs = await db.execute(
-        select(Contribution).where(Contribution.user_id == user_id)
-        .order_by(Contribution.created_at.desc()).limit(limit)
+        select(Contribution)
+        .where(Contribution.user_id == user_id)
+        .order_by(Contribution.created_at.desc())
+        .limit(limit)
     )
     for c in contribs.scalars().all():
-        txs.append({
-            "type": "investment",
-            "amount": str(c.amount),
-            "tx_hash": c.tx_hash,
-            "status": c.status if isinstance(c.status, str) else c.status.value,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-        })
+        txs.append(
+            {
+                "type": "investment",
+                "amount": str(c.amount),
+                "tx_hash": c.tx_hash,
+                "status": c.status if isinstance(c.status, str) else c.status.value,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+        )
 
     redemptions = await db.execute(
-        select(RedemptionRequest).where(RedemptionRequest.user_id == user_id)
-        .order_by(RedemptionRequest.created_at.desc()).limit(limit)
+        select(RedemptionRequest)
+        .where(RedemptionRequest.user_id == user_id)
+        .order_by(RedemptionRequest.created_at.desc())
+        .limit(limit)
     )
     for r in redemptions.scalars().all():
-        txs.append({
-            "type": "redemption",
-            "amount": str(r.amount),
-            "tx_hash": r.tx_hash,
-            "status": r.status if isinstance(r.status, str) else r.status.value,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        })
+        txs.append(
+            {
+                "type": "redemption",
+                "amount": str(r.amount),
+                "tx_hash": r.tx_hash,
+                "status": r.status if isinstance(r.status, str) else r.status.value,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+        )
 
     txs.sort(key=lambda x: x["created_at"] or "", reverse=True)
     return {"transactions": txs[:limit], "total": len(txs)}

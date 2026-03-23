@@ -36,3 +36,35 @@ export async function getTokens(
 export async function getToken(id: string, token?: string): Promise<Token> {
   return apiFetch<Token>(`/api/v1/tokens/${id}`, { token });
 }
+
+export async function createToken(
+  data: {
+    name: string;
+    symbol: string;
+    asset_type: string;
+    total_supply: string;
+    decimals?: string;
+    description?: string;
+  },
+  token?: string,
+): Promise<Token> {
+  return apiFetch<Token>("/api/v1/tokens/", {
+    method: "POST",
+    body: {
+      ...data,
+      total_supply: data.total_supply,
+      decimals: parseInt(data.decimals ?? "18", 10),
+    },
+    token,
+  });
+}
+
+export async function deployToken(
+  tokenId: string,
+  accessToken?: string,
+): Promise<Token> {
+  return apiFetch<Token>(`/api/v1/tokens/${tokenId}/deploy`, {
+    method: "POST",
+    token: accessToken,
+  });
+}

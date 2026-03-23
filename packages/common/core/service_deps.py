@@ -9,9 +9,7 @@ from packages.common.db.session import get_db
 from packages.common.services.auth_service import AuthService
 
 
-async def get_auth_service(
-    db: Annotated[Session, Depends(get_db)]
-) -> AuthService:
+async def get_auth_service(db: Annotated[Session, Depends(get_db)]) -> AuthService:
     """Factory function for AuthService.
 
     Usage in endpoints:

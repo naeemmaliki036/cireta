@@ -44,9 +44,7 @@ class TestVestingServiceCreate:
 class TestVestingServiceGet:
     """Tests for getting vesting schedules."""
 
-    async def test_get_schedules_empty(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_get_schedules_empty(self, db_session: AsyncSession, test_user: User) -> None:
         """Test getting schedules when none exist."""
         service = VestingService(db_session)
 
@@ -73,9 +71,7 @@ class TestVestingServiceGet:
             vesting_end=now + timedelta(days=180),
         )
 
-        schedules = await service.get_schedules(
-            user_id=test_user.id, token_id=test_token.id
-        )
+        schedules = await service.get_schedules(user_id=test_user.id, token_id=test_token.id)
 
         assert len(schedules) >= 1
         assert all(s.token_id == test_token.id for s in schedules)

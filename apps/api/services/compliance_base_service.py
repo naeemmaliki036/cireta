@@ -73,9 +73,7 @@ class ComplianceBaseService:
             HTTPException: If not authorized.
         """
         result = await self.db.execute(
-            select(User)
-            .options(selectinload(User.issuer))
-            .where(User.id == user_id)
+            select(User).options(selectinload(User.issuer)).where(User.id == user_id)
         )
         user = result.scalar_one_or_none()
 
@@ -98,9 +96,7 @@ class ComplianceBaseService:
 
         # If token specified, verify ownership
         if token_id and require_issuer:
-            token_result = await self.db.execute(
-                select(Token).where(Token.id == token_id)
-            )
+            token_result = await self.db.execute(select(Token).where(Token.id == token_id))
             token = token_result.scalar_one_or_none()
 
             if not token or token.issuer_id != user.issuer.id:
@@ -140,11 +136,15 @@ class ComplianceBaseService:
             if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
                 try:
                     from apps.api.services.web3_token_service import Web3TokenService
+
                     web3_svc = Web3TokenService()
                     await web3_svc.freeze_address(token.contract_address, wallet_address)
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).warning("On-chain freeze failed, proceeding with DB-only")
+
+                    logging.getLogger(__name__).warning(
+                        "On-chain freeze failed, proceeding with DB-only"
+                    )
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -188,11 +188,15 @@ class ComplianceBaseService:
             if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
                 try:
                     from apps.api.services.web3_token_service import Web3TokenService
+
                     web3_svc = Web3TokenService()
                     await web3_svc.unfreeze_address(token.contract_address, wallet_address)
                 except Exception:
                     import logging
-                    logging.getLogger(__name__).warning("On-chain unfreeze failed, proceeding with DB-only")
+
+                    logging.getLogger(__name__).warning(
+                        "On-chain unfreeze failed, proceeding with DB-only"
+                    )
 
         audit = await self._write_audit(
             actor_id=actor_id,

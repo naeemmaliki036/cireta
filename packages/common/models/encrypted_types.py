@@ -79,9 +79,7 @@ class EncryptedJSON(TypeDecorator[dict[str, Any]]):
     impl = Text
     cache_ok = True
 
-    def process_bind_param(
-        self, value: dict[str, Any] | None, _dialect: Any
-    ) -> str | None:
+    def process_bind_param(self, value: dict[str, Any] | None, _dialect: Any) -> str | None:
         """Encrypt JSON value before storing in database."""
         if value is None:
             return None
@@ -95,9 +93,7 @@ class EncryptedJSON(TypeDecorator[dict[str, Any]]):
         encrypted = fernet.encrypt(json_str.encode())
         return base64.urlsafe_b64encode(encrypted).decode()
 
-    def process_result_value(
-        self, value: str | None, _dialect: Any
-    ) -> dict[str, Any] | None:
+    def process_result_value(self, value: str | None, _dialect: Any) -> dict[str, Any] | None:
         """Decrypt JSON value when reading from database."""
         if value is None:
             return None

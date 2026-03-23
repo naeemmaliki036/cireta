@@ -3,6 +3,7 @@
 Extends the common AuthService with Cireta-specific user operations.
 """
 
+import hashlib
 from datetime import UTC
 from uuid import UUID
 
@@ -10,7 +11,12 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 
 from apps.api.models.user import User
-from packages.common.services.auth_service import AuthService as BaseAuthService
+from packages.common.services.auth_service import (
+    AuthService as BaseAuthService,
+)
+from packages.common.services.auth_service import (
+    _token_blacklist,
+)
 
 
 class CiretaAuthService(BaseAuthService):
@@ -36,9 +42,7 @@ class CiretaAuthService(BaseAuthService):
             HTTPException: If email already exists.
         """
         # Check if user exists
-        existing = await self.db.execute(
-            select(User).where(User.email == email.lower())
-        )
+        existing = await self.db.execute(select(User).where(User.email == email.lower()))
         if existing.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -71,9 +75,7 @@ class CiretaAuthService(BaseAuthService):
             HTTPException: If credentials are invalid.
         """
         # Find user by email
-        result = await self.db.execute(
-            select(User).where(User.email == email.lower())
-        )
+        result = await self.db.execute(select(User).where(User.email == email.lower()))
         user = result.scalar_one_or_none()
 
         if not user or not self.verify_password(password, user.hashed_password):
@@ -128,11 +130,13 @@ class CiretaAuthService(BaseAuthService):
                 detail={"code": "USER_NOT_FOUND", "message": "User no longer exists"},
             )
 
+        # Blacklist old refresh token before generating new ones
+        old_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        _token_blacklist.add(old_hash)
+
         # Generate new tokens (rotation)
         new_access_token = self.create_access_token(user_id)
         new_refresh_token = self.create_refresh_token(user_id)
-
-        # TODO: Store old token hash in Redis blacklist for true invalidation
 
         return new_access_token, new_refresh_token
 
@@ -159,32 +163,31 @@ class CiretaAuthService(BaseAuthService):
 
         return user
 
-    async def logout(self, _user_id: UUID, _access_token: str) -> None:
-        """Logout user by invalidating tokens.
+    async def logout(self, _user_id: UUID, access_token: str) -> None:
+        """Logout user by invalidating the access token.
 
         Args:
-            user_id: User UUID.
+            _user_id: User UUID (unused but kept for interface consistency).
             access_token: Current access token to invalidate.
-
-        Note:
-            TODO: Implement Redis-based token blacklist for true invalidation.
-            For now, logout is handled client-side by discarding tokens.
         """
-        # TODO: Store token hash in Redis blacklist
-        # For now, client-side token removal is sufficient
-        pass
+        token_hash = hashlib.sha256(access_token.encode()).hexdigest()
+        _token_blacklist.add(token_hash)
 
     async def check_brute_force(self, user: User) -> None:
         """Raise 429 if account is locked from too many failed attempts."""
         if user.is_locked:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={"code": "ACCOUNT_LOCKED", "message": "Account temporarily locked. Try again later."},
+                detail={
+                    "code": "ACCOUNT_LOCKED",
+                    "message": "Account temporarily locked. Try again later.",
+                },
             )
 
     async def record_failed_login(self, user: User) -> None:
         """Increment failed login counter; lock if threshold exceeded."""
         from datetime import datetime, timedelta
+
         MAX_ATTEMPTS = 5
         LOCKOUT_MINUTES = 15
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
@@ -201,11 +204,13 @@ class CiretaAuthService(BaseAuthService):
     async def forgot_password(self, email: str) -> str | None:
         """Initiate password reset. Returns signed token or None if user not found."""
         from sqlalchemy import select
+
         result = await self.db.execute(select(User).where(User.email == email.lower()))
         user = result.scalar_one_or_none()
         if not user:
             return None  # Don't reveal if email exists
         from apps.api.core.tokens import generate_password_reset_token
+
         token = generate_password_reset_token(user.email)
         return token
 
@@ -214,6 +219,7 @@ class CiretaAuthService(BaseAuthService):
         from sqlalchemy import select
 
         from apps.api.core.tokens import verify_password_reset_token
+
         email = verify_password_reset_token(token)
         if not email:
             return False
@@ -234,6 +240,7 @@ class CiretaAuthService(BaseAuthService):
         from sqlalchemy import select
 
         from apps.api.core.tokens import verify_email_verify_token
+
         email = verify_email_verify_token(token)
         if not email:
             return None

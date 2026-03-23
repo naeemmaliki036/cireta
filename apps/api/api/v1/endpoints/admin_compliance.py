@@ -20,7 +20,7 @@ from apps.api.schemas.admin import (
     UnfreezeRequest,
 )
 from apps.api.services.compliance_service import ComplianceService
-from packages.common.core.auth_deps import CurrentUserId, RequireIssuerOrAdmin
+from packages.common.core.auth_deps import RequireIssuerOrAdmin
 from packages.common.db.session import get_db
 
 router = APIRouter(tags=["admin"])
@@ -34,13 +34,11 @@ def _get_client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
-
 async def get_compliance_service(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ComplianceService:
     """Get compliance service instance."""
     return ComplianceService(db)
-
 
 
 @router.post("/compliance/freeze", response_model=ComplianceActionResponse)
@@ -202,9 +200,6 @@ async def unpause_token(
     )
 
 
-
-
-
 @router.get("/compliance/audit-logs", response_model=AuditLogListResponse)
 async def list_audit_logs(
     user_id: RequireIssuerOrAdmin,  # noqa: ARG001
@@ -245,9 +240,7 @@ async def list_frozen_addresses(
 ) -> FrozenAddressListResponse:
     """Return addresses that are currently frozen (freeze without matching unfreeze)."""
     freeze_q = (
-        select(AuditLog)
-        .where(AuditLog.action == "freeze")
-        .order_by(AuditLog.created_at.desc())
+        select(AuditLog).where(AuditLog.action == "freeze").order_by(AuditLog.created_at.desc())
     )
     unfreeze_q = select(AuditLog).where(AuditLog.action == "unfreeze")
 
@@ -255,14 +248,15 @@ async def list_frozen_addresses(
     unfrozen_rows = (await db.execute(unfreeze_q)).scalars().all()
 
     unfrozen_targets = {
-        (r.target_id, str(r.payload.get("token_id") if r.payload else None))
-        for r in unfrozen_rows
+        (r.target_id, str(r.payload.get("token_id") if r.payload else None)) for r in unfrozen_rows
     }
 
     items: list[FrozenAddressInfo] = []
     seen: set[tuple[str, str | None]] = set()
     for r in frozen_rows:
-        token_id = str(r.payload.get("token_id")) if r.payload and r.payload.get("token_id") else None
+        token_id = (
+            str(r.payload.get("token_id")) if r.payload and r.payload.get("token_id") else None
+        )
         key = (r.target_id, token_id)
         if key not in seen and key not in unfrozen_targets:
             seen.add(key)
@@ -279,29 +273,42 @@ async def list_frozen_addresses(
     return FrozenAddressListResponse(items=items, total=len(items))
 
 
-
 @router.get("/compliance/recovery-logs")
 async def list_recovery_logs(
-    user_id: CurrentUserId,
+    user_id: RequireIssuerOrAdmin,
     db: AsyncSession = Depends(get_db),
     token_id: str | None = None,
 ) -> list[dict]:
-    """List all token recovery actions (audit trail) for issuer's tokens."""
+    """List token recovery actions (audit trail) scoped to issuer's tokens (admins see all)."""
     from sqlalchemy import select
 
     from apps.api.models.audit_log import AuditLog
+    from apps.api.models.token import Token
     from apps.api.models.user import User
 
-    # Get issuer
+    # Determine if caller is admin or issuer
     result = await db.execute(select(User).where(User.id == user_id))
     actor = result.scalar_one_or_none()
-    if not actor or not actor.issuer:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Issuer access required")
+    is_admin = actor and actor.role == "admin" if actor else False
 
     query = select(AuditLog).where(AuditLog.action == "recover_tokens")
+
     if token_id:
         query = query.where(AuditLog.target_id == token_id)
+
+    # Non-admin issuers: restrict to their own tokens
+    if not is_admin and actor and actor.issuer:
+        token_result = await db.execute(select(Token.id).where(Token.issuer_id == actor.issuer.id))
+        owned_token_ids = [str(t) for t in token_result.scalars().all()]
+        if owned_token_ids:
+            query = query.where(AuditLog.target_id.in_(owned_token_ids))
+        else:
+            return []
+    elif not is_admin:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=403, detail="Issuer access required")
+
     query = query.order_by(AuditLog.created_at.desc()).limit(100)
 
     logs = (await db.execute(query)).scalars().all()

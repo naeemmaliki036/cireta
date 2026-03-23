@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/api/client";
 
 export default function PlatformSettingsPage() {
   const [settings, setSettings] = useState({
@@ -11,13 +12,10 @@ export default function PlatformSettingsPage() {
   const [saved, setSaved] = useState(false);
 
   const handleSave = async () => {
-    const token = localStorage.getItem("admin_token") ?? "";
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
     try {
-      await fetch(`${apiBase}/api/v1/admin/platform/settings`, {
+      await apiFetch("/api/v1/admin/platform/settings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(settings),
+        body: settings,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);

@@ -14,9 +14,7 @@ from apps.api.services.sale_service import SaleService
 class TestPortfolioServiceHoldings:
     """Tests for portfolio holdings."""
 
-    async def test_get_holdings_empty(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_get_holdings_empty(self, db_session: AsyncSession, test_user: User) -> None:
         """Test getting holdings when none exist."""
         service = PortfolioService(db_session)
 
@@ -51,9 +49,7 @@ class TestPortfolioServiceHoldings:
 class TestPortfolioServiceSummary:
     """Tests for portfolio summary."""
 
-    async def test_get_summary(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_get_summary(self, db_session: AsyncSession, test_user: User) -> None:
         """Test getting portfolio summary."""
         service = PortfolioService(db_session)
 

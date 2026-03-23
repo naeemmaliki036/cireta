@@ -26,7 +26,9 @@ async def update_redemption_status(
     request: RedemptionUpdateRequest,
 ) -> dict:
     """Update redemption status (issuer action: processing, shipped, fulfilled, cancelled)."""
-    result = await db.execute(select(RedemptionRequest).where(RedemptionRequest.id == redemption_id))
+    result = await db.execute(
+        select(RedemptionRequest).where(RedemptionRequest.id == redemption_id)
+    )
     req = result.scalar_one_or_none()
     if not req:
         raise HTTPException(status_code=404, detail="Redemption request not found")
@@ -84,6 +86,19 @@ async def deposit_dividend(
     issuer = issuer_result.scalar_one_or_none()
     if not issuer:
         raise HTTPException(status_code=403, detail="Issuer access required")
+
+    # Verify the token belongs to this issuer
+    from apps.api.models.token import Token
+
+    token_result = await db.execute(select(Token).where(Token.id == request.token_id))
+    token = token_result.scalar_one_or_none()
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+    if token.issuer_id != issuer.id:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "NOT_AUTHORIZED", "message": "Token does not belong to this issuer"},
+        )
 
     dist = DividendDistribution()
     dist.token_id = request.token_id

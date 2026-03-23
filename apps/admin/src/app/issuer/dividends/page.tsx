@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api/client";
 
 interface Distribution {
   id: string;
@@ -16,15 +17,9 @@ export default function DividendsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") ?? "" : "";
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-
   const fetchDistributions = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/v1/admin/dividends`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await apiFetch<{ distributions: Distribution[] }>("/api/v1/admin/dividends");
       setDistributions(data.distributions ?? []);
     } catch { /* ignore */ }
   };
@@ -36,12 +31,10 @@ export default function DividendsPage() {
     setSubmitting(true);
     setMessage("");
     try {
-      const res = await fetch(`${apiBase}/api/v1/admin/dividends/deposit`, {
+      await apiFetch("/api/v1/admin/dividends/deposit", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...form, amount_usdc: parseFloat(form.amount_usdc) }),
+        body: { ...form, amount_usdc: parseFloat(form.amount_usdc) },
       });
-      if (!res.ok) throw new Error("Failed to record deposit");
       setMessage("Dividend deposit recorded.");
       setForm({ token_id: "", amount_usdc: "", contract_address: "" });
       fetchDistributions();

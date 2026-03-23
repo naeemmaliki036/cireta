@@ -2,28 +2,28 @@
 
 import { useState } from "react";
 import { Button } from "@/components/atoms";
-import { getAccessToken } from "@/lib/api/client";
+import { apiFetch } from "@/lib/api/client";
 
 interface Prefs {
-  email_investments: boolean;
-  email_kyc: boolean;
-  email_sales: boolean;
+  email_investment_updates: boolean;
+  email_kyc_status: boolean;
+  email_sale_announcements: boolean;
   email_dividends: boolean;
-  inapp_investments: boolean;
-  inapp_kyc: boolean;
-  inapp_sales: boolean;
+  inapp_investment_updates: boolean;
+  inapp_kyc_status: boolean;
+  inapp_sale_announcements: boolean;
   inapp_dividends: boolean;
 }
 
 const DEFAULTS: Prefs = {
-  email_investments: true, email_kyc: true, email_sales: true, email_dividends: true,
-  inapp_investments: true, inapp_kyc: true, inapp_sales: true, inapp_dividends: true,
+  email_investment_updates: true, email_kyc_status: true, email_sale_announcements: true, email_dividends: true,
+  inapp_investment_updates: true, inapp_kyc_status: true, inapp_sale_announcements: true, inapp_dividends: true,
 };
 
 const CATEGORIES = [
-  { key: "investments", label: "Investment updates" },
-  { key: "kyc", label: "KYC status changes" },
-  { key: "sales", label: "Sale announcements" },
+  { key: "investment_updates", label: "Investment updates" },
+  { key: "kyc_status", label: "KYC status changes" },
+  { key: "sale_announcements", label: "Sale announcements" },
   { key: "dividends", label: "Dividend notifications" },
 ] as const;
 
@@ -34,13 +34,10 @@ export default function NotificationsPage() {
   const toggle = (key: keyof Prefs) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
 
   const handleSave = async () => {
-    const token = getAccessToken();
-    if (!token) return;
     try {
-      await fetch("/api/v1/notifications/preferences", {
+      await apiFetch("/api/v1/notifications/preferences", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(prefs),
+        body: prefs,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);

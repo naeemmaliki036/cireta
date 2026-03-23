@@ -8,7 +8,9 @@ from packages.common.core.config import settings
 
 
 def _serializer(salt: str) -> URLSafeTimedSerializer:
-    secret = settings.jwt_secret_key or "dev-secret-change-me"
+    secret = settings.jwt_secret_key
+    if not secret:
+        raise RuntimeError("jwt_secret_key is not configured — refusing to sign tokens")
     return URLSafeTimedSerializer(secret, salt=salt)
 
 

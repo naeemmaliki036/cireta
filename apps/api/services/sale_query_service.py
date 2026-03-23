@@ -21,6 +21,7 @@ class SaleQueryService:
     async def get_sale_by_token_slug(self, slug: str) -> TokenSale | None:
         """Get a sale by the token's slug."""
         from apps.api.models.token import Token
+
         query = (
             select(TokenSale)
             .join(Token, TokenSale.token_id == Token.id)

@@ -210,9 +210,7 @@ class RedisCache:
         # In-memory fallback - simple prefix matching
         prefix = pattern.replace("*", "")
         hashed_prefix = self._hash_key(prefix)[:8]
-        keys_to_delete = [
-            k for k in self._memory_cache if k.startswith(hashed_prefix)
-        ]
+        keys_to_delete = [k for k in self._memory_cache if k.startswith(hashed_prefix)]
         for k in keys_to_delete:
             del self._memory_cache[k]
             count += 1

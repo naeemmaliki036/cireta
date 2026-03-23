@@ -137,9 +137,7 @@ def upgrade() -> None:
         sa.Column("asset_type", sa.String(20), nullable=False, default="commodity"),
         sa.Column("contract_address", sa.String(42), index=True, nullable=True),
         sa.Column("chain_id", sa.Integer(), nullable=False, default=8453),
-        sa.Column(
-            "total_supply", sa.Numeric(precision=78, scale=18), nullable=False, default=0
-        ),
+        sa.Column("total_supply", sa.Numeric(precision=78, scale=18), nullable=False, default=0),
         sa.Column("decimals", sa.Integer(), nullable=False, default=18),
         sa.Column("ipfs_docs_hash", sa.String(100), nullable=True),
         sa.Column("chainlink_por_feed", sa.String(42), nullable=True),
@@ -177,16 +175,10 @@ def upgrade() -> None:
             nullable=False,
             default="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         ),
-        sa.Column(
-            "soft_cap", sa.Numeric(precision=78, scale=18), nullable=False, default=0
-        ),
-        sa.Column(
-            "hard_cap", sa.Numeric(precision=78, scale=18), nullable=False, default=0
-        ),
+        sa.Column("soft_cap", sa.Numeric(precision=78, scale=18), nullable=False, default=0),
+        sa.Column("hard_cap", sa.Numeric(precision=78, scale=18), nullable=False, default=0),
         sa.Column("status", sa.String(20), nullable=False, default="draft"),
-        sa.Column(
-            "total_raised", sa.Numeric(precision=78, scale=18), nullable=False, default=0
-        ),
+        sa.Column("total_raised", sa.Numeric(precision=78, scale=18), nullable=False, default=0),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -209,9 +201,7 @@ def upgrade() -> None:
         ),
         sa.Column("phase_number", sa.Integer(), nullable=False, default=1),
         sa.Column("name", sa.String(100), nullable=False),
-        sa.Column(
-            "price_per_token", sa.Numeric(precision=78, scale=18), nullable=False
-        ),
+        sa.Column("price_per_token", sa.Numeric(precision=78, scale=18), nullable=False),
         sa.Column("allocation", sa.Numeric(precision=78, scale=18), nullable=False),
         sa.Column(
             "min_contribution",
@@ -263,9 +253,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("amount", sa.Numeric(precision=78, scale=18), nullable=False),
-        sa.Column(
-            "tokens_allocated", sa.Numeric(precision=78, scale=18), nullable=False
-        ),
+        sa.Column("tokens_allocated", sa.Numeric(precision=78, scale=18), nullable=False),
         sa.Column("tx_hash", sa.String(66), unique=True, index=True, nullable=False),
         sa.Column("status", sa.String(20), nullable=False, default="pending"),
         sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True),
@@ -334,9 +322,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("amount", sa.Numeric(precision=78, scale=18), nullable=False),
-        sa.Column(
-            "fulfillment_method", sa.String(20), nullable=False, default="cash"
-        ),
+        sa.Column("fulfillment_method", sa.String(20), nullable=False, default="cash"),
         sa.Column("status", sa.String(20), nullable=False, default="pending"),
         sa.Column("tx_hash", sa.String(66), index=True, nullable=True),
         sa.Column("fulfilled_at", sa.DateTime(timezone=True), nullable=True),

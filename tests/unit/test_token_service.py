@@ -1,6 +1,7 @@
 """Unit tests for TokenService."""
 
 from decimal import Decimal
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -43,9 +44,7 @@ class TestTokenServiceCreate:
         assert token.decimals == 18
         assert token.ipfs_docs_hash == "QmTest123"
 
-    async def test_create_token_not_issuer(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_create_token_not_issuer(self, db_session: AsyncSession, test_user: User) -> None:
         """Test token creation fails for non-issuers."""
         service = TokenService(db_session)
 
@@ -95,11 +94,22 @@ class TestTokenServiceDeploy:
     ) -> None:
         """Test successful contract deployment."""
         service = TokenService(db_session)
+        mock_address = "0x" + "a1" * 20
+        mock_receipt = {"transactionHash": b"\x00" * 32}
 
-        token = await service.deploy_contract(
-            user_id=test_issuer_user.id,
-            token_id=test_token.id,
-        )
+        with patch(
+            "apps.api.services.web3_token_service.Web3TokenService"
+        ) as mock_cls:
+            mock_svc = mock_cls.return_value
+            mock_svc.deploy_erc3643_token = AsyncMock(
+                return_value=(mock_address, mock_receipt)
+            )
+            mock_svc.deployer_address = mock_address
+
+            token = await service.deploy_contract(
+                user_id=test_issuer_user.id,
+                token_id=test_token.id,
+            )
 
         assert token.contract_address is not None
         assert token.is_deployed is True
@@ -138,9 +148,7 @@ class TestTokenServiceDeploy:
 class TestTokenServiceList:
     """Tests for listing tokens."""
 
-    async def test_list_tokens(
-        self, db_session: AsyncSession, test_token: Token
-    ) -> None:
+    async def test_list_tokens(self, db_session: AsyncSession, test_token: Token) -> None:
         """Test listing tokens."""
         service = TokenService(db_session)
 
@@ -167,9 +175,7 @@ class TestTokenServiceList:
         """Test listing tokens filtered by issuer."""
         service = TokenService(db_session)
 
-        tokens, total = await service.list_tokens(
-            page=1, size=20, issuer_id=test_issuer.id
-        )
+        tokens, total = await service.list_tokens(page=1, size=20, issuer_id=test_issuer.id)
 
         assert len(tokens) >= 1
         assert all(t.issuer_id == test_issuer.id for t in tokens)
@@ -178,9 +184,7 @@ class TestTokenServiceList:
 class TestTokenServiceGet:
     """Tests for getting a token."""
 
-    async def test_get_token_success(
-        self, db_session: AsyncSession, test_token: Token
-    ) -> None:
+    async def test_get_token_success(self, db_session: AsyncSession, test_token: Token) -> None:
         """Test getting a token by ID."""
         service = TokenService(db_session)
 

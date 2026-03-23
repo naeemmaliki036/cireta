@@ -36,39 +36,69 @@ class User(BaseModel):
 
     # Email verification
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     # KYC
     kyc_status: Mapped[KYCStatus] = mapped_column(String(20), default=KYCStatus.NONE)
     kyc_level: Mapped[int] = mapped_column(Integer, default=0)
     kyc_provider: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
-    kyc_external_id: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
-    kyc_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
-    kyc_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    kyc_external_id: Mapped[str | None] = mapped_column(
+        EncryptedString(), nullable=True, default=None
+    )
+    kyc_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    kyc_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     country_code: Mapped[str | None] = mapped_column(String(2), nullable=True, default=None)
     investor_type: Mapped[str] = mapped_column(String(20), default="individual")
 
     # On-chain identity
-    onchain_id: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
-    sumsub_applicant_id: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True, default=None)
+    onchain_id: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True, default=None)
+    sumsub_applicant_id: Mapped[str | None] = mapped_column(
+        EncryptedString(), nullable=True, default=None
+    )
 
     # Password reset
-    password_reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
-    password_reset_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    password_reset_token: Mapped[str | None] = mapped_column(
+        EncryptedString(), nullable=True, default=None
+    )
+    password_reset_expires: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+    # Accreditation
+    is_accredited: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Brute force protection
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
-    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     # Relationships
-    kyc_applications: Mapped[list[KYCApplication]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    wallets: Mapped[list[Wallet]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    kyc_applications: Mapped[list[KYCApplication]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    wallets: Mapped[list[Wallet]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     issuer: Mapped[Issuer | None] = relationship(back_populates="user", uselist=False)
     contributions: Mapped[list[Contribution]] = relationship(back_populates="user")
     vesting_schedules: Mapped[list[VestingSchedule]] = relationship(back_populates="user")
     redemption_requests: Mapped[list[RedemptionRequest]] = relationship(back_populates="user")
-    notifications: Mapped[list[Notification]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    notification_preferences: Mapped[NotificationPreferences | None] = relationship("NotificationPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    notifications: Mapped[list[Notification]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    notification_preferences: Mapped[NotificationPreferences | None] = relationship(
+        "NotificationPreferences",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

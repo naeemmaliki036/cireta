@@ -108,6 +108,28 @@ class Token(BaseModel):
         nullable=True,
     )
 
+    # Deployed contract addresses (populated after on-chain deployment)
+    identity_registry_address: Mapped[str | None] = mapped_column(
+        String(42),
+        nullable=True,
+    )
+    compliance_address: Mapped[str | None] = mapped_column(
+        String(42),
+        nullable=True,
+    )
+    sale_contract_address: Mapped[str | None] = mapped_column(
+        String(42),
+        nullable=True,
+    )
+    vault_address: Mapped[str | None] = mapped_column(
+        String(42),
+        nullable=True,
+    )
+    fraction_token_address: Mapped[str | None] = mapped_column(
+        String(42),
+        nullable=True,
+    )
+
     is_paused: Mapped[bool] = mapped_column(
         Boolean,
         default=False,

@@ -11,12 +11,6 @@ import { getVesting, claimVesting, type VestingSchedule } from "@/lib/api/reposi
 
 export default function ClaimTokenPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
   const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
-
-  useEffect(() => {
-    paramsPromise.then(setResolvedParams);
-  }, [paramsPromise]);
-
-  if (!resolvedParams) return null;
   const [schedule, setSchedule] = useState<VestingSchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClaimLoading, setIsClaimLoading] = useState(false);
@@ -24,6 +18,11 @@ export default function ClaimTokenPage({ params: paramsPromise }: { params: Prom
   const [claimedAmt, setClaimedAmt] = useState("");
 
   useEffect(() => {
+    paramsPromise.then(setResolvedParams);
+  }, [paramsPromise]);
+
+  useEffect(() => {
+    if (!resolvedParams) return;
     (async () => {
       try {
         const schedules = await getVesting(resolvedParams.token);
@@ -31,7 +30,9 @@ export default function ClaimTokenPage({ params: paramsPromise }: { params: Prom
       } catch { /* empty */ }
       finally { setLoading(false); }
     })();
-  }, [resolvedParams.token]);
+  }, [resolvedParams]);
+
+  if (!resolvedParams) return null;
 
   const handleClaim = async () => {
     if (!schedule) return;

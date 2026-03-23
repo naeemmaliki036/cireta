@@ -4,6 +4,7 @@ Extends Web3BaseService with token lifecycle operations.
 Deploys tokens via CiretaTokenFactory.deployToken().
 """
 
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -30,6 +31,11 @@ _FACTORY_ARTIFACT = (
 
 def _load_factory_abi() -> list:
     """Load CiretaTokenFactory ABI from compiled Hardhat artifact."""
+    if not _FACTORY_ARTIFACT.exists():
+        raise FileNotFoundError(
+            f"Factory artifact not found at {_FACTORY_ARTIFACT}. "
+            "Run 'cd contracts && npx hardhat compile' first."
+        )
     with open(_FACTORY_ARTIFACT) as f:
         artifact = json.load(f)
     return artifact["abi"]
@@ -82,23 +88,25 @@ class Web3TokenService(Web3BaseService):
         issuer_checksum = Web3.to_checksum_address(issuer_wallet)
 
         # Build and send the deployToken transaction
-        nonce = self.w3.eth.get_transaction_count(self._account.address)
-        gas_price = self.w3.eth.gas_price
+        nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
+        gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
 
         tx = factory.functions.deployToken(
             name, symbol, decimals, issuer_checksum
-        ).build_transaction({
-            "chainId": self.chain_id,
-            "from": self._account.address,
-            "gas": 5_000_000,  # Factory deploys 3 proxies — needs more gas
-            "gasPrice": gas_price,
-            "nonce": nonce,
-        })
-        tx["gas"] = self.w3.eth.estimate_gas(tx)
+        ).build_transaction(
+            {
+                "chainId": self.chain_id,
+                "from": self._account.address,
+                "gas": 5_000_000,  # Factory deploys 3 proxies — needs more gas
+                "gasPrice": gas_price,
+                "nonce": nonce,
+            }
+        )
+        tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
 
         signed = self._account.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed.raw_transaction)
-        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_hash = await asyncio.to_thread(self.w3.eth.send_raw_transaction, signed.raw_transaction)
+        receipt = await asyncio.to_thread(self.w3.eth.wait_for_transaction_receipt, tx_hash)
 
         # Parse return values from the transaction receipt
         # The factory emits a TokenDeployed event with the addresses
@@ -114,13 +122,10 @@ class Web3TokenService(Web3BaseService):
                 logs[0]["args"]["compliance"],
             )
         else:
-            # Fallback: decode return data from the function call
-            # deployToken returns (address, address, address)
-            token_address = receipt.get("contractAddress", "")
-            if not token_address:
-                raise ValueError(
-                    "Token deployment succeeded but could not parse token address from receipt"
-                )
+            raise ValueError(
+                "Token deployment succeeded but TokenDeployed event not found in receipt. "
+                "Cannot determine token address."
+            )
 
         return token_address, receipt
 
@@ -165,8 +170,11 @@ class Web3TokenService(Web3BaseService):
             }
         ]
         return await self.execute_contract(
-            token_address, abi, "setAddressFrozen",
-            Web3.to_checksum_address(wallet_address), True,
+            token_address,
+            abi,
+            "setAddressFrozen",
+            Web3.to_checksum_address(wallet_address),
+            True,
         )
 
     async def unfreeze_address(self, token_address: str, wallet_address: str) -> TxReceipt:
@@ -184,12 +192,19 @@ class Web3TokenService(Web3BaseService):
             }
         ]
         return await self.execute_contract(
-            token_address, abi, "setAddressFrozen",
-            Web3.to_checksum_address(wallet_address), False,
+            token_address,
+            abi,
+            "setAddressFrozen",
+            Web3.to_checksum_address(wallet_address),
+            False,
         )
 
     async def forced_transfer(
-        self, token_address: str, from_addr: str, to_addr: str, amount: int,
+        self,
+        token_address: str,
+        from_addr: str,
+        to_addr: str,
+        amount: int,
     ) -> TxReceipt:
         """Execute a forced transfer (ERC-3643 forcedTransfer)."""
         abi = [
@@ -206,36 +221,30 @@ class Web3TokenService(Web3BaseService):
             }
         ]
         return await self.execute_contract(
-            token_address, abi, "forcedTransfer",
+            token_address,
+            abi,
+            "forcedTransfer",
             Web3.to_checksum_address(from_addr),
             Web3.to_checksum_address(to_addr),
             amount,
         )
 
     async def recover_tokens(
-        self, token_address: str, from_addr: str, amount: int,  # noqa: ARG002
+        self,
+        token_address: str,
+        from_addr: str,
+        amount: int,
     ) -> TxReceipt:
-        """Recover tokens from address (ERC-3643 recoveryAddress)."""
-        abi = [
-            {
-                "inputs": [
-                    {"name": "_lostWallet", "type": "address"},
-                    {"name": "_newWallet", "type": "address"},
-                    {"name": "_investorOnchainID", "type": "address"},
-                ],
-                "name": "recoveryAddress",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function",
-            }
-        ]
-        # For recovery, we transfer to the deployer/platform wallet
+        """Recover a specific amount of tokens from an address via forced transfer.
+
+        Transfers `amount` tokens from `from_addr` to the deployer/platform wallet.
+        """
         deployer = self.deployer_address
         if not deployer:
             raise ValueError("No deployer account configured for recovery")
-        return await self.execute_contract(
-            token_address, abi, "recoveryAddress",
-            Web3.to_checksum_address(from_addr),
-            Web3.to_checksum_address(deployer),
-            Web3.to_checksum_address(from_addr),  # onchainID placeholder
+        return await self.forced_transfer(
+            token_address,
+            from_addr,
+            deployer,
+            amount,
         )

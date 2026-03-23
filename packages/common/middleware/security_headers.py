@@ -14,9 +14,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Some headers are relaxed in development mode.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """Add security headers to response."""
         response = await call_next(request)
 
@@ -33,9 +31,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Permissions policy (formerly Feature-Policy)
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=()"
-        )
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
         # Content Security Policy (relaxed in development)
         if settings.is_production:
@@ -49,8 +45,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
 
             # Strict Transport Security (only in production with HTTPS)
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         return response

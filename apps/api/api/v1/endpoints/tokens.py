@@ -32,7 +32,9 @@ def _token_to_response(token) -> TokenResponse:
         issuer_id=str(token.issuer_id),
         name=token.name,
         symbol=token.symbol,
-        asset_type=(token.asset_type.value if hasattr(token.asset_type, "value") else token.asset_type),
+        asset_type=(
+            token.asset_type.value if hasattr(token.asset_type, "value") else token.asset_type
+        ),
         contract_address=token.contract_address,
         chain_id=token.chain_id,
         total_supply=str(token.total_supply),
@@ -95,7 +97,9 @@ async def create_token(
         user_id=user_id,
         name=request.name,
         symbol=request.symbol,
-        asset_type=(request.asset_type.value if hasattr(request.asset_type, "value") else request.asset_type),
+        asset_type=(
+            request.asset_type.value if hasattr(request.asset_type, "value") else request.asset_type
+        ),
         total_supply=request.total_supply,
         decimals=request.decimals,
         ipfs_docs_hash=request.ipfs_docs_hash,
@@ -132,6 +136,7 @@ async def get_proof_of_reserve(
     token = await svc.get_token(token_id)
     if not token:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Token not found")
 
     feed = getattr(token, "chainlink_por_feed", None)
@@ -149,6 +154,7 @@ async def get_proof_of_reserve(
 
     try:
         from apps.api.services.web3_identity_service import Web3IdentityService
+
         w3_svc = Web3IdentityService()
         data = await w3_svc.get_proof_of_reserve(feed)
         return {
@@ -156,12 +162,15 @@ async def get_proof_of_reserve(
             "feed_address": feed,
             "total_supply": str(token.total_supply),
             "verified_reserve": str(data.get("answer", 0)),
-            "reserve_ratio": float(data.get("answer", 0)) / float(token.total_supply) if token.total_supply else 0,
+            "reserve_ratio": float(data.get("answer", 0)) / float(token.total_supply)
+            if token.total_supply
+            else 0,
             "last_updated": data.get("updated_at"),
             "is_live": True,
         }
     except Exception as exc:
         import logging
+
         logging.getLogger(__name__).error("PoR fetch failed for token %s: %s", token_id, exc)
         return {
             "token_id": str(token_id),
@@ -183,22 +192,36 @@ async def upload_token_document(
     ipfs_hash: str | None = None,
     url: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _user_id: CurrentUserId = None,
+    user_id: CurrentUserId = None,
 ) -> dict:
     """Attach a legal document to a token (IPFS hash or URL).
 
     In production, client should upload to Pinata first and pass the CID here.
+    Requires: token ownership (issuer must match authenticated user).
     """
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     from apps.api.models.token import Token
     from apps.api.models.token_document import TokenDocument
 
-    result = await db.execute(select(Token).where(Token.id == token_id))
+    result = await db.execute(
+        select(Token).options(selectinload(Token.issuer)).where(Token.id == token_id)
+    )
     token = result.scalar_one_or_none()
     if not token:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Token not found")
+
+    # Ownership check: only the issuer who owns this token can attach documents
+    from fastapi import HTTPException as _HTTPException
+
+    if token.issuer.user_id != user_id:
+        raise _HTTPException(
+            status_code=403,
+            detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to modify this token"},
+        )
 
     doc = TokenDocument(
         token_id=token_id,

@@ -17,13 +17,11 @@ PII_PATTERNS = [
     (re.compile(r'"api_key"\s*:\s*"[^"]*"', re.IGNORECASE), '"api_key": "[REDACTED]"'),
     (re.compile(r'"secret"\s*:\s*"[^"]*"', re.IGNORECASE), '"secret": "[REDACTED]"'),
     (re.compile(r'"authorization"\s*:\s*"[^"]*"', re.IGNORECASE), '"authorization": "[REDACTED]"'),
-    (re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'), "[EMAIL]"),
+    (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"), "[EMAIL]"),
 ]
 
 
-def filter_pii(
-    _logger: logging.Logger, _method_name: str, event_dict: EventDict
-) -> EventDict:
+def filter_pii(_logger: logging.Logger, _method_name: str, event_dict: EventDict) -> EventDict:
     """Filter PII from log messages."""
     event = event_dict.get("event", "")
     if isinstance(event, str):

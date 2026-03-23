@@ -184,7 +184,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Use path + client key for path-specific limiting
         client_key = self._get_client_key(request)
-        rate_key = f"{client_key}:{path}" if limit != self.config.requests_per_minute else client_key
+        rate_key = (
+            f"{client_key}:{path}" if limit != self.config.requests_per_minute else client_key
+        )
 
         allowed, remaining = self._counter.is_allowed(
             rate_key,

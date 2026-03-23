@@ -21,7 +21,7 @@ export interface LinkWalletRequest {
 
 export async function listWallets(token: string): Promise<Wallet[]> {
   const res = await apiFetch<{ wallets: Wallet[]; total: number }>("/api/v1/wallets", {
-    headers: { Authorization: `Bearer ${token}` },
+    token,
   });
   return res.wallets;
 }
@@ -29,7 +29,7 @@ export async function listWallets(token: string): Promise<Wallet[]> {
 export async function linkWallet(token: string, data: LinkWalletRequest): Promise<Wallet> {
   return apiFetch<Wallet>("/api/v1/wallets", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    token,
     body: data,
   });
 }
@@ -37,13 +37,13 @@ export async function linkWallet(token: string, data: LinkWalletRequest): Promis
 export async function unlinkWallet(token: string, address: string): Promise<void> {
   await apiFetch<void>(`/api/v1/wallets/${address}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+    token,
   });
 }
 
 export async function setPrimaryWallet(token: string, address: string): Promise<Wallet> {
   return apiFetch<Wallet>(`/api/v1/wallets/${address}/primary`, {
     method: "PATCH",
-    headers: { Authorization: `Bearer ${token}` },
+    token,
   });
 }

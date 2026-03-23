@@ -1,5 +1,6 @@
 """Integration tests for tokens API endpoints."""
 
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 from httpx import AsyncClient
@@ -13,9 +14,7 @@ from apps.api.services.auth_service import CiretaAuthService
 class TestListTokensEndpoint:
     """Tests for GET /api/v1/tokens/."""
 
-    async def test_list_tokens_public(
-        self, client: AsyncClient, test_token: Token
-    ) -> None:
+    async def test_list_tokens_public(self, client: AsyncClient, test_token: Token) -> None:
         """Test listing tokens without auth."""
         response = await client.get("/api/v1/tokens/")
 
@@ -26,9 +25,7 @@ class TestListTokensEndpoint:
         assert "page" in data
         assert "size" in data
 
-    async def test_list_tokens_pagination(
-        self, client: AsyncClient, test_token: Token
-    ) -> None:
+    async def test_list_tokens_pagination(self, client: AsyncClient, test_token: Token) -> None:
         """Test token pagination."""
         response = await client.get("/api/v1/tokens/?page=1&size=5")
 
@@ -41,9 +38,7 @@ class TestListTokensEndpoint:
 class TestGetTokenEndpoint:
     """Tests for GET /api/v1/tokens/{id}."""
 
-    async def test_get_token_success(
-        self, client: AsyncClient, test_token: Token
-    ) -> None:
+    async def test_get_token_success(self, client: AsyncClient, test_token: Token) -> None:
         """Test getting a token by ID."""
         response = await client.get(f"/api/v1/tokens/{test_token.id}")
 
@@ -92,9 +87,7 @@ class TestCreateTokenEndpoint:
         assert data["name"] == "New Gold Token"
         assert data["decimals"] == 18
 
-    async def test_create_token_unauthorized(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_token_unauthorized(self, client: AsyncClient) -> None:
         """Test token creation without auth."""
         response = await client.post(
             "/api/v1/tokens/",
@@ -143,11 +136,22 @@ class TestDeployTokenEndpoint:
     ) -> None:
         """Test successful token deployment."""
         access_token = auth_service.create_access_token(test_issuer_user.id)
+        mock_address = "0x" + "a1" * 20
+        mock_receipt = {"transactionHash": b"\x00" * 32}
 
-        response = await client.post(
-            f"/api/v1/tokens/{test_token.id}/deploy",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
+        with patch(
+            "apps.api.services.web3_token_service.Web3TokenService"
+        ) as mock_cls:
+            mock_svc = mock_cls.return_value
+            mock_svc.deploy_erc3643_token = AsyncMock(
+                return_value=(mock_address, mock_receipt)
+            )
+            mock_svc.deployer_address = mock_address
+
+            response = await client.post(
+                f"/api/v1/tokens/{test_token.id}/deploy",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
 
         assert response.status_code == 200
         data = response.json()

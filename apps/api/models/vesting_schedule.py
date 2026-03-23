@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Numeric
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -68,6 +68,9 @@ class VestingSchedule(BaseModel):
         DateTime(timezone=True),
         nullable=True,
     )
+
+    is_revocable: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationships
     token: Mapped[Token] = relationship(back_populates="vesting_schedules")

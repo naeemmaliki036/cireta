@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { DashboardLayout } from "@/components/templates";
-import { getAccessToken } from "@/lib/api/client";
+import { apiFetch } from "@/lib/api/client";
 
 interface Transaction {
   type: string;
@@ -26,13 +26,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) { setLoading(false); return; }
-    fetch("/api/v1/portfolio/transactions", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setTxs(d.transactions ?? []))
+    apiFetch<{ transactions: Transaction[] }>("/api/v1/portfolio/transactions")
+      .then((data) => setTxs(data.transactions ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

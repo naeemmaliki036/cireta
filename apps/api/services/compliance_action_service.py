@@ -4,6 +4,7 @@ CRITICAL: ALL compliance actions MUST be logged to audit_logs.
 The audit_logs table is APPEND-ONLY for compliance purposes.
 """
 
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -50,14 +51,26 @@ class ComplianceActionService(ComplianceBaseService):
         if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
             try:
                 from apps.api.services.web3_token_service import Web3TokenService
+
                 web3_svc = Web3TokenService()
-                amount_int = int(float(amount) * (10 ** (token.decimals or 18)))
+                amount_int = int(Decimal(str(amount)) * Decimal(10 ** (token.decimals or 18)))
                 await web3_svc.forced_transfer(
-                    token.contract_address, from_address, to_address, amount_int,
+                    token.contract_address,
+                    from_address,
+                    to_address,
+                    amount_int,
                 )
             except Exception:
                 import logging
-                logging.getLogger(__name__).warning("On-chain forced transfer failed, proceeding with DB-only")
+
+                logging.getLogger(__name__).error(
+                    "On-chain forced transfer failed for token=%s from=%s to=%s",
+                    token_id,
+                    from_address,
+                    to_address,
+                    exc_info=True,
+                )
+                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -109,14 +122,24 @@ class ComplianceActionService(ComplianceBaseService):
         if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
             try:
                 from apps.api.services.web3_token_service import Web3TokenService
+
                 web3_svc = Web3TokenService()
-                amount_int = int(float(amount) * (10 ** (token.decimals or 18)))
+                amount_int = int(Decimal(str(amount)) * Decimal(10 ** (token.decimals or 18)))
                 await web3_svc.recover_tokens(
-                    token.contract_address, from_address, amount_int,
+                    token.contract_address,
+                    from_address,
+                    amount_int,
                 )
             except Exception:
                 import logging
-                logging.getLogger(__name__).warning("On-chain recovery failed, proceeding with DB-only")
+
+                logging.getLogger(__name__).error(
+                    "On-chain recovery failed for token=%s from=%s",
+                    token_id,
+                    from_address,
+                    exc_info=True,
+                )
+                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -166,11 +189,18 @@ class ComplianceActionService(ComplianceBaseService):
         if token.contract_address and token.contract_address != ("0x" + "0" * 40):
             try:
                 from apps.api.services.web3_token_service import Web3TokenService
+
                 web3_svc = Web3TokenService()
                 await web3_svc.pause_token(token.contract_address)
             except Exception:
                 import logging
-                logging.getLogger(__name__).warning("On-chain pause failed, proceeding with DB-only")
+
+                logging.getLogger(__name__).error(
+                    "On-chain pause failed for token=%s",
+                    token_id,
+                    exc_info=True,
+                )
+                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -215,11 +245,18 @@ class ComplianceActionService(ComplianceBaseService):
         if token.contract_address and token.contract_address != ("0x" + "0" * 40):
             try:
                 from apps.api.services.web3_token_service import Web3TokenService
+
                 web3_svc = Web3TokenService()
                 await web3_svc.unpause_token(token.contract_address)
             except Exception:
                 import logging
-                logging.getLogger(__name__).warning("On-chain unpause failed, proceeding with DB-only")
+
+                logging.getLogger(__name__).error(
+                    "On-chain unpause failed for token=%s",
+                    token_id,
+                    exc_info=True,
+                )
+                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,

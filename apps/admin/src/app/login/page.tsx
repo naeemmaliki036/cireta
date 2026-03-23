@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch, setAccessToken } from "@/lib/api/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,14 +16,11 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/auth/login`, {
+      const data = await apiFetch<{ access_token: string }>("/api/v1/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: { email, password },
       });
-      if (!res.ok) throw new Error("Invalid credentials");
-      const data = await res.json();
-      localStorage.setItem("admin_token", data.access_token);
+      setAccessToken(data.access_token);
       router.push("/");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Login failed");

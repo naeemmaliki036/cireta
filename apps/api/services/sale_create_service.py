@@ -48,9 +48,7 @@ class SaleCreateService:
         """
         # Get token with issuer
         result = await self.db.execute(
-            select(Token)
-            .options(selectinload(Token.issuer))
-            .where(Token.id == token_id)
+            select(Token).options(selectinload(Token.issuer)).where(Token.id == token_id)
         )
         token = result.scalar_one_or_none()
 

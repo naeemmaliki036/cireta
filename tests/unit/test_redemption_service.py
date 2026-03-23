@@ -75,9 +75,7 @@ class TestRedemptionServiceCreate:
 class TestRedemptionServiceList:
     """Tests for listing redemption requests."""
 
-    async def test_list_requests_empty(
-        self, db_session: AsyncSession, test_user: User
-    ) -> None:
+    async def test_list_requests_empty(self, db_session: AsyncSession, test_user: User) -> None:
         """Test listing requests when none exist."""
         service = RedemptionService(db_session)
 
@@ -102,9 +100,7 @@ class TestRedemptionServiceList:
             fulfillment_method="cash",
         )
 
-        requests = await service.list_requests(
-            user_id=test_user.id, token_id=test_token.id
-        )
+        requests = await service.list_requests(user_id=test_user.id, token_id=test_token.id)
 
         assert len(requests) >= 1
         assert all(r.token_id == test_token.id for r in requests)
@@ -140,9 +136,7 @@ class TestRedemptionServiceFulfillment:
         assert updated.status == "processing"
         assert updated.notes == "Being processed"
 
-    async def test_update_fulfillment_not_found(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_update_fulfillment_not_found(self, db_session: AsyncSession) -> None:
         """Test updating non-existent request fails."""
         service = RedemptionService(db_session)
 

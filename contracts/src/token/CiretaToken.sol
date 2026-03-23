@@ -289,7 +289,7 @@ contract CiretaToken is
         }
 
         _transfer(from, to, amount);
-        _compliance.transferred(from, to, amount);
+        // Note: _update() already calls _compliance.transferred(), so no duplicate call here.
         return true;
     }
 
@@ -313,7 +313,7 @@ contract CiretaToken is
             }
 
             _transfer(fromList[i], toList[i], amounts[i]);
-            _compliance.transferred(fromList[i], toList[i], amounts[i]);
+            // Note: _update() already calls _compliance.transferred(), so no duplicate call here.
         }
     }
 

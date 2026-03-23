@@ -7,11 +7,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from apps.api.models.enums import SaleStatus
+from apps.api.models.enums import SaleMode, SaleStatus
 from packages.common.models.base import BaseModel
 
 if TYPE_CHECKING:
@@ -26,25 +26,48 @@ class TokenSale(BaseModel):
 
     __tablename__ = "token_sales"
 
-    token_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("tokens.id", ondelete="CASCADE"), index=True)
-    issuer_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("issuers.id", ondelete="CASCADE"), index=True)
-    payment_token: Mapped[str] = mapped_column(String(42), default="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
+    token_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("tokens.id", ondelete="CASCADE"), index=True
+    )
+    issuer_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("issuers.id", ondelete="CASCADE"), index=True
+    )
+    payment_token: Mapped[str] = mapped_column(
+        String(42), default="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    )
     soft_cap: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
     hard_cap: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
     status: Mapped[SaleStatus] = mapped_column(String(20), default=SaleStatus.DRAFT)
-    total_raised: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
+    total_raised: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=18), default=Decimal("0")
+    )
 
     # Spec-required fields
-    fee_cap_usdc: Mapped[Decimal | None] = mapped_column(Numeric(36, 6), nullable=True, default=None)
+    fee_cap_usdc: Mapped[Decimal | None] = mapped_column(
+        Numeric(36, 6), nullable=True, default=None
+    )
     total_raised_on_platform: Mapped[Decimal] = mapped_column(Numeric(36, 6), default=Decimal("0"))
     platform_fee_collected: Mapped[Decimal] = mapped_column(Numeric(36, 6), default=Decimal("0"))
+    total_withdrawn: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=18), default=Decimal("0")
+    )
     contract_address: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
-    finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    finalized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    platform_fee_bps: Mapped[int] = mapped_column(Integer, default=250)
+    sale_mode: Mapped[SaleMode] = mapped_column(String(20), default=SaleMode.VESTED)
+    vault_address: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
+    fraction_token_address: Mapped[str | None] = mapped_column(
+        String(42), nullable=True, default=None
+    )
 
     # Relationships
     token: Mapped[Token] = relationship(back_populates="token_sales")
     issuer: Mapped[Issuer] = relationship(back_populates="token_sales")
-    phases: Mapped[list[SalePhase]] = relationship(back_populates="sale", cascade="all, delete-orphan", order_by="SalePhase.phase_number")
+    phases: Mapped[list[SalePhase]] = relationship(
+        back_populates="sale", cascade="all, delete-orphan", order_by="SalePhase.phase_number"
+    )
     contributions: Mapped[list[Contribution]] = relationship(back_populates="sale")
 
     def __repr__(self) -> str:
