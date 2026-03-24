@@ -12,6 +12,15 @@ WORKDIR /app
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 COPY . .
+
+# Ensure entrypoint is executable
+COPY docker/entrypoint.sh /app/docker/entrypoint.sh
+RUN chmod +x /app/docker/entrypoint.sh
+
+# Verify alembic config and migrations are present
+RUN test -f infra/alembic/alembic.ini && test -d infra/alembic/versions
+
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/docker/entrypoint.sh"]
+CMD ["api"]

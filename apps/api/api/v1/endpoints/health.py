@@ -63,3 +63,40 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> HealthResponse:
         details["rpc"] = "unknown"
 
     return HealthResponse(status="ok", details=details)
+
+
+@router.get("/worker", response_model=HealthResponse)
+async def worker_health_check() -> HealthResponse:
+    """Check worker health via Redis heartbeat key.
+
+    Returns unhealthy if the heartbeat is missing or older than 90 seconds.
+    """
+    from datetime import UTC, datetime
+
+    details: dict[str, str] = {}
+
+    try:
+        import redis.asyncio as aioredis
+
+        from packages.common.core.config import settings
+
+        r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+        val = await r.get("cireta:worker:heartbeat")
+        await r.aclose()
+
+        if not val:
+            details["worker"] = "no heartbeat found"
+            return HealthResponse(status="unhealthy", details=details)
+
+        last_beat = datetime.fromisoformat(val.decode())
+        age_seconds = (datetime.now(UTC) - last_beat).total_seconds()
+        if age_seconds > 90:
+            details["worker"] = f"stale heartbeat ({int(age_seconds)}s ago)"
+            return HealthResponse(status="unhealthy", details=details)
+
+        details["worker"] = f"healthy (last heartbeat {int(age_seconds)}s ago)"
+        return HealthResponse(status="ok", details=details)
+    except Exception as e:
+        logger.error("Worker health check failed: %s", e)
+        details["worker"] = "redis unavailable"
+        return HealthResponse(status="unhealthy", details=details)
