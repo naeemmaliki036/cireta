@@ -362,12 +362,14 @@ async def claim_refund(
     sale_id: UUID,
     user_id: CurrentUserId,
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
+    tx_hash: str | None = Query(None, description="On-chain refund tx hash from Sale.claimRefund()"),
 ) -> list[ContributionResponse]:
-    """Claim refund from a failed sale.
+    """Record a trustless refund from an on-chain Sale.claimRefund() call.
 
-    Requires: bearer token.
+    Investor calls Sale.claimRefund() on-chain via wallet, then passes
+    tx_hash here for backend verification and DB update.
     """
-    contributions = await sale_service.claim_refund(user_id, sale_id)
+    contributions = await sale_service.claim_refund(user_id, sale_id, tx_hash=tx_hash)
     return [_contribution_to_response(c) for c in contributions]
 
 

@@ -255,17 +255,24 @@ async def get_vault_claimable(
 
 @router.get("/dividends")
 async def get_dividends(
-    user_id: CurrentUserId,  # noqa: ARG001
-    db: Annotated[AsyncSession, Depends(get_db)],  # noqa: ARG001
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    """Get claimable dividends for user's token holdings."""
-    # Returns distributions keyed by token - on-chain claimable amounts
-    # would be read via web3 in production; return DB records for now
+    """Get claimable dividends for user's token holdings.
 
+    Reads on-chain claimable amounts from DividendDistributor contracts.
+    """
+    from apps.api.services.dividend_service import DividendService
+
+    svc = DividendService(db)
+    dividends = await svc.get_claimable_dividends(user_id)
+
+    total_claimable = sum(
+        float(d.get("claimable_usdc", "0")) for d in dividends
+    )
     return {
-        "dividends": [],
-        "total_claimable_usdc": "0",
-        "note": "Connect DividendDistributor contract to read live claimable amounts",
+        "dividends": dividends,
+        "total_claimable_usdc": str(total_claimable),
     }
 
 

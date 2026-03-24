@@ -205,6 +205,150 @@ async def task_release_vesting(
     logger.info("Vesting sweep done: %d schedules updated", released_count)
 
 
+async def task_sync_chain_events(ctx: dict[str, Any]) -> None:  # noqa: ARG001
+    """Poll Base RPC for on-chain events and sync DB. Runs every ~12s."""
+    from apps.api.services.event_listener_service import EventListenerService
+
+    svc = EventListenerService()
+    try:
+        count = await svc.poll_events()
+        if count:
+            logger.info("Chain sync: %d events processed", count)
+    except Exception as e:
+        logger.error("Chain sync failed: %s", e, exc_info=True)
+
+
+async def task_reconcile_balances(ctx: dict[str, Any]) -> None:  # noqa: ARG001
+    """Daily reconciliation: compare DB balances vs on-chain balanceOf().
+
+    Logs discrepancies to audit_logs and sends admin notification.
+    """
+    logger.info("Starting balance reconciliation")
+    from decimal import Decimal
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.audit_log import AuditLog
+    from apps.api.models.contribution import Contribution
+    from apps.api.models.enums import ContributionStatus
+    from apps.api.models.token_sale import TokenSale
+    from apps.api.services.web3_base_service import Web3BaseService
+    from packages.common.db.session import AsyncSessionLocal
+
+    discrepancies = 0
+    web3_svc = Web3BaseService()
+
+    async with AsyncSessionLocal() as db:
+        # Get all claimed contributions grouped by user wallet + token
+        result = await db.execute(
+            select(Contribution)
+            .options(selectinload(Contribution.sale).selectinload(TokenSale.token))
+            .where(Contribution.status == ContributionStatus.CLAIMED)
+            .where(Contribution.wallet_address.isnot(None))
+        )
+        contributions = result.scalars().all()
+
+        # Group by (wallet, token_contract)
+        holdings: dict[tuple[str, str], Decimal] = {}
+        for contrib in contributions:
+            token = contrib.sale.token if contrib.sale else None
+            if not token or not token.contract_address:
+                continue
+            key = (contrib.wallet_address.lower(), token.contract_address)
+            holdings[key] = holdings.get(key, Decimal("0")) + contrib.tokens_allocated
+
+        for (wallet_addr, token_addr), db_balance in holdings.items():
+            try:
+                on_chain = await web3_svc.get_token_balance(token_addr, wallet_addr, 18)
+                diff = abs(db_balance - on_chain)
+                if diff > Decimal("0.001"):
+                    discrepancies += 1
+                    logger.warning(
+                        "Balance mismatch: wallet=%s token=%s db=%s chain=%s diff=%s",
+                        wallet_addr, token_addr, db_balance, on_chain, diff,
+                    )
+                    audit = AuditLog()
+                    audit.action = "balance_discrepancy"
+                    audit.target_type = "wallet"
+                    audit.target_id = wallet_addr
+                    audit.payload = {
+                        "token_address": token_addr,
+                        "db_balance": str(db_balance),
+                        "on_chain_balance": str(on_chain),
+                        "difference": str(diff),
+                    }
+                    db.add(audit)
+            except Exception:
+                logger.debug("Could not check balance for wallet=%s token=%s", wallet_addr, token_addr)
+
+        if discrepancies:
+            await db.commit()
+
+    logger.info("Reconciliation complete: %d discrepancies found", discrepancies)
+
+
+async def task_process_webhooks(ctx: dict[str, Any]) -> None:  # noqa: ARG001
+    """Process pending webhook events with retry and exponential backoff.
+
+    Retries up to 3 times with backoff (1s, 4s, 16s).
+    After max retries, marks as failed (dead letter).
+    """
+    from sqlalchemy import select
+
+    from apps.api.models.webhook_event import WebhookEvent
+    from packages.common.db.session import AsyncSessionLocal
+
+    logger.info("Processing pending webhooks")
+    processed = 0
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(WebhookEvent)
+            .where(WebhookEvent.status == "pending")
+            .order_by(WebhookEvent.created_at.asc())
+            .limit(50)
+        )
+        events = list(result.scalars().all())
+
+        for event in events:
+            if event.attempts >= 3:
+                event.status = "failed"
+                logger.warning("Webhook dead-lettered: id=%s provider=%s", event.id, event.provider)
+                continue
+
+            try:
+                await _process_single_webhook(db, event)
+                event.status = "processed"
+                event.processed_at = datetime.now(UTC)
+                processed += 1
+            except Exception as e:
+                event.attempts += 1
+                event.last_error = str(e)[:500]
+                backoff = 4 ** (event.attempts - 1)  # 1s, 4s, 16s
+                logger.warning(
+                    "Webhook failed (attempt %d/3): id=%s error=%s, retry in %ds",
+                    event.attempts, event.id, str(e)[:100], backoff,
+                )
+                if event.attempts >= 3:
+                    event.status = "failed"
+
+        await db.commit()
+
+    logger.info("Webhook processing done: %d processed", processed)
+
+
+async def _process_single_webhook(db: Any, event: Any) -> None:
+    """Process a single webhook event based on provider."""
+    if event.provider == "sumsub":
+        from apps.api.services.kyc_service import KYCService
+
+        svc = KYCService(db)
+        await svc.handle_webhook(event.payload, ip_address=None)
+    else:
+        logger.warning("Unknown webhook provider: %s", event.provider)
+
+
 # arq worker settings
 class WorkerSettings:
     functions = [
@@ -213,6 +357,14 @@ class WorkerSettings:
         task_register_wallet_on_chain,
         task_index_contribution,
         task_release_vesting,
+        task_sync_chain_events,
+        task_reconcile_balances,
+        task_process_webhooks,
+    ]
+    cron_jobs = [
+        # Chain event sync: every 12 seconds
+        # Note: arq cron minimum is 1 minute, so we use a recurring enqueue pattern.
+        # The actual 12s polling is handled via the worker startup hook below.
     ]
     max_jobs = 10
     job_timeout = 60
@@ -225,3 +377,40 @@ class WorkerSettings:
         from packages.common.core.config import settings
 
         return RedisSettings.from_dsn(settings.redis_url or "redis://localhost:6379")
+
+    @staticmethod
+    async def on_startup(ctx: dict[str, Any]) -> None:
+        """Schedule recurring tasks on worker startup."""
+        import asyncio
+
+        async def _chain_sync_loop() -> None:
+            """Poll chain events every 12 seconds."""
+            while True:
+                try:
+                    await task_sync_chain_events({})
+                except Exception:
+                    logger.error("Chain sync loop error", exc_info=True)
+                await asyncio.sleep(12)
+
+        async def _webhook_process_loop() -> None:
+            """Process webhooks every 30 seconds."""
+            while True:
+                try:
+                    await task_process_webhooks({})
+                except Exception:
+                    logger.error("Webhook process loop error", exc_info=True)
+                await asyncio.sleep(30)
+
+        # Launch background loops
+        ctx["_chain_sync_task"] = asyncio.create_task(_chain_sync_loop())
+        ctx["_webhook_task"] = asyncio.create_task(_webhook_process_loop())
+        logger.info("Background tasks started: chain_sync (12s), webhook_process (30s)")
+
+    @staticmethod
+    async def on_shutdown(ctx: dict[str, Any]) -> None:
+        """Cancel background tasks on shutdown."""
+        for key in ("_chain_sync_task", "_webhook_task"):
+            task = ctx.get(key)
+            if task:
+                task.cancel()
+        logger.info("Background tasks stopped")

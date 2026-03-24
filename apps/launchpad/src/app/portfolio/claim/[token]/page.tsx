@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { Button, Spinner } from "@/components/atoms";
 import { VestingCard } from "@/components/organisms";
@@ -13,6 +13,7 @@ import {
   claimVesting,
   type VestingSchedule,
 } from "@/lib/api/repositories/portfolio.repository";
+import { apiPost } from "@/lib/api/client";
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { VAULT_ABI } from "@/lib/contracts/vaultAbi";
 
@@ -27,6 +28,7 @@ export default function ClaimTokenPage({
   const [showSuccess, setShowSuccess] = useState(false);
   const [claimedAmt, setClaimedAmt] = useState("");
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [saleStatus, setSaleStatus] = useState<string | null>(null);
 
   const { isConnected } = useAccount();
 
@@ -52,6 +54,17 @@ export default function ClaimTokenPage({
   const { isLoading: isVaultClaimConfirming, isSuccess: isVaultClaimSuccess } =
     useWaitForTransactionReceipt({ hash: vaultClaimHash });
 
+  // Refund mode: Sale.claimRefund()
+  const {
+    writeContract: writeRefund,
+    data: refundHash,
+    isPending: isRefundPending,
+    error: refundError,
+  } = useWriteContract();
+
+  const { isLoading: isRefundConfirming, isSuccess: isRefundSuccess } =
+    useWaitForTransactionReceipt({ hash: refundHash });
+
   useEffect(() => {
     paramsPromise.then(setResolvedParams);
   }, [paramsPromise]);
@@ -62,6 +75,13 @@ export default function ClaimTokenPage({
       try {
         const schedules = await getVesting(resolvedParams.token);
         if (schedules.length > 0) setSchedule(schedules[0] ?? null);
+        // Check sale status to determine if refund is available
+        const saleRes = await fetch(`/api/v1/sales?token_id=${resolvedParams.token}`);
+        if (saleRes.ok) {
+          const data = await saleRes.json();
+          const sale = data.sales?.[0];
+          if (sale) setSaleStatus(sale.status);
+        }
       } catch (err) {
         console.error("Failed to load vesting schedule:", err);
       } finally {
@@ -88,17 +108,35 @@ export default function ClaimTokenPage({
     }
   }, [isSaleClaimSuccess, isVaultClaimSuccess, saleClaimHash, vaultClaimHash, schedule]);
 
+  // Handle on-chain refund success → record in backend
+  useEffect(() => {
+    if (isRefundSuccess && refundHash && schedule) {
+      (async () => {
+        try {
+          await apiPost(`/api/v1/sales/${schedule.token_id}/refund?tx_hash=${refundHash}`, {});
+          setClaimedAmt("Refund");
+          setShowSuccess(true);
+        } catch {
+          setShowSuccess(true);
+          setClaimedAmt("Refund");
+        }
+      })();
+    }
+  }, [isRefundSuccess, refundHash, schedule]);
+
   // Surface contract errors
   useEffect(() => {
-    const err = saleClaimError ?? vaultClaimError;
+    const err = saleClaimError ?? vaultClaimError ?? refundError;
     if (err) {
       setClaimError(err.message.includes("User rejected")
         ? "Transaction rejected"
-        : "Claim failed — check your wallet and try again");
+        : "Transaction failed — check your wallet and try again");
     }
-  }, [saleClaimError, vaultClaimError]);
+  }, [saleClaimError, vaultClaimError, refundError]);
 
   if (!resolvedParams) return null;
+
+  const isFailedSale = saleStatus === "failed" || saleStatus === "finalized_failed" || saleStatus === "refunds_enabled";
 
   const handleClaim = () => {
     if (!schedule) return;
@@ -128,8 +166,29 @@ export default function ClaimTokenPage({
     }
   };
 
+  const handleRefund = () => {
+    if (!schedule) return;
+    setClaimError(null);
+
+    if (!isConnected) {
+      setClaimError("Please connect your wallet first");
+      return;
+    }
+
+    if (schedule.sale_contract_address) {
+      writeRefund({
+        address: schedule.sale_contract_address as `0x${string}`,
+        abi: SALE_ABI,
+        functionName: "claimRefund",
+      });
+    } else {
+      setClaimError("No contract address available for refund");
+    }
+  };
+
   const isClaimLoading =
     isSaleClaimPending || isVaultClaimPending || isSaleClaimConfirming || isVaultClaimConfirming;
+  const isRefundLoading = isRefundPending || isRefundConfirming;
 
   if (loading) {
     return (
@@ -150,30 +209,30 @@ export default function ClaimTokenPage({
   }
 
   if (showSuccess) {
+    const isRefund = claimedAmt === "Refund";
     return (
-      <DashboardLayout title="Claim Tokens">
+      <DashboardLayout title={isRefund ? "Refund Claimed" : "Claim Tokens"}>
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md mx-auto text-center py-20"
         >
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10 text-green-600" />
+          <div className={`w-20 h-20 rounded-full ${isRefund ? "bg-amber-100" : "bg-green-100"} flex items-center justify-center mx-auto mb-6`}>
+            <CheckCircle2 className={`w-10 h-10 ${isRefund ? "text-amber-600" : "text-green-600"}`} />
           </div>
-          <h1 className="text-2xl font-semibold text-text mb-4">Tokens Claimed!</h1>
+          <h1 className="text-2xl font-semibold text-text mb-4">
+            {isRefund ? "Refund Claimed!" : "Tokens Claimed!"}
+          </h1>
           <p className="text-gray-500 mb-8">
-            {claimedAmt} {schedule.token_symbol} tokens have been claimed to your wallet.
+            {isRefund
+              ? "Your USDC refund has been sent to your wallet."
+              : `${claimedAmt} ${schedule.token_symbol} tokens have been claimed to your wallet.`}
           </p>
-          <div className="space-y-3">
-            <Button variant="primary" className="w-full" onClick={() => setShowSuccess(false)}>
-              Claim More
+          <Link href="/portfolio">
+            <Button variant="outline" className="w-full">
+              Back to Portfolio
             </Button>
-            <Link href="/portfolio">
-              <Button variant="outline" className="w-full">
-                Back to Portfolio
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </motion.div>
       </DashboardLayout>
     );
@@ -189,22 +248,47 @@ export default function ClaimTokenPage({
       </Link>
       <div className="max-w-lg">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <VestingCard
-            tokenName={schedule.token_name}
-            tokenSymbol={schedule.token_symbol}
-            totalAmount={parseFloat(schedule.total_amount)}
-            claimedAmount={parseFloat(schedule.claimed_amount)}
-            claimableAmount={parseFloat(schedule.claimable_amount)}
-            cliffEnd={new Date(schedule.cliff_end)}
-            vestingEnd={new Date(schedule.vesting_end)}
-            lastClaimDate={schedule.last_claim_at ? new Date(schedule.last_claim_at) : undefined}
-            onClaim={handleClaim}
-            isClaimLoading={isClaimLoading}
-          />
+          {isFailedSale ? (
+            <div className="bg-white rounded-xl border border-amber-200 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+                <h2 className="text-lg font-semibold text-text">Sale Did Not Reach Soft Cap</h2>
+              </div>
+              <p className="text-darkBlack/60 text-sm mb-6">
+                This sale has been finalized as failed. You can claim your USDC refund directly from the smart contract.
+              </p>
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={handleRefund}
+                disabled={isRefundLoading}
+              >
+                {isRefundLoading ? "Processing Refund..." : "Claim Refund"}
+              </Button>
+              {isRefundConfirming && (
+                <p className="mt-4 text-sm text-gray-400 text-center">
+                  Confirming on-chain&hellip;
+                </p>
+              )}
+            </div>
+          ) : (
+            <VestingCard
+              tokenName={schedule.token_name}
+              tokenSymbol={schedule.token_symbol}
+              totalAmount={parseFloat(schedule.total_amount)}
+              claimedAmount={parseFloat(schedule.claimed_amount)}
+              claimableAmount={parseFloat(schedule.claimable_amount)}
+              cliffEnd={new Date(schedule.cliff_end)}
+              vestingEnd={new Date(schedule.vesting_end)}
+              lastClaimDate={schedule.last_claim_at ? new Date(schedule.last_claim_at) : undefined}
+              onClaim={handleClaim}
+              isClaimLoading={isClaimLoading}
+            />
+          )}
           {claimError && (
             <p className="mt-4 text-sm text-red-500 text-center">{claimError}</p>
           )}
-          {(isSaleClaimConfirming || isVaultClaimConfirming) && (
+          {(isSaleClaimConfirming || isVaultClaimConfirming) && !isFailedSale && (
             <p className="mt-4 text-sm text-gray-400 text-center">
               Confirming on-chain&hellip;
             </p>

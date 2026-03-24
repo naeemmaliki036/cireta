@@ -102,13 +102,37 @@ async def sumsub_webhook(
             detail={"code": "INVALID_PAYLOAD", "message": "Invalid JSON payload"},
         ) from None
 
+    # Store webhook event first for reliable retry
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from apps.api.models.webhook_event import WebhookEvent
+
+    db: AsyncSession = kyc_service.db
+    webhook_event = WebhookEvent()
+    webhook_event.provider = "sumsub"
+    webhook_event.payload = payload
+    webhook_event.status = "pending"
+    db.add(webhook_event)
+    await db.flush()
+
     # Get client IP for audit logging — use request.client (set by trusted proxy)
     # rather than X-Forwarded-For which can be spoofed by untrusted clients
     ip_address = request.client.host if request.client else None
 
-    # Process webhook
-    await kyc_service.handle_webhook(payload, ip_address)
+    # Process webhook inline — if it fails, the background worker will retry
+    try:
+        await kyc_service.handle_webhook(payload, ip_address)
+        webhook_event.status = "processed"
+        webhook_event.attempts = 1
+        from datetime import UTC, datetime
 
+        webhook_event.processed_at = datetime.now(UTC)
+    except Exception:
+        webhook_event.attempts = 1
+        webhook_event.last_error = "Initial processing failed — queued for retry"
+        # Leave status as "pending" so the worker retries
+
+    await db.commit()
     return {"status": "ok"}
 
 

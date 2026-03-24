@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.dividend_distribution import DividendDistribution
-from apps.api.models.issuer import Issuer
 from apps.api.models.redemption_request import RedemptionRequest
 from apps.api.schemas.admin import DividendDepositRequest, RedemptionUpdateRequest
 from packages.common.core.auth_deps import CurrentUserId, RequireIssuerOrAdmin
@@ -81,34 +80,103 @@ async def deposit_dividend(
     user_id: CurrentUserId,
     request: DividendDepositRequest,
 ) -> dict:
-    """Record a dividend deposit for a token (issuer action)."""
-    issuer_result = await db.execute(select(Issuer).where(Issuer.user_id == user_id))
-    issuer = issuer_result.scalar_one_or_none()
-    if not issuer:
-        raise HTTPException(status_code=403, detail="Issuer access required")
+    """Record a dividend deposit for a token (issuer action).
 
-    # Verify the token belongs to this issuer
-    from apps.api.models.token import Token
+    The issuer has already called DividendDistributor.deposit() on-chain.
+    This records the epoch in the DB for tracking and querying.
+    """
+    from decimal import Decimal
 
-    token_result = await db.execute(select(Token).where(Token.id == request.token_id))
-    token = token_result.scalar_one_or_none()
-    if not token:
-        raise HTTPException(status_code=404, detail="Token not found")
-    if token.issuer_id != issuer.id:
-        raise HTTPException(
-            status_code=403,
-            detail={"code": "NOT_AUTHORIZED", "message": "Token does not belong to this issuer"},
-        )
+    from apps.api.services.dividend_service import DividendService
 
-    dist = DividendDistribution()
-    dist.token_id = request.token_id
-    dist.epoch_index = 0
-    dist.total_amount = request.amount_usdc
-    dist.total_supply_snapshot = 0
-    dist.contract_address = request.contract_address
-    db.add(dist)
+    svc = DividendService(db)
+    dist = await svc.deposit_dividend(
+        user_id=user_id,
+        token_id=UUID(request.token_id) if isinstance(request.token_id, str) else request.token_id,
+        amount_usdc=Decimal(str(request.amount_usdc)),
+        tx_hash=getattr(request, "tx_hash", None),
+    )
+    return {"message": "Dividend deposit recorded", "id": str(dist.id), "amount_usdc": str(dist.total_amount)}
+
+
+@router.post("/dividends/{token_id}/deposit")
+async def deposit_dividend_by_token(
+    token_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user_id: CurrentUserId,
+    request: DividendDepositRequest,
+) -> dict:
+    """Record a dividend deposit for a specific token (issuer action).
+
+    Path-based alternative to POST /dividends/deposit.
+    """
+    from decimal import Decimal
+
+    from apps.api.services.dividend_service import DividendService
+
+    svc = DividendService(db)
+    dist = await svc.deposit_dividend(
+        user_id=user_id,
+        token_id=token_id,
+        amount_usdc=Decimal(str(request.amount_usdc)),
+        tx_hash=getattr(request, "tx_hash", None),
+    )
+    return {"message": "Dividend deposit recorded", "id": str(dist.id), "amount_usdc": str(dist.total_amount)}
+
+
+@router.post("/webhooks/{webhook_id}/replay")
+async def replay_webhook(
+    webhook_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001 — role guard
+) -> dict:
+    """Re-process a failed webhook event (admin action)."""
+    from apps.api.models.webhook_event import WebhookEvent
+
+    result = await db.execute(select(WebhookEvent).where(WebhookEvent.id == webhook_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Webhook event not found")
+    if event.status == "processed":
+        return {"message": "Webhook already processed", "id": str(event.id)}
+
+    # Reset for retry
+    event.status = "pending"
+    event.attempts = 0
+    event.last_error = None
     await db.commit()
-    return {"message": "Dividend deposit recorded", "amount_usdc": str(request.amount_usdc)}
+    return {"message": "Webhook queued for replay", "id": str(event.id)}
+
+
+@router.get("/webhooks")
+async def list_webhooks(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user_id: RequireIssuerOrAdmin,  # noqa: ARG001 — role guard
+    status_filter: str | None = None,
+) -> dict:
+    """List webhook events (admin view)."""
+    from apps.api.models.webhook_event import WebhookEvent
+
+    q = select(WebhookEvent).order_by(WebhookEvent.created_at.desc()).limit(100)
+    if status_filter:
+        q = q.where(WebhookEvent.status == status_filter)
+    result = await db.execute(q)
+    items = result.scalars().all()
+    return {
+        "webhooks": [
+            {
+                "id": str(e.id),
+                "provider": e.provider,
+                "status": e.status,
+                "attempts": e.attempts,
+                "last_error": e.last_error,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+                "processed_at": e.processed_at.isoformat() if e.processed_at else None,
+            }
+            for e in items
+        ],
+        "total": len(items),
+    }
 
 
 @router.get("/dividends")

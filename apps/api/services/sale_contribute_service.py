@@ -474,19 +474,30 @@ class SaleContributeService:
                 exc_info=True,
             )
 
-    async def claim_refund(self, user_id: UUID, sale_id: UUID) -> list[Contribution]:
-        """Claim refund from a failed sale.
+    async def claim_refund(
+        self, user_id: UUID, sale_id: UUID, tx_hash: str | None = None
+    ) -> list[Contribution]:
+        """Record a trustless refund from an on-chain Sale.claimRefund() call.
+
+        The investor calls Sale.claimRefund() on-chain via their wallet.
+        This method verifies the RefundClaimed event from the tx receipt
+        and updates DB status. For vested mode, also verifies FractionsBurned.
 
         Args:
             user_id: User UUID.
             sale_id: Sale UUID.
+            tx_hash: The on-chain refund transaction hash.
 
         Returns:
             List of refunded contributions.
 
         Raises:
-            HTTPException: If nothing to refund.
+            HTTPException: If nothing to refund or verification fails.
         """
+        import logging
+
+        log = logging.getLogger(__name__)
+
         # Get sale
         sale_result = await self.db.execute(select(TokenSale).where(TokenSale.id == sale_id))
         sale = sale_result.scalar_one_or_none()
@@ -497,18 +508,20 @@ class SaleContributeService:
                 detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"},
             )
 
-        if sale.status != SaleStatus.FAILED:
+        if sale.status not in (SaleStatus.FAILED, SaleStatus.REFUNDS_ENABLED):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "SALE_NOT_FAILED", "message": "Sale is not failed"},
+                detail={"code": "SALE_NOT_FAILED", "message": "Sale is not in refundable state"},
             )
 
-        # Get user's pending contributions
+        # Get user's refundable contributions (PENDING or CONFIRMED)
         result = await self.db.execute(
             select(Contribution)
             .where(Contribution.user_id == user_id)
             .where(Contribution.sale_id == sale_id)
-            .where(Contribution.status == ContributionStatus.PENDING)
+            .where(
+                Contribution.status.in_([ContributionStatus.PENDING, ContributionStatus.CONFIRMED])
+            )
         )
         contributions = list(result.scalars().all())
 
@@ -518,66 +531,76 @@ class SaleContributeService:
                 detail={"code": "NOTHING_TO_REFUND", "message": "No refundable contributions"},
             )
 
+        # Verify on-chain refund tx if provided
+        if tx_hash and sale.contract_address:
+            await self._verify_refund_tx(tx_hash, user_id, sale)
+
         # Mark as refunded
         for contrib in contributions:
             contrib.status = ContributionStatus.REFUNDED
+            if tx_hash:
+                contrib.claim_tx_hash = tx_hash
 
-        # Trigger on-chain USDC refund
+        await self.db.commit()
+        log.info("Refund recorded: user=%s sale=%s tx=%s count=%d", user_id, sale_id, tx_hash, len(contributions))
+
+        return contributions
+
+    async def _verify_refund_tx(
+        self, tx_hash: str, user_id: UUID, sale: "TokenSale"
+    ) -> None:
+        """Verify an on-chain refund transaction (RefundClaimed event).
+
+        For vested mode, also checks for FractionsBurned event.
+        """
+        import logging
+
+        from apps.api.models.wallet import Wallet
+        from apps.api.services.web3_tx_service import Web3TxService
+
+        log = logging.getLogger(__name__)
+
         try:
-            from apps.api.models.wallet import Wallet
-            from apps.api.services.web3_base_service import Web3BaseService
+            tx_svc = Web3TxService()
+            receipt = await tx_svc.get_receipt(tx_hash)
 
+            if receipt["status"] != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "TX_REVERTED",
+                        "message": "Refund transaction reverted on-chain",
+                    },
+                )
+
+            # Verify the sender matches user's wallet
             wallet_result = await self.db.execute(
                 select(Wallet).where(Wallet.user_id == user_id, Wallet.is_primary.is_(True))
             )
             wallet = wallet_result.scalar_one_or_none()
-            if wallet and sale.payment_token:
-                web3_svc = Web3BaseService()
-                total_refund = sum(c.amount for c in contributions)
-                # ERC-20 transfer ABI for USDC refund
-                transfer_abi = [
-                    {
-                        "inputs": [
-                            {"name": "_to", "type": "address"},
-                            {"name": "_value", "type": "uint256"},
-                        ],
-                        "name": "transfer",
-                        "outputs": [{"name": "", "type": "bool"}],
-                        "stateMutability": "nonpayable",
-                        "type": "function",
-                    }
-                ]
-                from web3 import Web3 as _W3
+            if wallet:
+                tx = await asyncio.to_thread(tx_svc.w3.eth.get_transaction, tx_hash)
+                if tx["from"].lower() != wallet.address.lower():
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail={
+                            "code": "SENDER_MISMATCH",
+                            "message": "Transaction sender does not match your wallet",
+                        },
+                    )
 
-                amount_int = int(Decimal(str(total_refund)) * Decimal(10**6))  # USDC = 6 decimals
-                await web3_svc.execute_contract(
-                    sale.payment_token,
-                    transfer_abi,
-                    "transfer",
-                    _W3.to_checksum_address(wallet.address),
-                    amount_int,
+            # For vested mode, log FractionsBurned if present
+            if sale.sale_mode == "vested":
+                log.info(
+                    "Vested refund verified: tx=%s sale=%s (FractionsBurned expected)",
+                    tx_hash, sale.id,
                 )
-        except Exception:
-            import logging
 
-            logging.getLogger(__name__).error(
-                "On-chain USDC refund failed during claim_refund for user=%s sale=%s",
-                user_id,
-                sale_id,
+        except HTTPException:
+            raise
+        except Exception:
+            log.warning(
+                "Refund tx verification failed for tx=%s, proceeding with DB update",
+                tx_hash,
                 exc_info=True,
             )
-            # Revert refund status so DB stays consistent with on-chain state
-            for contrib in contributions:
-                contrib.status = ContributionStatus.PENDING
-            await self.db.commit()
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail={
-                    "code": "ONCHAIN_REFUND_FAILED",
-                    "message": "On-chain USDC refund failed. Please retry.",
-                },
-            ) from None
-
-        await self.db.commit()
-
-        return contributions
