@@ -214,6 +214,22 @@ async function main() {
     console.log("CiretaSaleFactory already deployed:", addresses.saleFactory);
   }
 
+  // 4b. Transfer IdentityRegistryStorage ownership to TokenFactory
+  //     so factory can call bindIdentityRegistry() (onlyOwner)
+  console.log("\n=== Transferring IdentityRegistryStorage ownership to TokenFactory ===");
+  {
+    const IdentityRegistryStorage = await ethers.getContractFactory("IdentityRegistryStorage");
+    const identityStorage = IdentityRegistryStorage.attach(addresses.identityRegistryStorage!) as any;
+    const currentOwner = await identityStorage.owner();
+    if (currentOwner.toLowerCase() !== addresses.tokenFactory!.toLowerCase()) {
+      const tx = await identityStorage.transferOwnership(addresses.tokenFactory!);
+      await tx.wait();
+      console.log("IdentityRegistryStorage ownership transferred to TokenFactory:", addresses.tokenFactory);
+    } else {
+      console.log("IdentityRegistryStorage already owned by TokenFactory");
+    }
+  }
+
   // 5. Deploy compliance modules
   console.log("\n=== Deploying Compliance Modules ===");
 

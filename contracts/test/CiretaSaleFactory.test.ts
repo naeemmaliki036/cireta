@@ -23,12 +23,14 @@ describe("CiretaSaleFactory", () => {
   function encodeSaleInit(
     token: string, paymentToken: string, registry: string,
     iss: string, fm: string, soft: bigint, hard: bigint,
+    initialOwner?: string,
   ) {
     const iface = new ethers.Interface([
-      "function initialize(address,address,address,address,address,uint256,uint256,uint256,uint256)",
+      "function initialize(address,address,address,address,address,uint256,uint256,uint256,uint256,address)",
     ]);
     return iface.encodeFunctionData("initialize", [
       token, paymentToken, registry, iss, fm, soft, hard, 250n, ethers.parseUnits("50000", 6),
+      initialOwner || iss,
     ]);
   }
 
@@ -111,10 +113,11 @@ describe("CiretaSaleFactory", () => {
 
   describe("deploySaleVested", () => {
     it("deploys a Vested mode sale with vault and fraction token", async () => {
+      // For vested mode, factory must be initial owner to call setVestedMode, then transfers to issuer
       const initData = encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, feeManager.address,
-        SOFT_CAP, HARD_CAP,
+        SOFT_CAP, HARD_CAP, await saleFactory.getAddress(),
       );
 
       const tx = await saleFactory.deploySaleVested(
@@ -139,6 +142,9 @@ describe("CiretaSaleFactory", () => {
       expect(vaultAddr).to.not.equal(ethers.ZeroAddress);
       expect(fractionAddr).to.not.equal(ethers.ZeroAddress);
 
+      // Sale ownership transferred to issuer
+      expect(await sale.owner()).to.equal(issuer.address);
+
       // Fraction factory tracks the mapping
       expect(await fractionFactory.saleToVault(sales[0])).to.equal(vaultAddr);
       expect(await fractionFactory.saleToFraction(sales[0])).to.equal(fractionAddr);
@@ -155,7 +161,7 @@ describe("CiretaSaleFactory", () => {
       const initData = encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, feeManager.address,
-        SOFT_CAP, HARD_CAP,
+        SOFT_CAP, HARD_CAP, await sfNoFF.getAddress(),
       );
 
       await expect(sfNoFF.deploySaleVested(

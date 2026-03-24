@@ -131,10 +131,10 @@ contract CiretaTokenFactory is
             new ERC1967Proxy(identityRegistryImplementation, irInitData)
         );
 
-        // Deploy Compliance
+        // Deploy Compliance — initialize with factory as temporary owner so we can call bindToken()
         bytes memory compInitData = abi.encodeWithSelector(
             ModularCompliance.initialize.selector,
-            issuer
+            address(this)
         );
         complianceProxy = address(
             new ERC1967Proxy(complianceImplementation, compInitData)
@@ -154,8 +154,11 @@ contract CiretaTokenFactory is
             new ERC1967Proxy(tokenImplementation, tokenInitData)
         );
 
-        // Bind token to compliance
+        // Bind token to compliance (factory is owner, so this succeeds)
         ModularCompliance(complianceProxy).bindToken(tokenProxy);
+
+        // Transfer compliance ownership to the issuer
+        ModularCompliance(complianceProxy).transferOwnership(issuer);
 
         // Bind identity registry to storage
         IIdentityRegistryStorage(identityRegistryStorage).bindIdentityRegistry(

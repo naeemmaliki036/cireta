@@ -117,8 +117,11 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
             cliffDuration, vestingDuration, excessPolicy, issuer
         );
 
-        // Configure vested mode on the Sale
+        // Configure vested mode on the Sale (factory must be sale owner at this point)
         Sale(sale).setVestedMode(vaultAddr, fractionAddr);
+
+        // Transfer sale ownership to the issuer
+        Sale(sale).transferOwnership(issuer);
 
         tokenSales[token].push(sale);
         allSales.push(sale);

@@ -30,6 +30,7 @@ describe("Sale", () => {
       issuer.address,
       feeManager.address,
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
+      owner.address,
     ], { unsafeAllow: ["state-variable-immutable", "external-library-linking", "constructor"] });
 
     await mockUsdc.mint(investor.address, ethers.parseUnits("200000", 6));
@@ -138,6 +139,7 @@ describe("Sale — Vested Mode", () => {
       issuer.address,
       feeManager.address,
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
+      owner.address,
     ], { unsafeAllow: ["constructor"] });
 
     // Deploy FractionToken
@@ -262,6 +264,7 @@ describe("Sale — Vested Mode", () => {
       issuer.address,
       feeManager.address,
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
+      owner.address,
     ], { unsafeAllow: ["constructor"] });
 
     await newSale.setVestedMode(await vault.getAddress(), await fractionToken.getAddress());
@@ -281,6 +284,7 @@ describe("Sale — Vested Mode", () => {
       issuer.address,
       feeManager.address,
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
+      owner.address,
     ], { unsafeAllow: ["constructor"] });
     expect(await directSale.saleMode()).to.equal(0); // Direct
   });

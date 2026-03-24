@@ -136,15 +136,17 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         uint256 _softCap,
         uint256 _hardCap,
         uint256 _feeBasisPoints,
-        uint256 _feeCapUsdc
+        uint256 _feeCapUsdc,
+        address _initialOwner
     ) external initializer {
         if (_token == address(0)) revert ZeroAddress();
         if (_paymentToken == address(0)) revert ZeroAddress();
         if (_identityRegistry == address(0)) revert ZeroAddress();
         if (_issuer == address(0)) revert ZeroAddress();
         if (_feeManager == address(0)) revert ZeroAddress();
+        if (_initialOwner == address(0)) revert ZeroAddress();
 
-        __Ownable_init(msg.sender);
+        __Ownable_init(_initialOwner);
 
         token = _token;
         paymentToken = IERC20(_paymentToken);
