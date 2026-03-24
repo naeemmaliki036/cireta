@@ -21,6 +21,9 @@ export interface VestingSchedule {
   cliff_end: string;
   vesting_end: string;
   last_claim_at: string | null;
+  sale_mode: "direct" | "vested";
+  vault_address: string | null;
+  sale_contract_address: string | null;
 }
 
 export interface PortfolioSummary {
@@ -69,9 +72,12 @@ export async function getVesting(
 }
 
 export async function claimVesting(
-  vestingId: string
+  vestingId: string,
+  txHash?: string
 ): Promise<{ claimed_amount: string; tx_hash: string }> {
-  return apiPost(`/api/v1/portfolio/vesting/${vestingId}/claim`);
+  return apiPost(`/api/v1/portfolio/vesting/${vestingId}/claim`, {
+    ...(txHash ? { tx_hash: txHash } : {}),
+  });
 }
 
 export async function getRedemptions(): Promise<RedemptionRequest[]> {

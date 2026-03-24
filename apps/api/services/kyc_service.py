@@ -272,37 +272,55 @@ class KYCService:
         await self.db.commit()
 
     async def _issue_onchain_claims(self, user: User) -> None:
-        """Issue ONCHAINID claims for verified user.
+        """Deploy ONCHAINID + issue claims + register in IdentityRegistry.
 
-        Issues KYC level, country, and investor type claims to the user's
-        ONCHAINID contract so they can participate in compliant ERC-3643 token sales.
-        Dev mode: logs and skips. Production: calls web3_identity_service.
+        Full flow for a verified user:
+        1. Deploy ONCHAINID via CREATE2 (idempotent)
+        2. Issue KYC, country, investor type claims with real ECDSA signatures
+        3. Register wallet → identity in IdentityRegistry
+        4. Store identity address on user model
+
+        Dev mode: logs and skips.
         """
         from packages.common.core.config import get_settings
 
         settings = get_settings()
         if _is_dev_mode(settings):
-            log.info("Dev mode — skipping on-chain claim issuance for user %s", user.id)
+            log.info("Dev mode — skipping on-chain identity for user %s", user.id)
             return
-        if not user.onchain_id_address:
-            log.warning("User %s has no ONCHAINID address — cannot issue claims", user.id)
+
+        # Get user's primary wallet
+        primary_wallet = next((w for w in user.wallets if w.is_primary), None)
+        if not primary_wallet:
+            log.warning("User %s has no primary wallet — cannot deploy ONCHAINID", user.id)
             return
+
+        if not settings.identity_registry_address:
+            log.warning("IDENTITY_REGISTRY_ADDRESS not configured — skipping")
+            return
+
         try:
             from apps.api.services.web3_identity_service import Web3IdentityService
 
             identity_svc = Web3IdentityService()
-            await identity_svc.issue_kyc_claims(
-                onchain_id_address=user.onchain_id_address,
-                kyc_level=user.kyc_level or 1,
+            identity_address = await identity_svc.register_identity_full(
+                wallet_address=primary_wallet.address,
+                identity_registry=settings.identity_registry_address,
                 country_code=user.country_code or "XX",
-                investor_type=(user.investor_type or "individual"),
+                kyc_level=user.kyc_level or 2,
+                investor_type=user.investor_type or "individual",
             )
+
+            # Store identity address on user model
+            user.onchain_id = identity_address
             log.info(
-                "On-chain claims issued for user %s ONCHAINID %s", user.id, user.onchain_id_address
+                "Full ONCHAINID registration complete for user %s: %s",
+                user.id,
+                identity_address,
             )
         except Exception as exc:
             # Non-fatal: log error, admin can retry via compliance dashboard
-            log.error("Failed to issue on-chain claims for user %s: %s", user.id, exc)
+            log.error("Failed ONCHAINID registration for user %s: %s", user.id, exc)
 
     async def initiate_corporate(self, user_id: UUID, body: Any) -> dict[str, Any]:
         """Initiate corporate KYB — creates Sumsub business-level applicant."""

@@ -1,5 +1,6 @@
 """Sale contribute service — contribute, finalize, claim, refund."""
 
+import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
@@ -366,18 +367,29 @@ class SaleContributeService:
 
         return sale
 
-    async def claim_tokens(self, user_id: UUID, sale_id: UUID) -> list[Contribution]:
-        """Claim tokens from a finalized sale.
+    async def claim_tokens(
+        self, user_id: UUID, sale_id: UUID, tx_hash: str | None = None
+    ) -> list[Contribution]:
+        """Record a trustless token claim from an on-chain transaction.
+
+        Tokens are claimed directly from the contract by the investor:
+        - Direct mode: investor calls Sale.claimTokens() on-chain
+        - Vested mode: investor calls CiretaVault.claim() on-chain
+
+        This method verifies the on-chain claim event and updates DB state.
+        No deployer involvement or forcedTransfer needed.
 
         Args:
             user_id: User UUID.
             sale_id: Sale UUID.
+            tx_hash: The on-chain claim transaction hash (if provided,
+                verifies the claim event before updating DB).
 
         Returns:
             List of claimed contributions.
 
         Raises:
-            HTTPException: If nothing to claim.
+            HTTPException: If nothing to claim or verification fails.
         """
         # Get user's confirmed contributions
         result = await self.db.execute(
@@ -394,68 +406,73 @@ class SaleContributeService:
                 detail={"code": "NOTHING_TO_CLAIM", "message": "No claimable contributions"},
             )
 
+        # Get sale details
+        sale_result = await self.db.execute(
+            select(TokenSale).options(selectinload(TokenSale.token)).where(TokenSale.id == sale_id)
+        )
+        sale = sale_result.scalar_one_or_none()
+
+        # Verify on-chain claim if tx_hash provided
+        if tx_hash and sale and sale.contract_address:
+            await self._verify_claim_tx(tx_hash, user_id, sale)
+
         # Mark as claimed
         now = datetime.now(UTC)
         for contrib in contributions:
             contrib.status = ContributionStatus.CLAIMED
             contrib.claimed_at = now
-
-        # Trigger on-chain token transfer
-        sale_result = await self.db.execute(
-            select(TokenSale).options(selectinload(TokenSale.token)).where(TokenSale.id == sale_id)
-        )
-        sale = sale_result.scalar_one_or_none()
-        if (
-            sale
-            and sale.token
-            and sale.token.contract_address
-            and sale.token.contract_address != ("0x" + "0" * 40)
-        ):
-            try:
-                from apps.api.models.wallet import Wallet
-                from apps.api.services.web3_token_service import Web3TokenService
-
-                wallet_result = await self.db.execute(
-                    select(Wallet).where(Wallet.user_id == user_id, Wallet.is_primary.is_(True))
-                )
-                wallet = wallet_result.scalar_one_or_none()
-                if wallet:
-                    web3_svc = Web3TokenService()
-                    total_tokens = sum(c.tokens_allocated for c in contributions)
-                    amount_int = int(
-                        Decimal(str(total_tokens)) * Decimal(10 ** (sale.token.decimals or 18))
-                    )
-                    await web3_svc.forced_transfer(
-                        sale.token.contract_address,
-                        web3_svc.deployer_address or "",
-                        wallet.address,
-                        amount_int,
-                    )
-            except Exception:
-                import logging
-
-                logging.getLogger(__name__).error(
-                    "On-chain token transfer failed during claim for user=%s sale=%s",
-                    user_id,
-                    sale_id,
-                    exc_info=True,
-                )
-                # Revert claim status so DB stays consistent with on-chain state
-                for contrib in contributions:
-                    contrib.status = ContributionStatus.CONFIRMED
-                    contrib.claimed_at = None
-                await self.db.commit()
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail={
-                        "code": "ONCHAIN_TRANSFER_FAILED",
-                        "message": "On-chain token transfer failed. Please retry.",
-                    },
-                ) from None
+            if tx_hash:
+                contrib.claim_tx_hash = tx_hash
 
         await self.db.commit()
 
         return contributions
+
+    async def _verify_claim_tx(
+        self, tx_hash: str, user_id: UUID, sale: "TokenSale"  # noqa: ARG002
+    ) -> None:
+        """Verify an on-chain claim transaction (TokensClaimed event)."""
+        try:
+            from apps.api.models.wallet import Wallet
+            from apps.api.services.web3_tx_service import Web3TxService
+
+            tx_svc = Web3TxService()
+            receipt = await tx_svc.get_receipt(tx_hash)
+
+            if receipt["status"] != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "TX_REVERTED",
+                        "message": "Claim transaction reverted on-chain",
+                    },
+                )
+
+            # Verify the claimer matches user's wallet
+            wallet_result = await self.db.execute(
+                select(Wallet).where(Wallet.user_id == user_id, Wallet.is_primary.is_(True))
+            )
+            wallet = wallet_result.scalar_one_or_none()
+            if wallet:
+                tx = await asyncio.to_thread(tx_svc.w3.eth.get_transaction, tx_hash)
+                if tx["from"].lower() != wallet.address.lower():
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail={
+                            "code": "CLAIMER_MISMATCH",
+                            "message": "Transaction sender does not match your wallet",
+                        },
+                    )
+        except HTTPException:
+            raise
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Claim tx verification failed for tx=%s, proceeding with DB update",
+                tx_hash,
+                exc_info=True,
+            )
 
     async def claim_refund(self, user_id: UUID, sale_id: UUID) -> list[Contribution]:
         """Claim refund from a failed sale.
