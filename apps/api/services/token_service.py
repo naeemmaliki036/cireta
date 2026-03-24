@@ -12,12 +12,37 @@ from apps.api.models.issuer import Issuer
 from apps.api.models.token import Token
 
 
+import re
+
+
+def _slugify(text: str) -> str:
+    """Convert text to URL-safe slug."""
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[\s_-]+', '-', text)
+    text = re.sub(r'^-+|-+$', '', text)
+    return text
+
+
 class TokenService:
     """Service for token operations."""
 
     def __init__(self, db: AsyncSession) -> None:
         """Initialize token service."""
         self.db = db
+
+    async def _generate_unique_slug(self, name: str) -> str:
+        base_slug = _slugify(name)
+        slug = base_slug
+        counter = 1
+        while (
+            await self.db.execute(
+                select(func.count(Token.id)).where(Token.slug == slug)
+            )
+        ).scalar_one() > 0:
+            slug = f'{base_slug}-{counter}'
+            counter += 1
+        return slug
 
     async def create_token(
         self,
@@ -77,6 +102,7 @@ class TokenService:
         token.issuer_id = issuer.id
         token.name = name
         token.symbol = symbol.upper()
+        token.slug = await self._generate_unique_slug(name)
         token.asset_type = asset_type
         token.total_supply = total_supply
         token.decimals = decimals

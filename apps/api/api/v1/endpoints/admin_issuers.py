@@ -162,7 +162,7 @@ async def get_platform_stats(_user_id: RequireAdmin, db: AsyncSession = Depends(
 
     total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
     total_issuers = (
-        await db.execute(select(func.count(Issuer.id)).where(Issuer.is_whitelisted.is_(True)))
+        await db.execute(select(func.count(Issuer.id)).where(Issuer.status == "active"))
     ).scalar_one()
     active_sales = (
         await db.execute(select(func.count(TokenSale.id)).where(TokenSale.status == "active"))
@@ -170,7 +170,7 @@ async def get_platform_stats(_user_id: RequireAdmin, db: AsyncSession = Depends(
     tvl = (
         await db.execute(
             select(func.coalesce(func.sum(Contribution.amount), 0)).where(
-                Contribution.tokens_claimed.is_(True)
+                Contribution.claimed_at.isnot(None)
             )
         )
     ).scalar_one()
