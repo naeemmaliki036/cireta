@@ -35,14 +35,15 @@ async function main() {
   
   // Update SaleFactory's implementation reference
   const saleFactory = await ethers.getContractAt("CiretaSaleFactory", deploy.saleFactory);
-  // Check if there's a setSaleImplementation function
-  try {
-    const currentImpl = await saleFactory.saleImplementation();
-    console.log("Current sale impl in factory:", currentImpl);
-  } catch(e) {
-    console.log("No saleImplementation() getter");
+  const currentImpl = await saleFactory.saleImplementation();
+  if (currentImpl.toLowerCase() !== newSaleAddr.toLowerCase()) {
+    console.log("Updating SaleFactory implementation to:", newSaleAddr);
+    const tx = await saleFactory.setSaleImplementation(newSaleAddr);
+    await tx.wait();
+    console.log("SaleFactory implementation updated on-chain.");
+  } else {
+    console.log("SaleFactory already using new Sale impl.");
   }
-  
   // Save updated deployments
   fs.writeFileSync(deploymentsFile, JSON.stringify(deploy, null, 2) + "\n");
   console.log("\nDeployments updated");

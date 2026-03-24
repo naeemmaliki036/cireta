@@ -88,11 +88,11 @@ class Web3TokenService(Web3BaseService):
         issuer_checksum = Web3.to_checksum_address(issuer_wallet)
 
         # Build and send the deployToken transaction
-        nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
+        nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address, "pending")
         latest = await asyncio.to_thread(lambda: self.w3.eth.get_block("latest"))
         base_fee = latest.get("baseFeePerGas", 1_000_000_000)
-        max_priority = 1_000_000_000  # 1 gwei tip
-        max_fee = base_fee * 2 + max_priority
+        max_priority = 2_000_000_000  # 2 gwei tip
+        max_fee = base_fee * 3 + max_priority
 
         tx = factory.functions.deployToken(
             name, symbol, decimals, issuer_checksum
@@ -120,11 +120,13 @@ class Web3TokenService(Web3BaseService):
 
         if logs:
             token_address = logs[0]["args"]["token"]
+            identity_registry = logs[0]["args"]["identityRegistry"]
+            compliance = logs[0]["args"]["compliance"]
             logger.info(
                 "ERC-3643 token deployed: %s (identity=%s, compliance=%s)",
                 token_address,
-                logs[0]["args"]["identityRegistry"],
-                logs[0]["args"]["compliance"],
+                identity_registry,
+                compliance,
             )
         else:
             raise ValueError(
@@ -132,7 +134,7 @@ class Web3TokenService(Web3BaseService):
                 "Cannot determine token address."
             )
 
-        return token_address, receipt
+        return token_address, identity_registry, compliance, receipt
 
     async def pause_token(self, token_address: str) -> TxReceipt:
         """Pause all transfers for a token (ERC-3643 pause)."""

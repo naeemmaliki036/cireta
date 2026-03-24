@@ -21,7 +21,7 @@ from packages.common.core.config import settings
 logger = logging.getLogger(__name__)
 
 MAX_NONCE_RETRIES = 3
-DEFAULT_TX_TIMEOUT = 120
+DEFAULT_TX_TIMEOUT = 180
 
 
 class Web3TxService:
@@ -57,14 +57,15 @@ class Web3TxService:
 
         for attempt in range(MAX_NONCE_RETRIES):
             try:
+                # Always fetch a fresh nonce on each attempt
                 nonce = await asyncio.to_thread(
-                    self.w3.eth.get_transaction_count, self._account.address
+                    self.w3.eth.get_transaction_count, self._account.address, "pending"
                 )
                 # Use EIP-1559 fee params (Base supports it)
                 latest = await asyncio.to_thread(lambda: self.w3.eth.get_block("latest"))
                 base_fee = latest.get("baseFeePerGas", 1_000_000_000)
-                max_priority = 1_000_000_000  # 1 gwei tip
-                max_fee = base_fee * 2 + max_priority
+                max_priority = 2_000_000_000  # 2 gwei tip — higher than default to avoid underpricing
+                max_fee = base_fee * 3 + max_priority  # extra headroom
 
                 tx = fn(*args).build_transaction(
                     {
@@ -73,7 +74,7 @@ class Web3TxService:
                         "gas": gas_limit,
                         "maxFeePerGas": max_fee,
                         "maxPriorityFeePerGas": max_priority,
-                        "nonce": nonce + attempt,  # bump nonce on retry
+                        "nonce": nonce,
                         "type": "0x2",
                     }
                 )

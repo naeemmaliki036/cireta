@@ -168,13 +168,15 @@ class TokenService:
                 },
             )
 
-        contract_address, _receipt = await web3_svc.deploy_erc3643_token(
+        contract_address, identity_registry, compliance, _receipt = await web3_svc.deploy_erc3643_token(
             name=token.name,
             symbol=token.symbol,
             decimals=token.decimals,
             issuer_wallet=issuer_wallet,
         )
         token.contract_address = contract_address
+        token.identity_registry_address = identity_registry
+        token.compliance_address = compliance
 
         await self.db.commit()
         await self.db.refresh(token)

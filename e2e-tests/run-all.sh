@@ -91,6 +91,7 @@ tc T6 "Create as investor → 403" 403 \
   -H "Content-Type: application/json" \
   -d '{"name":"Fail","symbol":"FAIL","asset_type":"commodity","total_supply":100,"decimals":18}'
 tc T7 "Deploy token" 200 \
+  --max-time 200 \
   -X POST "$BASE/tokens/$TOKEN_ID/deploy" \
   -H "Authorization: Bearer $ISSUER_TOKEN" \
   -H "Content-Type: application/json"
@@ -119,6 +120,7 @@ tc S6 "Create as investor → 403" 403 \
   -H "Content-Type: application/json" \
   -d "{\"token_id\":\"$TOKEN_ID\",\"payment_token\":\"0x036CbD53842c5426634e7929541eC2318f3dCF7e\",\"soft_cap\":\"1000\",\"hard_cap\":\"2000\",\"phases\":[{\"name\":\"A\",\"allocation\":100,\"price_per_token\":\"1\",\"start_time\":\"2026-04-01T00:00:00Z\",\"end_time\":\"2026-04-30T00:00:00Z\"}]}"
 tc S8  "Deploy sale"            200 \
+  --max-time 200 \
   -X POST "$BASE/sales/$SALE_ID/deploy" \
   -H "Authorization: Bearer $ISSUER_TOKEN" \
   -H "Content-Type: application/json" \

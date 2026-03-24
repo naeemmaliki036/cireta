@@ -211,7 +211,7 @@ async def deploy_sale(
     sale_address, tx_hash = await web3_sale.deploy_sale(
         token_address=sale.token.contract_address,
         payment_token=sale.payment_token,
-        identity_registry=request.identity_registry,
+        identity_registry=sale.token.identity_registry_address or request.identity_registry,
         issuer_wallet=sale.issuer.wallet_address or web3_sale.tx_svc._account.address,
         fee_manager=_settings.platform_fee_receiver or web3_sale.tx_svc._account.address,
         soft_cap=int(sale.soft_cap * 10**6),  # USDC 6 decimals
