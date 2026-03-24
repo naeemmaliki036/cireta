@@ -132,16 +132,16 @@ def get_rpc_health() -> dict:
     try:
         w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
         primary_ok = w3.is_connected()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Primary RPC health check failed: %s", e)
 
     fallback_url = getattr(settings, "web3_fallback_rpc_url", "")
     if fallback_url:
         try:
             w3 = Web3(Web3.HTTPProvider(fallback_url))
             fallback_ok = w3.is_connected()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Fallback RPC health check failed: %s", e)
 
     return {
         "circuit_state": cb.state.value,

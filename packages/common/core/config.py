@@ -130,11 +130,20 @@ class Settings(BaseSettings):
         """Validate security settings after initialization."""
         self._validate_security()
 
+    _KNOWN_DEV_SECRETS = frozenset({
+        "dev-only-k8f3j2m9x7q1w4p6r0t5v8b3n2c7y1a9",
+        "local-dev-secret-key-cireta-2026-change-me-min32chars",
+    })
+
     def _validate_security(self) -> None:
         """Fail fast if security settings are missing in production."""
         if self.environment in ("production", "staging"):
             if not self.jwt_secret_key:
                 raise ValueError("JWT_SECRET_KEY must be set in production/staging environments")
+            if self.jwt_secret_key in self._KNOWN_DEV_SECRETS:
+                raise ValueError(
+                    "JWT_SECRET_KEY is a known dev secret — generate a unique key for production/staging"
+                )
             if not self.encryption_key:
                 raise ValueError("ENCRYPTION_KEY must be set in production/staging environments")
             if not self.sumsub_secret_key:

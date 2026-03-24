@@ -198,7 +198,7 @@ class KYCService:
                 result = await self.db.execute(select(User).where(User.id == user_uuid))
                 user = result.scalar_one_or_none()
             except ValueError:
-                pass
+                log.debug("Invalid UUID in webhook payload externalUserId: %s", external_user_id)
 
         if not user:
             return
@@ -457,7 +457,7 @@ class KYCService:
                 )
                 user = result.scalar_one_or_none()
             except ValueError:
-                pass
+                log.debug("Invalid UUID in corporate webhook externalUserId: %s", external_user_id)
         if not user:
             return
 

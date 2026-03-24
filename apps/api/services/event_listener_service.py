@@ -260,8 +260,11 @@ class EventListenerService:
                         event_name, address, dict(log["args"]),
                     )
                     count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(
+                    "Event processing failed for %s on %s (blocks %d-%d): %s",
+                    event_name, address, from_block, to_block, e, exc_info=True,
+                )
         return count
 
     async def _handle_sale_event(

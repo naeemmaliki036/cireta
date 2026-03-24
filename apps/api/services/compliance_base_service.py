@@ -134,17 +134,10 @@ class ComplianceBaseService:
             token_result = await self.db.execute(select(Token).where(Token.id == token_id))
             token = token_result.scalar_one_or_none()
             if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
-                try:
-                    from apps.api.services.web3_token_service import Web3TokenService
+                from apps.api.services.web3_token_service import Web3TokenService
 
-                    web3_svc = Web3TokenService()
-                    await web3_svc.freeze_address(token.contract_address, wallet_address)
-                except Exception:
-                    import logging
-
-                    logging.getLogger(__name__).warning(
-                        "On-chain freeze failed, proceeding with DB-only"
-                    )
+                web3_svc = Web3TokenService()
+                await web3_svc.freeze_address(token.contract_address, wallet_address)
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -186,17 +179,10 @@ class ComplianceBaseService:
             token_result = await self.db.execute(select(Token).where(Token.id == token_id))
             token = token_result.scalar_one_or_none()
             if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
-                try:
-                    from apps.api.services.web3_token_service import Web3TokenService
+                from apps.api.services.web3_token_service import Web3TokenService
 
-                    web3_svc = Web3TokenService()
-                    await web3_svc.unfreeze_address(token.contract_address, wallet_address)
-                except Exception:
-                    import logging
-
-                    logging.getLogger(__name__).warning(
-                        "On-chain unfreeze failed, proceeding with DB-only"
-                    )
+                web3_svc = Web3TokenService()
+                await web3_svc.unfreeze_address(token.contract_address, wallet_address)
 
         audit = await self._write_audit(
             actor_id=actor_id,

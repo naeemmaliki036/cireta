@@ -81,8 +81,15 @@ async def task_register_wallet_on_chain(
     )
     from packages.common.core.config import settings
 
-    if getattr(settings, "environment", "development") == "development":
-        logger.info("Dev mode — skipping on-chain identity registry for wallet=%s", wallet_address)
+    if not settings.deployer_private_key:
+        logger.error(
+            "DEPLOYER_PRIVATE_KEY not set — cannot register wallet=%s on-chain", wallet_address
+        )
+        return
+    if not settings.identity_registry_address:
+        logger.error(
+            "IDENTITY_REGISTRY_ADDRESS not set — cannot register wallet=%s on-chain", wallet_address
+        )
         return
 
     try:
@@ -95,14 +102,6 @@ async def task_register_wallet_on_chain(
             )
             logger.info(
                 "Registered wallet=%s in IdentityRegistry of token=%s", wallet_address, token_addr
-            )
-    except AttributeError:
-        # register_identity not yet implemented on web3_identity_service
-        for token_addr in token_addresses:
-            logger.info(
-                "Would register wallet=%s in IdentityRegistry of token=%s",
-                wallet_address,
-                token_addr,
             )
     except Exception as e:
         logger.error("Identity registry failed: %s", e)
@@ -147,9 +146,10 @@ async def task_index_contribution(
                 contribution.status = "failed"
                 logger.warning("Contribution TX reverted: tx=%s", tx_hash)
         except Exception as e:
-            logger.warning("Could not verify tx on-chain (dev mode?): %s", e)
-            # In dev mode without chain access, mark as confirmed after DB entry
-            contribution.status = "confirmed"
+            logger.error("On-chain verification failed for tx=%s: %s", tx_hash, e)
+            contribution.status = "pending"
+            await db.commit()
+            raise
 
         await db.commit()
 
@@ -422,15 +422,35 @@ class WorkerSettings:
                     logger.error("Webhook process loop error", exc_info=True)
                 await asyncio.sleep(30)
 
+        async def _heartbeat_loop() -> None:
+            """Write heartbeat to Redis every 30 seconds."""
+            import redis.asyncio as aioredis
+
+            from packages.common.core.config import settings
+
+            while True:
+                try:
+                    r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+                    await r.set(
+                        "cireta:worker:heartbeat",
+                        datetime.now(UTC).isoformat(),
+                        ex=90,
+                    )
+                    await r.aclose()
+                except Exception:
+                    logger.warning("Worker heartbeat write failed", exc_info=True)
+                await asyncio.sleep(30)
+
         # Launch background loops
         ctx["_chain_sync_task"] = asyncio.create_task(_chain_sync_loop())
         ctx["_webhook_task"] = asyncio.create_task(_webhook_process_loop())
-        logger.info("Background tasks started: chain_sync (12s), webhook_process (30s)")
+        ctx["_heartbeat_task"] = asyncio.create_task(_heartbeat_loop())
+        logger.info("Background tasks started: chain_sync (12s), webhook_process (30s), heartbeat (30s)")
 
     @staticmethod
     async def on_shutdown(ctx: dict[str, Any]) -> None:
         """Cancel background tasks on shutdown."""
-        for key in ("_chain_sync_task", "_webhook_task"):
+        for key in ("_chain_sync_task", "_webhook_task", "_heartbeat_task"):
             task = ctx.get(key)
             if task:
                 task.cancel()
