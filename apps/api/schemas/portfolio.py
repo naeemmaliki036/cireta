@@ -88,3 +88,19 @@ class PortfolioSummaryResponse(BaseModel):
     total_vesting_schedules: int
     total_pending_redemptions: int
     holdings: list[HoldingResponse]
+
+
+class VaultClaimableResponse(BaseModel):
+    """On-chain vault claimable amount response."""
+
+    sale_id: str
+    vault_address: str
+    investor_address: str
+    claimable: str
+    total_fractions: str
+    claimed_amount: str
+    vested: str
+    finalized: bool
+    cliff_duration: int
+    vesting_duration: int
+    vesting_start_time: int

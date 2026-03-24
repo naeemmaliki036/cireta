@@ -11,6 +11,7 @@ from apps.api.schemas.portfolio import (
     PortfolioSummaryResponse,
     RedemptionCreateRequest,
     RedemptionResponse,
+    VaultClaimableResponse,
     VestingClaimResponse,
     VestingScheduleResponse,
 )
@@ -200,6 +201,56 @@ async def create_redemption(
     redemption = result.scalar_one()
 
     return _redemption_to_response(redemption)
+
+
+@router.get("/vesting/{sale_id}/claimable", response_model=VaultClaimableResponse)
+async def get_vault_claimable(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> VaultClaimableResponse:
+    """Get on-chain claimable amount from CiretaVault for a vested sale."""
+    from sqlalchemy import select
+
+    from apps.api.models.token_sale import TokenSale
+    from apps.api.models.wallet import Wallet
+    from apps.api.services.web3_vault_service import Web3VaultService
+
+    # Get sale vault address
+    result = await db.execute(select(TokenSale).where(TokenSale.id == sale_id))
+    sale = result.scalar_one_or_none()
+    if not sale or not sale.vault_address:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Sale not found or has no vault")
+
+    # Get user wallet address
+    result = await db.execute(
+        select(Wallet).where(Wallet.user_id == user_id, Wallet.is_primary == True)  # noqa: E712
+    )
+    wallet = result.scalar_one_or_none()
+    if not wallet:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="No wallet found for user")
+
+    vault_svc = Web3VaultService()
+    claimable = await vault_svc.get_claimable(sale.vault_address, wallet.address)
+    vesting_info = await vault_svc.get_vesting_info(sale.vault_address, wallet.address)
+
+    return VaultClaimableResponse(
+        sale_id=str(sale_id),
+        vault_address=sale.vault_address,
+        investor_address=wallet.address,
+        claimable=str(claimable),
+        total_fractions=str(vesting_info["total_fractions"]),
+        claimed_amount=str(vesting_info["claimed_amount"]),
+        vested=str(vesting_info["vested"]),
+        finalized=vesting_info["finalized"],
+        cliff_duration=vesting_info["cliff_duration"],
+        vesting_duration=vesting_info["vesting_duration"],
+        vesting_start_time=vesting_info["vesting_start_time"],
+    )
 
 
 @router.get("/dividends")

@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IIdentityRegistry.sol";
+import "../fraction/CiretaFractionToken.sol";
+import "../vault/CiretaVault.sol";
 
 /// @title Sale
 /// @notice Multi-phase token sale with soft/hard cap, platform fee, OTC allocation, and refunds.
@@ -16,6 +18,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     using SafeERC20 for IERC20;
 
     enum SaleStatus { Draft, Active, Paused, FinalizedSuccess, FinalizedFailed }
+    enum SaleMode { Direct, Vested }
 
     struct Phase {
         string name;
@@ -72,6 +75,11 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     uint256 public maxPerBlock;
     mapping(uint256 => uint256) private _blockContributions;
 
+    // ── Vested mode state ─────────────────────────────────────────────────────
+    SaleMode public saleMode;
+    CiretaVault public vault;
+    CiretaFractionToken public fractionToken;
+
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
     event ContributionMade(address indexed contributor, uint256 indexed phaseId, uint256 amount, uint256 tokensAllocated);
@@ -87,6 +95,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     error ZeroAddress();
     error NothingToClaim();
     error AlreadyClaimed();
+    error UseVaultClaim();
 
     modifier onlyStatus(SaleStatus s) {
         if (status != s) revert InvalidStatus();
@@ -190,6 +199,15 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         maxPerBlock = _maxPerBlock;
     }
 
+    /// @notice Configure vested mode. Must be called before activation.
+    ///         Sets sale mode to Vested and links vault + fraction token.
+    function setVestedMode(address _vault, address _fractionToken) external onlyOwner onlyStatus(SaleStatus.Draft) {
+        if (_vault == address(0) || _fractionToken == address(0)) revert ZeroAddress();
+        saleMode = SaleMode.Vested;
+        vault = CiretaVault(_vault);
+        fractionToken = CiretaFractionToken(_fractionToken);
+    }
+
     // ── Contribute ───────────────────────────────────────────────────────────
 
     function contribute(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
@@ -215,6 +233,16 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         _blockContributions[block.number] += amount;
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
+
+        if (saleMode == SaleMode.Direct) {
+            // Direct: transfer project token immediately
+            IERC20(token).safeTransfer(msg.sender, tokensToAllocate);
+            contributions[msg.sender].claimed = true;
+        } else {
+            // Vested: mint fraction tokens + record vault allocation
+            fractionToken.mint(msg.sender, tokensToAllocate);
+            vault.recordAllocation(msg.sender, tokensToAllocate);
+        }
 
         // Auto-finalize if hard cap hit
         if (totalRaised >= hardCap) {
@@ -272,6 +300,11 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
             uint256 issuerAmount = paymentToken.balanceOf(address(this));
             paymentToken.safeTransfer(issuer, issuerAmount);
 
+            // Start vesting if applicable
+            if (saleMode == SaleMode.Vested) {
+                vault.startVesting();
+            }
+
             emit SaleFinalized(true, totalRaised, fee);
         } else {
             status = SaleStatus.FinalizedFailed;
@@ -283,6 +316,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     // ── Claims & Refunds ─────────────────────────────────────────────────────
 
     function claimTokens() external nonReentrant {
+        if (saleMode == SaleMode.Vested) revert UseVaultClaim();
         if (status != SaleStatus.FinalizedSuccess) revert InvalidStatus();
         Contribution storage contrib = contributions[msg.sender];
         if (contrib.tokensAllocated == 0) revert NothingToClaim();
@@ -301,6 +335,15 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         if (otcAllocations[msg.sender] > 0 && contrib.amount == 0) revert NothingToClaim(); // OTC-only = no on-platform USDC to refund
 
         contrib.refunded = true;
+
+        // Vested: burn any fraction tokens the investor holds
+        if (saleMode == SaleMode.Vested) {
+            uint256 fractionBalance = fractionToken.balanceOf(msg.sender);
+            if (fractionBalance > 0) {
+                fractionToken.burnFrom(msg.sender, fractionBalance);
+            }
+        }
+
         uint256 refundAmount = contrib.amount;
         paymentToken.safeTransfer(msg.sender, refundAmount);
         emit RefundClaimed(msg.sender, refundAmount);
