@@ -3,7 +3,7 @@
 import { Shield, ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type KYCStatus = "none" | "pending" | "approved" | "rejected";
+export type KYCStatus = "none" | "pending" | "approved" | "rejected" | "expired";
 
 export interface KYCBadgeProps {
   status: KYCStatus;
@@ -38,6 +38,12 @@ const statusConfig = {
     color: "text-red-600",
     bgColor: "bg-red-100",
   },
+  expired: {
+    icon: ShieldAlert,
+    label: "Expired",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100",
+  },
 };
 
 export function KYCBadge({
@@ -47,7 +53,7 @@ export function KYCBadge({
   size = "md",
   className,
 }: KYCBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig.none;
   const Icon = config.icon;
 
   const sizes = {

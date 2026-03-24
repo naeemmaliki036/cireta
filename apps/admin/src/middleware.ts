@@ -14,7 +14,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("access_token")?.value;
+  const token = request.cookies.get("admin_token")?.value;
 
   if (!token) {
     const loginUrl = request.nextUrl.clone();

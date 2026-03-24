@@ -22,7 +22,7 @@ const columns: Column<Investor>[] = [
   {
     key: "kyc_status",
     header: "KYC",
-    render: (row) => <KYCBadge status={row.kyc_status as "none" | "pending" | "approved" | "rejected"} level={row.kyc_level} />,
+    render: (row) => <KYCBadge status={row.kyc_status as "none" | "pending" | "approved" | "rejected" | "expired"} level={row.kyc_level} />,
   },
   {
     key: "wallet_address",

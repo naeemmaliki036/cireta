@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Check for auth cookie
-  const token = request.cookies.get("access_token");
+  const token = request.cookies.get("admin_token");
   if (!token) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
