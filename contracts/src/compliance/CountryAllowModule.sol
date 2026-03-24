@@ -25,6 +25,9 @@ contract CountryAllowModule is
     // Compliance => allowed countries
     mapping(address => mapping(uint16 => bool)) private _allowedCountries;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // Events
     event CountryAllowed(address indexed compliance, uint16 indexed country);
     event CountryDisallowed(address indexed compliance, uint16 indexed country);

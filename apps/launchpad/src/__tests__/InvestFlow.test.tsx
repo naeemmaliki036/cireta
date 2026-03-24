@@ -10,10 +10,10 @@ describe("SummaryRow", () => {
   });
 });
 
-describe("USDC_ADDRESS", () => {
-  it("is the correct Base mainnet address", async () => {
-    const { USDC_ADDRESS } = await import("@/components/organisms/InvestFlow");
-    expect(USDC_ADDRESS).toBe("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+describe("USDC address via getUsdcAddress", () => {
+  it("returns the correct Base mainnet address for chainId 8453", async () => {
+    const { getUsdcAddress } = await import("@/lib/contracts/addresses");
+    expect(getUsdcAddress(8453)).toBe("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
   });
 });
 

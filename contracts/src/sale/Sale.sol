@@ -80,6 +80,9 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     CiretaVault public vault;
     CiretaFractionToken public fractionToken;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
     event ContributionMade(address indexed contributor, uint256 indexed phaseId, uint256 amount, uint256 tokensAllocated);
@@ -96,6 +99,21 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     error NothingToClaim();
     error AlreadyClaimed();
     error UseVaultClaim();
+    error InvalidPhase();
+    error PhaseNotStarted();
+    error PhaseEnded();
+    error BelowMinContribution();
+    error ExceedsMaxContribution();
+    error ExceedsHardCap();
+    error ExceedsBlockLimit();
+    error KYCRequired();
+    error NotWhitelisted();
+    error ExceedsAllocation();
+    error CannotAddPhase();
+    error ZeroMaxPerBlock();
+    error SaleNotActive();
+    error InvestorNotVerified();
+    error CannotFinalize();
 
     modifier onlyStatus(SaleStatus s) {
         if (status != s) revert InvalidStatus();
@@ -170,10 +188,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         uint256 endTime,
         bool whitelistOnly
     ) external onlyOwner {
-        require(
-            status == SaleStatus.Draft || status == SaleStatus.Active,
-            "cannot add phase"
-        );
+        if (status != SaleStatus.Draft && status != SaleStatus.Active) revert CannotAddPhase();
         phases.push(Phase({
             name: name,
             pricePerToken: pricePerToken,
@@ -195,7 +210,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     }
 
     function setMaxPerBlock(uint256 _maxPerBlock) external onlyOwner {
-        require(_maxPerBlock > 0, "zero max per block");
+        if (_maxPerBlock == 0) revert ZeroMaxPerBlock();
         maxPerBlock = _maxPerBlock;
     }
 
@@ -211,22 +226,22 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     // ── Contribute ───────────────────────────────────────────────────────────
 
     function contribute(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
-        require(phaseId < phases.length, "invalid phase");
+        // ── Checks ──
+        if (phaseId >= phases.length) revert InvalidPhase();
         Phase storage phase = phases[phaseId];
-        require(block.timestamp >= phase.startTime, "phase not started");
-        require(block.timestamp <= phase.endTime, "phase ended");
-        require(amount >= phase.minContribution, "below min");
-        require(totalContributed[msg.sender] + amount <= phase.maxContribution, "exceeds max");
-        require(totalRaised + amount <= hardCap, "exceeds hard cap");
-        require(_blockContributions[block.number] + amount <= maxPerBlock, "exceeds block limit");
-        require(identityRegistry.isVerified(msg.sender), "KYC required");
-        if (phase.whitelistOnly) require(whitelisted[phaseId][msg.sender], "not whitelisted");
+        if (block.timestamp < phase.startTime) revert PhaseNotStarted();
+        if (block.timestamp > phase.endTime) revert PhaseEnded();
+        if (amount < phase.minContribution) revert BelowMinContribution();
+        if (totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
+        if (totalRaised + amount > hardCap) revert ExceedsHardCap();
+        if (_blockContributions[block.number] + amount > maxPerBlock) revert ExceedsBlockLimit();
+        if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
+        if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
 
         uint256 tokensToAllocate = (amount * 1e18) / phase.pricePerToken;
-        require(phase.sold + tokensToAllocate <= phase.allocation, "exceeds allocation");
+        if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
 
-        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
-
+        // ── Effects ──
         phase.sold += tokensToAllocate;
         totalRaised += amount;
         totalContributed[msg.sender] += amount;
@@ -234,12 +249,13 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
 
+        // ── Interactions (CEI: all external calls after state updates) ──
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
+
         if (saleMode == SaleMode.Direct) {
-            // Direct: transfer project token immediately
             IERC20(token).safeTransfer(msg.sender, tokensToAllocate);
             contributions[msg.sender].claimed = true;
         } else {
-            // Vested: mint fraction tokens + record vault allocation
             fractionToken.mint(msg.sender, tokensToAllocate);
             vault.recordAllocation(msg.sender, tokensToAllocate);
         }
@@ -261,11 +277,8 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         uint256 tokenAmount,
         string calldata paymentReference
     ) external onlyIssuerOrOwner {
-        require(
-            status == SaleStatus.Active || status == SaleStatus.Draft,
-            "sale not active"
-        );
-        require(identityRegistry.isVerified(investor), "investor not verified");
+        if (status != SaleStatus.Active && status != SaleStatus.Draft) revert SaleNotActive();
+        if (!identityRegistry.isVerified(investor)) revert InvestorNotVerified();
 
         contributions[investor].tokensAllocated += tokenAmount;
         otcAllocations[investor] += tokenAmount;
@@ -277,10 +290,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     // ── Finalization ─────────────────────────────────────────────────────────
 
     function finalizeSale() external onlyIssuerOrOwner nonReentrant {
-        require(
-            status == SaleStatus.Active || status == SaleStatus.Paused,
-            "cannot finalize"
-        );
+        if (status != SaleStatus.Active && status != SaleStatus.Paused) revert CannotFinalize();
         _finalize();
     }
 

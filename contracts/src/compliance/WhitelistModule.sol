@@ -19,6 +19,9 @@ contract WhitelistModule is
     mapping(address => bool) private _complianceBound;
     mapping(address => mapping(address => bool)) private _whitelisted;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event AddressWhitelisted(address indexed compliance, address indexed account);
     event AddressDewhitelisted(address indexed compliance, address indexed account);
 

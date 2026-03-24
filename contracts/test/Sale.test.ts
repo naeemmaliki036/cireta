@@ -56,7 +56,7 @@ describe("Sale", () => {
   it("reverts below minimum", async () => {
     const amount = ethers.parseUnits("100", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWith("below min");
+    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "BelowMinContribution");
   });
 
   it("reverts when paused", async () => {
@@ -69,7 +69,7 @@ describe("Sale", () => {
   it("reverts above max", async () => {
     const amount = ethers.parseUnits("150000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWith("exceeds max");
+    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "ExceedsMaxContribution");
   });
 
   it("emits Contributed event", async () => {

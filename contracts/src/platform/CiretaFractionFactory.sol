@@ -19,6 +19,9 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     mapping(address => address) public saleToVault;
     mapping(address => address) public saleToFraction;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event VaultDeployed(address indexed sale, address vault, address fractionToken, address projectToken);
 
     /// @custom:oz-upgrades-unsafe-allow constructor

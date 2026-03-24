@@ -114,6 +114,9 @@ contract ModularCompliance is
     // Allowed function selectors that can be called via callModuleFunction
     mapping(bytes4 => bool) private _allowedSelectors;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     function setAllowedSelector(bytes4 selector, bool allowed) external onlyOwner {
         _allowedSelectors[selector] = allowed;
     }

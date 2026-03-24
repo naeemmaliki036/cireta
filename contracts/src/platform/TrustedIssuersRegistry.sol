@@ -28,6 +28,9 @@ contract TrustedIssuersRegistry is
     // Mapping issuer => topic => can issue
     mapping(address => mapping(uint256 => bool)) private _hasClaimTopic;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();

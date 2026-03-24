@@ -39,7 +39,7 @@ async def send_email_verify(to: str, token: str) -> bool:
         )
         return True
     except Exception as e:
-        logger.error("Failed to send verify email to %s: %s", to, e)
+        logger.error("Failed to send verify email: %s", e)
         return False
 
 
@@ -63,7 +63,7 @@ async def send_password_reset(to: str, token: str) -> bool:
         )
         return True
     except Exception as e:
-        logger.error("Failed to send reset email to %s: %s", to, e)
+        logger.error("Failed to send reset email: %s", e)
         return False
 
 
@@ -86,7 +86,7 @@ async def send_kyc_approved(to: str, kyc_level: int) -> bool:
         )
         return True
     except Exception as e:
-        logger.error("Failed to send KYC approved email to %s: %s", to, e)
+        logger.error("Failed to send KYC approved email: %s", e)
         return False
 
 
@@ -110,7 +110,7 @@ async def send_kyc_rejected(to: str, reason: str = "") -> bool:
         )
         return True
     except Exception as e:
-        logger.error("Failed to send KYC rejected email to %s: %s", to, e)
+        logger.error("Failed to send KYC rejected email: %s", e)
         return False
 
 
@@ -135,7 +135,7 @@ async def send_investment_confirmed(to: str, amount: str, token_symbol: str, tx_
         )
         return True
     except Exception as e:
-        logger.error("Failed to send investment confirmed email to %s: %s", to, e)
+        logger.error("Failed to send investment confirmed email: %s", e)
         return False
 
 
@@ -169,7 +169,7 @@ async def send_sale_finalized(to: str, token_symbol: str, success: bool) -> bool
         )
         return True
     except Exception as e:
-        logger.error("Failed to send sale finalized email to %s: %s", to, e)
+        logger.error("Failed to send sale finalized email: %s", e)
         return False
 
 
@@ -193,7 +193,7 @@ async def send_kyc_expiry_warning(to: str, days_left: int) -> bool:
         )
         return True
     except Exception as e:
-        logger.error("Failed to send KYC expiry warning to %s: %s", to, e)
+        logger.error("Failed to send KYC expiry warning: %s", e)
         return False
 
 
@@ -216,5 +216,5 @@ async def send_redemption_fulfilled(to: str, token_symbol: str) -> bool:
         )
         return True
     except Exception as e:
-        logger.error("Failed to send redemption fulfilled email to %s: %s", to, e)
+        logger.error("Failed to send redemption fulfilled email: %s", e)
         return False

@@ -30,6 +30,9 @@ contract MaxHolderCountModule is
     // Compliance => address => is holder
     mapping(address => mapping(address => bool)) private _isHolder;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // Events
     event MaxHolderCountSet(address indexed compliance, uint256 maxCount);
     event HolderAdded(address indexed compliance, address indexed holder);

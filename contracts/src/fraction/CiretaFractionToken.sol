@@ -27,6 +27,9 @@ contract CiretaFractionToken is
     address public vault;
     uint8 private _decimals;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // --- Events ---
     event FractionsMinted(address indexed to, uint256 amount);
     event FractionsBurned(address indexed from, uint256 amount);

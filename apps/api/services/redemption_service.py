@@ -171,7 +171,68 @@ class RedemptionService:
         if status in (RedemptionStatus.FULFILLED, "fulfilled"):
             redemption.fulfilled_at = datetime.now(UTC)
 
+            # Wire approval to on-chain RedemptionManager
+            await self._approve_on_chain(redemption)
+
         await self.db.commit()
         await self.db.refresh(redemption)
 
         return redemption
+
+    async def _approve_on_chain(self, redemption: RedemptionRequest) -> None:
+        """Call RedemptionManager.fulfil(id) on-chain to burn held tokens."""
+        import logging
+
+        log = logging.getLogger(__name__)
+
+        try:
+            token_result = await self.db.execute(
+                select(Token).where(Token.id == redemption.token_id)
+            )
+            token = token_result.scalar_one_or_none()
+            if not token or not getattr(token, "redemption_manager_address", None):
+                log.warning(
+                    "No redemption_manager_address for token=%s, skipping on-chain fulfilment",
+                    redemption.token_id,
+                )
+                return
+
+            from apps.api.services.web3_base_service import Web3BaseService
+
+            abi = [
+                {
+                    "inputs": [{"name": "id", "type": "uint256"}],
+                    "name": "fulfil",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function",
+                }
+            ]
+            on_chain_id = getattr(redemption, "on_chain_request_id", None)
+            if on_chain_id is None:
+                log.warning(
+                    "No on_chain_request_id for redemption=%s, skipping on-chain fulfilment",
+                    redemption.id,
+                )
+                return
+
+            svc = Web3BaseService()
+            receipt = await svc.execute_contract(
+                token.redemption_manager_address,
+                abi,
+                "fulfil",
+                on_chain_id,
+            )
+            redemption.tx_hash = receipt.transactionHash.hex()
+            log.info(
+                "On-chain fulfil called for redemption=%s token=%s tx=%s",
+                redemption.id,
+                redemption.token_id,
+                redemption.tx_hash,
+            )
+        except Exception:
+            log.error(
+                "Failed to call on-chain fulfil for redemption=%s",
+                redemption.id,
+                exc_info=True,
+            )

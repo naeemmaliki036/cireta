@@ -63,7 +63,7 @@ export default function InvestorsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
           { label: "Total Investors", value: investors.length, icon: <Users className="h-5 w-5" /> },
-          { label: "KYC Verified", value: verified, icon: <Badge variant="active" size="sm">✓</Badge> },
+          { label: "KYC Verified", value: verified, icon: <Badge variant="active" size="sm">Verified</Badge> },
           { label: "Pending KYC", value: investors.filter((i) => i.kyc_status === "pending").length, icon: null },
         ].map((stat) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}

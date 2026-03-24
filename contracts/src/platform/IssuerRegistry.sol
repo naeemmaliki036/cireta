@@ -36,6 +36,9 @@ contract IssuerRegistry is
     // Array of all issuer addresses
     address[] private _issuerAddresses;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // Events
     event IssuerRegistered(address indexed wallet, string name, string jurisdiction);
     event IssuerActivated(address indexed wallet);

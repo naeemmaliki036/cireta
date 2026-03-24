@@ -135,16 +135,17 @@ class TestClaimSigning:
     """Tests for sign_claim with real ECDSA signatures."""
 
     def test_sign_claim_returns_valid_signature(self) -> None:
-        """Signature is 65 bytes (r + s + v)."""
+        """Signature is 65 bytes (r + s + v), returns 3-tuple with data_with_expiry."""
         with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
             mock_settings.deployer_private_key = TEST_PRIVATE_KEY
 
             identity = "0x" + "aa" * 20
-            sig, expiry = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, b"2")
+            sig, expiry, data_with_expiry = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, b"2")
 
             assert len(sig) == 65
             assert expiry > int(time.time())
             assert expiry <= int(time.time()) + CLAIM_EXPIRY_SECONDS + 5
+            assert len(data_with_expiry) > 0
 
     def test_sign_claim_recovers_to_deployer(self) -> None:
         """Signature recovers to the deployer address."""
@@ -153,13 +154,13 @@ class TestClaimSigning:
 
             identity = Web3.to_checksum_address("0x" + "aa" * 20)
             data = b"2"
-            sig, _ = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, data)
+            sig, _expiry, data_with_expiry = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, data)
 
-            # Rebuild the claim hash as the contract would
+            # Rebuild the claim hash as the contract would (using data_with_expiry)
             claim_hash = Web3.keccak(
                 encode(
                     ["address", "uint256", "bytes"],
-                    [identity, CLAIM_TOPIC_KYC, data],
+                    [identity, CLAIM_TOPIC_KYC, data_with_expiry],
                 )
             )
             signable = encode_defunct(primitive=claim_hash)
@@ -172,8 +173,8 @@ class TestClaimSigning:
             mock_settings.deployer_private_key = TEST_PRIVATE_KEY
 
             identity = "0x" + "aa" * 20
-            sig_kyc, _ = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, b"2")
-            sig_country, _ = Web3IdentityService.sign_claim(
+            sig_kyc, _, _ = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, b"2")
+            sig_country, _, _ = Web3IdentityService.sign_claim(
                 identity, CLAIM_TOPIC_COUNTRY, b"US"
             )
             assert sig_kyc != sig_country

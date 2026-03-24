@@ -11,7 +11,6 @@ export {
   InvestConfirmStep,
   InvestSuccessStep,
   SummaryRow,
-  USDC_ADDRESS,
   ERC20_APPROVE_ABI,
 } from "./InvestFlow";
 export { SumsubVerification } from "./SumsubVerification";

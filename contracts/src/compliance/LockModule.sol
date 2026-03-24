@@ -20,6 +20,9 @@ contract LockModule is
     // compliance => address => locked
     mapping(address => mapping(address => bool)) private _locked;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event AddressLocked(address indexed compliance, address indexed account);
     event AddressUnlocked(address indexed compliance, address indexed account);
 

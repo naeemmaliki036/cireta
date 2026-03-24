@@ -28,6 +28,9 @@ contract ClaimTopicsRegistry is
     // Mapping topic => exists
     mapping(uint256 => bool) private _claimTopicExists;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();

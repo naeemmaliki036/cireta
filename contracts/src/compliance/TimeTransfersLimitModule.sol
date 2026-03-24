@@ -20,6 +20,9 @@ contract TimeTransfersLimitModule is
     // compliance => unlock timestamp (block.timestamp after which transfers are allowed)
     mapping(address => uint256) private _unlockTime;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event TimeLockSet(address indexed compliance, uint256 unlockTime);
 
     /// @custom:oz-upgrades-unsafe-allow constructor

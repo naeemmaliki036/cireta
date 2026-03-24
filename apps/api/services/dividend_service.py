@@ -137,13 +137,13 @@ class DividendService:
 
         return result
 
-    def _get_distributor_address(self, token: Token) -> str | None:  # noqa: ARG002
+    def _get_distributor_address(self, token: Token) -> str | None:
         """Get the DividendDistributor contract address for a token.
 
-        Convention: stored in dividend_distributions.contract_address or derived.
+        Reads from the token model's dividend_distributor_address field,
+        which is set when the issuer deploys the DividendDistributor contract.
         """
-        # Check if there's already a distribution with a contract address
-        return None  # Will be populated when issuer provides it
+        return getattr(token, "dividend_distributor_address", None) or None
 
     async def _read_latest_epoch(self, contract_address: str) -> tuple[int, Decimal]:
         """Read the latest epoch count and supply snapshot from on-chain."""

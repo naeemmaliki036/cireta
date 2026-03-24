@@ -39,6 +39,9 @@ contract RedemptionManager is
     mapping(uint256 => RedemptionRequest) public requests;
     mapping(address => uint256[]) public investorRequests;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event RedemptionRequested(uint256 indexed id, address indexed investor, uint256 amount);
     event RedemptionFulfilled(uint256 indexed id, address indexed investor);
     event RedemptionCancelled(uint256 indexed id);

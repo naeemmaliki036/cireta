@@ -20,11 +20,20 @@ FLAG_THRESHOLD = float(getattr(settings, "screening_flag_threshold", 0.4))
 
 
 class WalletScreeningProvider:
-    """Base screening provider — stub for dev, override for production."""
+    """Base screening provider — stub for dev, override for production.
+
+    TODO(mainnet): Replace this stub with a real screening provider before mainnet.
+    Integrate Chainalysis Sanctions API or Elliptic Lens for production screening.
+    See: https://www.chainalysis.com/free-cryptocurrency-sanctions-screening-tools/
+    """
 
     async def screen(self, address: str) -> dict:
         """Screen an address. Returns {"risk_score": float, "sanctioned": bool}."""
-        _ = address
+        logger.warning(
+            "Using STUB wallet screening provider — address=%s will get risk_score=0. "
+            "Integrate a real provider (Chainalysis/Elliptic) before mainnet.",
+            address[:10],
+        )
         return {"risk_score": 0.0, "sanctioned": False}
 
 

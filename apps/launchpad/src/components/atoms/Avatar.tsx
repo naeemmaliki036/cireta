@@ -44,7 +44,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         {src ? (
           <img
             src={src}
-            alt={alt || "Avatar"}
+            alt={alt || (fallback ? `${fallback} avatar` : "User avatar")}
             className="h-full w-full object-cover"
             {...props}
           />

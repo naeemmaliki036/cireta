@@ -35,6 +35,9 @@ contract VestingVault is
     // Vesting schedules per beneficiary
     mapping(address => VestingSchedule[]) public schedules;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // Events
     event ScheduleCreated(
         address indexed beneficiary,

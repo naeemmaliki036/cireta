@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # ONCHAINID
     identity_factory_address: str = Field(default="")
     identity_registry_address: str = Field(default="")
+    # keccak256 of IdentityProxy init code from the deployed factory.
+    # Required for deterministic CREATE2 address computation in production.
+    # Set via IDENTITY_INIT_CODE_HASH env var after deploying the factory.
+    identity_init_code_hash: str = Field(default="")
 
     # Token factory (deployed via contracts/scripts/deploy.ts)
     token_factory_address: str = Field(default="")
@@ -107,6 +111,12 @@ class Settings(BaseSettings):
 
     # Platform
     platform_fee_bps: int = Field(default=DEFAULTS["PLATFORM_FEE_BPS"])
+
+    # ONCHAINID CREATE2 init code hash — keccak256 of the Identity proxy
+    # bytecode. Required to compute deterministic identity addresses off-chain
+    # before deployment. Obtain by running:
+    #   keccak256(type(IdentityProxy).creationCode ++ abi.encode(authority))
+    identity_init_code_hash: str = Field(default="")
 
     @field_validator("cors_origins", mode="before")
     @classmethod

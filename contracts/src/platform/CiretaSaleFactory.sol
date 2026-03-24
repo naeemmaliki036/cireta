@@ -22,6 +22,9 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
     mapping(address => address[]) public tokenSales;
     address[] public allSales;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event SaleDeployed(
         address indexed token,
         address indexed sale,

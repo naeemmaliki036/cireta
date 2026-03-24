@@ -33,6 +33,9 @@ contract PlatformFeeManager is
     // Maximum fee (10%)
     uint256 public constant MAX_FEE_BPS = 1000;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // Events
     event FeeReceiverUpdated(address indexed oldReceiver, address indexed newReceiver);
     event DefaultFeeUpdated(uint256 oldFee, uint256 newFee);

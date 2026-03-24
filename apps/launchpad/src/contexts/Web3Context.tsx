@@ -11,8 +11,6 @@ import {
 import { useAccount, useBalance, useDisconnect, usePublicClient } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 
-// Base Mainnet USDC
-export const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 export const BASE_CHAIN_ID = 8453;
 
 interface Web3ContextValue {

@@ -45,6 +45,9 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     uint256 public totalReleased;
     uint256 public vestingStartTime;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // --- Events ---
     event TokensLocked(uint256 amount);
     event TokensClaimed(address indexed investor, uint256 fractionsBurned, uint256 projectTokensReleased);

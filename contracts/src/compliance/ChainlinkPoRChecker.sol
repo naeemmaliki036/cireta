@@ -44,6 +44,9 @@ contract ChainlinkPoRChecker is
     // Maximum age of feed data before considered stale (24 hours)
     uint256 public constant MAX_STALENESS = 24 hours;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     // Events
     event FeedSet(address indexed compliance, address indexed feed);
     event FeedRemoved(address indexed compliance);

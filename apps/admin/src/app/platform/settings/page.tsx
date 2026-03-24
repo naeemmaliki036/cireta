@@ -82,7 +82,7 @@ export default function PlatformSettingsPage() {
           onClick={handleSave}
           className="bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg px-6 py-2.5 text-sm"
         >
-          {saved ? "Saved ✓" : "Save Settings"}
+          {saved ? "Saved" : "Save Settings"}
         </button>
       </div>
     </div>

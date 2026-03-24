@@ -32,6 +32,9 @@ contract IdentityRegistry is
     // Agents who can register identities
     mapping(address => bool) private _agents;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     modifier onlyAgent() {
         require(_agents[msg.sender] || msg.sender == owner(), "not agent");
         _;

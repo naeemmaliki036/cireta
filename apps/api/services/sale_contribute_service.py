@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -272,7 +273,21 @@ class SaleContributeService:
         # Update sale total raised
         sale.total_raised = sale.total_raised + contrib_amount
 
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except IntegrityError as err:
+            await self.db.rollback()
+            # Race condition: another request committed this tx_hash first
+            dup = await self.db.execute(
+                select(Contribution).where(Contribution.tx_hash == tx_hash)
+            )
+            existing_dup = dup.scalar_one_or_none()
+            if existing_dup:
+                return existing_dup
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "DUPLICATE_TX", "message": "Transaction already recorded"},
+            ) from err
         await self.db.refresh(contribution)
 
         return contribution

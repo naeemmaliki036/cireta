@@ -6,9 +6,6 @@ import { Button, Badge } from "@/components/atoms";
 import { formatCurrency } from "@/lib/utils";
 import type { Project, ProjectPhase } from "@/lib/api/repositories/projects.repository";
 
-// Base Mainnet USDC contract address
-export const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
-
 // Minimal ERC-20 ABI for approve
 export const ERC20_APPROVE_ABI = [
   {

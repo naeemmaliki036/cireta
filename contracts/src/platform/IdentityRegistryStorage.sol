@@ -28,6 +28,9 @@ contract IdentityRegistryStorage is
     // Mapping to check if an identity registry is linked
     mapping(address => bool) private _identityRegistryLinked;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();

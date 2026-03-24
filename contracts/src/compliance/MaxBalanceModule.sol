@@ -20,6 +20,9 @@ contract MaxBalanceModule is
     mapping(address => bool) private _complianceBound;
     mapping(address => uint256) private _maxBalance;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event MaxBalanceSet(address indexed compliance, uint256 maxBalance);
 
     /// @custom:oz-upgrades-unsafe-allow constructor

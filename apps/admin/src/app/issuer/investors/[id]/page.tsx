@@ -71,11 +71,22 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
           { label: "Country", value: investor.country_code ?? "—" },
           { label: "Investor Type", value: investor.investor_type },
           { label: "Total Invested", value: `${Number(investor.total_invested).toLocaleString()} USDC` },
-          { label: "Status", value: investor.is_frozen ? "🔴 Frozen" : "🟢 Active" },
+          { label: "Status", value: investor.is_frozen ? "Frozen" : "Active" },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white/5 rounded-xl p-4">
             <p className="text-white/40 text-xs mb-1">{label}</p>
-            <p className="text-white font-medium text-sm">{value}</p>
+            <p className="text-white font-medium text-sm">
+              {label === "Status" ? (
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${
+                  value === "Frozen" ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    value === "Frozen" ? "bg-red-400" : "bg-green-400"
+                  }`} />
+                  {value}
+                </span>
+              ) : value}
+            </p>
           </div>
         ))}
       </div>

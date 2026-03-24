@@ -240,31 +240,35 @@ class Web3IdentityService(Web3TokenService):
         identity_address: str,
         topic: int,
         data: bytes,
-    ) -> tuple[bytes, int]:
+    ) -> tuple[bytes, int, bytes]:
         """Sign a claim using the deployer's private key (real ECDSA).
 
         ONCHAINID ClaimIssuer.isClaimValid() expects the signature to be
         an EIP-191 signed message of: keccak256(abi.encode(identity, topic, data)).
+        The expiry is ABI-encoded into the data field so it is available
+        on-chain for validity checks and included in the signed hash.
 
         Args:
             identity_address: The ONCHAINID identity contract address.
             topic: Claim topic (1=KYC, 2=Country, 3=InvestorType).
-            data: Claim data bytes.
+            data: Raw claim data bytes (value only, without expiry).
 
         Returns:
-            Tuple of (signature_bytes, expiry_timestamp).
+            Tuple of (signature_bytes, expiry_timestamp, data_with_expiry).
         """
         if not settings.deployer_private_key:
             raise ValueError("DEPLOYER_PRIVATE_KEY required for claim signing")
 
         expiry = int(time.time()) + CLAIM_EXPIRY_SECONDS
 
-        # Build the claim hash as ONCHAINID expects:
-        # keccak256(abi.encode(identity, topic, data))
+        # Encode expiry into the data field so it's available on-chain
+        data_with_expiry = encode(["bytes", "uint256"], [data, expiry])
+
+        # Build the claim hash including expiry for signature integrity
         claim_hash = Web3.keccak(
             encode(
                 ["address", "uint256", "bytes"],
-                [Web3.to_checksum_address(identity_address), topic, data],
+                [Web3.to_checksum_address(identity_address), topic, data_with_expiry],
             )
         )
 
@@ -272,7 +276,7 @@ class Web3IdentityService(Web3TokenService):
         signable = encode_defunct(primitive=claim_hash)
         signed = Account.sign_message(signable, private_key=settings.deployer_private_key)
 
-        return bytes(signed.signature), expiry
+        return bytes(signed.signature), expiry, data_with_expiry
 
     # ── Claim issuance ─────────────────────────────────────────────────
 
@@ -350,8 +354,10 @@ class Web3IdentityService(Web3TokenService):
         ]
 
         receipts: list[TxReceipt] = []
-        for topic, data in claims:
-            signature, _expiry = self.sign_claim(onchain_id_address, topic, data)
+        for topic, raw_data in claims:
+            signature, _expiry, data_with_expiry = self.sign_claim(
+                onchain_id_address, topic, raw_data
+            )
 
             receipt = await self.issue_claim(
                 identity_address=onchain_id_address,
@@ -359,7 +365,7 @@ class Web3IdentityService(Web3TokenService):
                 scheme=CLAIM_SCHEME_ECDSA,
                 issuer=issuer_addr,
                 signature=signature,
-                data=data,
+                data=data_with_expiry,
                 uri="",
             )
             receipts.append(receipt)

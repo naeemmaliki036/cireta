@@ -20,6 +20,9 @@ contract ConditionalTransferModule is
     // compliance => address => can transfer
     mapping(address => mapping(address => bool)) private _approved;
 
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
+
     event AddressApproved(address indexed compliance, address indexed account);
     event AddressRevoked(address indexed compliance, address indexed account);
 
