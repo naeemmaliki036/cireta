@@ -5,7 +5,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -30,16 +30,20 @@ class SaleContributeService:
         tx_hash: str,
         wallet_address: str | None = None,
     ) -> Contribution:
-        """Record a contribution to a token sale.
+        """Record a contribution to a token sale from an on-chain transaction.
+
+        Verifies the tx_hash on-chain, parses the ContributionMade event,
+        and records data sourced from the chain event (not user input).
+        Deduplicates on tx_hash — returns existing if already recorded.
 
         Args:
             user_id: User UUID.
             sale_id: Sale UUID.
-            amount: Contribution amount in payment token.
-            tx_hash: Blockchain transaction hash.
+            amount: Contribution amount (used as fallback if on-chain verify unavailable).
+            tx_hash: Blockchain transaction hash (source of truth).
 
         Returns:
-            Created contribution.
+            Created or existing contribution.
 
         Raises:
             HTTPException: If not eligible or sale not active.
@@ -63,6 +67,17 @@ class SaleContributeService:
                 },
             )
 
+        # Dedup: if tx_hash already recorded, return existing (idempotent)
+        existing = await self.db.execute(
+            select(Contribution).where(Contribution.tx_hash == tx_hash)
+        )
+        existing_contrib = existing.scalar_one_or_none()
+        if existing_contrib:
+            return existing_contrib
+
+        # Verify on-chain and extract event data
+        on_chain_data = await self._verify_on_chain(tx_hash, user)
+
         # Get sale with phases (SELECT FOR UPDATE to prevent race conditions)
         sale_result = await self.db.execute(
             select(TokenSale)
@@ -84,12 +99,24 @@ class SaleContributeService:
                 detail={"code": "SALE_NOT_ACTIVE", "message": "Sale is not active"},
             )
 
-        # Find current active phase
+        # Resolve contribution data: prefer on-chain, fallback to request
+        contrib_amount = on_chain_data["amount"] if on_chain_data else amount
+        contrib_tokens = on_chain_data["tokens_allocated"] if on_chain_data else None
+        contrib_wallet = on_chain_data["contributor"] if on_chain_data else wallet_address
+        chain_phase_id = on_chain_data["phase_id"] if on_chain_data else None
+
+        # Find the matching phase
         active_phase = None
-        for phase in sale.phases:
-            if phase.is_active:
-                active_phase = phase
-                break
+        if chain_phase_id is not None:
+            # Match on-chain phase index to DB phase
+            sorted_phases = sorted(sale.phases, key=lambda p: p.phase_number)
+            if chain_phase_id < len(sorted_phases):
+                active_phase = sorted_phases[chain_phase_id]
+        if not active_phase:
+            for phase in sale.phases:
+                if phase.is_active:
+                    active_phase = phase
+                    break
 
         if not active_phase:
             raise HTTPException(
@@ -101,8 +128,7 @@ class SaleContributeService:
         if getattr(active_phase, "whitelist_only", False):
             from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist
 
-            # Resolve wallet address from parameter or user's primary wallet
-            resolved_wallet = wallet_address
+            resolved_wallet = contrib_wallet or wallet_address
             if not resolved_wallet:
                 from apps.api.models.wallet import Wallet
 
@@ -139,9 +165,8 @@ class SaleContributeService:
                     },
                 )
 
-        # Check contribution limits
-
-        if active_phase.min_contribution > 0 and amount < active_phase.min_contribution:
+        # Pre-flight limit checks (defense in depth — contract also checks)
+        if active_phase.min_contribution > 0 and contrib_amount < active_phase.min_contribution:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -150,65 +175,141 @@ class SaleContributeService:
                 },
             )
 
-        # Cumulative max contribution check (per-user, per-phase)
         if active_phase.max_contribution > 0:
-            existing_sum_result = await self.db.execute(
-                select(func.coalesce(func.sum(Contribution.amount), 0)).where(
-                    Contribution.user_id == user_id,
-                    Contribution.sale_id == sale_id,
-                    Contribution.phase_id == active_phase.id,
-                )
+            # Read on-chain cumulative total for authoritative check
+            cumulative = await self._get_on_chain_cumulative(
+                sale, contrib_wallet, contrib_amount
             )
-            existing_total = existing_sum_result.scalar()
-            if (existing_total + amount) > active_phase.max_contribution:
+            if cumulative is not None and cumulative > active_phase.max_contribution:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
                         "code": "ABOVE_MAXIMUM",
                         "message": f"Maximum cumulative contribution is {active_phase.max_contribution}. "
-                        f"You have already contributed {existing_total}.",
+                        f"On-chain total would be {cumulative}.",
                     },
                 )
+            # DB fallback when on-chain check unavailable
+            if cumulative is None:
+                from sqlalchemy import func
 
-        # Check tx_hash uniqueness
-        existing = await self.db.execute(
-            select(Contribution).where(Contribution.tx_hash == tx_hash)
-        )
-        if existing.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "TX_EXISTS", "message": "Transaction already recorded"},
-            )
+                existing_sum_result = await self.db.execute(
+                    select(func.coalesce(func.sum(Contribution.amount), 0)).where(
+                        Contribution.user_id == user_id,
+                        Contribution.sale_id == sale_id,
+                        Contribution.phase_id == active_phase.id,
+                    )
+                )
+                existing_total = existing_sum_result.scalar()
+                if (existing_total + contrib_amount) > active_phase.max_contribution:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "code": "ABOVE_MAXIMUM",
+                            "message": f"Maximum cumulative contribution is {active_phase.max_contribution}. "
+                            f"You have already contributed {existing_total}.",
+                        },
+                    )
 
-        # Calculate tokens allocated
-        tokens_allocated = amount / active_phase.price_per_token
+        # Calculate tokens if not from chain
+        tokens_allocated = contrib_tokens or (contrib_amount / active_phase.price_per_token)
 
-        # Create contribution
+        # Create contribution (data sourced from on-chain event)
         contribution = Contribution()
         contribution.user_id = user_id
         contribution.sale_id = sale_id
         contribution.phase_id = active_phase.id
-        contribution.amount = amount
+        contribution.amount = contrib_amount
         contribution.tokens_allocated = tokens_allocated
         contribution.tx_hash = tx_hash
-        contribution.status = ContributionStatus.PENDING
+        contribution.wallet_address = contrib_wallet
+        contribution.status = ContributionStatus.CONFIRMED if on_chain_data else ContributionStatus.PENDING
 
         self.db.add(contribution)
 
         # Hard cap check
-        if sale.hard_cap and (sale.total_raised + amount) > sale.hard_cap:
+        if sale.hard_cap and (sale.total_raised + contrib_amount) > sale.hard_cap:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"code": "EXCEEDS_HARD_CAP", "message": "Exceeds hard cap"},
             )
 
         # Update sale total raised
-        sale.total_raised = sale.total_raised + amount
+        sale.total_raised = sale.total_raised + contrib_amount
 
         await self.db.commit()
         await self.db.refresh(contribution)
 
         return contribution
+
+    async def _get_on_chain_cumulative(
+        self, sale: TokenSale, wallet_address: str | None, new_amount: Decimal
+    ) -> Decimal | None:
+        """Read on-chain cumulative contribution for a user.
+
+        Returns total (existing + new_amount) or None if unavailable.
+        """
+        if not wallet_address or not getattr(sale, "contract_address", None):
+            return None
+        try:
+            from apps.api.services.web3_sale_service import Web3SaleService
+
+            web3_sale = Web3SaleService()
+            data = await web3_sale.get_user_contribution(
+                sale.contract_address, wallet_address
+            )
+            return data["amount"] + new_amount
+        except Exception:
+            import logging
+            logging.getLogger(__name__).debug(
+                "On-chain cumulative check unavailable for sale=%s wallet=%s",
+                sale.id, wallet_address,
+            )
+            return None
+
+    async def _verify_on_chain(
+        self, tx_hash: str, user: User
+    ) -> dict | None:
+        """Verify a tx_hash on-chain and parse the ContributionMade event.
+
+        Returns parsed event data or None if verification is unavailable.
+        """
+        try:
+            from apps.api.services.web3_sale_service import Web3SaleService
+
+            web3_sale = Web3SaleService()
+            event_data = await web3_sale.record_on_chain_contribution(tx_hash)
+
+            # Verify contributor matches user's wallet
+            from apps.api.models.wallet import Wallet
+
+            wallet_result = await self.db.execute(
+                select(Wallet).where(Wallet.user_id == user.id)
+            )
+            user_wallets = [w.address.lower() for w in wallet_result.scalars().all()]
+
+            contributor = event_data["contributor"].lower()
+            if user_wallets and contributor not in user_wallets:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": "CONTRIBUTOR_MISMATCH",
+                        "message": "Transaction contributor does not match your wallet",
+                    },
+                )
+
+            return event_data
+
+        except HTTPException:
+            raise
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "On-chain verification failed for tx=%s, using request data",
+                tx_hash,
+                exc_info=True,
+            )
+            return None
 
     async def finalize_sale(self, user_id: UUID, sale_id: UUID) -> TokenSale:
         """Finalize a token sale.

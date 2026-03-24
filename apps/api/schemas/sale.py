@@ -131,3 +131,31 @@ class OTCAllocateRequest(BaseModel):
     token_amount: float = Field(..., gt=0)
     payment_reference: str = Field(..., min_length=1, max_length=255)
     notes: str | None = None
+
+
+class SaleDeployRequest(BaseModel):
+    """Request to deploy a sale contract on-chain."""
+
+    sale_id: str
+    identity_registry: str = Field(..., min_length=42, max_length=42)
+    fee_basis_points: int = Field(default=250, ge=0, le=10000)
+    fee_cap_usdc: Decimal = Field(default=Decimal("0"))
+
+
+class SaleDeployResponse(BaseModel):
+    """Response from sale contract deployment."""
+
+    sale_id: str
+    sale_address: str
+    tx_hash: str
+    status: str = "deployed"
+
+
+class SaleOnChainStatusResponse(BaseModel):
+    """On-chain sale status."""
+
+    status: str
+    total_raised: str
+    soft_cap: str
+    hard_cap: str
+    phases: list[dict]

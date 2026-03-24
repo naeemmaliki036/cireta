@@ -66,6 +66,14 @@ export function InvestAmountStep({
   const maxContrib = activePhase ? parseFloat(activePhase.max_contribution) || Infinity : Infinity;
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
 
+  // Inline validation error
+  let validationError: string | null = null;
+  if (numericAmount > 0 && numericAmount < minContrib) {
+    validationError = `Minimum contribution is ${formatCurrency(minContrib)}`;
+  } else if (numericAmount > 0 && numericAmount > maxContrib) {
+    validationError = `Maximum contribution is ${formatCurrency(maxContrib)}`;
+  }
+
   if (!isConnected) {
     return (
       <div className="text-center py-8">
@@ -109,7 +117,13 @@ export function InvestAmountStep({
           ))}
         </div>
       </div>
-      {numericAmount > 0 && (
+      {validationError && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 flex gap-2 items-center">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-600">{validationError}</p>
+        </div>
+      )}
+      {numericAmount > 0 && !validationError && (
         <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
           <SummaryRow label="You Pay" value={formatCurrency(numericAmount)} />
           <SummaryRow
@@ -127,7 +141,7 @@ export function InvestAmountStep({
         variant="primary"
         className="w-full"
         size="lg"
-        disabled={numericAmount < minContrib || numericAmount > maxContrib || !activePhase}
+        disabled={numericAmount <= 0 || numericAmount < minContrib || numericAmount > maxContrib || !activePhase}
         onClick={onContinue}
       >
         Continue

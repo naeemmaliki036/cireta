@@ -29,6 +29,7 @@ _FALLBACK_ABI_DIR = Path(__file__).resolve().parent / "abi"
 # Well-known contract names → settings attribute that holds the address
 _ADDRESS_MAP: dict[str, str] = {
     "CiretaTokenFactory": "token_factory_address",
+    "CiretaSaleFactory": "sale_factory_address",
     "IdentityRegistry": "identity_registry_address",
     "IdentityFactory": "identity_factory_address",
     "ModularCompliance": "modular_compliance_address",

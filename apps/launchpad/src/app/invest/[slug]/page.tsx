@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits } from "viem";
 import { Button } from "@/components/atoms";
@@ -15,7 +15,6 @@ import {
   InvestApproveStep,
   InvestConfirmStep,
   InvestSuccessStep,
-  USDC_ADDRESS,
   ERC20_APPROVE_ABI,
   type InvestStep,
 } from "@/components/organisms/InvestFlow";
@@ -24,12 +23,46 @@ import { contribute } from "@/lib/api/repositories/sales";
 import type { Project } from "@/lib/api/repositories/projects.repository";
 import { Spinner } from "@/components/atoms";
 import { getAccessToken } from "@/lib/api/client";
+import { SALE_ABI } from "@/lib/contracts/saleAbi";
+import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
+
+/**
+ * Map common Sale contract revert reasons to user-friendly messages.
+ */
+const REVERT_MESSAGES: Record<string, string> = {
+  "KYC required": "Your wallet is not KYC-verified. Please complete identity verification first.",
+  "not whitelisted": "Your wallet is not whitelisted for this sale phase.",
+  "below min": "Amount is below the minimum contribution for this phase.",
+  "exceeds max": "Amount exceeds the maximum contribution limit.",
+  "exceeds hard cap": "This contribution would exceed the sale's hard cap.",
+  "phase not started": "This sale phase has not started yet.",
+  "phase ended": "This sale phase has ended.",
+  "exceeds allocation": "This phase's token allocation is fully subscribed.",
+  "exceeds block limit": "Too many contributions in this block. Please try again shortly.",
+  "invalid phase": "Invalid sale phase.",
+};
+
+function parseRevertReason(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  // Check for known revert reasons in the error message
+  for (const [key, value] of Object.entries(REVERT_MESSAGES)) {
+    if (msg.toLowerCase().includes(key.toLowerCase())) return value;
+  }
+  if (msg.includes("User rejected") || msg.includes("user rejected")) {
+    return "Transaction was rejected in your wallet.";
+  }
+  if (msg.includes("insufficient funds")) {
+    return "Insufficient USDC balance.";
+  }
+  return "Transaction failed. Please try again.";
+}
 
 const STEPS = ["amount", "approve", "confirm"] as const;
 
 export default function InvestPage() {
   const params = useParams<{ slug: string }>();
   const { isConnected } = useAccount();
+  const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -39,6 +72,9 @@ export default function InvestPage() {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [isContributing, setIsContributing] = useState(false);
+
+  const usdcAddress = getUsdcAddress(chainId);
 
   // Wagmi: USDC approve
   const {
@@ -51,7 +87,20 @@ export default function InvestPage() {
     hash: approveTxHash,
   });
 
-  // Wagmi: no contract needed for contribute — it's an API call after approval
+  // Wagmi: Sale.contribute() on-chain
+  const {
+    writeContract: writeContribute,
+    data: contributeTxHash,
+    isPending: isContributePending,
+    error: contributeError,
+  } = useWriteContract();
+
+  const {
+    isSuccess: contributeConfirmed,
+    isLoading: isContributeConfirming,
+  } = useWaitForTransactionReceipt({
+    hash: contributeTxHash,
+  });
 
   // Load project data
   useEffect(() => {
@@ -77,22 +126,57 @@ export default function InvestPage() {
     if (approveConfirmed) setStep("confirm");
   }, [approveConfirmed]);
 
+  // When on-chain contribute confirms, record in backend then show success
+  useEffect(() => {
+    if (!contributeConfirmed || !contributeTxHash || !saleId) return;
+    const hash = contributeTxHash;
+    setTxHash(hash);
+
+    // Record contribution in backend (non-blocking for UX — tx is already on-chain)
+    (async () => {
+      try {
+        const token = getAccessToken();
+        if (token) {
+          await contribute(saleId, { phase_id: "", amount, tx_hash: hash }, token);
+        }
+      } catch {
+        // Backend recording can be retried later; on-chain tx is the source of truth
+      }
+      setIsContributing(false);
+      setStep("success");
+    })();
+  }, [contributeConfirmed, contributeTxHash, saleId, amount]);
+
+  // Handle contribute error
+  useEffect(() => {
+    if (contributeError) {
+      setError(parseRevertReason(contributeError));
+      setIsContributing(false);
+    }
+  }, [contributeError]);
+
   const numericAmount = parseFloat(amount) || 0;
   const activePhase = project?.phases.find((p) => p.is_active) ?? project?.phases[0] ?? null;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
   const _rawAddr = (project as unknown as { contract_address?: string | null })?.contract_address;
-  const saleContractAddress: `0x${string}` =
+  const saleContractAddress: `0x${string}` | null =
     typeof _rawAddr === "string" && /^0x[0-9a-fA-F]{40}$/.test(_rawAddr)
       ? (_rawAddr as `0x${string}`)
-      : USDC_ADDRESS;
+      : null;
+
+  // Determine the active phase index (0-based, for on-chain call)
+  const activePhaseIndex = project?.phases.findIndex((p) => p.is_active) ?? 0;
 
   const handleApprove = useCallback(() => {
-    if (!saleContractAddress) return;
+    if (!saleContractAddress) {
+      setError("Sale contract not deployed yet.");
+      return;
+    }
     setError(null);
     try {
       writeApprove({
-        address: USDC_ADDRESS,
+        address: usdcAddress,
         abi: ERC20_APPROVE_ABI,
         functionName: "approve",
         args: [saleContractAddress, parseUnits(amount, 6)], // USDC = 6 decimals
@@ -100,21 +184,27 @@ export default function InvestPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approval failed");
     }
-  }, [writeApprove, saleContractAddress, amount]);
+  }, [writeApprove, saleContractAddress, usdcAddress, amount]);
 
-  const handleConfirm = useCallback(async () => {
-    if (!saleId || !activePhase) return;
+  const handleConfirm = useCallback(() => {
+    if (!saleContractAddress || !activePhase) return;
     setError(null);
+    setIsContributing(true);
     try {
-      const token = getAccessToken();
-      if (!token) { setError("Please log in first"); return; }
-      const res = await contribute(saleId, { phase_id: activePhase.id, amount }, token);
-      setTxHash(res.tx_hash);
-      setStep("success");
+      writeContribute({
+        address: saleContractAddress,
+        abi: SALE_ABI,
+        functionName: "contribute",
+        args: [
+          BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
+          parseUnits(amount, 6), // USDC = 6 decimals
+        ],
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Contribution failed");
+      setError(parseRevertReason(err));
+      setIsContributing(false);
     }
-  }, [saleId, activePhase, amount]);
+  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, amount]);
 
   if (loading) {
     return (
@@ -136,6 +226,8 @@ export default function InvestPage() {
       </div>
     );
   }
+
+  const confirmLoading = isContributing || isContributePending || isContributeConfirming;
 
   return (
     <div className="min-h-screen bg-box">
@@ -191,7 +283,7 @@ export default function InvestPage() {
             {step === "confirm" && (
               <InvestConfirmStep
                 project={project} amount={numericAmount}
-                tokensToReceive={tokensToReceive} isLoading={false}
+                tokensToReceive={tokensToReceive} isLoading={confirmLoading}
                 error={error} onConfirm={handleConfirm}
               />
             )}
@@ -204,6 +296,11 @@ export default function InvestPage() {
           </motion.div>
           {step === "success" && (
             <div className="mt-6 space-y-3 max-w-xl mx-auto">
+              {txHash && (
+                <a href={getTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full" size="lg">View on BaseScan</Button>
+                </a>
+              )}
               <Link href="/portfolio"><Button variant="primary" className="w-full" size="lg">View Portfolio</Button></Link>
               <Link href="/explore"><Button variant="outline" className="w-full" size="lg">Explore More</Button></Link>
             </div>

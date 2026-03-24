@@ -1,157 +1,267 @@
 import { ethers, upgrades } from "hardhat";
+import * as fs from "fs";
+import * as path from "path";
+
+interface DeploymentAddresses {
+  identityRegistryStorage: string;
+  claimTopicsRegistry: string;
+  trustedIssuersRegistry: string;
+  issuerRegistry: string;
+  platformFeeManager: string;
+  tokenFactory: string;
+  saleFactory: string;
+  tokenImplementation: string;
+  saleImplementation: string;
+  identityRegistryImplementation: string;
+  complianceImplementation: string;
+  countryAllowModule: string;
+  maxHolderCountModule: string;
+  // Per-token/sale addresses (populated by deploySale)
+  sampleToken?: string;
+  sampleSale?: string;
+}
+
+const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
+
+function loadExistingDeployment(network: string): Partial<DeploymentAddresses> {
+  const filePath = path.join(DEPLOYMENTS_DIR, `${network}.json`);
+  if (fs.existsSync(filePath)) {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  }
+  return {};
+}
+
+function saveDeployment(network: string, addresses: Partial<DeploymentAddresses>) {
+  if (!fs.existsSync(DEPLOYMENTS_DIR)) {
+    fs.mkdirSync(DEPLOYMENTS_DIR, { recursive: true });
+  }
+  const filePath = path.join(DEPLOYMENTS_DIR, `${network}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(addresses, null, 2) + "\n");
+  console.log(`\nDeployment addresses saved to: ${filePath}`);
+}
 
 async function main() {
   const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
+  const networkName = network.chainId === 84532n ? "base-sepolia" : network.chainId === 8453n ? "base" : "hardhat";
+
   console.log("Deploying contracts with account:", deployer.address);
+  console.log("Network:", networkName, "(chainId:", network.chainId.toString(), ")");
 
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("Account balance:", ethers.formatEther(balance), "ETH");
 
+  // Load existing deployment for idempotency
+  const existing = loadExistingDeployment(networkName);
+  const addresses: Partial<DeploymentAddresses> = { ...existing };
+
   // 1. Deploy platform registries (deploy once)
   console.log("\n=== Deploying Platform Registries ===");
 
-  // Identity Registry Storage
-  const IdentityRegistryStorage = await ethers.getContractFactory("IdentityRegistryStorage");
-  const identityStorageProxy = await upgrades.deployProxy(
-    IdentityRegistryStorage,
-    [deployer.address],
-    { kind: "uups" }
-  );
-  await identityStorageProxy.waitForDeployment();
-  const identityStorageAddr = await identityStorageProxy.getAddress();
-  console.log("IdentityRegistryStorage deployed to:", identityStorageAddr);
+  if (!addresses.identityRegistryStorage) {
+    const IdentityRegistryStorage = await ethers.getContractFactory("IdentityRegistryStorage");
+    const identityStorageProxy = await upgrades.deployProxy(
+      IdentityRegistryStorage,
+      [deployer.address],
+      { kind: "uups" }
+    );
+    await identityStorageProxy.waitForDeployment();
+    addresses.identityRegistryStorage = await identityStorageProxy.getAddress();
+    console.log("IdentityRegistryStorage deployed to:", addresses.identityRegistryStorage);
+  } else {
+    console.log("IdentityRegistryStorage already deployed:", addresses.identityRegistryStorage);
+  }
 
-  // Claim Topics Registry
-  const ClaimTopicsRegistry = await ethers.getContractFactory("ClaimTopicsRegistry");
-  const claimTopicsProxy = await upgrades.deployProxy(
-    ClaimTopicsRegistry,
-    [deployer.address],
-    { kind: "uups" }
-  );
-  await claimTopicsProxy.waitForDeployment();
-  const claimTopicsAddr = await claimTopicsProxy.getAddress();
-  console.log("ClaimTopicsRegistry deployed to:", claimTopicsAddr);
+  if (!addresses.claimTopicsRegistry) {
+    const ClaimTopicsRegistry = await ethers.getContractFactory("ClaimTopicsRegistry");
+    const claimTopicsProxy = await upgrades.deployProxy(
+      ClaimTopicsRegistry,
+      [deployer.address],
+      { kind: "uups" }
+    );
+    await claimTopicsProxy.waitForDeployment();
+    addresses.claimTopicsRegistry = await claimTopicsProxy.getAddress();
+    console.log("ClaimTopicsRegistry deployed to:", addresses.claimTopicsRegistry);
+  } else {
+    console.log("ClaimTopicsRegistry already deployed:", addresses.claimTopicsRegistry);
+  }
 
-  // Trusted Issuers Registry
-  const TrustedIssuersRegistry = await ethers.getContractFactory("TrustedIssuersRegistry");
-  const trustedIssuersProxy = await upgrades.deployProxy(
-    TrustedIssuersRegistry,
-    [deployer.address],
-    { kind: "uups" }
-  );
-  await trustedIssuersProxy.waitForDeployment();
-  const trustedIssuersAddr = await trustedIssuersProxy.getAddress();
-  console.log("TrustedIssuersRegistry deployed to:", trustedIssuersAddr);
+  if (!addresses.trustedIssuersRegistry) {
+    const TrustedIssuersRegistry = await ethers.getContractFactory("TrustedIssuersRegistry");
+    const trustedIssuersProxy = await upgrades.deployProxy(
+      TrustedIssuersRegistry,
+      [deployer.address],
+      { kind: "uups" }
+    );
+    await trustedIssuersProxy.waitForDeployment();
+    addresses.trustedIssuersRegistry = await trustedIssuersProxy.getAddress();
+    console.log("TrustedIssuersRegistry deployed to:", addresses.trustedIssuersRegistry);
+  } else {
+    console.log("TrustedIssuersRegistry already deployed:", addresses.trustedIssuersRegistry);
+  }
 
-  // Issuer Registry
-  const IssuerRegistry = await ethers.getContractFactory("IssuerRegistry");
-  const issuerRegistryProxy = await upgrades.deployProxy(
-    IssuerRegistry,
-    [deployer.address],
-    { kind: "uups" }
-  );
-  await issuerRegistryProxy.waitForDeployment();
-  const issuerRegistryAddr = await issuerRegistryProxy.getAddress();
-  console.log("IssuerRegistry deployed to:", issuerRegistryAddr);
+  if (!addresses.issuerRegistry) {
+    const IssuerRegistry = await ethers.getContractFactory("IssuerRegistry");
+    const issuerRegistryProxy = await upgrades.deployProxy(
+      IssuerRegistry,
+      [deployer.address],
+      { kind: "uups" }
+    );
+    await issuerRegistryProxy.waitForDeployment();
+    addresses.issuerRegistry = await issuerRegistryProxy.getAddress();
+    console.log("IssuerRegistry deployed to:", addresses.issuerRegistry);
+  } else {
+    console.log("IssuerRegistry already deployed:", addresses.issuerRegistry);
+  }
 
-  // Platform Fee Manager
-  const PlatformFeeManager = await ethers.getContractFactory("PlatformFeeManager");
-  const feeManagerProxy = await upgrades.deployProxy(
-    PlatformFeeManager,
-    [deployer.address, deployer.address, 200], // 2% default fee
-    { kind: "uups" }
-  );
-  await feeManagerProxy.waitForDeployment();
-  const feeManagerAddr = await feeManagerProxy.getAddress();
-  console.log("PlatformFeeManager deployed to:", feeManagerAddr);
+  if (!addresses.platformFeeManager) {
+    const PlatformFeeManager = await ethers.getContractFactory("PlatformFeeManager");
+    const feeManagerProxy = await upgrades.deployProxy(
+      PlatformFeeManager,
+      [deployer.address, deployer.address, 200], // 2% default fee
+      { kind: "uups" }
+    );
+    await feeManagerProxy.waitForDeployment();
+    addresses.platformFeeManager = await feeManagerProxy.getAddress();
+    console.log("PlatformFeeManager deployed to:", addresses.platformFeeManager);
+  } else {
+    console.log("PlatformFeeManager already deployed:", addresses.platformFeeManager);
+  }
 
   // 2. Deploy implementation contracts
   console.log("\n=== Deploying Implementation Contracts ===");
 
-  const CiretaToken = await ethers.getContractFactory("CiretaToken");
-  const tokenImpl = await CiretaToken.deploy();
-  await tokenImpl.waitForDeployment();
-  const tokenImplAddr = await tokenImpl.getAddress();
-  console.log("CiretaToken implementation deployed to:", tokenImplAddr);
+  if (!addresses.tokenImplementation) {
+    const CiretaToken = await ethers.getContractFactory("CiretaToken");
+    const tokenImpl = await CiretaToken.deploy();
+    await tokenImpl.waitForDeployment();
+    addresses.tokenImplementation = await tokenImpl.getAddress();
+    console.log("CiretaToken implementation deployed to:", addresses.tokenImplementation);
+  } else {
+    console.log("CiretaToken implementation already deployed:", addresses.tokenImplementation);
+  }
 
-  const IdentityRegistry = await ethers.getContractFactory("IdentityRegistry");
-  const identityRegistryImpl = await IdentityRegistry.deploy();
-  await identityRegistryImpl.waitForDeployment();
-  const identityRegistryImplAddr = await identityRegistryImpl.getAddress();
-  console.log("IdentityRegistry implementation deployed to:", identityRegistryImplAddr);
+  if (!addresses.identityRegistryImplementation) {
+    const IdentityRegistry = await ethers.getContractFactory("IdentityRegistry");
+    const identityRegistryImpl = await IdentityRegistry.deploy();
+    await identityRegistryImpl.waitForDeployment();
+    addresses.identityRegistryImplementation = await identityRegistryImpl.getAddress();
+    console.log("IdentityRegistry implementation deployed to:", addresses.identityRegistryImplementation);
+  } else {
+    console.log("IdentityRegistry implementation already deployed:", addresses.identityRegistryImplementation);
+  }
 
-  const ModularCompliance = await ethers.getContractFactory("ModularCompliance");
-  const complianceImpl = await ModularCompliance.deploy();
-  await complianceImpl.waitForDeployment();
-  const complianceImplAddr = await complianceImpl.getAddress();
-  console.log("ModularCompliance implementation deployed to:", complianceImplAddr);
+  if (!addresses.complianceImplementation) {
+    const ModularCompliance = await ethers.getContractFactory("ModularCompliance");
+    const complianceImpl = await ModularCompliance.deploy();
+    await complianceImpl.waitForDeployment();
+    addresses.complianceImplementation = await complianceImpl.getAddress();
+    console.log("ModularCompliance implementation deployed to:", addresses.complianceImplementation);
+  } else {
+    console.log("ModularCompliance implementation already deployed:", addresses.complianceImplementation);
+  }
+
+  if (!addresses.saleImplementation) {
+    const Sale = await ethers.getContractFactory("Sale");
+    const saleImpl = await Sale.deploy();
+    await saleImpl.waitForDeployment();
+    addresses.saleImplementation = await saleImpl.getAddress();
+    console.log("Sale implementation deployed to:", addresses.saleImplementation);
+  } else {
+    console.log("Sale implementation already deployed:", addresses.saleImplementation);
+  }
 
   // 3. Deploy Token Factory
   console.log("\n=== Deploying Token Factory ===");
 
-  const CiretaTokenFactory = await ethers.getContractFactory("CiretaTokenFactory");
-  const factoryProxy = await upgrades.deployProxy(
-    CiretaTokenFactory,
-    [
-      deployer.address,
-      tokenImplAddr,
-      identityRegistryImplAddr,
-      complianceImplAddr,
-      claimTopicsAddr,
-      trustedIssuersAddr,
-      identityStorageAddr,
-      issuerRegistryAddr,
-    ],
-    { kind: "uups" }
-  );
-  await factoryProxy.waitForDeployment();
-  const factoryAddr = await factoryProxy.getAddress();
-  console.log("CiretaTokenFactory deployed to:", factoryAddr);
+  if (!addresses.tokenFactory) {
+    const CiretaTokenFactory = await ethers.getContractFactory("CiretaTokenFactory");
+    const factoryProxy = await upgrades.deployProxy(
+      CiretaTokenFactory,
+      [
+        deployer.address,
+        addresses.tokenImplementation,
+        addresses.identityRegistryImplementation,
+        addresses.complianceImplementation,
+        addresses.claimTopicsRegistry,
+        addresses.trustedIssuersRegistry,
+        addresses.identityRegistryStorage,
+        addresses.issuerRegistry,
+      ],
+      { kind: "uups" }
+    );
+    await factoryProxy.waitForDeployment();
+    addresses.tokenFactory = await factoryProxy.getAddress();
+    console.log("CiretaTokenFactory deployed to:", addresses.tokenFactory);
+  } else {
+    console.log("CiretaTokenFactory already deployed:", addresses.tokenFactory);
+  }
 
-  // 4. Deploy compliance modules
+  // 4. Deploy Sale Factory
+  console.log("\n=== Deploying Sale Factory ===");
+
+  if (!addresses.saleFactory) {
+    const CiretaSaleFactory = await ethers.getContractFactory("CiretaSaleFactory");
+    const saleFactoryProxy = await upgrades.deployProxy(
+      CiretaSaleFactory,
+      [deployer.address, addresses.saleImplementation],
+      { kind: "uups" }
+    );
+    await saleFactoryProxy.waitForDeployment();
+    addresses.saleFactory = await saleFactoryProxy.getAddress();
+    console.log("CiretaSaleFactory deployed to:", addresses.saleFactory);
+  } else {
+    console.log("CiretaSaleFactory already deployed:", addresses.saleFactory);
+  }
+
+  // 5. Deploy compliance modules
   console.log("\n=== Deploying Compliance Modules ===");
 
-  const CountryAllowModule = await ethers.getContractFactory("CountryAllowModule");
-  const countryModuleProxy = await upgrades.deployProxy(
-    CountryAllowModule,
-    [deployer.address],
-    { kind: "uups" }
-  );
-  await countryModuleProxy.waitForDeployment();
-  const countryModuleAddr = await countryModuleProxy.getAddress();
-  console.log("CountryAllowModule deployed to:", countryModuleAddr);
+  if (!addresses.countryAllowModule) {
+    const CountryAllowModule = await ethers.getContractFactory("CountryAllowModule");
+    const countryModuleProxy = await upgrades.deployProxy(
+      CountryAllowModule,
+      [deployer.address],
+      { kind: "uups" }
+    );
+    await countryModuleProxy.waitForDeployment();
+    addresses.countryAllowModule = await countryModuleProxy.getAddress();
+    console.log("CountryAllowModule deployed to:", addresses.countryAllowModule);
+  } else {
+    console.log("CountryAllowModule already deployed:", addresses.countryAllowModule);
+  }
 
-  const MaxHolderCountModule = await ethers.getContractFactory("MaxHolderCountModule");
-  const maxHolderModuleProxy = await upgrades.deployProxy(
-    MaxHolderCountModule,
-    [deployer.address],
-    { kind: "uups" }
-  );
-  await maxHolderModuleProxy.waitForDeployment();
-  const maxHolderModuleAddr = await maxHolderModuleProxy.getAddress();
-  console.log("MaxHolderCountModule deployed to:", maxHolderModuleAddr);
+  if (!addresses.maxHolderCountModule) {
+    const MaxHolderCountModule = await ethers.getContractFactory("MaxHolderCountModule");
+    const maxHolderModuleProxy = await upgrades.deployProxy(
+      MaxHolderCountModule,
+      [deployer.address],
+      { kind: "uups" }
+    );
+    await maxHolderModuleProxy.waitForDeployment();
+    addresses.maxHolderCountModule = await maxHolderModuleProxy.getAddress();
+    console.log("MaxHolderCountModule deployed to:", addresses.maxHolderCountModule);
+  } else {
+    console.log("MaxHolderCountModule already deployed:", addresses.maxHolderCountModule);
+  }
 
-  // 5. Add default claim topics (KYC)
+  // 6. Configure claim topics
   console.log("\n=== Configuring Claim Topics ===");
-  const claimTopics = ClaimTopicsRegistry.attach(claimTopicsAddr);
-  await claimTopics.addClaimTopic(1); // KYC claim topic
-  console.log("Added KYC claim topic (1)");
+  try {
+    const ClaimTopicsRegistry = await ethers.getContractFactory("ClaimTopicsRegistry");
+    const claimTopics = ClaimTopicsRegistry.attach(addresses.claimTopicsRegistry!) as any;
+    await claimTopics.addClaimTopic(1); // KYC claim topic
+    console.log("Added KYC claim topic (1)");
+  } catch {
+    console.log("KYC claim topic already added (or failed — non-fatal)");
+  }
+
+  // Save all addresses
+  saveDeployment(networkName, addresses);
 
   // Summary
   console.log("\n=== Deployment Summary ===");
-  console.log({
-    identityRegistryStorage: identityStorageAddr,
-    claimTopicsRegistry: claimTopicsAddr,
-    trustedIssuersRegistry: trustedIssuersAddr,
-    issuerRegistry: issuerRegistryAddr,
-    platformFeeManager: feeManagerAddr,
-    tokenFactory: factoryAddr,
-    tokenImplementation: tokenImplAddr,
-    identityRegistryImplementation: identityRegistryImplAddr,
-    complianceImplementation: complianceImplAddr,
-    countryAllowModule: countryModuleAddr,
-    maxHolderCountModule: maxHolderModuleAddr,
-  });
+  console.log(JSON.stringify(addresses, null, 2));
 }
 
 main()

@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import SaleStatus
@@ -13,7 +14,10 @@ from apps.api.schemas.sale import (
     ContributionResponse,
     OTCAllocateRequest,
     SaleCreateRequest,
+    SaleDeployRequest,
+    SaleDeployResponse,
     SaleListResponse,
+    SaleOnChainStatusResponse,
     SalePhaseResponse,
     SaleResponse,
 )
@@ -165,6 +169,118 @@ async def create_sale(
         phases=[p.model_dump() for p in request.phases],
     )
     return _sale_to_response(sale)
+
+
+@router.post("/{sale_id}/deploy", response_model=SaleDeployResponse)
+async def deploy_sale(
+    sale_id: UUID,
+    request: SaleDeployRequest,
+    user_id: CurrentUserId,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleDeployResponse:
+    """Deploy a sale contract on-chain.
+
+    Requires: issuer role (must be sale owner).
+    """
+    from fastapi import HTTPException
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.token_sale import TokenSale
+
+    # Verify caller is the issuer who owns this sale
+    sale_result = await sale_service.db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer), selectinload(TokenSale.token))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = sale_result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if not sale.token or not sale.token.contract_address:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "TOKEN_NOT_DEPLOYED", "message": "Token must be deployed first"},
+        )
+
+    from apps.api.services.web3_sale_service import Web3SaleService
+    from packages.common.core.config import settings as _settings
+
+    web3_sale = Web3SaleService()
+    sale_address, tx_hash = await web3_sale.deploy_sale(
+        token_address=sale.token.contract_address,
+        payment_token=sale.payment_token,
+        identity_registry=request.identity_registry,
+        issuer_wallet=sale.issuer.wallet_address,
+        fee_manager=_settings.platform_fee_receiver,
+        soft_cap=int(sale.soft_cap * 10**6),  # USDC 6 decimals
+        hard_cap=int(sale.hard_cap * 10**6),
+        fee_basis_points=request.fee_basis_points,
+        fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
+    )
+
+    # Persist sale address to DB
+    sale.contract_address = sale_address
+    await sale_service.db.commit()
+
+    # Audit log
+    from apps.api.services.web3_tx_service import Web3TxService
+
+    tx_svc = Web3TxService()
+    await tx_svc.write_tx_audit(
+        db=sale_service.db,
+        tx_hash=tx_hash,
+        action="deploy_sale",
+        target_type="sale",
+        target_id=str(sale_id),
+        actor_id=user_id,
+        payload={"sale_address": sale_address},
+    )
+    await sale_service.db.commit()
+
+    return SaleDeployResponse(
+        sale_id=str(sale_id),
+        sale_address=sale_address,
+        tx_hash=tx_hash,
+    )
+
+
+@router.get("/{sale_id}/on-chain", response_model=SaleOnChainStatusResponse)
+async def get_sale_on_chain_status(
+    sale_id: UUID,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleOnChainStatusResponse:
+    """Get on-chain sale status.
+
+    Public endpoint.
+    """
+    from fastapi import HTTPException
+
+    from apps.api.models.token_sale import TokenSale
+
+    sale_result = await sale_service.db.execute(
+        select(TokenSale).where(TokenSale.id == sale_id)
+    )
+    sale = sale_result.scalar_one_or_none()
+    if not sale or not getattr(sale, "contract_address", None):
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "SALE_NOT_DEPLOYED", "message": "Sale not deployed on-chain"},
+        )
+
+    from apps.api.services.web3_sale_service import Web3SaleService
+
+    web3_sale = Web3SaleService()
+    data = await web3_sale.get_sale_status(sale.contract_address)
+
+    return SaleOnChainStatusResponse(
+        status=data["status"],
+        total_raised=str(data["total_raised"]),
+        soft_cap=str(data["soft_cap"]),
+        hard_cap=str(data["hard_cap"]),
+        phases=data["phases"],
+    )
 
 
 @router.post("/{sale_id}/contribute", response_model=ContributionResponse)

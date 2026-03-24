@@ -47,6 +47,7 @@ export interface SaleListResponse {
 export interface ContributionRequest {
   phase_id: string;
   amount: string;
+  tx_hash?: string;
 }
 
 export interface ContributionResponse {
