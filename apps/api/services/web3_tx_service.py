@@ -20,7 +20,7 @@ from packages.common.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_NONCE_RETRIES = 3
+MAX_NONCE_RETRIES = 5
 DEFAULT_TX_TIMEOUT = 180
 
 
@@ -94,11 +94,13 @@ class Web3TxService:
             except Exception as exc:
                 last_err = exc
                 err_msg = str(exc).lower()
-                if "nonce" in err_msg and attempt < MAX_NONCE_RETRIES - 1:
+                if ("nonce" in err_msg or "underpriced" in err_msg or "already known" in err_msg) and attempt < MAX_NONCE_RETRIES - 1:
+                    wait_secs = 5 * (attempt + 1)  # 5s, 10s, 15s, 20s backoff
                     logger.warning(
-                        "Nonce conflict on %s.%s (attempt %d), retrying",
-                        contract.address, function_name, attempt + 1,
+                        "Nonce/underpriced conflict on %s.%s (attempt %d), retrying in %ds",
+                        contract.address, function_name, attempt + 1, wait_secs,
                     )
+                    await asyncio.sleep(wait_secs)
                     continue
                 raise
 
@@ -128,8 +130,16 @@ class Web3TxService:
     ) -> list[dict[str, Any]]:
         """Extract typed event data from receipt logs."""
         event = getattr(contract.events, event_name)()
-        logs = event.process_receipt(receipt, errors=0)
-        return [dict(log["args"]) for log in logs]
+        from web3.logs import EventLogErrorFlags
+        logs = event.process_receipt(receipt, errors=EventLogErrorFlags.Discard)
+        result = []
+        for log in logs:
+            try:
+                result.append(dict(log["args"]))
+            except Exception:
+                continue
+        logger.info("parse_events(%s): %d matching events found", event_name, len(result))
+        return result
 
     async def get_receipt(self, tx_hash: str) -> TxReceipt:
         """Fetch receipt for an already-mined transaction."""
