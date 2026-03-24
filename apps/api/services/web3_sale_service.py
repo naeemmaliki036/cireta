@@ -48,7 +48,7 @@ class Web3SaleService:
         sale_abi = self.registry.get_abi("Sale")
         sale_iface = self.tx_svc.w3.eth.contract(abi=sale_abi)
         init_data = sale_iface.encode_abi(
-            fn_name="initialize",
+            "initialize",
             args=[
                 Web3.to_checksum_address(token_address),
                 Web3.to_checksum_address(payment_token),
@@ -59,6 +59,7 @@ class Web3SaleService:
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
+                Web3.to_checksum_address(issuer_wallet),  # _initialOwner
             ],
         )
 

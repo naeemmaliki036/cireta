@@ -60,15 +60,21 @@ class Web3TxService:
                 nonce = await asyncio.to_thread(
                     self.w3.eth.get_transaction_count, self._account.address
                 )
-                gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
+                # Use EIP-1559 fee params (Base supports it)
+                latest = await asyncio.to_thread(lambda: self.w3.eth.get_block("latest"))
+                base_fee = latest.get("baseFeePerGas", 1_000_000_000)
+                max_priority = 1_000_000_000  # 1 gwei tip
+                max_fee = base_fee * 2 + max_priority
 
                 tx = fn(*args).build_transaction(
                     {
                         "chainId": self.chain_id,
                         "from": self._account.address,
                         "gas": gas_limit,
-                        "gasPrice": gas_price,
+                        "maxFeePerGas": max_fee,
+                        "maxPriorityFeePerGas": max_priority,
                         "nonce": nonce + attempt,  # bump nonce on retry
+                        "type": "0x2",
                     }
                 )
                 tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)

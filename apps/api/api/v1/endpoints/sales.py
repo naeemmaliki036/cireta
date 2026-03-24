@@ -212,8 +212,8 @@ async def deploy_sale(
         token_address=sale.token.contract_address,
         payment_token=sale.payment_token,
         identity_registry=request.identity_registry,
-        issuer_wallet=sale.issuer.wallet_address,
-        fee_manager=_settings.platform_fee_receiver,
+        issuer_wallet=sale.issuer.wallet_address or web3_sale.tx_svc._account.address,
+        fee_manager=_settings.platform_fee_receiver or web3_sale.tx_svc._account.address,
         soft_cap=int(sale.soft_cap * 10**6),  # USDC 6 decimals
         hard_cap=int(sale.hard_cap * 10**6),
         fee_basis_points=request.fee_basis_points,
