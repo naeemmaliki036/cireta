@@ -63,10 +63,10 @@ async def _sumsub_request(
         return resp.json()
 
 
-def _is_dev_mode(settings: Any) -> bool:
-    """True if Sumsub credentials are placeholders."""
+def _has_sumsub_credentials(settings: Any) -> bool:
+    """True if real Sumsub credentials are configured (not placeholders)."""
     token = getattr(settings, "sumsub_app_token", None) or ""
-    return not token or token.lower() in ("placeholder", "test", "") or token.startswith("test-")
+    return bool(token and token.lower() not in ("placeholder", "test", "") and not token.startswith("test-"))
 
 
 class KYCService:
@@ -106,8 +106,16 @@ class KYCService:
         applicant_id = f"cireta-{user_id}"
         access_token = f"dev-token-{user_id}"
 
-        if _is_dev_mode(settings):
-            log.warning("Sumsub dev mode — returning mock token for user %s", user_id)
+        if not _has_sumsub_credentials(settings):
+            if settings.environment != "development":
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "code": "KYC_NOT_CONFIGURED",
+                        "message": "KYC service not configured — SUMSUB_APP_TOKEN required",
+                    },
+                )
+            log.warning("Sumsub credentials missing in development — returning mock token for user %s", user_id)
         else:
             try:
                 # Create applicant
@@ -285,8 +293,11 @@ class KYCService:
         from packages.common.core.config import get_settings
 
         settings = get_settings()
-        if _is_dev_mode(settings):
-            log.info("Dev mode — skipping on-chain identity for user %s", user.id)
+        if not _has_sumsub_credentials(settings):
+            if settings.environment != "development":
+                log.error("Sumsub credentials missing in %s — cannot issue on-chain claims", settings.environment)
+                return
+            log.warning("Dev mode — skipping on-chain identity for user %s (no Sumsub credentials)", user.id)
             return
 
         # Get user's primary wallet
@@ -344,8 +355,16 @@ class KYCService:
         applicant_id = f"cireta-corp-{user_id}"
         access_token = f"dev-corp-token-{user_id}"
 
-        if _is_dev_mode(settings):
-            log.warning("Sumsub dev mode — returning mock corporate token for user %s", user_id)
+        if not _has_sumsub_credentials(settings):
+            if settings.environment != "development":
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "code": "KYC_NOT_CONFIGURED",
+                        "message": "KYC service not configured — SUMSUB_APP_TOKEN required",
+                    },
+                )
+            log.warning("Sumsub credentials missing in development — returning mock corporate token for user %s", user_id)
         else:
             try:
                 applicant_resp = await _sumsub_request(

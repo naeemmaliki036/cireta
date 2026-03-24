@@ -14,14 +14,30 @@ logger = logging.getLogger(__name__)
 _BASE_URL = settings.frontend_url if hasattr(settings, "frontend_url") else "https://cireta.com"
 
 
-def _get_client() -> None:
-    """Configure Resend client."""
+def _get_client() -> bool:
+    """Configure Resend client. Returns True if ready, handles dev fallback.
+
+    In production/staging: raises RuntimeError if RESEND_API_KEY not set.
+    In development: logs warning and returns False (skip send).
+    """
+    if not settings.resend_api_key:
+        if settings.environment != "development":
+            raise RuntimeError(
+                "RESEND_API_KEY not configured — email sending unavailable. "
+                "Set RESEND_API_KEY env var."
+            )
+        logger.warning(
+            "RESEND_API_KEY not set in development — skipping email send"
+        )
+        return False
     resend.api_key = settings.resend_api_key
+    return True
 
 
 async def send_email_verify(to: str, token: str) -> bool:
     """Send email verification link."""
-    _get_client()
+    if not _get_client():
+        return False
     verify_url = f"{_BASE_URL}/verify-email?token={token}"
     try:
         resend.Emails.send(
@@ -40,12 +56,15 @@ async def send_email_verify(to: str, token: str) -> bool:
         return True
     except Exception as e:
         logger.error("Failed to send verify email: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_password_reset(to: str, token: str) -> bool:
     """Send password reset link."""
-    _get_client()
+    if not _get_client():
+        return False
     reset_url = f"{_BASE_URL}/reset-password?token={token}"
     try:
         resend.Emails.send(
@@ -64,12 +83,15 @@ async def send_password_reset(to: str, token: str) -> bool:
         return True
     except Exception as e:
         logger.error("Failed to send reset email: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_kyc_approved(to: str, kyc_level: int) -> bool:
     """Send KYC approval notification."""
-    _get_client()
+    if not _get_client():
+        return False
     try:
         resend.Emails.send(
             {
@@ -87,12 +109,15 @@ async def send_kyc_approved(to: str, kyc_level: int) -> bool:
         return True
     except Exception as e:
         logger.error("Failed to send KYC approved email: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_kyc_rejected(to: str, reason: str = "") -> bool:
     """Send KYC rejection notification."""
-    _get_client()
+    if not _get_client():
+        return False
     reason_text = f"<p>Reason: {reason}</p>" if reason else ""
     try:
         resend.Emails.send(
@@ -111,12 +136,15 @@ async def send_kyc_rejected(to: str, reason: str = "") -> bool:
         return True
     except Exception as e:
         logger.error("Failed to send KYC rejected email: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_investment_confirmed(to: str, amount: str, token_symbol: str, tx_hash: str) -> bool:
     """Send investment confirmation."""
-    _get_client()
+    if not _get_client():
+        return False
     tx_url = f"https://basescan.org/tx/{tx_hash}"
     try:
         resend.Emails.send(
@@ -136,12 +164,15 @@ async def send_investment_confirmed(to: str, amount: str, token_symbol: str, tx_
         return True
     except Exception as e:
         logger.error("Failed to send investment confirmed email: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_sale_finalized(to: str, token_symbol: str, success: bool) -> bool:
     """Send sale finalization notification."""
-    _get_client()
+    if not _get_client():
+        return False
     if success:
         subject = f"Sale Finalized — {token_symbol} tokens available to claim"
         body = f"""
@@ -170,12 +201,15 @@ async def send_sale_finalized(to: str, token_symbol: str, success: bool) -> bool
         return True
     except Exception as e:
         logger.error("Failed to send sale finalized email: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_kyc_expiry_warning(to: str, days_left: int) -> bool:
     """Send KYC expiry warning email."""
-    _get_client()
+    if not _get_client():
+        return False
     try:
         resend.Emails.send(
             {
@@ -194,12 +228,15 @@ async def send_kyc_expiry_warning(to: str, days_left: int) -> bool:
         return True
     except Exception as e:
         logger.error("Failed to send KYC expiry warning: %s", e)
+        if settings.environment != "development":
+            raise
         return False
 
 
 async def send_redemption_fulfilled(to: str, token_symbol: str) -> bool:
     """Send redemption fulfillment notification."""
-    _get_client()
+    if not _get_client():
+        return False
     try:
         resend.Emails.send(
             {
@@ -217,4 +254,6 @@ async def send_redemption_fulfilled(to: str, token_symbol: str) -> bool:
         return True
     except Exception as e:
         logger.error("Failed to send redemption fulfilled email: %s", e)
+        if settings.environment != "development":
+            raise
         return False

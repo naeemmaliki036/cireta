@@ -50,10 +50,18 @@ async def task_deploy_onchainid(
     from packages.common.core.config import settings
 
     if not settings.deployer_private_key:
-        logger.warning("DEPLOYER_PRIVATE_KEY not set — skipping ONCHAINID deploy")
+        if settings.environment in ("staging", "production"):
+            raise RuntimeError(
+                "DEPLOYER_PRIVATE_KEY required for ONCHAINID deployment in production/staging"
+            )
+        logger.warning("DEPLOYER_PRIVATE_KEY not set in development — skipping ONCHAINID deploy")
         return None
     if not settings.identity_factory_address:
-        logger.warning("IDENTITY_FACTORY_ADDRESS not set — skipping ONCHAINID deploy")
+        if settings.environment in ("staging", "production"):
+            raise RuntimeError(
+                "IDENTITY_FACTORY_ADDRESS required for ONCHAINID deployment in production/staging"
+            )
+        logger.warning("IDENTITY_FACTORY_ADDRESS not set in development — skipping ONCHAINID deploy")
         return None
 
     try:

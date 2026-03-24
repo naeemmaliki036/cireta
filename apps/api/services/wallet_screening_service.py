@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -19,16 +20,18 @@ BLOCK_THRESHOLD = float(getattr(settings, "screening_block_threshold", 0.7))
 FLAG_THRESHOLD = float(getattr(settings, "screening_flag_threshold", 0.4))
 
 
-class WalletScreeningProvider:
-    """Base screening provider — stub for dev, override for production.
+class BaseScreeningProvider(ABC):
+    """Abstract base for wallet screening providers."""
 
-    TODO(mainnet): Replace this stub with a real screening provider before mainnet.
-    Integrate Chainalysis Sanctions API or Elliptic Lens for production screening.
-    See: https://www.chainalysis.com/free-cryptocurrency-sanctions-screening-tools/
-    """
-
+    @abstractmethod
     async def screen(self, address: str) -> dict:
         """Screen an address. Returns {"risk_score": float, "sanctioned": bool}."""
+
+
+class StubScreeningProvider(BaseScreeningProvider):
+    """Stub screening provider for development — always returns clean."""
+
+    async def screen(self, address: str) -> dict:
         logger.warning(
             "Using STUB wallet screening provider — address=%s will get risk_score=0. "
             "Integrate a real provider (Chainalysis/Elliptic) before mainnet.",
@@ -37,12 +40,63 @@ class WalletScreeningProvider:
         return {"risk_score": 0.0, "sanctioned": False}
 
 
+class ChainalysisProvider(BaseScreeningProvider):
+    """Chainalysis Sanctions API provider.
+
+    Requires SCREENING_API_KEY env var. Skeleton — implement HTTP calls
+    against Chainalysis Sanctions API when credentials are available.
+    """
+
+    def __init__(self, api_key: str) -> None:
+        if not api_key:
+            raise RuntimeError(
+                "SCREENING_API_KEY not configured — cannot screen wallets. "
+                "Set SCREENING_API_KEY env var with your Chainalysis or Elliptic API key."
+            )
+        self.api_key = api_key
+
+    async def screen(self, address: str) -> dict:
+        """Screen via Chainalysis Sanctions API.
+
+        TODO(mainnet): Implement real HTTP calls to Chainalysis.
+        For now, raises NotImplementedError to make it clear this is a skeleton.
+        """
+        raise NotImplementedError(
+            "ChainalysisProvider.screen() not yet implemented — "
+            "add HTTP calls to Chainalysis Sanctions API"
+        )
+
+
+def get_screening_provider() -> BaseScreeningProvider:
+    """Factory: return the appropriate screening provider based on environment.
+
+    - If SCREENING_API_KEY is set → ChainalysisProvider
+    - If development and no key → StubScreeningProvider (with WARNING)
+    - If production/staging and no key → raise RuntimeError
+    """
+    api_key = getattr(settings, "screening_api_key", "")
+    if api_key:
+        return ChainalysisProvider(api_key)
+
+    if settings.environment == "development":
+        logger.warning(
+            "SCREENING_API_KEY not set in development — using StubScreeningProvider. "
+            "Wallet screening results are NOT real."
+        )
+        return StubScreeningProvider()
+
+    raise RuntimeError(
+        "SCREENING_API_KEY required in production/staging — "
+        "set SCREENING_API_KEY env var for wallet sanctions screening"
+    )
+
+
 class WalletScreeningService:
     """Screen wallet addresses for sanctions and risk."""
 
-    def __init__(self, db: AsyncSession, provider: WalletScreeningProvider | None = None) -> None:
+    def __init__(self, db: AsyncSession, provider: BaseScreeningProvider | None = None) -> None:
         self.db = db
-        self.provider = provider or WalletScreeningProvider()
+        self.provider = provider or get_screening_provider()
 
     async def screen_address(self, address: str) -> dict:
         """Screen a single address via the configured provider.

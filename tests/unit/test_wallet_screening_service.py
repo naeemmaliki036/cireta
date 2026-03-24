@@ -10,12 +10,12 @@ from apps.api.models.enums import KYCStatus, UserRole
 from apps.api.models.user import User
 from apps.api.models.wallet import Wallet
 from apps.api.services.wallet_screening_service import (
-    WalletScreeningProvider,
+    BaseScreeningProvider,
     WalletScreeningService,
 )
 
 
-class SanctionedProvider(WalletScreeningProvider):
+class SanctionedProvider(BaseScreeningProvider):
     """Test provider that marks specific addresses as sanctioned."""
 
     def __init__(self, sanctioned_addresses: set[str] | None = None, risk: float = 0.0):

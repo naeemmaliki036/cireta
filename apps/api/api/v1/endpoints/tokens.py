@@ -5,6 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.schemas.token import (
@@ -142,16 +143,19 @@ async def get_proof_of_reserve(
 
     feed = getattr(token, "chainlink_por_feed", None)
     if not feed or feed in ("", "placeholder"):
-        # Dev mode: return mock PoR data
-        return {
-            "token_id": str(token_id),
-            "feed_address": None,
-            "total_supply": str(token.total_supply),
-            "verified_reserve": str(token.total_supply),
-            "reserve_ratio": 1.0,
-            "last_updated": None,
-            "is_live": False,
-        }
+        return JSONResponse(
+            content={
+                "token_id": str(token_id),
+                "feed_address": None,
+                "total_supply": str(token.total_supply),
+                "verified_reserve": str(token.total_supply),
+                "reserve_ratio": 1.0,
+                "last_updated": None,
+                "is_live": False,
+                "warning": "No Chainlink PoR feed configured — data is estimated, not verified",
+            },
+            headers={"X-PoR-Status": "estimated"},
+        )
 
     try:
         from apps.api.services.web3_identity_service import Web3IdentityService
@@ -223,6 +227,22 @@ async def upload_token_document(
             status_code=403,
             detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to modify this token"},
         )
+
+    # Validate Pinata is configured if IPFS hash is provided
+    if ipfs_hash and not url:
+        from packages.common.core.config import settings as _settings
+
+        if not _settings.pinata_api_key:
+            if _settings.environment != "development":
+                raise RuntimeError(
+                    "PINATA_API_KEY not configured — document upload unavailable. "
+                    "Set PINATA_API_KEY env var."
+                )
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "PINATA_API_KEY not set in development — IPFS gateway URL may not resolve"
+            )
 
     doc = TokenDocument(
         token_id=token_id,

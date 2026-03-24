@@ -105,6 +105,7 @@ class Settings(BaseSettings):
     kyc_min_level_initiate: int = Field(default=DEFAULTS["KYC_MIN_LEVEL_INITIATE"])
 
     # Wallet screening
+    screening_api_key: str = Field(default="")
     screening_block_threshold: float = Field(default=0.7)
     screening_flag_threshold: float = Field(default=0.4)
     web3_fallback_rpc_url: str = Field(default="")
@@ -112,11 +113,6 @@ class Settings(BaseSettings):
     # Platform
     platform_fee_bps: int = Field(default=DEFAULTS["PLATFORM_FEE_BPS"])
 
-    # ONCHAINID CREATE2 init code hash — keccak256 of the Identity proxy
-    # bytecode. Required to compute deterministic identity addresses off-chain
-    # before deployment. Obtain by running:
-    #   keccak256(type(IdentityProxy).creationCode ++ abi.encode(authority))
-    identity_init_code_hash: str = Field(default="")
 
     @field_validator("cors_origins", mode="before")
     @classmethod
