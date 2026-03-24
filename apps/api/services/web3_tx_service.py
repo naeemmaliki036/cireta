@@ -130,14 +130,38 @@ class Web3TxService:
     ) -> list[dict[str, Any]]:
         """Extract typed event data from receipt logs."""
         event = getattr(contract.events, event_name)()
-        from web3.logs import EventLogErrorFlags
-        logs = event.process_receipt(receipt, errors=EventLogErrorFlags.Discard)
+        try:
+            from web3.logs import EventLogErrorFlags
+            logs = list(event.process_receipt(receipt, errors=EventLogErrorFlags.Warn))
+        except Exception:
+            logger.warning("process_receipt(%s) failed, falling back to manual parsing", event_name)
+            logs = []
         result = []
         for log in logs:
             try:
-                result.append(dict(log["args"]))
+                result.append(dict(log.get("args", {})))
             except Exception:
                 continue
+        # Fallback: parse raw receipt logs manually if no typed events found
+        if not result and receipt.get("logs"):
+            event_abi = event.abi if hasattr(event, 'abi') else None
+            if event_abi:
+                from web3 import Web3 as _W3
+                topic0 = _W3.keccak(text=f"{event_abi['name']}({','.join(i['type'] for i in event_abi.get('inputs', []))})")
+                for raw_log in receipt["logs"]:
+                    if raw_log.get("topics") and raw_log["topics"][0] == topic0:
+                        # Decode indexed params from topics
+                        indexed = [i for i in event_abi.get("inputs", []) if i.get("indexed")]
+                        non_indexed = [i for i in event_abi.get("inputs", []) if not i.get("indexed")]
+                        decoded = {}
+                        for idx, param in enumerate(indexed):
+                            if idx + 1 < len(raw_log["topics"]):
+                                raw_val = raw_log["topics"][idx + 1]
+                                if param["type"] == "address":
+                                    decoded[param["name"]] = _W3.to_checksum_address("0x" + raw_val.hex()[-40:])
+                                else:
+                                    decoded[param["name"]] = int(raw_val.hex(), 16)
+                        result.append(decoded)
         logger.info("parse_events(%s): %d matching events found", event_name, len(result))
         return result
 
