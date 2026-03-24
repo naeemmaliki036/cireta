@@ -47,6 +47,11 @@ class Contribution(BaseModel):
     # Claim tx hash (set when investor claims via on-chain tx)
     claim_tx_hash: Mapped[str | None] = mapped_column(String(66), nullable=True, default=None)
 
+    # Compliance acknowledgment timestamp
+    acknowledged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
     # OTC fields
     is_otc: Mapped[bool] = mapped_column(Boolean, default=False)
     otc_reference: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)

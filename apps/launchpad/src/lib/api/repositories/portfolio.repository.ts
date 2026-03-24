@@ -80,6 +80,33 @@ export async function claimVesting(
   });
 }
 
+export interface DividendEntry {
+  token_symbol: string;
+  token_name: string;
+  claimable_usdc: string;
+  total_earned: string;
+  contract_address: string | null;
+}
+
+export interface Transaction {
+  type: string;
+  amount: string;
+  tx_hash: string | null;
+  status: string;
+  created_at: string | null;
+  token_symbol?: string;
+}
+
+export async function getDividends(): Promise<DividendEntry[]> {
+  const data = await apiGet<{ dividends: DividendEntry[] }>("/api/v1/portfolio/dividends");
+  return data.dividends ?? [];
+}
+
+export async function getTransactions(): Promise<Transaction[]> {
+  const data = await apiGet<{ transactions: Transaction[] }>("/api/v1/portfolio/transactions");
+  return data.transactions ?? [];
+}
+
 export async function getRedemptions(): Promise<RedemptionRequest[]> {
   return apiGet<RedemptionRequest[]>("/api/v1/portfolio/redemptions");
 }

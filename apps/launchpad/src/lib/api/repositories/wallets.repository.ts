@@ -9,6 +9,7 @@ export interface Wallet {
   registered_on_chain: boolean;
   label: string | null;
   linked_at: string;
+  screening_status?: string | null;
 }
 
 export interface LinkWalletRequest {

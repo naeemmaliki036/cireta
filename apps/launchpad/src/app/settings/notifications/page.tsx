@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/atoms";
+import { useState, useEffect } from "react";
+import { Button, Spinner } from "@/components/atoms";
 import { apiFetch } from "@/lib/api/client";
 
 interface Prefs {
@@ -21,21 +21,39 @@ const DEFAULTS: Prefs = {
 };
 
 const CATEGORIES = [
-  { key: "investment_updates", label: "Investment updates" },
-  { key: "kyc_status", label: "KYC status changes" },
-  { key: "sale_announcements", label: "Sale announcements" },
+  { key: "investment_updates", label: "Investment confirmations" },
+  { key: "kyc_status", label: "KYC reminders" },
+  { key: "sale_announcements", label: "Sale updates" },
   { key: "dividends", label: "Dividend notifications" },
 ] as const;
 
 export default function NotificationsPage() {
   const [prefs, setPrefs] = useState<Prefs>(DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  // Load saved preferences from API on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await apiFetch<Prefs>("/api/v1/notifications/preferences");
+        setPrefs({ ...DEFAULTS, ...data });
+      } catch {
+        // API may not exist yet — use defaults
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const toggle = (key: keyof Prefs) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
 
   const handleSave = async () => {
     setError("");
+    setSaving(true);
     try {
       await apiFetch("/api/v1/notifications/preferences", {
         method: "PATCH",
@@ -45,8 +63,12 @@ export default function NotificationsPage() {
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save preferences");
+    } finally {
+      setSaving(false);
     }
   };
+
+  if (loading) return <div className="flex justify-center py-12"><Spinner /></div>;
 
   return (
     <div className="space-y-6">
@@ -67,21 +89,31 @@ export default function NotificationsPage() {
             <div className="flex justify-center">
               <button
                 onClick={() => toggle(`email_${key}` as keyof Prefs)}
-                className={`w-10 h-5 rounded-full transition-colors ${prefs[`email_${key}` as keyof Prefs] ? "bg-blue-500" : "bg-white/20"}`}
-              />
+                className={`w-10 h-5 rounded-full transition-colors relative ${prefs[`email_${key}` as keyof Prefs] ? "bg-blue-500" : "bg-white/20"}`}
+                role="switch"
+                aria-checked={prefs[`email_${key}` as keyof Prefs]}
+                aria-label={`Email ${label}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${prefs[`email_${key}` as keyof Prefs] ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
             </div>
             <div className="flex justify-center">
               <button
                 onClick={() => toggle(`inapp_${key}` as keyof Prefs)}
-                className={`w-10 h-5 rounded-full transition-colors ${prefs[`inapp_${key}` as keyof Prefs] ? "bg-blue-500" : "bg-white/20"}`}
-              />
+                className={`w-10 h-5 rounded-full transition-colors relative ${prefs[`inapp_${key}` as keyof Prefs] ? "bg-blue-500" : "bg-white/20"}`}
+                role="switch"
+                aria-checked={prefs[`inapp_${key}` as keyof Prefs]}
+                aria-label={`In-app ${label}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${prefs[`inapp_${key}` as keyof Prefs] ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
             </div>
           </div>
         ))}
         <p className="text-xs text-white/30 mt-4">Security alerts are always enabled and cannot be disabled.</p>
       </div>
-      <Button onClick={handleSave} variant="primary" size="sm">
-        {saved ? "Saved ✓" : "Save Preferences"}
+      <Button onClick={handleSave} disabled={saving} variant="primary" size="sm">
+        {saving ? "Saving..." : saved ? "Saved \u2713" : "Save Preferences"}
       </Button>
     </div>
   );

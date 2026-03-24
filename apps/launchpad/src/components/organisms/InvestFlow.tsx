@@ -158,6 +158,11 @@ interface InvestApproveStepProps {
 }
 
 export function InvestApproveStep({ amount, isLoading, error, onApprove }: InvestApproveStepProps) {
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
+  const [jurisdictionConfirmed, setJurisdictionConfirmed] = useState(false);
+
+  const complianceMet = riskAcknowledged && jurisdictionConfirmed;
+
   return (
     <>
       <h1 className="text-2xl font-semibold text-text mb-2">Approve USDC</h1>
@@ -167,12 +172,46 @@ export function InvestApproveStep({ amount, isLoading, error, onApprove }: Inves
         <p className="font-semibold text-text mb-2">Approve {formatCurrency(amount)} USDC</p>
         <p className="text-sm text-darkBlack/50">This is a one-time approval for this investment</p>
       </div>
+
+      {/* Compliance acknowledgment */}
+      <div className="bg-box rounded-xl p-5 mb-6 space-y-4">
+        <p className="text-sm text-darkBlack/70 font-medium">
+          This investment involves regulated securities. You acknowledge that security tokens are subject to
+          transfer restrictions, lock-up periods, and regulatory requirements. Returns are not guaranteed and
+          you may lose your entire investment.
+        </p>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={riskAcknowledged}
+            onChange={(e) => setRiskAcknowledged(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-darkBlack/20 text-darkAqua focus:ring-darkAqua"
+            data-testid="risk-checkbox"
+          />
+          <span className="text-sm text-text">
+            I understand and accept the risks associated with this investment
+          </span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={jurisdictionConfirmed}
+            onChange={(e) => setJurisdictionConfirmed(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-darkBlack/20 text-darkAqua focus:ring-darkAqua"
+            data-testid="jurisdiction-checkbox"
+          />
+          <span className="text-sm text-text">
+            I confirm I am not a resident of a restricted jurisdiction
+          </span>
+        </label>
+      </div>
+
       <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 flex gap-3 mb-6">
         <AlertCircle className="w-5 h-5 text-gold flex-shrink-0" />
         <p className="text-sm text-darkBlack/60">You will need to confirm this transaction in your wallet</p>
       </div>
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-      <Button variant="primary" className="w-full" size="lg" onClick={onApprove} isLoading={isLoading}>
+      <Button variant="primary" className="w-full" size="lg" onClick={onApprove} isLoading={isLoading} disabled={!complianceMet || isLoading}>
         {isLoading ? "Approving..." : "Approve USDC"}
       </Button>
     </>

@@ -5,17 +5,20 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, Users, Shield, TrendingUp, Clock } from "lucide-react";
+import { ArrowLeft, FileText, Users, Shield, TrendingUp, Clock, DollarSign, Coins, ExternalLink, AlertCircle } from "lucide-react";
 import { Badge, ProgressBar, Spinner } from "@/components/atoms";
-import { PhaseCard } from "@/components/molecules";
+import { PhaseCard, PhaseTimeline } from "@/components/molecules";
 import { Navbar, Footer, InvestSidebar } from "@/components/organisms";
-import { formatCurrency } from "@/lib/utils";
-import { getProject, type Project } from "@/lib/api/repositories/projects.repository";
+import { formatCurrency, truncateAddress } from "@/lib/utils";
+import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
+import { getToken, type Token } from "@/lib/api/repositories/tokens";
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
   const [project, setProject] = useState<Project | null>(null);
+  const [saleRaw, setSaleRaw] = useState<SaleRaw | null>(null);
+  const [token, setToken] = useState<Token | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -23,9 +26,22 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     async function load() {
       setIsLoading(true);
-      try { setProject(await getProject(slug)); }
-      catch { setError(true); }
-      finally { setIsLoading(false); }
+      try {
+        const [proj, raw] = await Promise.all([
+          getProject(slug),
+          getSaleRawBySlug(slug),
+        ]);
+        setProject(proj);
+        setSaleRaw(raw);
+        // Fetch token details (non-blocking — tab only shows when clicked)
+        if (raw.token_id) {
+          getToken(raw.token_id).then(setToken).catch(() => {});
+        }
+      } catch {
+        setError(true);
+      } finally {
+        setIsLoading(false);
+      }
     }
     if (slug) load();
   }, [slug]);
@@ -43,7 +59,8 @@ export default function ProjectDetailPage() {
     <div className="min-h-screen bg-box">
       <Navbar variant="light" />
       <HeroSection project={project} progress={progress} pricePerToken={pricePerToken} />
-      <ContentSection project={project} activeTab={activeTab} setActiveTab={setActiveTab}
+      <ContentSection project={project} saleRaw={saleRaw} token={token}
+        activeTab={activeTab} setActiveTab={setActiveTab}
         pricePerToken={pricePerToken} minContrib={minContrib} maxContrib={maxContrib} />
       <Footer />
     </div>
@@ -106,11 +123,21 @@ function HeroSection({ project, progress, pricePerToken }: { project: Project; p
   );
 }
 
-function ContentSection({ project, activeTab, setActiveTab, pricePerToken, minContrib, maxContrib }: {
-  project: Project; activeTab: string; setActiveTab: (t: string) => void;
+const TAB_LABELS: Record<string, string> = {
+  overview: "Overview",
+  phases: "Phases",
+  documents: "Documents",
+  team: "Team",
+  financials: "Financials",
+  token: "Token Details",
+};
+
+function ContentSection({ project, saleRaw, token, activeTab, setActiveTab, pricePerToken, minContrib, maxContrib }: {
+  project: Project; saleRaw: SaleRaw | null; token: Token | null;
+  activeTab: string; setActiveTab: (t: string) => void;
   pricePerToken: number; minContrib: number; maxContrib: number;
 }) {
-  const tabs = ["overview", "phases", "documents", "team"];
+  const tabs = ["overview", "phases", "documents", "team", "financials", "token"];
   return (
     <section className="py-12 px-4">
       <div className="max-w-inner mx-auto flex flex-col lg:flex-row gap-8">
@@ -118,8 +145,8 @@ function ContentSection({ project, activeTab, setActiveTab, pricePerToken, minCo
           <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 rounded-xl font-medium capitalize transition-colors whitespace-nowrap ${activeTab === tab ? "bg-darkAqua text-white" : "bg-white text-gray-500 hover:text-text"}`}>
-                {tab}
+                className={`px-6 py-3 rounded-xl font-medium transition-colors whitespace-nowrap ${activeTab === tab ? "bg-darkAqua text-white" : "bg-white text-gray-500 hover:text-text"}`}>
+                {TAB_LABELS[tab] ?? tab}
               </button>
             ))}
           </div>
@@ -127,6 +154,8 @@ function ContentSection({ project, activeTab, setActiveTab, pricePerToken, minCo
           {activeTab === "phases" && <PhasesTab project={project} />}
           {activeTab === "documents" && <DocumentsTab />}
           {activeTab === "team" && <TeamTab project={project} />}
+          {activeTab === "financials" && <FinancialsTab project={project} saleRaw={saleRaw} />}
+          {activeTab === "token" && <TokenDetailsTab project={project} saleRaw={saleRaw} token={token} />}
         </div>
         <div className="w-full lg:w-[400px]">
           <InvestSidebar projectName={project.title} tokenSymbol={project.tokenSymbol}
@@ -172,14 +201,17 @@ function OverviewTab({ project }: { project: Project }) {
 
 function PhasesTab({ project }: { project: Project }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      {project.phases.map((p) => (
-        <PhaseCard key={p.phase_number} phaseNumber={p.phase_number} name={p.name}
-          pricePerToken={parseFloat(p.price_per_token)} allocation={parseFloat(p.allocation)}
-          minContribution={parseFloat(p.min_contribution)} maxContribution={parseFloat(p.max_contribution)}
-          startTime={new Date(p.start_time)} endTime={new Date(p.end_time)}
-          isActive={p.is_active} isCompleted={!p.is_active} soldAmount={0} />
-      ))}
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+      <PhaseTimeline phases={project.phases} />
+      <div className="space-y-6">
+        {project.phases.map((p) => (
+          <PhaseCard key={p.phase_number} phaseNumber={p.phase_number} name={p.name}
+            pricePerToken={parseFloat(p.price_per_token)} allocation={parseFloat(p.allocation)}
+            minContribution={parseFloat(p.min_contribution)} maxContribution={parseFloat(p.max_contribution)}
+            startTime={new Date(p.start_time)} endTime={new Date(p.end_time)}
+            isActive={p.is_active} isCompleted={!p.is_active} soldAmount={0} />
+        ))}
+      </div>
     </motion.div>
   );
 }
@@ -214,6 +246,172 @@ function TeamTab({ project }: { project: Project }) {
           <span className="text-gray-500">Company Name</span><span className="font-semibold">{project.issuer.name}</span>
         </div>
         <div className="flex justify-between py-3"><span className="text-gray-500">Verification Status</span><Badge variant="success">Verified</Badge></div>
+      </div>
+    </motion.div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between py-3 border-b border-darkBlack/5 last:border-0">
+      <span className="text-gray-500 text-sm">{label}</span>
+      <span className="font-semibold text-sm text-right">{value}</span>
+    </div>
+  );
+}
+
+function FinancialsTab({ project, saleRaw }: { project: Project; saleRaw: SaleRaw | null }) {
+  const totalRaised = project.currentRaised;
+  const hardCap = parseFloat(saleRaw?.hard_cap ?? "0");
+  const softCap = parseFloat(saleRaw?.soft_cap ?? "0");
+  const platformFee = totalRaised * 0.025; // 2.5% platform fee
+  const netProceeds = totalRaised - platformFee;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {/* Fundraising Summary */}
+      <div className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <h2 className="text-xl font-semibold text-text mb-6 flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-darkAqua" /> Fundraising Summary
+        </h2>
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-box rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-darkAqua">{formatCurrency(totalRaised)}</p>
+            <p className="text-sm text-gray-500 mt-1">Total Raised</p>
+          </div>
+          <div className="bg-box rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-text">{formatCurrency(softCap)}</p>
+            <p className="text-sm text-gray-500 mt-1">Soft Cap</p>
+          </div>
+          <div className="bg-box rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-text">{formatCurrency(hardCap)}</p>
+            <p className="text-sm text-gray-500 mt-1">Hard Cap</p>
+          </div>
+        </div>
+        <div className="space-y-0">
+          <InfoRow label="Total Raised" value={formatCurrency(totalRaised)} />
+          <InfoRow label="Hard Cap" value={formatCurrency(hardCap)} />
+          <InfoRow label="Funding Progress" value={`${hardCap > 0 ? ((totalRaised / hardCap) * 100).toFixed(1) : 0}%`} />
+          <InfoRow label="Number of Investors" value={project.investorCount} />
+        </div>
+      </div>
+
+      {/* Fee Structure */}
+      <div className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <h2 className="text-xl font-semibold text-text mb-6 flex items-center gap-2">
+          <Coins className="h-5 w-5 text-darkAqua" /> Fee Structure
+        </h2>
+        <div className="space-y-0">
+          <InfoRow label="Platform Fee" value="2.5%" />
+          <InfoRow label="Estimated Platform Fee" value={formatCurrency(platformFee)} />
+          <InfoRow label="Net Proceeds to Issuer" value={formatCurrency(netProceeds)} />
+          <InfoRow label="Settlement Currency" value="USDC" />
+        </div>
+      </div>
+
+      {/* Revenue Projections */}
+      <div className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <h2 className="text-xl font-semibold text-text mb-6 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-darkAqua" /> Cap Table
+        </h2>
+        <div className="space-y-0">
+          {project.phases.map((p) => {
+            const alloc = parseFloat(p.allocation);
+            const pct = hardCap > 0 ? ((alloc / hardCap) * 100).toFixed(1) : "0";
+            return (
+              <InfoRow key={p.id} label={`${p.name} Allocation`} value={`${formatCurrency(alloc)} (${pct}%)`} />
+            );
+          })}
+          <InfoRow label="Total Supply Value" value={formatCurrency(hardCap)} />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function TokenDetailsTab({ project, saleRaw, token }: { project: Project; saleRaw: SaleRaw | null; token: Token | null }) {
+  const contractAddress = saleRaw?.contract_address ?? token?.contract_address ?? null;
+  const explorerBase = "https://basescan.org";
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {/* Token Info */}
+      <div className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <h2 className="text-xl font-semibold text-text mb-6 flex items-center gap-2">
+          <Coins className="h-5 w-5 text-darkAqua" /> Token Information
+        </h2>
+        <div className="space-y-0">
+          <InfoRow label="Token Name" value={project.title} />
+          <InfoRow label="Token Symbol" value={project.tokenSymbol} />
+          <InfoRow label="Standard" value={<Badge variant="active" size="sm">ERC-3643</Badge>} />
+          <InfoRow label="Network" value="Base (L2)" />
+          <InfoRow label="Decimals" value={token?.decimals ?? 18} />
+          <InfoRow label="Total Supply" value={token?.total_supply ? Number(token.total_supply).toLocaleString() : "—"} />
+          <InfoRow
+            label="Token Address"
+            value={
+              contractAddress ? (
+                <a
+                  href={`${explorerBase}/address/${contractAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-darkAqua hover:underline"
+                >
+                  {truncateAddress(contractAddress, 6)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span className="text-darkBlack/40">Not deployed</span>
+              )
+            }
+          />
+        </div>
+      </div>
+
+      {/* Compliance Modules */}
+      <div className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <h2 className="text-xl font-semibold text-text mb-6 flex items-center gap-2">
+          <Shield className="h-5 w-5 text-darkAqua" /> Compliance Modules
+        </h2>
+        <div className="space-y-3">
+          {[
+            { name: "Identity Registry", desc: "ONCHAINID-based KYC verification for all holders", active: true },
+            { name: "Country Restrictions", desc: "Restricts transfers to/from sanctioned jurisdictions", active: true },
+            { name: "Max Token Balance", desc: "Prevents concentration of ownership beyond defined limits", active: true },
+            { name: "Transfer Cooldown", desc: "Enforces minimum holding period between transfers", active: false },
+          ].map((mod) => (
+            <div key={mod.name} className="flex items-start gap-3 p-3 rounded-xl bg-box">
+              <div className={`w-2 h-2 rounded-full mt-1.5 ${mod.active ? "bg-green-500" : "bg-darkBlack/20"}`} />
+              <div>
+                <p className="font-medium text-text text-sm">{mod.name}</p>
+                <p className="text-xs text-gray-500">{mod.desc}</p>
+              </div>
+              <Badge variant={mod.active ? "success" : "outline"} size="sm" className="ml-auto shrink-0">
+                {mod.active ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Transfer Restrictions */}
+      <div className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+        <h2 className="text-xl font-semibold text-text mb-6 flex items-center gap-2">
+          <AlertCircle className="h-5 w-5 text-gold" /> Transfer Restrictions
+        </h2>
+        <div className="space-y-0">
+          <InfoRow label="KYC Required" value="Yes — Level 2 minimum" />
+          <InfoRow label="Whitelisted Transfers Only" value="Yes" />
+          <InfoRow label="Token Pause Authority" value="Issuer + Platform Admin" />
+          <InfoRow label="Freeze Authority" value="Compliance Agent" />
+          <InfoRow label="Recovery Agent" value="Platform Admin" />
+        </div>
+        {token?.is_paused && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2 items-center">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            <p className="text-sm text-red-600">This token is currently paused. Transfers are disabled.</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );
