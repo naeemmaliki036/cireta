@@ -7,7 +7,7 @@
   "tokenImplementation": "0x35e6CD52b56642A7f1f172e29e6fEa3b9d9473Bc",
   "identityRegistryImplementation": "0x921905f38a3af1C35638f2fAA97B41EA4d7f300c",
   "complianceImplementation": "0xcD84cad8615664472cbFCCa3dAFFC3270c423039",
-  "saleImplementation": "0xD42Ebd96385E9e2afDf1400de6490b01c14db2ef",
+  "saleImplementation": "0x4dA3aeEbd5A1390A450811445fC3d57beF0a2031",
   "tokenFactory": "0x6918cE85Da96C07Deaeba796512422ab8AEEB99D",
   "saleFactory": "0xe4a06Eaa949D12B173B0bA5f7CaABe473b4e8b5F",
   "countryAllowModule": "0xce620bd7213ed4b56D5AEFc445C3da95C4C7bd24",
