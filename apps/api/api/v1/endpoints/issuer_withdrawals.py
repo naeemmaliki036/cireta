@@ -44,9 +44,10 @@ class WithdrawalListResponse(BaseModel):
     total: int
 
 
-async def _get_issuer(user_id: str, db: AsyncSession) -> Issuer:
+async def _get_issuer(user_id: str | UUID, db: AsyncSession) -> Issuer:
+    uid = UUID(user_id) if isinstance(user_id, str) else user_id
     row = (
-        await db.execute(select(Issuer).where(Issuer.user_id == UUID(user_id)))
+        await db.execute(select(Issuer).where(Issuer.user_id == uid))
     ).scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not an issuer")
@@ -113,7 +114,7 @@ async def execute_withdrawal(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Execute a withdrawal of raised funds from a finalized sale."""
-    issuer = await _get_issuer(str(user_id), db)
+    issuer = await _get_issuer(user_id, db)
 
     # Verify sale belongs to issuer and is finalized (FOR UPDATE prevents race condition)
     sale_result = await db.execute(
