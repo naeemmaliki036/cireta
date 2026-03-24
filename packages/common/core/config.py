@@ -100,6 +100,11 @@ class Settings(BaseSettings):
     kyc_min_level_invest: int = Field(default=DEFAULTS["KYC_MIN_LEVEL_INVEST"])
     kyc_min_level_initiate: int = Field(default=DEFAULTS["KYC_MIN_LEVEL_INITIATE"])
 
+    # Wallet screening
+    screening_block_threshold: float = Field(default=0.7)
+    screening_flag_threshold: float = Field(default=0.4)
+    web3_fallback_rpc_url: str = Field(default="")
+
     # Platform
     platform_fee_bps: int = Field(default=DEFAULTS["PLATFORM_FEE_BPS"])
 

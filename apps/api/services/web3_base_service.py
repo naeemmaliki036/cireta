@@ -22,8 +22,14 @@ class Web3BaseService:
     """Core Web3 operations: connection, balances, transactions, contract calls."""
 
     def __init__(self) -> None:
-        """Initialize Web3 service with Base L2 connection."""
-        self.w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
+        """Initialize Web3 service with Base L2 connection (circuit breaker)."""
+        from apps.api.core.web3_provider import get_web3_provider
+
+        try:
+            self.w3 = get_web3_provider()
+        except ConnectionError:
+            # Fallback to raw provider if circuit breaker blocks
+            self.w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
         self.chain_id = settings.chain_id
         self._account: LocalAccount | None = None
         if settings.deployer_private_key:

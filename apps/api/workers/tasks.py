@@ -26,6 +26,7 @@ async def task_send_email(
         "investment_confirmed": es.send_investment_confirmed,
         "sale_finalized": es.send_sale_finalized,
         "redemption_fulfilled": es.send_redemption_fulfilled,
+        "kyc_expiry_warning": es.send_kyc_expiry_warning,
     }
     fn = dispatch.get(template)
     if not fn:
@@ -349,6 +350,24 @@ async def _process_single_webhook(db: Any, event: Any) -> None:
         logger.warning("Unknown webhook provider: %s", event.provider)
 
 
+async def task_rescreen_wallets(ctx: dict[str, Any]) -> None:  # noqa: ARG001
+    """Daily re-screening of all linked wallets for sanctions/risk."""
+    from apps.api.services.wallet_screening_service import (
+        task_rescreen_wallets as _rescreen,
+    )
+
+    await _rescreen({})
+
+
+async def task_check_kyc_expiry(ctx: dict[str, Any]) -> None:  # noqa: ARG001
+    """Daily KYC expiry check — warn 30 days before, block on expiry."""
+    from apps.api.services.kyc_expiry_service import (
+        task_check_kyc_expiry as _check_expiry,
+    )
+
+    await _check_expiry({})
+
+
 # arq worker settings
 class WorkerSettings:
     functions = [
@@ -360,6 +379,8 @@ class WorkerSettings:
         task_sync_chain_events,
         task_reconcile_balances,
         task_process_webhooks,
+        task_rescreen_wallets,
+        task_check_kyc_expiry,
     ]
     cron_jobs = [
         # Chain event sync: every 12 seconds

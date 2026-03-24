@@ -61,7 +61,7 @@ class TestAuthServiceLogin:
         await auth_service.register(email, password)
 
         # Login
-        user, access_token, refresh_token = await auth_service.login(email, password)
+        user, access_token, refresh_token, _mfa = await auth_service.login(email, password)
 
         assert user.email == email.lower()
         assert access_token is not None
@@ -102,7 +102,7 @@ class TestAuthServiceTokens:
         """Test successful token refresh."""
         email = f"refresh_{uuid4().hex[:8]}@example.com"
         await auth_service.register(email, "Password123!")
-        _, _, refresh_token = await auth_service.login(email, "Password123!")
+        _, _, refresh_token, _ = await auth_service.login(email, "Password123!")
 
         new_access, new_refresh = await auth_service.refresh_tokens(refresh_token)
 

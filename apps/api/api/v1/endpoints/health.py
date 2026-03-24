@@ -49,4 +49,17 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> HealthResponse:
         details["database"] = "database unavailable"
         return HealthResponse(status="unhealthy", details=details)
 
+    # Check RPC connectivity
+    try:
+        from apps.api.core.web3_provider import get_rpc_health
+
+        rpc_health = get_rpc_health()
+        details["rpc"] = rpc_health["primary_rpc"]
+        details["rpc_circuit"] = rpc_health["circuit_state"]
+        if rpc_health.get("fallback_rpc") != "not_configured":
+            details["rpc_fallback"] = rpc_health["fallback_rpc"]
+    except Exception as e:
+        logger.warning("RPC health check failed: %s", e)
+        details["rpc"] = "unknown"
+
     return HealthResponse(status="ok", details=details)

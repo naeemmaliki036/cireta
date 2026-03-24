@@ -173,6 +173,30 @@ async def send_sale_finalized(to: str, token_symbol: str, success: bool) -> bool
         return False
 
 
+async def send_kyc_expiry_warning(to: str, days_left: int) -> bool:
+    """Send KYC expiry warning email."""
+    _get_client()
+    try:
+        resend.Emails.send(
+            {
+                "from": "Cireta <noreply@cireta.com>",
+                "to": [to],
+                "subject": "KYC Verification Expiring Soon",
+                "html": f"""
+            <h2>Your KYC Verification is Expiring</h2>
+            <p>Your KYC verification will expire in <strong>{days_left} days</strong>.</p>
+            <p>To continue investing on Cireta, please re-verify your identity before it expires.</p>
+            <p><a href="{_BASE_URL}/settings/verification">Re-verify Now</a></p>
+            <p>If your KYC expires, you will be unable to make new investments until re-verified.</p>
+            """,
+            }
+        )
+        return True
+    except Exception as e:
+        logger.error("Failed to send KYC expiry warning to %s: %s", to, e)
+        return False
+
+
 async def send_redemption_fulfilled(to: str, token_symbol: str) -> bool:
     """Send redemption fulfillment notification."""
     _get_client()

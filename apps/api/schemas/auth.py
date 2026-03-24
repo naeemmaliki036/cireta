@@ -33,6 +33,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    requires_mfa: bool = False
     # refresh_token omitted — sent as httpOnly cookie
 
 
@@ -76,6 +77,24 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MFAVerifyRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=8)
+    mfa_token: str
+
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    uri: str
+
+
+class MFAEnableRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class MFABackupCodesResponse(BaseModel):
+    backup_codes: list[str]
 
 
 class MessageResponse(BaseModel):

@@ -8,7 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { useAccount, useBalance, useDisconnect } from "wagmi";
+import { useAccount, useBalance, useDisconnect, usePublicClient } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 
 // Base Mainnet USDC
@@ -23,6 +23,8 @@ interface Web3ContextValue {
   isCorrectChain: boolean;
   /** ETH balance in ether */
   ethBalance: string;
+  /** Whether connected wallet is a smart contract (Safe/multisig) */
+  isSafe: boolean;
   /** Open RainbowKit connect modal */
   connect: () => void;
   /** Disconnect wallet */
@@ -39,8 +41,10 @@ export function Web3Provider({ children }: Web3ProviderProps) {
   const { address, isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { disconnect } = useDisconnect();
+  const publicClient = usePublicClient();
 
   const [ethBalance, setEthBalance] = useState("0");
+  const [isSafe, setIsSafe] = useState(false);
 
   const { data: balanceData } = useBalance({ address });
 
@@ -51,12 +55,39 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     }
   }, [balanceData]);
 
+  // Detect Safe/contract wallets via eth_getCode
+  useEffect(() => {
+    if (!address || !publicClient) {
+      setIsSafe(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    publicClient
+      .getCode({ address: address as `0x${string}` })
+      .then((code) => {
+        if (!cancelled) {
+          // If bytecode exists (not "0x"), it's a contract wallet (Safe)
+          setIsSafe(!!code && code !== "0x");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setIsSafe(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, publicClient]);
+
   const connect = useCallback(() => {
     openConnectModal?.();
   }, [openConnectModal]);
 
   const handleDisconnect = useCallback(() => {
     disconnect();
+    setIsSafe(false);
   }, [disconnect]);
 
   const isCorrectChain = chainId === BASE_CHAIN_ID;
@@ -67,6 +98,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
     chainId,
     isCorrectChain,
     ethBalance,
+    isSafe,
     connect,
     disconnect: handleDisconnect,
   };

@@ -71,6 +71,12 @@ class WalletService:
         current = await self.list_wallets(user_id)
         is_primary = len(current) == 0
 
+        # Screen wallet before linking
+        from apps.api.services.wallet_screening_service import WalletScreeningService
+
+        screening_svc = WalletScreeningService(self.db)
+        screen_result = await screening_svc.screen_on_link(checksum)
+
         wallet = Wallet()
         wallet.user_id = user_id
         wallet.address = address  # will be encrypted by EncryptedString
@@ -78,6 +84,11 @@ class WalletService:
         wallet.is_primary = is_primary
         wallet.is_safe = is_safe
         wallet.label = label
+        from datetime import UTC
+        from datetime import datetime as dt_cls
+
+        wallet.risk_score = screen_result["risk_score"]
+        wallet.last_screened_at = dt_cls.now(UTC)
 
         self.db.add(wallet)
         await self.db.commit()

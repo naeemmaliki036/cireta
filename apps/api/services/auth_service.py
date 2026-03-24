@@ -61,7 +61,9 @@ class CiretaAuthService(BaseAuthService):
 
         return user
 
-    async def login(self, email: str, password: str) -> tuple[User, str, str]:
+    async def login(
+        self, email: str, password: str
+    ) -> tuple[User, str, str, bool]:
         """Authenticate user and return tokens.
 
         Args:
@@ -69,7 +71,9 @@ class CiretaAuthService(BaseAuthService):
             password: Plain text password.
 
         Returns:
-            Tuple of (user, access_token, refresh_token).
+            Tuple of (user, access_token, refresh_token, requires_mfa).
+            If requires_mfa is True, access_token is a partial MFA token
+            that can only be used with the /auth/mfa/verify endpoint.
 
         Raises:
             HTTPException: If credentials are invalid.
@@ -87,11 +91,34 @@ class CiretaAuthService(BaseAuthService):
                 },
             )
 
+        if user.mfa_enabled:
+            # Return partial MFA token — short-lived, type=mfa
+            mfa_token = self.create_token(
+                user.id, token_type="mfa", expire_seconds=300
+            )
+            return user, mfa_token, "", True
+
         # Generate tokens
         access_token = self.create_access_token(user.id)
         refresh_token = self.create_refresh_token(user.id)
 
-        return user, access_token, refresh_token
+        return user, access_token, refresh_token, False
+
+    def create_token(self, user_id: UUID, token_type: str, expire_seconds: int) -> str:
+        """Create a JWT with custom type and expiry."""
+        from datetime import timedelta
+
+        from jose import jwt
+
+        from packages.common.core.config import settings
+
+        now = __import__("datetime").datetime.now(__import__("datetime").UTC)
+        payload = {
+            "sub": str(user_id),
+            "exp": now + timedelta(seconds=expire_seconds),
+            "type": token_type,
+        }
+        return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
     async def refresh_tokens(self, refresh_token: str) -> tuple[str, str]:
         """Refresh access and refresh tokens.

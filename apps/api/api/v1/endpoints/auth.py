@@ -11,6 +11,10 @@ from apps.api.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
+    MFABackupCodesResponse,
+    MFAEnableRequest,
+    MFASetupResponse,
+    MFAVerifyRequest,
     RefreshTokenRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -91,7 +95,7 @@ async def login(
         await auth_service.check_brute_force(user)
 
     try:
-        user_obj, access_token, refresh_token = await auth_service.login(
+        user_obj, access_token, refresh_token, requires_mfa = await auth_service.login(
             request.email, request.password
         )
     except HTTPException:
@@ -100,6 +104,11 @@ async def login(
         raise
 
     await auth_service.clear_failed_login(user_obj)
+
+    if requires_mfa:
+        # Return partial MFA token — client must call /auth/mfa/verify
+        return TokenResponse(access_token=access_token, requires_mfa=True)
+
     _set_refresh_cookie(response, refresh_token)
     return TokenResponse(access_token=access_token)
 
@@ -195,3 +204,105 @@ async def get_current_user(
         country_code=user.country_code,
         investor_type=user.investor_type,
     )
+
+
+# --- MFA Endpoints ---
+
+
+@router.post("/mfa/setup", response_model=MFASetupResponse)
+async def mfa_setup(
+    user_id: CurrentUserId,
+    auth_service: Annotated[CiretaAuthService, Depends(get_auth_service)],
+) -> MFASetupResponse:
+    """Generate TOTP secret and QR code URI for MFA setup."""
+    from apps.api.services.mfa_service import MFAService
+
+    user = await auth_service.get_current_user(user_id)
+    mfa_svc = MFAService(auth_service.db)
+    result = mfa_svc.setup_mfa(user)
+    await auth_service.db.commit()
+    return MFASetupResponse(secret=result["secret"], uri=result["uri"])
+
+
+@router.post("/mfa/enable", response_model=MFABackupCodesResponse)
+async def mfa_enable(
+    user_id: CurrentUserId,
+    request: MFAEnableRequest,
+    auth_service: Annotated[CiretaAuthService, Depends(get_auth_service)],
+) -> MFABackupCodesResponse:
+    """Enable MFA by verifying the initial TOTP code. Returns backup codes."""
+    from apps.api.services.mfa_service import MFAService
+
+    user = await auth_service.get_current_user(user_id)
+    mfa_svc = MFAService(auth_service.db)
+    backup_codes = await mfa_svc.enable_mfa(user, request.code)
+    return MFABackupCodesResponse(backup_codes=backup_codes)
+
+
+@router.post("/mfa/disable", response_model=MessageResponse)
+async def mfa_disable(
+    user_id: CurrentUserId,
+    request: MFAEnableRequest,
+    auth_service: Annotated[CiretaAuthService, Depends(get_auth_service)],
+) -> MessageResponse:
+    """Disable MFA by verifying current TOTP code."""
+    from apps.api.services.mfa_service import MFAService
+
+    user = await auth_service.get_current_user(user_id)
+    mfa_svc = MFAService(auth_service.db)
+    await mfa_svc.disable_mfa(user, request.code)
+    return MessageResponse(message="MFA disabled successfully")
+
+
+@router.post("/mfa/verify", response_model=TokenResponse)
+async def mfa_verify(
+    request: MFAVerifyRequest,
+    response: Response,
+    auth_service: Annotated[CiretaAuthService, Depends(get_auth_service)],
+) -> TokenResponse:
+    """Complete login by verifying MFA code with partial MFA token."""
+    from uuid import UUID as UUIDType
+
+    from jose import JWTError, jwt
+
+    from packages.common.core.config import settings
+
+    # Decode the MFA token
+    try:
+        payload = jwt.decode(
+            request.mfa_token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+    except JWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_MFA_TOKEN", "message": "Invalid or expired MFA token"},
+        ) from exc
+
+    if payload.get("type") != "mfa":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_MFA_TOKEN", "message": "Not an MFA token"},
+        )
+
+    user_id = UUIDType(payload["sub"])
+    user = await auth_service.get_current_user(user_id)
+
+    # Verify the TOTP code
+    from apps.api.services.mfa_service import MFAService
+
+    mfa_svc = MFAService(auth_service.db)
+    if not mfa_svc.verify_mfa(user, request.code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_MFA_CODE", "message": "Invalid MFA code"},
+        )
+
+    await auth_service.db.commit()
+
+    # Issue real tokens
+    access_token = auth_service.create_access_token(user_id)
+    refresh_token = auth_service.create_refresh_token(user_id)
+    _set_refresh_cookie(response, refresh_token)
+    return TokenResponse(access_token=access_token)

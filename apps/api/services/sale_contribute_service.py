@@ -68,6 +68,40 @@ class SaleContributeService:
                 },
             )
 
+        # KYC expiry check
+        if user.kyc_expires_at:
+            from datetime import UTC
+            from datetime import datetime as dt_cls
+
+            now = dt_cls.now(UTC)
+            expires = user.kyc_expires_at
+            if hasattr(expires, "tzinfo") and expires.tzinfo is None:
+                expires = expires.replace(tzinfo=UTC)
+            if now > expires:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": "KYC_EXPIRED",
+                        "message": "Your KYC verification has expired. Please re-verify.",
+                    },
+                )
+
+        # Wallet screening before contribution
+        if wallet_address:
+            from apps.api.models.wallet import Wallet as WalletModel
+            from apps.api.services.wallet_screening_service import WalletScreeningService
+
+            wallet_q = await self.db.execute(
+                select(WalletModel).where(
+                    WalletModel.user_id == user_id,
+                    WalletModel.address_checksum == wallet_address,
+                )
+            )
+            contrib_wallet_obj = wallet_q.scalar_one_or_none()
+            if contrib_wallet_obj:
+                screening_svc = WalletScreeningService(self.db)
+                await screening_svc.screen_before_contribute(contrib_wallet_obj)
+
         # Dedup: if tx_hash already recorded, return existing (idempotent)
         existing = await self.db.execute(
             select(Contribution).where(Contribution.tx_hash == tx_hash)
