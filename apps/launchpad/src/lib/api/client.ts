@@ -1,5 +1,12 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+if (!process.env.NEXT_PUBLIC_API_URL && typeof window !== "undefined") {
+  console.error(
+    "NEXT_PUBLIC_API_URL not set — API calls will default to http://localhost:8000. " +
+      "Set NEXT_PUBLIC_API_URL in your environment for production."
+  );
+}
+
 /** In-memory access token store — set by AuthContext, never persisted to disk. */
 let _accessToken: string | null = null;
 

@@ -33,8 +33,29 @@ const ADDRESSES: Record<number, ChainAddresses> = {
   84532: BASE_SEPOLIA,
 };
 
+/**
+ * Guard: require a non-null contract address or throw with the missing env var name.
+ */
+export function requireAddress(
+  addr: `0x${string}` | null,
+  name: string
+): `0x${string}` {
+  if (!addr) {
+    throw new Error(
+      `Contract address not configured: ${name}. Set NEXT_PUBLIC_${name.toUpperCase()}_ADDRESS in your environment.`
+    );
+  }
+  return addr;
+}
+
 export function getAddresses(chainId: number): ChainAddresses {
-  return ADDRESSES[chainId] ?? BASE_MAINNET;
+  const addrs = ADDRESSES[chainId];
+  if (!addrs) {
+    throw new Error(
+      `Unsupported chain ID: ${chainId}. Cireta supports Base Mainnet (8453) and Base Sepolia (84532).`
+    );
+  }
+  return addrs;
 }
 
 export function getUsdcAddress(chainId: number): `0x${string}` {
