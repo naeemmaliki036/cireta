@@ -88,6 +88,92 @@ class Web3SaleService:
         logger.info("Sale deployed at %s for token %s", sale_address, token_address)
         return sale_address, tx_hash
 
+    async def deploy_sale_vested(
+        self,
+        token_address: str,
+        payment_token: str,
+        identity_registry: str,
+        issuer_wallet: str,
+        fee_manager: str,
+        soft_cap: int,
+        hard_cap: int,
+        fee_basis_points: int,
+        fee_cap_usdc: int,
+        fraction_name: str = "Cireta Fraction",
+        fraction_symbol: str = "cFRAC",
+        fraction_decimals: int = 18,
+        cliff_duration: int = 0,
+        vesting_duration: int = 365 * 86400,  # 1 year default
+        excess_policy: int = 0,  # 0 = Return, 1 = Burn
+    ) -> tuple[str, str, str, str]:
+        """Deploy a Vested Sale via CiretaSaleFactory.deploySaleVested().
+
+        Returns (sale_address, vault_address, fraction_address, tx_hash).
+        """
+        from packages.common.core.config import settings as _settings
+        factory = self.registry.get_contract("CiretaSaleFactory")
+        # CRITICAL: _initialOwner in Sale.initialize must be SaleFactory,
+        # because SaleFactory calls sale.setVestedMode() before transferring to issuer.
+        sale_factory_addr = _settings.sale_factory_address or self.tx_svc._account.address
+
+        # Encode Sale.initialize() calldata
+        sale_abi = self.registry.get_abi("Sale")
+        sale_iface = self.tx_svc.w3.eth.contract(abi=sale_abi)
+        init_data = sale_iface.encode_abi(
+            "initialize",
+            args=[
+                Web3.to_checksum_address(token_address),
+                Web3.to_checksum_address(payment_token),
+                Web3.to_checksum_address(identity_registry),
+                Web3.to_checksum_address(issuer_wallet),
+                Web3.to_checksum_address(fee_manager),
+                soft_cap,
+                hard_cap,
+                fee_basis_points,
+                fee_cap_usdc,
+                Web3.to_checksum_address(sale_factory_addr),  # SaleFactory as initial owner
+            ],
+        )
+
+        tx_hash = await self.tx_svc.submit_transaction(
+            factory,
+            "deploySaleVested",
+            Web3.to_checksum_address(token_address),
+            Web3.to_checksum_address(payment_token),
+            Web3.to_checksum_address(issuer_wallet),
+            soft_cap,
+            hard_cap,
+            init_data,
+            fraction_name,
+            fraction_symbol,
+            fraction_decimals,
+            Web3.to_checksum_address(identity_registry),
+            cliff_duration,
+            vesting_duration,
+            excess_policy,
+            gas_limit=5_000_000,
+        )
+
+        receipt = await self.tx_svc.wait_for_receipt(tx_hash)
+
+        # SaleFactory emits SaleDeployed; FractionFactory emits VaultDeployed in same tx
+        sale_events = self.tx_svc.parse_events(receipt, factory, "SaleDeployed")
+        if not sale_events:
+            raise ValueError("Vested sale deployment succeeded but SaleDeployed event not found")
+        sale_address = sale_events[0]["sale"]
+
+        # Parse VaultDeployed from FractionFactory (different contract in same receipt)
+        ff_contract = self.registry.get_contract("CiretaFractionFactory")
+        vault_events = self.tx_svc.parse_events(receipt, ff_contract, "VaultDeployed")
+        vault_address = vault_events[0]["vault"] if vault_events else ""
+        fraction_address = vault_events[0]["fractionToken"] if vault_events else ""
+
+        logger.info(
+            "Vested sale deployed: sale=%s vault=%s fraction=%s",
+            sale_address, vault_address, fraction_address,
+        )
+        return sale_address, vault_address, fraction_address, tx_hash
+
     async def record_on_chain_contribution(
         self, tx_hash: str
     ) -> dict[str, Any]:

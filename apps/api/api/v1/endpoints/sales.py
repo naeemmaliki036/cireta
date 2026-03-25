@@ -208,17 +208,45 @@ async def deploy_sale(
     from packages.common.core.config import settings as _settings
 
     web3_sale = Web3SaleService()
-    sale_address, tx_hash = await web3_sale.deploy_sale(
-        token_address=sale.token.contract_address,
-        payment_token=sale.payment_token,
-        identity_registry=sale.token.identity_registry_address or request.identity_registry,
-        issuer_wallet=sale.issuer.wallet_address or web3_sale.tx_svc._account.address,
-        fee_manager=_settings.platform_fee_receiver or web3_sale.tx_svc._account.address,
-        soft_cap=int(sale.soft_cap * 10**6),  # USDC 6 decimals
-        hard_cap=int(sale.hard_cap * 10**6),
-        fee_basis_points=request.fee_basis_points,
-        fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
-    )
+    identity_reg = sale.token.identity_registry_address or request.identity_registry
+    issuer_addr = sale.issuer.wallet_address or web3_sale.tx_svc._account.address
+    fee_mgr = _settings.platform_fee_receiver or web3_sale.tx_svc._account.address
+    soft = int(sale.soft_cap * 10**6)
+    hard = int(sale.hard_cap * 10**6)
+
+    mode = sale.sale_mode.value if hasattr(sale.sale_mode, 'value') else str(sale.sale_mode)
+    if mode == "vested":
+        # Vested mode: deploy sale + vault + fraction token
+        sale_address, vault_address, fraction_address, tx_hash = await web3_sale.deploy_sale_vested(
+            token_address=sale.token.contract_address,
+            payment_token=sale.payment_token,
+            identity_registry=identity_reg,
+            issuer_wallet=issuer_addr,
+            fee_manager=fee_mgr,
+            soft_cap=soft,
+            hard_cap=hard,
+            fee_basis_points=request.fee_basis_points,
+            fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
+            fraction_name=f"c{sale.token.symbol}",
+            fraction_symbol=f"c{sale.token.symbol}",
+            cliff_duration=request.cliff_duration if hasattr(request, 'cliff_duration') else 0,
+            vesting_duration=request.vesting_duration if hasattr(request, 'vesting_duration') else 365 * 86400,
+        )
+        sale.vault_address = vault_address
+        sale.fraction_token_address = fraction_address
+    else:
+        # Direct mode
+        sale_address, tx_hash = await web3_sale.deploy_sale(
+            token_address=sale.token.contract_address,
+            payment_token=sale.payment_token,
+            identity_registry=identity_reg,
+            issuer_wallet=issuer_addr,
+            fee_manager=fee_mgr,
+            soft_cap=soft,
+            hard_cap=hard,
+            fee_basis_points=request.fee_basis_points,
+            fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
+        )
 
     # Persist sale address to DB
     sale.contract_address = sale_address

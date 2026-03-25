@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     # Token factory (deployed via contracts/scripts/deploy.ts)
     token_factory_address: str = Field(default="")
     sale_factory_address: str = Field(default="")
+    fraction_factory_address: str = Field(default="")
     modular_compliance_address: str = Field(default=DEFAULTS["MODULAR_COMPLIANCE_ADDRESS"])
 
     # External services
