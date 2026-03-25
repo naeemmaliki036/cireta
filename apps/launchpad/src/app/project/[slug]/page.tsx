@@ -50,7 +50,7 @@ export default function ProjectDetailPage() {
   if (error || !project) return <NotFound />;
 
   const progress = project.targetAmount > 0 ? (project.currentRaised / project.targetAmount) * 100 : 0;
-  const activePhase = project.phases?.find((p) => p.is_active);
+  const activePhase = project.phases?.find((p) => p.is_active) ?? project.phases?.[0] ?? null;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
   const minContrib = activePhase ? parseFloat(activePhase.min_contribution) : 0;
   const maxContrib = activePhase ? parseFloat(activePhase.max_contribution) : 0;

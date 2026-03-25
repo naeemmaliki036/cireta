@@ -96,6 +96,13 @@ export function IssuerDashboardLayout({
           {/* Bottom Actions */}
           <div className="mt-auto pt-6 border-t border-white/10 space-y-1">
             <Link
+              href="/platform/issuers"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gold hover:text-gold hover:bg-gold/10 transition-colors text-sm font-medium"
+            >
+              <Shield className="h-5 w-5" />
+              Platform Admin
+            </Link>
+            <Link
               href="/issuer/settings"
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
             >
@@ -149,7 +156,7 @@ export function IssuerDashboardLayout({
               {actions}
               <Button variant="outline" size="sm">
                 <Wallet className="h-4 w-4 mr-2" />
-                0x1234...5678
+                Wallet
               </Button>
             </div>
           </div>

@@ -37,13 +37,17 @@ export default function CompliancePage() {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
         const data = await getAuditLogs(1, 20, undefined, getToken());
         setAuditLogs(data.items);
-      } catch (err) { console.error("Failed to load compliance data:", err); }
+      } catch (err) {
+        console.error("Failed to load compliance data:", err);
+        setLogsError(true);
+      }
       finally { setLogsLoading(false); }
     })();
   }, []);
@@ -105,6 +109,11 @@ export default function CompliancePage() {
         <h2 className="text-lg font-semibold text-text mb-6">Audit Log</h2>
         {logsLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
+        ) : logsError ? (
+          <div className="text-center py-8">
+            <p className="text-red-500 mb-2">Failed to load compliance data</p>
+            <p className="text-sm text-darkBlack/40">Your session may have expired. Please try logging in again.</p>
+          </div>
         ) : auditLogs.length === 0 ? (
           <p className="text-center text-darkBlack/40 py-8">No compliance actions yet</p>
         ) : (

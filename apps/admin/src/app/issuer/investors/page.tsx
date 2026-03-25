@@ -14,8 +14,8 @@ const columns: Column<Investor>[] = [
     header: "Investor",
     render: (row) => (
       <div>
-        <p className="font-medium text-text">{row.email}</p>
-        <p className="text-xs text-darkBlack/40">{row.id.slice(0, 8)}…</p>
+        <p className="font-medium text-text">{(row as Investor & { display_name?: string }).display_name || row.email}</p>
+        <p className="text-xs text-darkBlack/40">{row.email}</p>
       </div>
     ),
   },
@@ -51,9 +51,10 @@ export default function InvestorsPage() {
     })();
   }, []);
 
+  const sanitizedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
   const filtered = investors.filter((inv) =>
-    !searchQuery || inv.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (inv.wallet_address?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false),
+    !sanitizedQuery || inv.email.toLowerCase().includes(sanitizedQuery.toLowerCase()) ||
+    (inv.wallet_address?.toLowerCase().includes(sanitizedQuery.toLowerCase()) ?? false),
   );
 
   const verified = investors.filter((i) => i.kyc_status === "approved").length;

@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Column<T> {
@@ -18,6 +19,7 @@ export interface DataTableProps<T> {
   emptyMessage?: string;
   striped?: boolean;
   className?: string;
+  pageSize?: number;
 }
 
 export function DataTable<T extends object>({
@@ -27,7 +29,18 @@ export function DataTable<T extends object>({
   emptyMessage = "No data available",
   striped = true,
   className,
+  pageSize = 10,
 }: DataTableProps<T>) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+  const pagedData = useMemo(
+    () => data.slice(page * pageSize, (page + 1) * pageSize),
+    [data, page, pageSize]
+  );
+
+  // Reset page when data changes
+  React.useEffect(() => { setPage(0); }, [data.length]);
+
   return (
     <div className={cn("bg-white rounded-3xl border border-darkBlack/10 overflow-visible", className)}>
       <div className="overflow-x-auto">
@@ -48,7 +61,7 @@ export function DataTable<T extends object>({
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {pagedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
@@ -58,13 +71,13 @@ export function DataTable<T extends object>({
                 </td>
               </tr>
             ) : (
-              data.map((row, rowIndex) => (
+              pagedData.map((row, rowIndex) => (
                 <motion.tr
                   key={rowIndex}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: rowIndex * 0.05 }}
-                  onClick={() => onRowClick?.(row, rowIndex)}
+                  onClick={() => onRowClick?.(row, page * pageSize + rowIndex)}
                   className={cn(
                     "table-row",
                     striped && "table-row-striped",
@@ -77,7 +90,7 @@ export function DataTable<T extends object>({
                       className={cn("px-6 py-4", col.className)}
                     >
                       {col.render
-                        ? col.render(row, rowIndex)
+                        ? col.render(row, page * pageSize + rowIndex)
                         : (row[col.key as keyof T] as React.ReactNode)}
                     </td>
                   ))}
@@ -87,6 +100,33 @@ export function DataTable<T extends object>({
           </tbody>
         </table>
       </div>
+      {/* Pagination */}
+      {data.length > pageSize && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-darkBlack/5">
+          <p className="text-sm text-darkBlack/50">
+            Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, data.length)} of {data.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="p-1.5 rounded-lg hover:bg-darkBlack/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-medium text-text">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="p-1.5 rounded-lg hover:bg-darkBlack/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

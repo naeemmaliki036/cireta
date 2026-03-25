@@ -61,6 +61,14 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
+    // On 401, redirect to login (JWT expired or invalid)
+    if (response.status === 401 && typeof window !== "undefined") {
+      const currentPath = window.location.pathname;
+      if (currentPath !== "/login") {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+        return new Promise<T>(() => {});
+      }
+    }
     throw new APIError(
       response.status,
       error.detail?.code ?? "UNKNOWN_ERROR",

@@ -68,6 +68,16 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
+    // On 401, clear token and redirect to login (avoid infinite retry loops)
+    if (response.status === 401 && typeof window !== "undefined") {
+      _accessToken = null;
+      const currentPath = window.location.pathname;
+      if (currentPath !== "/login") {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+        // Return a never-resolving promise to prevent further execution
+        return new Promise<T>(() => {});
+      }
+    }
     throw new APIError(
       response.status,
       error.detail?.code ?? "UNKNOWN_ERROR",

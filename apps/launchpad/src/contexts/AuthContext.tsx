@@ -14,6 +14,7 @@ import { setAccessToken } from "@/lib/api/client";
 interface User {
   id: string;
   email: string;
+  display_name: string | null;
   role: "investor" | "issuer" | "admin";
   kycStatus: "none" | "pending" | "approved" | "rejected" | "expired";
   kycLevel: number;
@@ -47,6 +48,7 @@ function mapUser(raw: authRepo.User): User {
   return {
     id: raw.id,
     email: raw.email,
+    display_name: raw.display_name,
     role: raw.role,
     kycStatus: raw.kyc_status,
     kycLevel: raw.kyc_level,

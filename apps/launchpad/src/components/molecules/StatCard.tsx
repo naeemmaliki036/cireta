@@ -8,7 +8,7 @@ import CountUp from "react-countup";
 
 export interface StatCardProps {
   label: string;
-  value: number;
+  value: number | string;
   prefix?: string;
   suffix?: string;
   trend?: number;
@@ -88,7 +88,7 @@ export function StatCard({
           )}
         >
           {prefix}
-          <CountUp end={value} duration={2} decimals={decimals} separator="," />
+          <CountUp end={Number(value) || 0} duration={2} decimals={decimals} separator="," />
           {suffix}
         </p>
 

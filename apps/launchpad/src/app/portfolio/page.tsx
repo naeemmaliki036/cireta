@@ -38,12 +38,13 @@ function PortfolioStatCard({ title, value, icon: Icon, positive }: PortfolioStat
 }
 
 export default function PortfolioPage() {
-  const { accessToken, isAuthenticated } = useAuth();
+  const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to finish before deciding
     if (!isAuthenticated || !accessToken) {
       setIsLoading(false);
       return;
@@ -60,7 +61,7 @@ export default function PortfolioPage() {
       }
     }
     load();
-  }, [isAuthenticated, accessToken]);
+  }, [isAuthenticated, accessToken, authLoading]);
 
   const holdings: HoldingItem[] = (portfolio?.holdings ?? []).map((h) => ({
     id: h.token_id,
@@ -107,7 +108,7 @@ export default function PortfolioPage() {
 
         {/* Holdings */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          {!isAuthenticated && !isLoading ? (
+          {!isAuthenticated && !isLoading && !authLoading ? (
             <div className="bg-white rounded-3xl p-12 border border-darkBlack/10 text-center">
               <p className="text-gray-500 text-lg">Sign in to view your portfolio</p>
             </div>

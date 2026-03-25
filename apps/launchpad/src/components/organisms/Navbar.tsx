@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Wallet } from "lucide-react";
+import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { CiretaLogo } from "@/components/atoms";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -22,7 +23,10 @@ export interface NavbarProps {
 export function Navbar({ variant = "dark" }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +35,16 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -176,6 +190,57 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               }}
             </ConnectButton.Custom>
 
+            {/* User Menu */}
+            {isAuthenticated && user && (
+              <div className="relative hidden sm:block" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
+                    isScrolled || variant === "dark"
+                      ? "text-white/80 hover:text-white hover:bg-white/10"
+                      : "text-text/80 hover:text-text hover:bg-darkBlack/5"
+                  )}
+                >
+                  <div className="w-7 h-7 rounded-full bg-darkAqua/20 flex items-center justify-center">
+                    <User className="h-3.5 w-3.5 text-darkAqua" />
+                  </div>
+                  <span className="max-w-[120px] truncate">{user.display_name || user.email.split("@")[0]}</span>
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isUserMenuOpen && "rotate-180")} />
+                </button>
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-darkBlack/10 py-2 z-50"
+                    >
+                      <div className="px-4 py-3 border-b border-darkBlack/5">
+                        <p className="text-sm font-semibold text-text truncate">{user.display_name || user.email.split("@")[0]}</p>
+                        <p className="text-xs text-darkBlack/50 truncate">{user.email}</p>
+                      </div>
+                      <Link href="/account" onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-darkBlack/5 transition-colors">
+                        <User className="h-4 w-4 text-darkBlack/40" /> Account
+                      </Link>
+                      <Link href="/settings" onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-darkBlack/5 transition-colors">
+                        <Settings className="h-4 w-4 text-darkBlack/40" /> Settings
+                      </Link>
+                      <div className="border-t border-darkBlack/5 mt-1 pt-1">
+                        <button onClick={() => { setIsUserMenuOpen(false); logout(); }}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+                          <LogOut className="h-4 w-4" /> Sign Out
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -227,6 +292,27 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   </Link>
                 ))}
               </nav>
+              {/* User Info (Mobile) */}
+              {isAuthenticated && user && (
+                <div className="mt-6 border-t border-white/10 pt-6">
+                  <div className="px-4 mb-4">
+                    <p className="text-sm font-semibold text-white">{user.display_name || user.email.split("@")[0]}</p>
+                    <p className="text-xs text-white/50">{user.email}</p>
+                  </div>
+                  <Link href="/account" onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors text-base font-medium">
+                    <User className="h-5 w-5" /> Account
+                  </Link>
+                  <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors text-base font-medium">
+                    <Settings className="h-5 w-5" /> Settings
+                  </Link>
+                  <button onClick={() => { setIsMobileMenuOpen(false); logout(); }}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-base font-medium w-full">
+                    <LogOut className="h-5 w-5" /> Sign Out
+                  </button>
+                </div>
+              )}
               <div className="mt-8">
                 <ConnectButton.Custom>
                   {({

@@ -88,7 +88,7 @@ export default function IssuerOverviewPage() {
                       <h3 className="font-semibold text-text">{sale.token_name ?? sale.id}</h3>
                       <p className="text-sm text-darkBlack/50">{sale.token_symbol}</p>
                     </div>
-                    <Badge variant="active" size="sm">active</Badge>
+                    <Badge variant="active" size="sm" className="capitalize">Active</Badge>
                   </div>
                   <ProgressBar value={pct} size="sm" />
                   <div className="flex justify-between text-sm mt-2">

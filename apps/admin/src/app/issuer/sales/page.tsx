@@ -30,7 +30,7 @@ const columns: Column<Sale>[] = [
   {
     key: "status",
     header: "Status",
-    render: (row) => <Badge variant={row.status === "active" ? "active" : row.status === "finalized" ? "default" : "pending"} size="sm">{row.status}</Badge>,
+    render: (row) => <Badge variant={row.status === "active" ? "active" : row.status === "finalized" ? "default" : "pending"} size="sm" className="capitalize">{row.status}</Badge>,
   },
   {
     key: "total_raised",
@@ -74,8 +74,9 @@ export default function SalesPage() {
     })();
   }, []);
 
+  const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
   const filtered = sales.filter((s) =>
-    !search || (s.token_name ?? "").toLowerCase().includes(search.toLowerCase()),
+    !sanitizedSearch || (s.token_name ?? "").toLowerCase().includes(sanitizedSearch.toLowerCase()),
   );
 
   const totalRaised = sales.reduce((acc, s) => acc + parseFloat(s.total_raised || "0"), 0);

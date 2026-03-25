@@ -127,7 +127,7 @@ export function DashboardLayout({
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm">
                 <Wallet className="h-4 w-4 mr-2" />
-                0x1234...5678
+                Wallet
               </Button>
             </div>
           </div>

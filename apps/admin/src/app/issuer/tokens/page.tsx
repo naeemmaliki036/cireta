@@ -39,7 +39,7 @@ const columns: Column<Token>[] = [
   {
     key: "is_paused",
     header: "Status",
-    render: (row) => <Badge variant={row.is_paused ? "pending" : "active"} size="sm">{row.is_paused ? "Paused" : "Active"}</Badge>,
+    render: (row) => <Badge variant={row.is_paused ? "pending" : "active"} size="sm" className="capitalize">{row.is_paused ? "Paused" : "Active"}</Badge>,
   },
   {
     key: "id",
@@ -67,10 +67,11 @@ export default function TokensPage() {
     })();
   }, []);
 
+  const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
   const filtered = tokens.filter((t) =>
-    !search ||
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.symbol.toLowerCase().includes(search.toLowerCase()),
+    !sanitizedSearch ||
+    t.name.toLowerCase().includes(sanitizedSearch.toLowerCase()) ||
+    t.symbol.toLowerCase().includes(sanitizedSearch.toLowerCase()),
   );
 
   return (
