@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.issuer import Issuer
 from apps.api.models.token import Token
@@ -130,11 +131,17 @@ class TestDeployTokenEndpoint:
     async def test_deploy_token_success(
         self,
         client: AsyncClient,
+        db_session: AsyncSession,
         test_token: Token,
         test_issuer_user: User,
         auth_service: CiretaAuthService,
     ) -> None:
         """Test successful token deployment."""
+        # Clear contract_address so deploy guard allows it
+        test_token.contract_address = None
+        await db_session.commit()
+        await db_session.refresh(test_token)
+
         access_token = auth_service.create_access_token(test_issuer_user.id)
         mock_address = "0x" + "a1" * 20
         mock_receipt = {"transactionHash": b"\x00" * 32}
@@ -144,7 +151,7 @@ class TestDeployTokenEndpoint:
         ) as mock_cls:
             mock_svc = mock_cls.return_value
             mock_svc.deploy_erc3643_token = AsyncMock(
-                return_value=(mock_address, mock_receipt)
+                return_value=(mock_address, "0x" + "b2" * 20, "0x" + "c3" * 20, mock_receipt)
             )
             mock_svc.deployer_address = mock_address
 

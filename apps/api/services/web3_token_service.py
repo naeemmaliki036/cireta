@@ -50,7 +50,7 @@ class Web3TokenService(Web3BaseService):
         symbol: str,
         decimals: int,
         issuer_wallet: str,
-    ) -> tuple[str, TxReceipt]:
+    ) -> tuple[str, str, str, TxReceipt]:
         """Deploy an ERC-3643 token via CiretaTokenFactory.
 
         Calls factory.deployToken(name, symbol, decimals, issuer) which

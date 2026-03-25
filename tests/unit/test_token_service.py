@@ -97,12 +97,18 @@ class TestTokenServiceDeploy:
         mock_address = "0x" + "a1" * 20
         mock_receipt = {"transactionHash": b"\x00" * 32}
 
+        # Clear contract_address so deploy is allowed
+        # This should be done by the test setup, not directly in the test
+        test_token.contract_address = None
+        # db_session.add(test_token) # No need to add if modifying an existing object
+        await db_session.flush()
+
         with patch(
             "apps.api.services.web3_token_service.Web3TokenService"
         ) as mock_cls:
             mock_svc = mock_cls.return_value
             mock_svc.deploy_erc3643_token = AsyncMock(
-                return_value=(mock_address, mock_receipt)
+                return_value=(mock_address, "0x" + "b2" * 20, "0x" + "c3" * 20, mock_receipt)
             )
             mock_svc.deployer_address = mock_address
 

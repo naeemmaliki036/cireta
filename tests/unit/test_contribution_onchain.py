@@ -18,13 +18,13 @@ class TestContributionOnChain:
     """Tests for on-chain verified contribution recording."""
 
     @pytest.mark.asyncio
-    async def test_contribute_dedup_returns_existing(
+    async def test_contribute_dedup_raises_409(
         self,
         db_session: AsyncSession,
         test_sale: TokenSale,
         test_user: User,
     ) -> None:
-        """Duplicate tx_hash returns existing contribution (not 409)."""
+        """Duplicate tx_hash raises 409 Conflict."""
         tx_hash = make_tx_hash()
         service = SaleService(db_session)
 
@@ -38,27 +38,22 @@ class TestContributionOnChain:
             new_callable=AsyncMock,
             return_value=None,
         ):
-            contrib1 = await service.contribute(
+            await service.contribute(
                 user_id=test_user.id,
                 sale_id=test_sale.id,
                 amount=Decimal("1000"),
                 tx_hash=tx_hash,
             )
 
-        # Second call with same tx_hash should return existing
-        with patch(
-            "apps.api.services.sale_contribute_service.SaleContributeService._verify_on_chain",
-            new_callable=AsyncMock,
-            return_value=None,
-        ):
-            contrib2 = await service.contribute(
+        # Second call with same tx_hash should raise 409
+        with pytest.raises(HTTPException) as exc_info:
+            await service.contribute(
                 user_id=test_user.id,
                 sale_id=test_sale.id,
                 amount=Decimal("1000"),
                 tx_hash=tx_hash,
             )
-
-        assert str(contrib2.id) == str(contrib1.id)
+        assert exc_info.value.status_code == 409
 
     @pytest.mark.asyncio
     async def test_contribute_records_from_event_data(

@@ -187,11 +187,13 @@ async def test_token(db_session: AsyncSession, test_issuer: Issuer) -> Token:
     token.total_supply = Decimal("1000000")
     token.decimals = 18
     token.chain_id = 8453
+    # contract_address intentionally left None — set it explicitly in tests that need a deployed token
 
     db_session.add(token)
     await db_session.commit()
     await db_session.refresh(token)
     return token
+
 
 
 @pytest_asyncio.fixture

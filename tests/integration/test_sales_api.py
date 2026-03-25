@@ -27,13 +27,14 @@ class TestListSalesEndpoint:
     async def test_list_sales_with_status_filter(
         self, client: AsyncClient, test_sale: TokenSale
     ) -> None:
-        """Test listing sales with status filter."""
-        response = await client.get("/api/v1/sales/?status=active")
+        """Test listing sales with status filter returns only matching status."""
+        response = await client.get(f"/api/v1/sales/?status={str(test_sale.status)}")
 
         assert response.status_code == 200
         data = response.json()
+        assert len(data["items"]) >= 1
         for item in data["items"]:
-            assert item["status"] == "active"
+            assert item["status"] == str(test_sale.status)
 
 
 class TestGetSaleEndpoint:
@@ -84,7 +85,7 @@ class TestCreateSaleEndpoint:
                         "allocation": "100000",
                         "min_contribution": "100",
                         "max_contribution": "10000",
-                        "start_time": now.isoformat(),
+                        "start_time": (now + timedelta(hours=1)).isoformat(),
                         "end_time": (now + timedelta(days=30)).isoformat(),
                     }
                 ],

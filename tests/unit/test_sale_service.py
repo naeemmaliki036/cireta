@@ -202,33 +202,33 @@ class TestSaleServiceContribute:
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["code"] == "ABOVE_MAXIMUM"
 
-    async def test_contribute_duplicate_tx_returns_existing(
+    async def test_contribute_duplicate_tx_returns_409(
         self,
         db_session: AsyncSession,
         test_sale: TokenSale,
         test_user: User,
     ) -> None:
-        """Duplicate tx_hash returns existing contribution (dedup, not error)."""
+        """Duplicate tx_hash raises 409 Conflict."""
         service = SaleService(db_session)
         tx_hash = make_tx_hash()
 
         # First contribution
-        contrib1 = await service.contribute(
+        await service.contribute(
             user_id=test_user.id,
             sale_id=test_sale.id,
             amount=Decimal("1000"),
             tx_hash=tx_hash,
         )
 
-        # Duplicate — should return existing, not raise
-        contrib2 = await service.contribute(
-            user_id=test_user.id,
-            sale_id=test_sale.id,
-            amount=Decimal("1000"),
-            tx_hash=tx_hash,
-        )
-
-        assert str(contrib2.id) == str(contrib1.id)
+        # Duplicate — should raise 409
+        with pytest.raises(HTTPException) as exc_info:
+            await service.contribute(
+                user_id=test_user.id,
+                sale_id=test_sale.id,
+                amount=Decimal("1000"),
+                tx_hash=tx_hash,
+            )
+        assert exc_info.value.status_code == 409
 
 
 class TestSaleServiceList:
