@@ -1,12 +1,17 @@
-"""Admin reports endpoints — CSV exports for sales, holders, fees, compliance."""
+"""Admin reports endpoints — CSV exports for sales, holders, fees, compliance.
+
+Security: all cells are sanitized against CSV injection (Excel formula execution)
+via _sanitize_cell(). All endpoints require platform admin role.
+"""
 
 import csv
 import io
+import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,15 +22,36 @@ from apps.api.models.user import User
 from packages.common.core.auth_deps import RequireAdmin
 from packages.common.db.session import get_db
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["admin-reports"])
+
+# Maximum rows per report to prevent OOM on large datasets
+_MAX_REPORT_ROWS = 10_000
+
+
+def _sanitize_cell(value: str) -> str:
+    """Prevent CSV injection by prefixing dangerous characters with a single quote.
+
+    Excel/Sheets execute formulas starting with = + - @ |
+    Ref: OWASP CSV Injection
+    """
+    if isinstance(value, str) and value and value[0] in ("=", "+", "-", "@", "|", "\t", "\r", "\n"):
+        return f"'{value}"
+    return value
 
 
 def _csv_response(filename: str, rows: list[dict], fieldnames: list[str]) -> StreamingResponse:
-    """Build a CSV StreamingResponse from a list of dicts."""
+    """Build a CSV StreamingResponse from a list of dicts, sanitized against injection."""
+    # Sanitize all string cells
+    sanitized = []
+    for row in rows:
+        sanitized.append({k: _sanitize_cell(str(v)) if isinstance(v, str) else v for k, v in row.items()})
+
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
-    writer.writerows(rows)
+    writer.writerows(sanitized)
     buf.seek(0)
     return StreamingResponse(
         iter([buf.getvalue()]),
@@ -38,6 +64,7 @@ def _csv_response(filename: str, rows: list[dict], fieldnames: list[str]) -> Str
 async def export_sales_report(
     _user_id: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(default=_MAX_REPORT_ROWS, le=_MAX_REPORT_ROWS),
 ) -> StreamingResponse:
     """Sales report CSV: per-sale breakdown of contributions, phases, and OTC."""
     result = await db.execute(
@@ -47,6 +74,7 @@ async def export_sales_report(
             selectinload(TokenSale.contributions),
             selectinload(TokenSale.phases),
         )
+        .limit(limit)
     )
     sales = result.scalars().all()
 
@@ -78,15 +106,19 @@ async def export_sales_report(
 async def export_holders_report(
     _user_id: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(default=_MAX_REPORT_ROWS, le=_MAX_REPORT_ROWS),
 ) -> StreamingResponse:
     """Holder report CSV: current cap table — all token holders and balances."""
+    from apps.api.models.enums import ContributionStatus
+
     result = await db.execute(
         select(Contribution)
         .options(
             selectinload(Contribution.user),
             selectinload(Contribution.sale).selectinload(TokenSale.token),
         )
-        .where(Contribution.status == "claimed")
+        .where(Contribution.status == ContributionStatus.CLAIMED)
+        .limit(limit)
     )
     contributions = result.scalars().all()
 
@@ -141,10 +173,11 @@ async def export_fees_report(
 async def export_compliance_report(
     _user_id: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(default=_MAX_REPORT_ROWS, le=_MAX_REPORT_ROWS),
 ) -> StreamingResponse:
     """Compliance report CSV: frozen addresses, forced transfers, recovery actions."""
     result = await db.execute(
-        select(AuditLog).order_by(AuditLog.created_at.desc())
+        select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
     )
     logs = result.scalars().all()
 

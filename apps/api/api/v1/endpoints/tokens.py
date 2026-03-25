@@ -131,19 +131,19 @@ async def deploy_token(
 @router.get("/{token_id}/por")
 async def get_proof_of_reserve(
     token_id: UUID,
+    _user_id: CurrentUserId,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Get Chainlink Proof of Reserve data for a commodity token.
 
     Returns live oracle data: total supply, verified reserve, last update timestamp.
-    In dev mode (no feed configured) returns mock data.
+    Requires authentication.
+    In dev mode (no feed configured) returns estimated data.
     """
     svc = TokenService(db)
     token = await svc.get_token(token_id)
     if not token:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Token not found")
+        raise HTTPException(status_code=404, detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"})
 
     feed = getattr(token, "chainlink_por_feed", None)
     if not feed or feed in ("", "placeholder"):
@@ -177,10 +177,8 @@ async def get_proof_of_reserve(
             "last_updated": data.get("updated_at"),
             "is_live": True,
         }
-    except (ConnectionError, TimeoutError, ValueError, KeyError) as exc:
-        import logging
-
-        logging.getLogger(__name__).error("PoR fetch failed for token %s: %s", token_id, exc)
+    except Exception as exc:
+        logger.error("PoR fetch failed for token %s: %s", token_id, exc)
         return {
             "token_id": str(token_id),
             "feed_address": feed,
@@ -289,15 +287,11 @@ async def upload_token_document(
     )
     token = result.scalar_one_or_none()
     if not token:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Token not found")
+        raise HTTPException(status_code=404, detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"})
 
     # Ownership check: only the issuer who owns this token can attach documents
-    from fastapi import HTTPException as _HTTPException
-
     if token.issuer.user_id != user_id:
-        raise _HTTPException(
+        raise HTTPException(
             status_code=403,
             detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to modify this token"},
         )
