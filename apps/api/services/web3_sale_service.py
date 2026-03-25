@@ -5,6 +5,7 @@ Orchestrates Sale contract interactions via Web3TxService.
 
 import asyncio
 import logging
+from fastapi import HTTPException
 from decimal import Decimal
 from typing import Any
 
@@ -130,13 +131,16 @@ class Web3SaleService:
         addr = Web3.to_checksum_address(sale_address)
         contract = self.tx_svc.w3.eth.contract(address=addr, abi=sale_abi)
 
-        status_val, total_raised, phase_count, soft_cap, hard_cap = await asyncio.gather(
-            asyncio.to_thread(contract.functions.status().call),
-            asyncio.to_thread(contract.functions.totalRaised().call),
-            asyncio.to_thread(contract.functions.getPhaseCount().call),
-            asyncio.to_thread(contract.functions.softCap().call),
-            asyncio.to_thread(contract.functions.hardCap().call),
-        )
+        try:
+            status_val, total_raised, phase_count, soft_cap, hard_cap = await asyncio.gather(
+                asyncio.to_thread(contract.functions.status().call),
+                asyncio.to_thread(contract.functions.totalRaised().call),
+                asyncio.to_thread(contract.functions.getPhaseCount().call),
+                asyncio.to_thread(contract.functions.softCap().call),
+                asyncio.to_thread(contract.functions.hardCap().call),
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail={"code": "ON_CHAIN_READ_ERROR", "message": f"Failed to read on-chain sale status: {e}"}) from e
 
         status_names = [
             "Draft", "Active", "Paused", "FinalizedSuccess", "FinalizedFailed"
@@ -144,19 +148,24 @@ class Web3SaleService:
 
         phases = []
         for i in range(phase_count):
-            phase = await asyncio.to_thread(contract.functions.getPhase(i).call)
-            phases.append({
-                "id": i,
-                "name": phase[0],
-                "price_per_token": phase[1],
-                "allocation": phase[2],
-                "sold": phase[3],
-                "min_contribution": phase[4],
-                "max_contribution": phase[5],
-                "start_time": phase[6],
-                "end_time": phase[7],
-                "whitelist_only": phase[8],
-            })
+            try:
+                phase = await asyncio.to_thread(contract.functions.getPhase(i).call)
+                phases.append({
+                    "id": i,
+                    "name": phase[0],
+                    "price_per_token": phase[1],
+                    "allocation": phase[2],
+                    "sold": phase[3],
+                    "min_contribution": phase[4],
+                    "max_contribution": phase[5],
+                    "start_time": phase[6],
+                    "end_time": phase[7],
+                    "whitelist_only": phase[8],
+                })
+            except Exception as e:
+                logger.error("Error reading phase %d: %s", i, e)
+                # Continue to next phase if one fails
+                continue
 
         return {
             "status": status_names[status_val] if status_val < len(status_names) else str(status_val),
