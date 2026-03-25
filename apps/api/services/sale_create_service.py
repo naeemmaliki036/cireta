@@ -58,11 +58,11 @@ class SaleCreateService:
                 detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"},
             )
 
-        # Check authorization
-        if token.issuer.user_id != user_id:
+        # Check authorization — issuer must own this token
+        if not token.issuer or token.issuer.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"},
+                detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to manage this token"},
             )
 
         if hard_cap < soft_cap:

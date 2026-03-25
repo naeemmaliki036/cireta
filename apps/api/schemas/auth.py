@@ -1,5 +1,6 @@
 """Authentication schemas for request/response validation."""
 
+import html
 import re
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -7,6 +8,9 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 _PASSWORD_RE = re.compile(
     r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]).{8,128}$"
 )
+
+# Strip HTML tags for XSS prevention
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 class RegisterRequest(BaseModel):
@@ -23,6 +27,21 @@ class RegisterRequest(BaseModel):
             )
         return v
     display_name: str | None = Field(None, max_length=100)
+
+    @field_validator("display_name")
+    @classmethod
+    def sanitize_display_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        # Strip HTML tags (XSS prevention)
+        v = _HTML_TAG_RE.sub("", v)
+        # HTML-escape remaining special chars
+        v = html.escape(v, quote=True)
+        # Strip and reject whitespace-only
+        v = v.strip()
+        if not v:
+            return None
+        return v
 
 
 class LoginRequest(BaseModel):
@@ -62,6 +81,18 @@ class ResetPasswordRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=100)
+
+    @field_validator("display_name")
+    @classmethod
+    def sanitize_display_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = _HTML_TAG_RE.sub("", v)
+        v = html.escape(v, quote=True)
+        v = v.strip()
+        if not v:
+            return None
+        return v
 
 
 class UserResponse(BaseModel):

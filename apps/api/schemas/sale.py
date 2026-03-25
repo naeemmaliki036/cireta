@@ -1,9 +1,9 @@
 """Token sale schemas for request/response validation."""
 
-from datetime import datetime
-from decimal import Decimal
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SalePhaseCreate(BaseModel):
@@ -18,6 +18,21 @@ class SalePhaseCreate(BaseModel):
     end_time: datetime
     whitelist_only: bool = False
 
+    @model_validator(mode="after")
+    def validate_phase(self) -> "SalePhaseCreate":
+        # end_time must be after start_time
+        if self.end_time <= self.start_time:
+            raise ValueError("Phase end_time must be after start_time")
+        # start_time must be in the future
+        if self.start_time.tzinfo and self.start_time < datetime.now(timezone.utc):
+            raise ValueError("Phase start_time must be in the future")
+        # min_contribution <= max_contribution (when max > 0)
+        if self.max_contribution > 0 and self.min_contribution > self.max_contribution:
+            raise ValueError(
+                "Phase min_contribution cannot exceed max_contribution"
+            )
+        return self
+
 
 class SaleCreateRequest(BaseModel):
     """Request to create a new token sale."""
@@ -27,6 +42,35 @@ class SaleCreateRequest(BaseModel):
     soft_cap: Decimal = Field(..., gt=0)
     hard_cap: Decimal = Field(..., gt=0)
     phases: list[SalePhaseCreate] = Field(..., min_length=1)
+
+    @field_validator("soft_cap", "hard_cap", mode="before")
+    @classmethod
+    def validate_decimal_format(cls, v: object) -> object:
+        """Reject scientific notation and non-standard numeric formats."""
+        if isinstance(v, str):
+            # Reject scientific notation (1e18, 2.5E10, etc.)
+            if "e" in v.lower():
+                raise ValueError("Scientific notation not allowed — use plain decimal")
+            try:
+                Decimal(v)
+            except InvalidOperation:
+                raise ValueError("Invalid decimal format")
+        return v
+
+    @model_validator(mode="after")
+    def validate_sale(self) -> "SaleCreateRequest":
+        # soft_cap must be <= hard_cap
+        if self.soft_cap > self.hard_cap:
+            raise ValueError("soft_cap cannot exceed hard_cap")
+        # Check for overlapping phase dates
+        phases_sorted = sorted(self.phases, key=lambda p: p.start_time)
+        for i in range(1, len(phases_sorted)):
+            if phases_sorted[i].start_time < phases_sorted[i - 1].end_time:
+                raise ValueError(
+                    f"Phase '{phases_sorted[i].name}' overlaps with "
+                    f"'{phases_sorted[i - 1].name}'"
+                )
+        return self
 
 
 class ContributeRequest(BaseModel):

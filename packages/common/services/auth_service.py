@@ -176,8 +176,14 @@ class AuthService:
         """Extract user ID from a JWT token.
 
         Returns the user UUID if token is valid, None otherwise.
+        Checks the blacklist so logged-out tokens are rejected.
         """
         try:
+            # Check blacklist FIRST (logout / rotation)
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            if token_hash in _token_blacklist:
+                return None
+
             secret = settings.jwt_secret_key
             if not secret:
                 return None
