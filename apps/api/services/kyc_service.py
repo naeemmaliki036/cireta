@@ -33,6 +33,14 @@ def _sumsub_sign(secret: str, ts: int, method: str, path: str, body: bytes = b""
     return hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()
 
 
+def create_hmac_signature(secret_key: str, body: bytes) -> str:
+    """Create HMAC-SHA256 signature for webhook payload verification.
+
+    Sumsub signs webhooks with HMAC-SHA256(secret_key, raw_body).
+    """
+    return hmac.new(secret_key.encode(), body, hashlib.sha256).hexdigest()
+
+
 async def _sumsub_request(
     method: str,
     path: str,
