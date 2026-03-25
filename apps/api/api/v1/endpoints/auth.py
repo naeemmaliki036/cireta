@@ -1,5 +1,6 @@
 """Authentication endpoints."""
 
+import os
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
@@ -37,20 +38,24 @@ async def get_auth_service(db: Annotated[AsyncSession, Depends(get_db)]) -> Cire
     return CiretaAuthService(db)
 
 
+_IS_DEV = os.getenv("ENVIRONMENT", "development") == "development"
+_COOKIE_PATH = "/api/v1/auth/refresh"
+
+
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         max_age=_COOKIE_MAX_AGE,
         httponly=True,
-        secure=True,
-        samesite="strict",
-        path="/auth/refresh",
+        secure=not _IS_DEV,
+        samesite="lax" if _IS_DEV else "strict",
+        path=_COOKIE_PATH,
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(key=_REFRESH_COOKIE, path="/auth/refresh")
+    response.delete_cookie(key=_REFRESH_COOKIE, path=_COOKIE_PATH)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)

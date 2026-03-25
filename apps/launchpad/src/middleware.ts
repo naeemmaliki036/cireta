@@ -19,9 +19,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Also check for localStorage-based auth via a client-side cookie
-  // Since localStorage isn't available in middleware, we rely on a sync cookie
-  // The AuthContext sets this cookie when the user logs in
+  // Check for client-side auth cookie set by AuthContext on login
   const authFlag = request.cookies.get("cireta_auth")?.value;
   if (authFlag === "1") {
     return NextResponse.next();

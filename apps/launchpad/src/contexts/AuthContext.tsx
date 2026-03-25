@@ -77,15 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false,
       });
     } catch {
-      // No valid refresh cookie — user is not authenticated
+      // No valid refresh cookie — but don't clear auth if we might still have a session
+      // Only clear the flag; the access token from login is still in memory
       setAccessToken(null);
-      setAuthCookie(false);
       setState({
         user: null,
         accessToken: null,
         isAuthenticated: false,
         isLoading: false,
       });
+      // Keep cireta_auth cookie alive — middleware needs it to avoid
+      // redirect loops. The cookie is only cleared on explicit logout.
     }
   }, []);
 
