@@ -125,6 +125,7 @@ tc S8  "Deploy sale"            200 \
   -H "Authorization: Bearer $ISSUER_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"sale_id\":\"$SALE_ID\",\"identity_registry\":\"0xFEe7c667db9b54767A8772dcBC81a9d177C0954E\",\"fee_basis_points\":250}"
+sleep 3  # Allow RPC node to index the just-deployed sale contract
 tc S7  "On-chain status"        200 "$BASE/sales/$SALE_ID/on-chain" -H "Authorization: Bearer $ISSUER_TOKEN"
 tc S9  "Contribute no auth → 401" 401 \
   -X POST "$BASE/sales/$SALE_ID/contribute" \
