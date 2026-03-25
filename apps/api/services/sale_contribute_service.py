@@ -378,7 +378,9 @@ class SaleContributeService:
             HTTPException: If not authorized or cannot finalize.
         """
         sale_result = await self.db.execute(
-            select(TokenSale).options(selectinload(TokenSale.issuer)).where(TokenSale.id == sale_id)
+            select(TokenSale)
+            .options(selectinload(TokenSale.issuer), selectinload(TokenSale.token))
+            .where(TokenSale.id == sale_id)
         )
         sale = sale_result.scalar_one_or_none()
 
@@ -415,7 +417,18 @@ class SaleContributeService:
             sale.status = SaleStatus.FAILED
 
         await self.db.commit()
-        await self.db.refresh(sale)
+
+        # Re-query with relationships loaded for response serialization
+        sale_result = await self.db.execute(
+            select(TokenSale)
+            .options(
+                selectinload(TokenSale.issuer),
+                selectinload(TokenSale.token),
+                selectinload(TokenSale.phases),
+            )
+            .where(TokenSale.id == sale_id)
+        )
+        sale = sale_result.scalar_one()
 
         return sale
 
