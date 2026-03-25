@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Lock, Unlock, ArrowRightLeft, RefreshCw, Pause, Play } from "lucide-react";
+import { Lock, Unlock, ArrowRightLeft, RefreshCw, Pause, Play, Shield } from "lucide-react";
 import { Badge } from "@/components/atoms";
 import { cn, formatRelativeTime, truncateAddress } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export function AuditLogRow({
   details,
   index = 0,
 }: AuditLogRowProps) {
-  const config = actionConfig[action];
+  const config = actionConfig[action] ?? { icon: Shield, label: action, color: "text-gray-600" };
   const Icon = config.icon;
 
   return (
