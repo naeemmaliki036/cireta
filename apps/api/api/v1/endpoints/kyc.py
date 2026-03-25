@@ -74,13 +74,33 @@ async def sumsub_webhook(
 ) -> dict[str, str]:
     """Handle Sumsub webhook callbacks.
 
-    CRITICAL: This endpoint is NOT public. It validates HMAC-SHA256 signature
+    CRITICAL: This endpoint validates HMAC-SHA256 signature
     from Sumsub BEFORE any processing. Invalid signatures return 401.
-
-    The signature is in the X-Payload-Digest header.
+    The signature is in the X-Payload-Digest header. The X-App-Token is also checked.
     """
     # Read raw body for HMAC validation
     body = await request.body()
+    signature = request.headers.get("X-Payload-Digest")
+    app_token = request.headers.get("X-App-Token")
+
+    if not signature or not app_token:
+        raise HTTPException(status_code=401, detail="Missing Sumsub webhook headers")
+
+    from packages.common.core.config import settings
+    from apps.api.services.kyc_service import create_hmac_signature
+
+    # Validate X-App-Token field against settings.sumsub_app_token
+    if app_token != settings.sumsub_app_token:
+        raise HTTPException(status_code=401, detail="Invalid Sumsub App Token")
+
+    # Validate HMAC signature
+    expected_signature = create_hmac_signature(settings.sumsub_secret_key, body)
+    if signature != f"sha256={expected_signature}":
+        # Use a constant time comparison to avoid timing attacks
+        import hmac
+        import hashlib
+        if not hmac.compare_digest(f"sha256={expected_signature}".encode(), signature.encode()):
+            raise HTTPException(status_code=401, detail="Invalid Sumsub HMAC signature")
 
     # Get signature from header
     # Sumsub uses X-Payload-Digest for HMAC signature
