@@ -180,7 +180,7 @@ class OTCAllocateRequest(BaseModel):
 class SaleDeployRequest(BaseModel):
     """Request to deploy a sale contract on-chain."""
 
-    sale_id: str
+    sale_id: str | None = None  # Optional — sale_id comes from URL path
     identity_registry: str = Field(..., min_length=42, max_length=42)
     fee_basis_points: int = Field(default=250, ge=0, le=10000)
     fee_cap_usdc: Decimal = Field(default=Decimal("0"))

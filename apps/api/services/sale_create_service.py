@@ -65,6 +65,13 @@ class SaleCreateService:
                 detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to manage this token"},
             )
 
+        # Token must be deployed on-chain before a sale can be created
+        if not token.contract_address:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "TOKEN_NOT_DEPLOYED", "message": "Token must be deployed on-chain before creating a sale"},
+            )
+
         if hard_cap < soft_cap:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
