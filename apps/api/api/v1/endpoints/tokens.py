@@ -1,10 +1,11 @@
 """Token endpoints for ERC-3643 security tokens."""
 
+import logging
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,8 +15,11 @@ from apps.api.schemas.token import (
     TokenResponse,
 )
 from apps.api.services.token_service import TokenService
-from packages.common.core.auth_deps import CurrentUserId
+from apps.api.services.web3_base_service import Web3BaseService
+from packages.common.core.auth_deps import CurrentUserId, RequireIssuerOrAdmin
 from packages.common.db.session import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tokens", tags=["tokens"])
 
@@ -187,6 +191,76 @@ async def get_proof_of_reserve(
             "is_live": False,
             "error": "Oracle unavailable",
         }
+
+
+@router.get("/{token_id}/proof-of-reserve")
+async def get_chainlink_proof_of_reserve(
+    token_id: UUID,
+    _user_id: RequireIssuerOrAdmin,
+    token_service: Annotated[TokenService, Depends(get_token_service)],
+) -> dict:
+    """Get Chainlink Proof of Reserve data for a token.
+
+    Calls the on-chain Chainlink aggregator: latestRoundData() + decimals().
+    Requires: issuer or admin role.
+    """
+    token = await token_service.get_token(token_id)
+
+    feed = token.chainlink_por_feed
+    if not feed or feed.strip() == "":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "POR_NOT_CONFIGURED", "message": "No Chainlink PoR feed configured for this token"},
+        )
+
+    aggregator_abi = [
+        {
+            "inputs": [],
+            "name": "latestRoundData",
+            "outputs": [
+                {"name": "roundId", "type": "uint80"},
+                {"name": "answer", "type": "int256"},
+                {"name": "startedAt", "type": "uint256"},
+                {"name": "updatedAt", "type": "uint256"},
+                {"name": "answeredInRound", "type": "uint80"},
+            ],
+            "stateMutability": "view",
+            "type": "function",
+        },
+        {
+            "inputs": [],
+            "name": "decimals",
+            "outputs": [{"name": "", "type": "uint8"}],
+            "stateMutability": "view",
+            "type": "function",
+        },
+    ]
+
+    try:
+        w3_svc = Web3BaseService()
+        round_data = await w3_svc.call_contract(feed, aggregator_abi, "latestRoundData")
+        feed_decimals = await w3_svc.call_contract(feed, aggregator_abi, "decimals")
+    except Exception as exc:
+        logger.error("PoR on-chain call failed for token %s feed %s", token_id, feed, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "POR_ORACLE_ERROR", "message": "Failed to read Chainlink PoR feed"},
+        ) from exc
+
+    round_id, answer, _started_at, updated_at, _answered_in_round = round_data
+    scaled_answer = Decimal(str(answer)) / Decimal(10**feed_decimals)
+
+    now_ts = int(__import__("time").time())
+    is_stale = (now_ts - updated_at) > 86400  # 24 hours
+
+    return {
+        "feed_address": feed,
+        "answer": str(scaled_answer),
+        "decimals": feed_decimals,
+        "updated_at": updated_at,
+        "round_id": str(round_id),
+        "is_stale": is_stale,
+    }
 
 
 @router.post("/{token_id}/documents")

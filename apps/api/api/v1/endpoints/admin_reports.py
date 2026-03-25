@@ -12,7 +12,6 @@ from sqlalchemy.orm import selectinload
 
 from apps.api.models.audit_log import AuditLog
 from apps.api.models.contribution import Contribution
-from apps.api.models.token import Token
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
 from packages.common.core.auth_deps import RequireAdmin
@@ -56,31 +55,21 @@ async def export_sales_report(
         token_name = sale.token.name if sale.token else "N/A"
         token_symbol = sale.token.symbol if sale.token else "N/A"
         contributions = sale.contributions or []
-        total_contrib = sum(c.amount for c in contributions)
-        otc_count = sum(1 for c in contributions if c.is_otc)
-        direct_count = len(contributions) - otc_count
         rows.append({
-            "sale_id": str(sale.id),
-            "token": f"{token_name} ({token_symbol})",
-            "status": sale.status,
-            "mode": (sale.sale_mode.value if hasattr(sale.sale_mode, "value") else str(sale.sale_mode)),
-            "soft_cap": str(sale.soft_cap),
-            "hard_cap": str(sale.hard_cap),
-            "total_raised": str(sale.total_raised),
-            "total_raised_on_platform": str(getattr(sale, "total_raised_on_platform", 0)),
-            "platform_fee_collected": str(sale.platform_fee_collected),
-            "total_contributions": len(contributions),
-            "direct_contributions": direct_count,
-            "otc_contributions": otc_count,
-            "phases": len(sale.phases or []),
-            "sale_contract": sale.contract_address or "not deployed",
+            "Sale": f"{token_name} Sale",
+            "Token": token_symbol,
+            "Status": (sale.status.value if hasattr(sale.status, "value") else str(sale.status)),
+            "Soft Cap": str(sale.soft_cap),
+            "Hard Cap": str(sale.hard_cap),
+            "Total Raised": str(sale.total_raised_on_platform),
+            "Fee Collected": str(sale.platform_fee_collected),
+            "Contributors": len(contributions),
+            "Created": str(sale.created_at) if sale.created_at else "",
         })
 
     fieldnames = [
-        "sale_id", "token", "status", "mode", "soft_cap", "hard_cap",
-        "total_raised", "total_raised_on_platform", "platform_fee_collected",
-        "total_contributions", "direct_contributions", "otc_contributions",
-        "phases", "sale_contract",
+        "Sale", "Token", "Status", "Soft Cap", "Hard Cap",
+        "Total Raised", "Fee Collected", "Contributors", "Created",
     ]
     return _csv_response("cireta-sales-report.csv", rows, fieldnames)
 
@@ -104,22 +93,15 @@ async def export_holders_report(
     rows = []
     for c in contributions:
         user_email = c.user.email if c.user else "N/A"
-        token_symbol = (c.sale.token.symbol if c.sale and c.sale.token else "N/A")
+        token_name = (c.sale.token.name if c.sale and c.sale.token else "N/A")
         rows.append({
-            "user_email": user_email,
-            "token": token_symbol,
-            "amount_contributed": str(c.amount),
-            "tokens_allocated": str(c.tokens_allocated or 0),
-            "wallet_address": c.wallet_address or "N/A",
-            "tx_hash": c.tx_hash or "N/A",
-            "claimed_at": str(c.claimed_at or ""),
-            "is_otc": "yes" if c.is_otc else "no",
+            "Investor Email": user_email,
+            "Token": token_name,
+            "Amount Claimed": str(c.tokens_allocated or 0),
+            "Claimed At": str(c.claimed_at or ""),
         })
 
-    fieldnames = [
-        "user_email", "token", "amount_contributed", "tokens_allocated",
-        "wallet_address", "tx_hash", "claimed_at", "is_otc",
-    ]
+    fieldnames = ["Investor Email", "Token", "Amount Claimed", "Claimed At"]
     return _csv_response("cireta-holders-report.csv", rows, fieldnames)
 
 
@@ -138,20 +120,19 @@ async def export_fees_report(
 
     rows = []
     for sale in sales:
+        token_name = sale.token.name if sale.token else "N/A"
         token_symbol = sale.token.symbol if sale.token else "N/A"
         rows.append({
-            "sale_id": str(sale.id),
-            "token": token_symbol,
-            "total_raised": str(sale.total_raised),
-            "platform_fee_bps": str(sale.platform_fee_bps),
-            "fee_cap_usdc": str(sale.fee_cap_usdc or "none"),
-            "platform_fee_collected": str(sale.platform_fee_collected),
-            "status": sale.status,
+            "Sale": f"{token_name} Sale",
+            "Token": token_symbol,
+            "Fee BPS": str(sale.platform_fee_bps),
+            "Fee Collected (USDC)": str(sale.platform_fee_collected),
+            "Total Raised": str(sale.total_raised),
+            "Created": str(sale.created_at) if sale.created_at else "",
         })
 
     fieldnames = [
-        "sale_id", "token", "total_raised", "platform_fee_bps",
-        "fee_cap_usdc", "platform_fee_collected", "status",
+        "Sale", "Token", "Fee BPS", "Fee Collected (USDC)", "Total Raised", "Created",
     ]
     return _csv_response("cireta-fees-report.csv", rows, fieldnames)
 
@@ -180,17 +161,16 @@ async def export_compliance_report(
     for log in logs:
         actor_email = actor_map.get(str(log.actor_id), "system") if log.actor_id else "system"
         rows.append({
-            "timestamp": str(log.created_at),
-            "action": log.action,
-            "target_type": log.target_type or "N/A",
-            "target_id": log.target_id or "N/A",
-            "actor": actor_email,
-            "ip_address": log.ip_address or "N/A",
-            "reason": log.reason or "",
+            "Action": log.action,
+            "Target Type": log.target_type or "N/A",
+            "Target": log.target_id or "N/A",
+            "Actor": actor_email,
+            "Reason": log.reason or "",
+            "IP Address": log.ip_address or "N/A",
+            "Timestamp": str(log.created_at),
         })
 
     fieldnames = [
-        "timestamp", "action", "target_type", "target_id",
-        "actor", "ip_address", "reason",
+        "Action", "Target Type", "Target", "Actor", "Reason", "IP Address", "Timestamp",
     ]
     return _csv_response("cireta-compliance-report.csv", rows, fieldnames)
