@@ -6,6 +6,7 @@ from apps.api.api.v1.endpoints.admin_compliance import router as admin_complianc
 from apps.api.api.v1.endpoints.admin_investors import router as admin_investors_router
 from apps.api.api.v1.endpoints.admin_issuers import router as admin_issuers_router
 from apps.api.api.v1.endpoints.admin_operations import router as admin_operations_router
+from apps.api.api.v1.endpoints.admin_reports import router as admin_reports_router
 from apps.api.api.v1.endpoints.auth import router as auth_router
 from apps.api.api.v1.endpoints.health import router as health_router
 from apps.api.api.v1.endpoints.issuer_withdrawals import router as issuer_withdrawals_router
@@ -30,4 +31,5 @@ router.include_router(admin_issuers_router, prefix="/admin")
 router.include_router(admin_compliance_router, prefix="/admin")
 router.include_router(admin_investors_router, prefix="/admin")
 router.include_router(admin_operations_router, prefix="/admin")
+router.include_router(admin_reports_router, prefix="/admin")
 router.include_router(issuer_withdrawals_router)
