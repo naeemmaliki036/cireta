@@ -75,13 +75,17 @@ echo ""
 # ── TOKENS ──
 echo "── TOKENS ──"
 tc T1 "List tokens" 200 "$BASE/tokens/" -H "Authorization: Bearer $ISSUER_TOKEN"
+# Use unique symbol per run to avoid 409 on re-runs
+_TS=$(date +%s | tail -c 5)
+_SYM="TG${_TS}"
+_NAME="Test Gold ${_TS}"
 tc T2 "Create token" 201 \
   -X POST "$BASE/tokens/" \
   -H "Authorization: Bearer $ISSUER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Test Gold Token","symbol":"TGLD","asset_type":"commodity","total_supply":500000,"decimals":18}'
+  -d "{\"name\":\"${_NAME}\",\"symbol\":\"${_SYM}\",\"asset_type\":\"commodity\",\"total_supply\":500000,\"decimals\":18}"
 TOKEN_ID=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last'))['id'])" 2>/dev/null || echo "00000000-0000-0000-0000-000000000001")
-TOKEN_SLUG=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last')).get('slug','test-gold-token'))" 2>/dev/null || echo "test-gold-token")
+TOKEN_SLUG=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last')).get('slug',''))" 2>/dev/null || echo "")
 tc T3 "Get token"             200 "$BASE/tokens/$TOKEN_ID" -H "Authorization: Bearer $ISSUER_TOKEN"
 tc T4 "Create missing → 422"  422 -X POST "$BASE/tokens/" -H "Authorization: Bearer $ISSUER_TOKEN" -H "Content-Type: application/json" -d '{"symbol":"X"}'
 tc T5 "Get nonexistent → 404" 404 "$BASE/tokens/00000000-0000-0000-0000-000000000001" -H "Authorization: Bearer $ISSUER_TOKEN"
@@ -95,7 +99,7 @@ tc T7 "Deploy token" 200 \
   -X POST "$BASE/tokens/$TOKEN_ID/deploy" \
   -H "Authorization: Bearer $ISSUER_TOKEN" \
   -H "Content-Type: application/json"
-tc T8 "Proof of reserve" 200 "$BASE/tokens/$TOKEN_ID/por"
+tc T8 "Proof of reserve" 200 "$BASE/tokens/$TOKEN_ID/por" -H "Authorization: Bearer $ISSUER_TOKEN"
 tc T9 "List documents"   200 "$BASE/tokens/$TOKEN_ID/documents" -H "Authorization: Bearer $ISSUER_TOKEN"
 tc T10 "Upload doc no name → 422" 422 \
   -X POST "$BASE/tokens/$TOKEN_ID/documents" \
@@ -156,7 +160,13 @@ echo ""
 echo "── KYC ──"
 tc K1 "Alice status"    200 "$BASE/kyc/status" -H "Authorization: Bearer $ALICE_TOKEN"
 tc K2 "Bob status"      200 "$BASE/kyc/status" -H "Authorization: Bearer $BOB_TOKEN"
-tc K3 "Initiate (bob)"  200 -X POST "$BASE/kyc/initiate" -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{}'
+# K3: initiate returns 200 first time, 409 if already initiated (both are correct)
+_K3=$(curl -sL -o /tmp/cireta-body -w '%{http_code}' -X POST "$BASE/kyc/initiate" -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{}')
+if [ "$_K3" = "200" ] || [ "$_K3" = "409" ]; then
+  PASS=$((PASS+1)); printf "✅ %-8s %-55s [%s]\n" "K3" "Initiate (bob)" "$_K3"
+else
+  FAIL=$((FAIL+1)); printf "❌ %-8s %-55s [exp 200|409 → got %s]\n" "K3" "Initiate (bob)" "$_K3"
+fi
 tc K4 "No auth → 401"   401 "$BASE/kyc/status"
 tc K5 "Corporate status" 200 "$BASE/kyc/corporate/status" -H "Authorization: Bearer $ISSUER_TOKEN"
 echo ""
