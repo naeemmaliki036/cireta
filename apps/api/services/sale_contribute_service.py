@@ -103,13 +103,16 @@ class SaleContributeService:
                 screening_svc = WalletScreeningService(self.db)
                 await screening_svc.screen_before_contribute(contrib_wallet_obj)
 
-        # Dedup: if tx_hash already recorded, return existing (idempotent)
+        # Dedup: reject duplicate tx_hash explicitly
         existing = await self.db.execute(
             select(Contribution).where(Contribution.tx_hash == tx_hash)
         )
         existing_contrib = existing.scalar_one_or_none()
         if existing_contrib:
-            return existing_contrib
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "DUPLICATE_TX_HASH", "message": "Transaction already recorded"},
+            )
 
         # Verify on-chain and extract event data
         on_chain_data = await self._verify_on_chain(tx_hash, user)
