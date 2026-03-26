@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cireta RWA Platform — Investor Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  @page { size: A4 portrait; margin: 0; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0A0A0A;
+    color: #F2F2F2;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .pg {
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    position: relative;
+    background: #0A0A0A;
+    color: #F2F2F2;
+  }
+
+  /* COLOUR SYSTEM */
+  :root {
+    --gold: #F5A623;
+    --gold-light: #FFD06A;
+    --gold-dim: rgba(245,166,35,0.12);
+    --gold-border: rgba(245,166,35,0.3);
+    --bg: #0A0A0A;
+    --bg2: #111111;
+    --bg3: #1A1A1A;
+    --bg4: #222222;
+    --text: #F2F2F2;
+    --text2: #AAAAAA;
+    --text3: #666666;
+    --green: #27AE60;
+    --red: #E74C3C;
+    --blue: #4A90E2;
+  }
+
+  /* ─── COVER PAGE ─── */
+  .cover-bg {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #0A0A0A 0%, #111111 40%, #1a1200 100%);
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .cover-orb {
+    position: absolute;
+    width: 320mm; height: 320mm;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,166,35,0.18) 0%, transparent 70%);
+    top: -80mm; right: -100mm;
+    pointer-events: none;
+  }
+  .cover-orb2 {
+    position: absolute;
+    width: 200mm; height: 200mm;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%);
+    bottom: -60mm; left: -60mm;
+    pointer-events: none;
+  }
+  .cover-header {
+    padding: 16mm 18mm 0;
+    display: flex; align-items: center; gap: 4mm;
+  }
+  .cover-logo-mark {
+    width: 10mm; height: 10mm;
+    background: var(--gold);
+    border-radius: 2mm;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-logo-mark svg { width: 7mm; height: 7mm; }
+  .cover-brand { font-size: 7pt; font-weight: 700; letter-spacing: 0.15em; color: var(--gold); text-transform: uppercase; }
+  .cover-tagline-small { font-size: 5.5pt; color: var(--text2); letter-spacing: 0.08em; }
+
+  .cover-main {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding: 0 18mm;
+  }
+  .cover-eyebrow {
+    font-size: 5.5pt; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 5mm;
+    display: flex; align-items: center; gap: 3mm;
+  }
+  .cover-eyebrow::before { content: ''; display: block; width: 8mm; height: 0.3mm; background: var(--gold); }
+  .cover-title {
+    font-size: 28pt; font-weight: 900; line-height: 1.05;
+    color: var(--text); margin-bottom: 4mm;
+  }
+  .cover-title span { color: var(--gold); }
+  .cover-subtitle {
+    font-size: 11pt; font-weight: 300; color: var(--text2);
+    line-height: 1.5; max-width: 140mm; margin-bottom: 10mm;
+  }
+  .cover-pills {
+    display: flex; gap: 3mm; flex-wrap: wrap;
+  }
+  .cover-pill {
+    padding: 1.5mm 4mm; border-radius: 20mm;
+    border: 0.3mm solid var(--gold-border);
+    background: var(--gold-dim);
+    font-size: 5pt; font-weight: 600; color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+  .cover-footer {
+    padding: 8mm 18mm;
+    border-top: 0.3mm solid rgba(255,255,255,0.06);
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .cover-footer-left { font-size: 5.5pt; color: var(--text3); line-height: 1.6; }
+  .cover-footer-right { font-size: 5.5pt; color: var(--text3); text-align: right; line-height: 1.6; }
+  .cover-version {
+    display: inline-block;
+    padding: 1mm 3mm; border-radius: 1mm;
+    background: var(--gold-dim); border: 0.3mm solid var(--gold-border);
+    font-size: 5pt; font-weight: 600; color: var(--gold);
+  }
+
+  /* ─── CONTENT PAGES ─── */
+  .page-header {
+    height: 14mm;
+    background: var(--bg2);
+    border-bottom: 0.3mm solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14mm;
+  }
+  .page-header-brand { font-size: 5.5pt; font-weight: 700; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; }
+  .page-header-title { font-size: 5.5pt; color: var(--text2); }
+  .page-header-num { font-size: 5.5pt; color: var(--text3); }
+
+  .page-body { padding: 8mm 14mm; }
+
+  .page-footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 10mm;
+    border-top: 0.3mm solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14mm;
+    background: var(--bg2);
+  }
+  .page-footer-left { font-size: 4.5pt; color: var(--text3); }
+  .page-footer-right { font-size: 4.5pt; color: var(--text3); }
+  .page-footer-center { font-size: 4.5pt; color: var(--text3); }
+
+  .content-area { height: calc(297mm - 14mm - 10mm); overflow: hidden; }
+  .content-area-inner { padding: 8mm 14mm; }
+
+  /* ─── TYPOGRAPHY ─── */
+  .section-eyebrow {
+    font-size: 5pt; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 2mm;
+    display: flex; align-items: center; gap: 2mm;
+  }
+  .section-eyebrow::before { content: ''; display: block; width: 4mm; height: 0.3mm; background: var(--gold); }
+  .section-title { font-size: 16pt; font-weight: 800; color: var(--text); margin-bottom: 3mm; line-height: 1.1; }
+  .section-title span { color: var(--gold); }
+  .section-desc { font-size: 7pt; color: var(--text2); line-height: 1.6; margin-bottom: 5mm; }
+
+  h3 { font-size: 9pt; font-weight: 700; color: var(--text); margin-bottom: 2mm; }
+  h4 { font-size: 7.5pt; font-weight: 600; color: var(--gold); margin-bottom: 1.5mm; }
+  p { font-size: 7pt; color: var(--text2); line-height: 1.6; margin-bottom: 2.5mm; }
+  li { font-size: 7pt; color: var(--text2); line-height: 1.6; margin-bottom: 1mm; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--bg3);
+    border: 0.3mm solid rgba(255,255,255,0.07);
+    border-radius: 2.5mm;
+    padding: 4mm 5mm;
+    margin-bottom: 3mm;
+  }
+  .card-gold { border-color: var(--gold-border); background: linear-gradient(135deg, var(--bg3) 0%, rgba(245,166,35,0.04) 100%); }
+  .card-title { font-size: 7.5pt; font-weight: 700; color: var(--text); margin-bottom: 1.5mm; }
+  .card-body { font-size: 6.5pt; color: var(--text2); line-height: 1.6; }
+
+  /* ─── STEPS ─── */
+  .steps { display: flex; flex-direction: column; gap: 3mm; }
+  .step { display: flex; gap: 3mm; align-items: flex-start; }
+  .step-num {
+    width: 6mm; height: 6mm; border-radius: 50%;
+    background: var(--gold); color: #000;
+    font-size: 6pt; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 0.5mm;
+  }
+  .step-content { flex: 1; }
+  .step-title { font-size: 7pt; font-weight: 700; color: var(--text); margin-bottom: 0.5mm; }
+  .step-desc { font-size: 6pt; color: var(--text2); line-height: 1.5; }
+
+  /* ─── SCREENSHOT ─── */
+  .screenshot-frame {
+    background: var(--bg3);
+    border: 0.3mm solid var(--gold-border);
+    border-radius: 2.5mm;
+    overflow: hidden;
+    margin-bottom: 3mm;
+  }
+  .screenshot-bar {
+    background: var(--bg4);
+    padding: 2mm 3mm;
+    display: flex; align-items: center; gap: 1.5mm;
+    border-bottom: 0.3mm solid rgba(255,255,255,0.06);
+  }
+  .dot { width: 2mm; height: 2mm; border-radius: 50%; }
+  .dot-red { background: #E74C3C; }
+  .dot-yellow { background: #F5A623; }
+  .dot-green { background: #27AE60; }
+  .screenshot-url { font-size: 5pt; color: var(--text3); margin-left: 2mm; }
+  .screenshot-frame img { width: 100%; height: auto; display: block; }
+
+  /* ─── TWO COLUMN ─── */
+  .cols2 { display: flex; gap: 4mm; }
+  .col { flex: 1; }
+
+  /* ─── BADGE ─── */
+  .badge {
+    display: inline-block;
+    padding: 0.5mm 2mm; border-radius: 1mm;
+    font-size: 5pt; font-weight: 700; letter-spacing: 0.05em;
+  }
+  .badge-gold { background: var(--gold-dim); color: var(--gold); border: 0.2mm solid var(--gold-border); }
+  .badge-green { background: rgba(39,174,96,0.12); color: #27AE60; border: 0.2mm solid rgba(39,174,96,0.3); }
+  .badge-blue { background: rgba(74,144,226,0.12); color: #4A90E2; border: 0.2mm solid rgba(74,144,226,0.3); }
+  .badge-red { background: rgba(231,76,60,0.12); color: #E74C3C; border: 0.2mm solid rgba(231,76,60,0.3); }
+
+  /* ─── TABLE ─── */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 6pt; }
+  .tbl th { background: var(--bg4); color: var(--gold); font-weight: 700; padding: 2mm 2.5mm; text-align: left; border-bottom: 0.3mm solid var(--gold-border); font-size: 5.5pt; letter-spacing: 0.05em; }
+  .tbl td { padding: 2mm 2.5mm; border-bottom: 0.2mm solid rgba(255,255,255,0.04); color: var(--text2); vertical-align: top; }
+  .tbl tr:last-child td { border-bottom: none; }
+
+  /* ─── CALLOUT ─── */
+  .callout {
+    border-left: 1mm solid var(--gold);
+    background: var(--gold-dim);
+    padding: 3mm 4mm;
+    border-radius: 0 2mm 2mm 0;
+    margin-bottom: 3mm;
+  }
+  .callout-title { font-size: 6.5pt; font-weight: 700; color: var(--gold); margin-bottom: 1mm; }
+  .callout-body { font-size: 6pt; color: var(--text2); line-height: 1.5; }
+  .callout-warning { border-color: #E74C3C; background: rgba(231,76,60,0.08); }
+  .callout-warning .callout-title { color: #E74C3C; }
+  .callout-info { border-color: #4A90E2; background: rgba(74,144,226,0.08); }
+  .callout-info .callout-title { color: #4A90E2; }
+
+  /* ─── TOC ─── */
+  .toc-item {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 1.5mm 0;
+    border-bottom: 0.2mm solid rgba(255,255,255,0.04);
+  }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-chapter { font-size: 5.5pt; font-weight: 600; color: var(--text2); }
+  .toc-title { font-size: 6.5pt; font-weight: 700; color: var(--text); flex: 1; margin-left: 2mm; }
+  .toc-dots { flex: 1; border-bottom: 0.2mm dotted rgba(255,255,255,0.12); margin: 0 2mm; height: 3mm; }
+  .toc-page { font-size: 6.5pt; color: var(--gold); font-weight: 600; }
+  .toc-section { margin-top: 4mm; margin-bottom: 1mm; }
+  .toc-section-title { font-size: 5pt; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text3); }
+
+  /* ─── FAQ ─── */
+  .faq-item { margin-bottom: 4mm; }
+  .faq-q { font-size: 7pt; font-weight: 700; color: var(--text); margin-bottom: 1.5mm; display: flex; gap: 2mm; }
+  .faq-q-num { color: var(--gold); flex-shrink: 0; }
+  .faq-a { font-size: 6.5pt; color: var(--text2); line-height: 1.6; padding-left: 5mm; }
+
+  /* ─── GLOSSARY ─── */
+  .gloss-item { margin-bottom: 3.5mm; }
+  .gloss-term { font-size: 7pt; font-weight: 700; color: var(--gold); margin-bottom: 0.5mm; }
+  .gloss-def { font-size: 6.5pt; color: var(--text2); line-height: 1.5; }
+
+  /* ─── INFO GRID ─── */
+  .info-grid { display: flex; flex-wrap: wrap; gap: 3mm; }
+  .info-box {
+    flex: 1; min-width: 40mm;
+    background: var(--bg3); border: 0.3mm solid rgba(255,255,255,0.07);
+    border-radius: 2mm; padding: 3.5mm 4mm;
+  }
+  .info-box-icon { font-size: 14pt; margin-bottom: 1.5mm; }
+  .info-box-title { font-size: 6.5pt; font-weight: 700; color: var(--text); margin-bottom: 1mm; }
+  .info-box-body { font-size: 5.5pt; color: var(--text2); line-height: 1.5; }
+
+  /* ─── DIVIDER ─── */
+  .divider { height: 0.3mm; background: rgba(255,255,255,0.06); margin: 4mm 0; }
+  .divider-gold { background: linear-gradient(90deg, var(--gold-border) 0%, transparent 100%); }
+
+  /* ─── CHECKLIST ─── */
+  .checklist li { list-style: none; padding-left: 4mm; position: relative; font-size: 6.5pt; color: var(--text2); line-height: 1.6; margin-bottom: 1mm; }
+  .checklist li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  /* ─── METRIC BOX ─── */
+  .metric-row { display: flex; gap: 3mm; margin-bottom: 3mm; }
+  .metric {
+    flex: 1;
+    background: var(--bg3); border: 0.3mm solid rgba(255,255,255,0.07);
+    border-radius: 2mm; padding: 3mm 4mm; text-align: center;
+  }
+  .metric-value { font-size: 14pt; font-weight: 800; color: var(--gold); }
+  .metric-label { font-size: 5pt; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.5mm; }
+
+  /* ─── COMPARISON ─── */
+  .compare-row { display: flex; gap: 4mm; }
+  .compare-box {
+    flex: 1; padding: 4mm; border-radius: 2.5mm;
+    border: 0.3mm solid rgba(255,255,255,0.08);
+    background: var(--bg3);
+  }
+  .compare-box-gold { border-color: var(--gold-border); }
+  .compare-box-blue { border-color: rgba(74,144,226,0.3); }
+  .compare-label { font-size: 5pt; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text3); margin-bottom: 1.5mm; }
+  .compare-title { font-size: 9pt; font-weight: 800; margin-bottom: 2mm; }
+  .compare-title-gold { color: var(--gold); }
+  .compare-title-blue { color: #4A90E2; }
+  .compare-list { list-style: none; }
+  .compare-list li { font-size: 6pt; color: var(--text2); padding: 1mm 0; border-bottom: 0.2mm solid rgba(255,255,255,0.04); display: flex; gap: 1.5mm; }
+  .compare-list li::before { content: '→'; color: var(--text3); }
+
+  ul.bullets { padding-left: 4mm; list-style: disc; }
+  ul.bullets li { font-size: 6.5pt; color: var(--text2); line-height: 1.6; margin-bottom: 1mm; }
+
+  /* ─── BACK COVER ─── */
+  .back-cover {
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, #0A0A0A 0%, #0f0900 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .back-orb {
+    position: absolute;
+    width: 280mm; height: 280mm; border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,166,35,0.1) 0%, transparent 65%);
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    pointer-events: none;
+  }
+  .back-content { text-align: center; position: relative; z-index: 1; }
+  .back-mark {
+    width: 18mm; height: 18mm; border-radius: 4mm;
+    background: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 5mm;
+  }
+  .back-name { font-size: 18pt; font-weight: 900; color: var(--text); margin-bottom: 2mm; }
+  .back-name span { color: var(--gold); }
+  .back-tagline { font-size: 8pt; color: var(--text3); margin-bottom: 8mm; }
+  .back-divider { width: 20mm; height: 0.3mm; background: var(--gold); margin: 0 auto 8mm; }
+  .back-url { font-size: 8pt; font-weight: 600; color: var(--gold); margin-bottom: 2mm; }
+  .back-email { font-size: 7pt; color: var(--text3); }
+  .back-legal { margin-top: 10mm; padding: 0 20mm; font-size: 5pt; color: var(--text3); text-align: center; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 1 — COVER
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="cover-bg">
+    <div class="cover-orb"></div>
+    <div class="cover-orb2"></div>
+
+    <div class="cover-header">
+      <div class="cover-logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="12,2 22,8 22,16 12,22 2,16 2,8" fill="#000" stroke="#F5A623" stroke-width="1.5"/>
+          <polygon points="12,6 18,10 18,16 12,18 6,16 6,10" fill="#F5A623" opacity="0.6"/>
+        </svg>
+      </div>
+      <div>
+        <div class="cover-brand">Cireta</div>
+        <div class="cover-tagline-small">RWA Tokenization Launchpad · Base L2</div>
+      </div>
+    </div>
+
+    <div class="cover-main">
+      <div class="cover-eyebrow">Investor Documentation</div>
+      <div class="cover-title">
+        Complete<br>Investor<br><span>User Guide</span>
+      </div>
+      <div class="cover-subtitle">
+        Everything you need to participate in regulated real-world asset tokenization — from account creation and KYC verification to investing, portfolio management, and redemptions.
+      </div>
+      <div class="cover-pills">
+        <span class="cover-pill">ERC-3643 Security Tokens</span>
+        <span class="cover-pill">KYC/AML Verified</span>
+        <span class="cover-pill">Base L2</span>
+        <span class="cover-pill">Gold &amp; Commodities</span>
+        <span class="cover-pill">Regulated RWA</span>
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      <div class="cover-footer-left">
+        <strong style="color:#F2F2F2">Cireta RWA Launchpad</strong><br>
+        www.cireta.com<br>
+        investor-support@cireta.com
+      </div>
+      <div class="cover-footer-right">
+        <span class="cover-version">v1.0 — March 2026</span><br><br>
+        CONFIDENTIAL<br>
+        For Registered Investors Only
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 2 — TABLE OF CONTENTS
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Investor User Guide</span>
+    <span class="page-header-num">Page 2</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Navigation</div>
+      <div class="section-title">Table of <span>Contents</span></div>
+
+      <div style="margin-top:5mm">
+        <div class="toc-section"><span class="toc-section-title">Introduction</span></div>
+        <div class="toc-item"><span class="toc-chapter">01</span><span class="toc-title">Getting Started — Overview</span><span class="toc-dots"></span><span class="toc-page">3</span></div>
+        <div class="toc-item"><span class="toc-chapter">02</span><span class="toc-title">Creating Your Account</span><span class="toc-dots"></span><span class="toc-page">4</span></div>
+        <div class="toc-item"><span class="toc-chapter">03</span><span class="toc-title">Logging In &amp; Dashboard</span><span class="toc-dots"></span><span class="toc-page">5</span></div>
+
+        <div class="toc-section" style="margin-top:3mm"><span class="toc-section-title">Compliance &amp; Identity</span></div>
+        <div class="toc-item"><span class="toc-chapter">04</span><span class="toc-title">KYC Verification</span><span class="toc-dots"></span><span class="toc-page">6</span></div>
+        <div class="toc-item"><span class="toc-chapter">05</span><span class="toc-title">Wallet Setup</span><span class="toc-dots"></span><span class="toc-page">7</span></div>
+
+        <div class="toc-section" style="margin-top:3mm"><span class="toc-section-title">Investing</span></div>
+        <div class="toc-item"><span class="toc-chapter">06</span><span class="toc-title">Exploring Projects</span><span class="toc-dots"></span><span class="toc-page">8</span></div>
+        <div class="toc-item"><span class="toc-chapter">07</span><span class="toc-title">How Investing Works</span><span class="toc-dots"></span><span class="toc-page">9</span></div>
+        <div class="toc-item"><span class="toc-chapter">08</span><span class="toc-title">Direct vs. Vested Sales</span><span class="toc-dots"></span><span class="toc-page">10</span></div>
+
+        <div class="toc-section" style="margin-top:3mm"><span class="toc-section-title">Portfolio Management</span></div>
+        <div class="toc-item"><span class="toc-chapter">09</span><span class="toc-title">Your Portfolio</span><span class="toc-dots"></span><span class="toc-page">11</span></div>
+        <div class="toc-item"><span class="toc-chapter">10</span><span class="toc-title">Dividends &amp; Distributions</span><span class="toc-dots"></span><span class="toc-page">12</span></div>
+        <div class="toc-item"><span class="toc-chapter">11</span><span class="toc-title">Redemptions</span><span class="toc-dots"></span><span class="toc-page">13</span></div>
+
+        <div class="toc-section" style="margin-top:3mm"><span class="toc-section-title">Account Management</span></div>
+        <div class="toc-item"><span class="toc-chapter">12</span><span class="toc-title">Account Settings</span><span class="toc-dots"></span><span class="toc-page">14</span></div>
+        <div class="toc-item"><span class="toc-chapter">13</span><span class="toc-title">Security Best Practices</span><span class="toc-dots"></span><span class="toc-page">15</span></div>
+
+        <div class="toc-section" style="margin-top:3mm"><span class="toc-section-title">Reference</span></div>
+        <div class="toc-item"><span class="toc-chapter">14</span><span class="toc-title">Frequently Asked Questions (Part 1)</span><span class="toc-dots"></span><span class="toc-page">16</span></div>
+        <div class="toc-item"><span class="toc-chapter">15</span><span class="toc-title">Frequently Asked Questions (Part 2)</span><span class="toc-dots"></span><span class="toc-page">17</span></div>
+        <div class="toc-item"><span class="toc-chapter">16</span><span class="toc-title">Glossary (A–L)</span><span class="toc-dots"></span><span class="toc-page">18</span></div>
+        <div class="toc-item"><span class="toc-chapter">17</span><span class="toc-title">Glossary (M–Z)</span><span class="toc-dots"></span><span class="toc-page">19</span></div>
+        <div class="toc-item"><span class="toc-chapter">18</span><span class="toc-title">Support &amp; Contact</span><span class="toc-dots"></span><span class="toc-page">20</span></div>
+      </div>
+
+      <div style="margin-top:6mm">
+        <div class="callout callout-info">
+          <div class="callout-title">How to use this guide</div>
+          <div class="callout-body">This guide is designed to be read sequentially for new investors, or used as a reference by navigating directly to the relevant chapter. Each chapter is self-contained. Screenshots reflect the live Cireta Launchpad interface at launchpad.cireta.com.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">2</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 3 — GETTING STARTED OVERVIEW
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 01 — Getting Started</span>
+    <span class="page-header-num">Page 3</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 01</div>
+      <div class="section-title">Getting <span>Started</span></div>
+      <div class="section-desc">Cireta is a regulated platform for investing in tokenized real-world assets — gold, copper, and commodity futures — on the Base blockchain. This chapter explains what you need and how to begin.</div>
+
+      <div class="info-grid" style="margin-bottom:4mm">
+        <div class="info-box">
+          <div class="info-box-icon">🏦</div>
+          <div class="info-box-title">What is Cireta?</div>
+          <div class="info-box-body">A regulated RWA tokenization launchpad that issues ERC-3643 security tokens backed by physical commodities. Every token represents a fractional ownership of a verified real-world asset.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">⛓️</div>
+          <div class="info-box-title">Base L2 Blockchain</div>
+          <div class="info-box-body">All tokens live on Base — Coinbase's Ethereum Layer 2. Transactions are fast (2s finality), low cost (&lt;$0.01), and secured by Ethereum's full validator set.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">🔐</div>
+          <div class="info-box-title">Regulated &amp; Compliant</div>
+          <div class="info-box-body">Full KYC/AML via Sumsub. On-chain identity via ONCHAINID. Compliance rules enforced at both API and smart-contract level. Your identity is required before investing.</div>
+        </div>
+      </div>
+
+      <h3>Prerequisites</h3>
+      <div class="cols2" style="margin-bottom:4mm">
+        <div class="col">
+          <div class="card card-gold">
+            <div class="card-title">What you need</div>
+            <ul class="checklist" style="list-style:none;padding:0">
+              <li style="list-style:none;font-size:6.5pt;color:#AAAAAA;padding:1mm 0 1mm 4mm;position:relative">✓ &nbsp;Valid government-issued photo ID</li>
+              <li style="list-style:none;font-size:6.5pt;color:#AAAAAA;padding:1mm 0 1mm 4mm;position:relative">✓ &nbsp;Proof of address (utility bill / bank statement)</li>
+              <li style="list-style:none;font-size:6.5pt;color:#AAAAAA;padding:1mm 0 1mm 4mm;position:relative">✓ &nbsp;A Base-compatible crypto wallet (MetaMask, Coinbase Wallet, etc.)</li>
+              <li style="list-style:none;font-size:6.5pt;color:#AAAAAA;padding:1mm 0 1mm 4mm;position:relative">✓ &nbsp;USDC on Base for contributions</li>
+              <li style="list-style:none;font-size:6.5pt;color:#AAAAAA;padding:1mm 0 1mm 4mm;position:relative">✓ &nbsp;A modern web browser (Chrome, Firefox, Brave)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card">
+            <div class="card-title">Onboarding Journey</div>
+            <div class="steps">
+              <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Create Account</div><div class="step-desc">Register with email + password at launchpad.cireta.com</div></div></div>
+              <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Complete KYC</div><div class="step-desc">Identity verification via Sumsub (Level 1: ID, Level 2: Address)</div></div></div>
+              <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Connect Wallet</div><div class="step-desc">Add your Base-compatible wallet to your profile</div></div></div>
+              <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Explore &amp; Invest</div><div class="step-desc">Browse tokenized projects and make contributions</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">&#9432; Regulated Platform Notice</div>
+        <div class="callout-body">Cireta issues regulated security tokens. All investors must complete identity verification (KYC) before making any investment. Investments may only be made using whitelisted wallet addresses. This is a compliance requirement under applicable securities law, not a platform restriction.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">3</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 4 — CREATING YOUR ACCOUNT
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 02 — Creating Your Account</span>
+    <span class="page-header-num">Page 4</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 02</div>
+      <div class="section-title">Creating Your <span>Account</span></div>
+      <div class="section-desc">Registration takes under 2 minutes. You will need a valid email address and a secure password.</div>
+
+      <div class="cols2">
+        <div class="col">
+          <div class="screenshot-frame">
+            <div class="screenshot-bar">
+              <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+              <span class="screenshot-url">launchpad.cireta.com/register</span>
+            </div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/03-lp-register.png" alt="Registration screen" style="width:100%;display:block">
+          </div>
+        </div>
+        <div class="col">
+          <h3 style="margin-bottom:3mm">Registration Steps</h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <div class="step-title">Navigate to Registration</div>
+                <div class="step-desc">Go to launchpad.cireta.com and click <strong style="color:#F5A623">Get Started</strong> or <strong style="color:#F5A623">Register</strong> in the top navigation.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <div class="step-title">Enter Your Email</div>
+                <div class="step-desc">Provide a valid email address. This will be your login username and used for important communications.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <div class="step-title">Choose a Strong Password</div>
+                <div class="step-desc">Minimum 12 characters. Use a mix of uppercase, lowercase, numbers, and symbols. Consider using a password manager.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <div class="step-title">Accept Terms &amp; Submit</div>
+                <div class="step-desc">Read and accept the Terms of Service and Privacy Policy, then click <strong style="color:#F5A623">Create Account</strong>.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">5</div>
+              <div class="step-content">
+                <div class="step-title">Verify Email (Optional)</div>
+                <div class="step-desc">Check your inbox for a confirmation email. Click the verification link to unlock all platform features.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout-warning" style="margin-top:3mm">
+            <div class="callout-title">⚠ Password Security</div>
+            <div class="callout-body">Never share your password. Cireta staff will never ask for it. Use a unique password not used on any other website.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">4</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 5 — LOGGING IN & HOME
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 03 — Login &amp; Dashboard</span>
+    <span class="page-header-num">Page 5</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 03</div>
+      <div class="section-title">Logging In &amp; <span>Dashboard</span></div>
+
+      <div class="cols2" style="margin-bottom:4mm">
+        <div class="col">
+          <div class="screenshot-frame">
+            <div class="screenshot-bar">
+              <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+              <span class="screenshot-url">launchpad.cireta.com/login</span>
+            </div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/02-lp-login.png" alt="Login screen" style="width:100%;display:block">
+          </div>
+        </div>
+        <div class="col">
+          <div class="screenshot-frame">
+            <div class="screenshot-bar">
+              <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+              <span class="screenshot-url">launchpad.cireta.com</span>
+            </div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/01-lp-home.png" alt="Home / Launchpad" style="width:100%;display:block">
+          </div>
+        </div>
+      </div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3>Signing In</h3>
+          <p>Visit <strong style="color:#F5A623">launchpad.cireta.com/login</strong> and enter your registered email and password. Click <strong style="color:#F5A623">Sign In</strong>. On success you will be redirected to your investor dashboard.</p>
+          <div class="card" style="margin-top:2mm">
+            <div class="card-title">Session Security</div>
+            <div class="card-body">
+              Your session is secured by a short-lived JWT access token (15 minutes) that is automatically refreshed using a 7-day refresh token. You will be logged out automatically after 7 days of inactivity, or if you log in from another device.
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <h3>Home Dashboard</h3>
+          <p>After login, the home page shows you:</p>
+          <ul class="bullets">
+            <li>Featured tokenized projects</li>
+            <li>Your KYC status indicator</li>
+            <li>Quick links to explore, invest, and portfolio</li>
+            <li>Recent platform announcements</li>
+            <li>Market data for active tokens</li>
+          </ul>
+          <div class="callout callout-info" style="margin-top:2mm">
+            <div class="callout-title">&#128274; Security Notice</div>
+            <div class="callout-body">Always verify the URL is <strong>launchpad.cireta.com</strong> before entering credentials. Enable browser bookmarks to avoid phishing sites.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">5</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 6 — KYC VERIFICATION
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 04 — KYC Verification</span>
+    <span class="page-header-num">Page 6</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 04</div>
+      <div class="section-title">KYC <span>Verification</span></div>
+      <div class="section-desc">Know Your Customer (KYC) verification is a legal requirement for investing in regulated securities. Cireta uses Sumsub, an industry-leading identity verification platform, to process KYC safely and quickly.</div>
+
+      <div class="cols2">
+        <div class="col">
+          <div class="screenshot-frame">
+            <div class="screenshot-bar">
+              <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+              <span class="screenshot-url">launchpad.cireta.com/kyc</span>
+            </div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/06-lp-kyc.png" alt="KYC screen" style="width:100%;display:block">
+          </div>
+        </div>
+        <div class="col">
+          <h3>KYC Levels</h3>
+          <div style="margin-bottom:3mm">
+            <div class="card card-gold" style="margin-bottom:2mm">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5mm">
+                <div class="card-title">Level 1 — Identity</div>
+                <span class="badge badge-gold">Required to view</span>
+              </div>
+              <div class="card-body">Government-issued photo ID (passport, national ID, or driver's licence). Required to browse restricted project details.</div>
+            </div>
+            <div class="card card-gold">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5mm">
+                <div class="card-title">Level 2 — Address</div>
+                <span class="badge badge-green">Required to invest</span>
+              </div>
+              <div class="card-body">Proof of address: utility bill or bank statement dated within 3 months. Required to make contributions and request redemptions.</div>
+            </div>
+          </div>
+
+          <h3>Process Steps</h3>
+          <div class="steps">
+            <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Start KYC</div><div class="step-desc">Navigate to Account → KYC Status and click Start Verification.</div></div></div>
+            <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Document Upload</div><div class="step-desc">Upload clear photos of your ID and proof of address via the Sumsub widget.</div></div></div>
+            <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Liveness Check</div><div class="step-desc">Complete a brief selfie/liveness check. Takes ~30 seconds.</div></div></div>
+            <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Review (1–24h)</div><div class="step-desc">Sumsub reviews your submission. You will be notified by email when approved.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:3mm">
+        <div class="callout-title">&#10003; Your Data is Protected</div>
+        <div class="callout-body">Your KYC data is encrypted at rest using AES-256 and transmitted over TLS 1.3. Cireta stores only an anonymized reference ID — your full documents are held by Sumsub under their GDPR-compliant data retention policies. You may request deletion at any time.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 7 — WALLET SETUP
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 05 — Wallet Setup</span>
+    <span class="page-header-num">Page 7</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 05</div>
+      <div class="section-title">Wallet <span>Setup</span></div>
+      <div class="section-desc">Your crypto wallet is the address where your security tokens will be held. You must register at least one wallet before investing. All wallets must be on the Base network.</div>
+
+      <div class="cols2">
+        <div class="col">
+          <div class="screenshot-frame">
+            <div class="screenshot-bar">
+              <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+              <span class="screenshot-url">launchpad.cireta.com/wallets</span>
+            </div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/07-lp-wallets.png" alt="Wallets screen" style="width:100%;display:block">
+          </div>
+        </div>
+        <div class="col">
+          <h3>Supported Wallets</h3>
+          <div style="margin-bottom:3mm">
+            <div class="card" style="margin-bottom:2mm">
+              <div class="card-title">MetaMask</div>
+              <div class="card-body">The most popular Ethereum-compatible wallet. Install the browser extension from metamask.io. Switch to the Base network in settings.</div>
+            </div>
+            <div class="card" style="margin-bottom:2mm">
+              <div class="card-title">Coinbase Wallet</div>
+              <div class="card-body">Native support for Base network. Available as mobile app and browser extension. Recommended for beginners.</div>
+            </div>
+            <div class="card">
+              <div class="card-title">WalletConnect Compatible</div>
+              <div class="card-body">Any WalletConnect v2 compatible wallet (Rainbow, Trust Wallet, Safe, Ledger Live) is supported.</div>
+            </div>
+          </div>
+
+          <h3>Adding a Wallet</h3>
+          <div class="steps">
+            <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Go to Wallets Page</div><div class="step-desc">Navigate to Account → Wallets in the sidebar.</div></div></div>
+            <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Click Add Wallet</div><div class="step-desc">Your wallet client will prompt you to sign a connection message.</div></div></div>
+            <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Sign Message</div><div class="step-desc">Sign the Cireta ownership verification message (no gas required).</div></div></div>
+            <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Set as Primary</div><div class="step-desc">Designate one wallet as primary for contributions and token delivery.</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-warning" style="margin-top:3mm">
+        <div class="callout-title">⚠ Wallet Security</div>
+        <div class="callout-body">Never enter your seed phrase on any website — including Cireta. Your seed phrase is only needed to recover your wallet locally. Cireta will only ever ask you to sign messages, never to share your private key or seed phrase.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">7</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 8 — EXPLORING PROJECTS
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 06 — Exploring Projects</span>
+    <span class="page-header-num">Page 8</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 06</div>
+      <div class="section-title">Exploring <span>Projects</span></div>
+      <div class="section-desc">Browse all available tokenized commodity projects on the Explore page. Each project card shows key metrics, the sale status, and the issuer details.</div>
+
+      <div class="screenshot-frame" style="margin-bottom:4mm">
+        <div class="screenshot-bar">
+          <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+          <span class="screenshot-url">launchpad.cireta.com/explore</span>
+        </div>
+        <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/04-lp-explore.png" alt="Explore screen" style="width:100%;display:block;max-height:90mm;object-fit:cover;object-position:top">
+      </div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3>Project Card Information</h3>
+          <table class="tbl">
+            <thead><tr><th>Field</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><strong style="color:#F5A623">Token Name</strong></td><td>The security token name and ticker symbol</td></tr>
+              <tr><td><strong style="color:#F5A623">Asset Type</strong></td><td>Commodity (gold, copper) or futures contract</td></tr>
+              <tr><td><strong style="color:#F5A623">Issuer</strong></td><td>The regulated entity issuing the token</td></tr>
+              <tr><td><strong style="color:#F5A623">Sale Status</strong></td><td>Upcoming / Active / Closed / Finalized</td></tr>
+              <tr><td><strong style="color:#F5A623">Target Raise</strong></td><td>Total capital the issuer is seeking</td></tr>
+              <tr><td><strong style="color:#F5A623">Token Price</strong></td><td>Price per token in USDC</td></tr>
+              <tr><td><strong style="color:#F5A623">Min. Contribution</strong></td><td>Minimum investment amount</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="col">
+          <h3>Filtering &amp; Search</h3>
+          <p>Use the filter bar to narrow projects by:</p>
+          <ul class="bullets">
+            <li>Asset type (commodity / futures)</li>
+            <li>Sale status (active / upcoming / closed)</li>
+            <li>Issuer</li>
+            <li>Price range</li>
+          </ul>
+          <div class="callout callout-info" style="margin-top:3mm">
+            <div class="callout-title">KYC Required for Details</div>
+            <div class="callout-body">Full project details (documents, Proof of Reserve feed, legal disclosures) require at least KYC Level 1. Public visitors see summary cards only.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">8</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 9 — HOW INVESTING WORKS
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 07 — How Investing Works</span>
+    <span class="page-header-num">Page 9</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 07</div>
+      <div class="section-title">How <span>Investing</span> Works</div>
+      <div class="section-desc">Cireta operates a regulated token sale mechanism where contributors send USDC to a sale contract during an active sale window. After finalization, tokens are distributed to eligible investors.</div>
+
+      <div class="metric-row">
+        <div class="metric"><div class="metric-value">KYC 2</div><div class="metric-label">Required Level</div></div>
+        <div class="metric"><div class="metric-value">USDC</div><div class="metric-label">Contribution Currency</div></div>
+        <div class="metric"><div class="metric-value">Base</div><div class="metric-label">Network</div></div>
+        <div class="metric"><div class="metric-value">&lt;$0.01</div><div class="metric-label">Avg. Gas Fee</div></div>
+      </div>
+
+      <h3>The Investment Lifecycle</h3>
+      <div class="steps" style="margin-bottom:4mm">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Sale Opens</div><div class="step-desc">The issuer activates a sale window. You can contribute any amount ≥ the minimum during this window.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Contribute USDC</div><div class="step-desc">Send USDC from your registered wallet to the sale contract. Your contribution is locked until finalization or refund.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Sale Finalizes</div><div class="step-desc">Once the target is reached (or the window closes), the issuer finalizes the sale on-chain.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Claim Tokens</div><div class="step-desc">After finalization, click Claim in your portfolio to receive your ERC-3643 security tokens.</div></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-content"><div class="step-title">Hold or Redeem</div><div class="step-desc">Hold tokens to receive dividends, or submit a redemption request at any eligible redemption window.</div></div></div>
+      </div>
+
+      <div class="cols2">
+        <div class="col">
+          <div class="callout">
+            <div class="callout-title">Refund Policy</div>
+            <div class="callout-body">If the sale does not reach its minimum target, all contributors can claim a full refund of their USDC. The platform charges no fee on refunded sales.</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="callout callout-warning">
+            <div class="callout-title">⚠ Investment Risk</div>
+            <div class="callout-body">Token value may fluctuate with commodity markets. Past performance is not indicative of future results. Only invest what you can afford to lose.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">9</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 10 — DIRECT vs VESTED SALES
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 08 — Direct vs. Vested Sales</span>
+    <span class="page-header-num">Page 10</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 08</div>
+      <div class="section-title">Direct vs. <span>Vested</span> Sales</div>
+      <div class="section-desc">Cireta offers two sale types. Direct sales deliver tokens immediately at claim. Vested sales release tokens gradually over a predetermined schedule — often offering a better price in exchange for the lockup period.</div>
+
+      <div class="compare-row" style="margin-bottom:4mm">
+        <div class="compare-box compare-box-gold">
+          <div class="compare-label">Option A</div>
+          <div class="compare-title compare-title-gold">Direct Sale</div>
+          <ul class="compare-list">
+            <li>Tokens delivered immediately at claim</li>
+            <li>No lockup period</li>
+            <li>Standard market price</li>
+            <li>Full liquidity from day one</li>
+            <li>Suitable for shorter investment horizons</li>
+            <li>Claim available after sale finalization</li>
+          </ul>
+        </div>
+        <div class="compare-box compare-box-blue">
+          <div class="compare-label">Option B</div>
+          <div class="compare-title compare-title-blue">Vested Sale</div>
+          <ul class="compare-list">
+            <li>Tokens released on a schedule (e.g., 25% / quarter)</li>
+            <li>Lockup period defined by issuer</li>
+            <li>Typically discounted token price</li>
+            <li>Encourages long-term holding</li>
+            <li>Suitable for strategic investors</li>
+            <li>Each tranche claimable individually</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Vesting Schedule Example</h3>
+      <table class="tbl" style="margin-bottom:4mm">
+        <thead><tr><th>Tranche</th><th>Date</th><th>% Released</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Tranche 1</td><td>3 months after finalization</td><td>25%</td><td><span class="badge badge-green">Claimable</span></td></tr>
+          <tr><td>Tranche 2</td><td>6 months after finalization</td><td>25%</td><td><span class="badge badge-gold">Pending</span></td></tr>
+          <tr><td>Tranche 3</td><td>9 months after finalization</td><td>25%</td><td><span class="badge badge-gold">Pending</span></td></tr>
+          <tr><td>Tranche 4</td><td>12 months after finalization</td><td>25%</td><td><span class="badge badge-gold">Pending</span></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info">
+        <div class="callout-title">Claiming Vested Tranches</div>
+        <div class="callout-body">When a vesting tranche becomes claimable, you will see a <strong>Claim</strong> button appear in your Portfolio → Vesting tab. Each tranche must be claimed individually. Unclaimed tranches accumulate — they do not expire. Gas fees on Base are minimal (typically &lt; $0.01 per claim).</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">10</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 11 — YOUR PORTFOLIO
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 09 — Your Portfolio</span>
+    <span class="page-header-num">Page 11</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 09</div>
+      <div class="section-title">Your <span>Portfolio</span></div>
+      <div class="section-desc">The Portfolio page gives you a complete view of your token holdings, vesting schedules, pending contributions, and historical activity all in one place.</div>
+
+      <div class="screenshot-frame" style="margin-bottom:4mm">
+        <div class="screenshot-bar">
+          <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+          <span class="screenshot-url">launchpad.cireta.com/portfolio</span>
+        </div>
+        <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/05-lp-portfolio.png" alt="Portfolio screen" style="width:100%;display:block;max-height:80mm;object-fit:cover;object-position:top">
+      </div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3>Portfolio Tabs</h3>
+          <div class="card" style="margin-bottom:2mm">
+            <div class="card-title">Holdings</div>
+            <div class="card-body">All ERC-3643 tokens currently in your registered wallet(s). Shows token name, quantity, current value, and on-chain contract address.</div>
+          </div>
+          <div class="card" style="margin-bottom:2mm">
+            <div class="card-title">Vesting</div>
+            <div class="card-body">Upcoming and claimable vesting tranches from vested sale investments. Shows schedule, claimable amount, and claim button.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Redemptions</div>
+            <div class="card-body">Track submitted redemption requests, their status (pending / processing / fulfilled), and the USDC value expected.</div>
+          </div>
+        </div>
+        <div class="col">
+          <h3>Portfolio Summary</h3>
+          <p>The summary bar at the top shows:</p>
+          <ul class="bullets">
+            <li>Total portfolio value in USDC</li>
+            <li>Number of active positions</li>
+            <li>Pending vesting value</li>
+            <li>Total dividends received</li>
+          </ul>
+          <div class="callout" style="margin-top:3mm">
+            <div class="callout-title">Real-Time Prices</div>
+            <div class="callout-body">Portfolio values are updated using live Chainlink Proof of Reserve price feeds for each commodity. Prices refresh every 12 seconds aligned with Base block time.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">11</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 12 — DIVIDENDS & DISTRIBUTIONS
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 10 — Dividends &amp; Distributions</span>
+    <span class="page-header-num">Page 12</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 10</div>
+      <div class="section-title">Dividends &amp; <span>Distributions</span></div>
+      <div class="section-desc">Some tokenized assets generate revenue — from storage leasing, futures roll yield, or commodity-backed income streams. Issuers may distribute this income to token holders in the form of USDC dividends.</div>
+
+      <div class="info-grid" style="margin-bottom:4mm">
+        <div class="info-box">
+          <div class="info-box-icon">💰</div>
+          <div class="info-box-title">How Dividends Work</div>
+          <div class="info-box-body">The issuer deposits USDC into the token's dividend contract. Distributions are proportional to your token holdings at the snapshot date.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">📅</div>
+          <div class="info-box-title">Snapshot Date</div>
+          <div class="info-box-body">A snapshot is taken on the declared record date. Only holders with tokens in their registered wallet at that block are eligible for the distribution.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">🏦</div>
+          <div class="info-box-title">Claiming Dividends</div>
+          <div class="info-box-body">After the distribution is declared, navigate to Portfolio → Holdings → select the token → Claim Dividends. USDC is sent to your registered wallet.</div>
+        </div>
+      </div>
+
+      <div class="divider divider-gold"></div>
+
+      <h3>Dividend Eligibility Rules</h3>
+      <div class="cols2">
+        <div class="col">
+          <ul class="bullets">
+            <li>Tokens must be in a <strong style="color:#F5A623">registered and KYC-approved</strong> wallet at the snapshot block</li>
+            <li>Tokens held in unregistered wallets are <strong style="color:#E74C3C">not eligible</strong></li>
+            <li>Vested but <strong>unclaimed</strong> tokens do not qualify — only delivered tokens in your wallet</li>
+            <li>Compliance-frozen wallets are excluded from distributions</li>
+          </ul>
+        </div>
+        <div class="col">
+          <div class="card card-gold">
+            <div class="card-title">Dividend Notifications</div>
+            <div class="card-body">You will receive an email notification when a new dividend is declared for a token you hold. A banner will also appear on your portfolio dashboard. Dividends do not expire, but we recommend claiming promptly.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-info" style="margin-top:3mm">
+        <div class="callout-title">&#9432; Tax Considerations</div>
+        <div class="callout-body">Dividend income from tokenized assets may be subject to tax in your jurisdiction. Cireta provides a transaction history export (CSV) from your account settings to assist with tax reporting. Consult a qualified tax advisor for guidance specific to your situation.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">12</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 13 — REDEMPTIONS
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 11 — Redemptions</span>
+    <span class="page-header-num">Page 13</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 11</div>
+      <div class="section-title"><span>Redemptions</span></div>
+      <div class="section-desc">Redemption allows you to exchange your security tokens for USDC at the current Chainlink-priced NAV. Redemptions are subject to the issuer's redemption windows and liquidity availability.</div>
+
+      <div class="steps" style="margin-bottom:4mm">
+        <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Check Redemption Window</div><div class="step-desc">Each token project defines redemption windows (e.g., quarterly). Check the project page for the next available window.</div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Submit Request</div><div class="step-desc">Navigate to Portfolio → Redemptions → New Request. Enter the number of tokens to redeem. Requires KYC Level 2.</div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Issuer Review</div><div class="step-desc">The issuer reviews and processes your request. Status will update to Processing within the declared settlement period.</div></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Token Burn &amp; USDC Transfer</div><div class="step-desc">Your tokens are burned on-chain. USDC is transferred to your primary registered wallet at the settlement NAV price.</div></div></div>
+      </div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3>Redemption Status Codes</h3>
+          <table class="tbl">
+            <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge badge-gold">Pending</span></td><td>Submitted, awaiting issuer action</td></tr>
+              <tr><td><span class="badge badge-blue">Processing</span></td><td>Issuer confirmed, settlement in progress</td></tr>
+              <tr><td><span class="badge badge-green">Fulfilled</span></td><td>USDC transferred, tokens burned</td></tr>
+              <tr><td><span class="badge badge-red">Rejected</span></td><td>Insufficient liquidity or compliance block</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="col">
+          <div class="card card-gold" style="margin-bottom:2mm">
+            <div class="card-title">Important Notes</div>
+            <div class="card-body">
+              <ul style="padding-left:3mm;list-style:disc">
+                <li style="font-size:6pt;color:#AAAAAA;margin-bottom:1mm">Partial redemptions are supported</li>
+                <li style="font-size:6pt;color:#AAAAAA;margin-bottom:1mm">Settlement typically takes 3–5 business days</li>
+                <li style="font-size:6pt;color:#AAAAAA;margin-bottom:1mm">NAV price is locked at request submission</li>
+                <li style="font-size:6pt;color:#AAAAAA">Platform fee (if applicable) deducted from USDC payout</li>
+              </ul>
+            </div>
+          </div>
+          <div class="callout callout-warning">
+            <div class="callout-title">⚠ Vested Tokens</div>
+            <div class="callout-body">You cannot redeem tokens that are still locked in a vesting schedule. Only fully delivered (claimed) tokens are eligible for redemption.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">13</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 14 — ACCOUNT SETTINGS
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 12 — Account Settings</span>
+    <span class="page-header-num">Page 14</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 12</div>
+      <div class="section-title">Account <span>Settings</span></div>
+      <div class="section-desc">Manage your profile, security, notifications, and data exports from the Account Settings section, accessible via your profile icon in the top-right navigation.</div>
+
+      <div class="info-grid" style="margin-bottom:5mm">
+        <div class="info-box">
+          <div class="info-box-icon">👤</div>
+          <div class="info-box-title">Profile</div>
+          <div class="info-box-body">Update your display name and email address. Email changes require re-verification. Your email is used for all platform communications.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">🔑</div>
+          <div class="info-box-title">Password</div>
+          <div class="info-box-body">Change your password at any time. Requires confirmation of your current password. All active sessions are invalidated on password change.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">🔔</div>
+          <div class="info-box-title">Notifications</div>
+          <div class="info-box-body">Configure email alerts for: sale openings, KYC updates, dividend declarations, vesting releases, and redemption status changes.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">📊</div>
+          <div class="info-box-title">Data Export</div>
+          <div class="info-box-body">Download your complete transaction history as a CSV file. Useful for tax reporting and personal record-keeping.</div>
+        </div>
+      </div>
+
+      <div class="divider divider-gold"></div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3>Session Management</h3>
+          <p>Under Account → Sessions you can view all active login sessions (device, browser, IP, last activity) and remotely terminate any session you don't recognise.</p>
+          <div class="callout callout-warning" style="margin-top:2mm">
+            <div class="callout-title">⚠ Unrecognised Sessions</div>
+            <div class="callout-body">If you see a session you did not create, terminate it immediately and change your password. Contact support if you suspect unauthorised access.</div>
+          </div>
+        </div>
+        <div class="col">
+          <h3>Privacy &amp; Data Rights</h3>
+          <p>Under GDPR and applicable data protection law, you have the right to:</p>
+          <ul class="bullets">
+            <li>Access all personal data held about you</li>
+            <li>Request correction of inaccurate data</li>
+            <li>Request deletion (subject to compliance obligations)</li>
+            <li>Data portability (CSV export)</li>
+          </ul>
+          <p style="margin-top:2mm">Submit requests to <strong style="color:#F5A623">privacy@cireta.com</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">14</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 15 — SECURITY BEST PRACTICES
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 13 — Security Best Practices</span>
+    <span class="page-header-num">Page 15</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 13</div>
+      <div class="section-title">Security <span>Best Practices</span></div>
+      <div class="section-desc">Protecting your account and wallet is your responsibility. Follow these guidelines to keep your investments safe.</div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3 style="margin-bottom:2mm">Account Security</h3>
+          <div class="card" style="margin-bottom:2mm">
+            <div class="card-title">&#128273; Use a Strong Password</div>
+            <div class="card-body">At least 12 characters, mixed case, numbers, and symbols. Use a dedicated password manager (1Password, Bitwarden) rather than browser-saved passwords.</div>
+          </div>
+          <div class="card" style="margin-bottom:2mm">
+            <div class="card-title">&#9993; Protect Your Email</div>
+            <div class="card-body">Your email is the recovery mechanism for your account. Enable two-factor authentication (2FA) on your email provider. Use a dedicated email address for crypto accounts.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">&#128274; Verify Sessions</div>
+            <div class="card-body">Regularly review active sessions in Account Settings. Log out of sessions you don't recognise. Always log out on shared or public computers.</div>
+          </div>
+        </div>
+        <div class="col">
+          <h3 style="margin-bottom:2mm">Wallet Security</h3>
+          <div class="card" style="margin-bottom:2mm">
+            <div class="card-title">&#128220; Seed Phrase is Sacred</div>
+            <div class="card-body">Write your seed phrase on paper and store it in a secure physical location (safe, safety deposit box). Never store it digitally — no photos, no cloud, no email.</div>
+          </div>
+          <div class="card" style="margin-bottom:2mm">
+            <div class="card-title">&#128737; Consider a Hardware Wallet</div>
+            <div class="card-body">For significant holdings, use a hardware wallet (Ledger, Trezor). These keep your private key offline and require physical confirmation for every transaction.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">&#128269; Verify Every Transaction</div>
+            <div class="card-body">Always read transaction prompts in your wallet carefully. Verify the contract address and amount before signing. Cireta will never ask you to approve unexpected transactions.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-warning" style="margin-top:3mm">
+        <div class="callout-title">⚠ Phishing Warning</div>
+        <div class="callout-body">Cireta will NEVER contact you asking for your password, seed phrase, or private key. We will NEVER DM you on Telegram, Discord, or social media offering investment opportunities. If anyone claiming to be Cireta staff asks for sensitive information, report it immediately to security@cireta.com.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">15</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 16 — FAQ PART 1
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 14 — FAQ (Part 1)</span>
+    <span class="page-header-num">Page 16</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 14</div>
+      <div class="section-title">Frequently Asked <span>Questions</span></div>
+      <div class="section-desc">Answers to the most common investor questions. Part 1 of 2.</div>
+
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q1.</span> What is a security token and how is it different from a cryptocurrency?</div>
+        <div class="faq-a">A security token is a blockchain-based digital asset that represents ownership or rights in a real-world asset (in Cireta's case, physical commodities). Unlike cryptocurrencies such as Bitcoin or Ether, security tokens are regulated financial instruments subject to securities law and require investor KYC. They use the ERC-3643 standard which enforces compliance rules at the smart-contract level.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q2.</span> Which countries can invest on Cireta?</div>
+        <div class="faq-a">Cireta accepts investors from most jurisdictions, subject to local securities law. Residents of sanctioned countries (OFAC list) and certain restricted jurisdictions are not eligible. The platform enforces this at the KYC screening stage via Sumsub's AML/sanctions database.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q3.</span> How long does KYC take?</div>
+        <div class="faq-a">Automated KYC typically completes in 1–3 minutes via the Sumsub widget. Cases requiring manual review take 24–48 hours. You will receive an email notification when your status changes.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q4.</span> What currency do I use to invest?</div>
+        <div class="faq-a">All contributions are made in USDC (USD Coin) on the Base network. You will need USDC in your registered wallet before contributing to any sale. USDC can be acquired on centralised exchanges (Coinbase, Binance) and bridged to Base.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q5.</span> Are there minimum or maximum investment amounts?</div>
+        <div class="faq-a">Each sale defines its own minimum contribution (visible on the sale page). There is typically no platform-wide maximum, but individual issuers may set per-investor caps for regulatory compliance. Minimum investments typically range from $50 to $500 USDC.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q6.</span> Can I transfer my tokens to another wallet?</div>
+        <div class="faq-a">ERC-3643 security tokens can only be transferred between wallets that are KYC-approved and whitelisted on the token's on-chain identity registry. You cannot freely transfer tokens to arbitrary addresses — the compliance layer will reject the transaction.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q7.</span> What happens if the sale doesn't reach its target?</div>
+        <div class="faq-a">If the sale does not reach its minimum funding threshold, the issuer will mark it as failed and all contributors may claim a full refund of their USDC contribution. No fees are charged on failed sales. Refunds are available immediately after the sale is marked as failed.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q8.</span> How is the token price determined?</div>
+        <div class="faq-a">Token prices are set by the issuer at sale creation, reflecting the underlying asset's market value. After the sale, token NAV is tracked via Chainlink Proof of Reserve price feeds, which are updated on-chain at regular intervals. Redemption prices use the Chainlink price at the time of request.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">16</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 17 — FAQ PART 2
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 15 — FAQ (Part 2)</span>
+    <span class="page-header-num">Page 17</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 15</div>
+      <div class="section-title">Frequently Asked <span>Questions</span></div>
+      <div class="section-desc">Answers to common investor questions. Part 2 of 2.</div>
+
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q9.</span> What is Proof of Reserve and why does it matter?</div>
+        <div class="faq-a">Proof of Reserve (PoR) is an on-chain attestation that the physical commodity backing the token actually exists and is held in a verified vault. Cireta integrates Chainlink PoR feeds so investors can independently verify that the issued token supply is fully backed at any time.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q10.</span> What fees does Cireta charge?</div>
+        <div class="faq-a">Platform fees are set per-issuer and are visible on each project page before you invest. Fees are charged as a percentage of the raise (default 2%, or 200 basis points). There are no additional hidden fees. Gas fees on Base are minimal — typically under $0.01 per transaction.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q11.</span> Can my wallet be frozen and why?</div>
+        <div class="faq-a">Yes, wallets can be frozen by the issuer or platform compliance team if there is a regulatory requirement (e.g., court order, sanctions screening hit, AML investigation). Frozen wallets cannot receive, transfer, or redeem tokens until unfrozen. You will be notified if this occurs and may appeal through legal channels.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q12.</span> How do I claim my tokens after a sale finalizes?</div>
+        <div class="faq-a">After finalization, a Claim button appears in your Portfolio for the relevant sale. Click it, confirm the transaction in your wallet, and tokens will be transferred to your primary registered wallet. Claiming requires a small gas fee paid in ETH on Base (typically &lt; $0.01).</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q13.</span> What if I lose access to my registered wallet?</div>
+        <div class="faq-a">If you lose access to your wallet, the issuer has a compliance-controlled recovery mechanism. Contact support with proof of identity. The issuer can use a forced transfer (on-chain) to recover your tokens to a new wallet, following their compliance process. This is why keeping your seed phrase safe is critical.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q14.</span> Are security tokens tradeable on exchanges?</div>
+        <div class="faq-a">ERC-3643 tokens can only be traded on regulated security token exchanges that integrate with ONCHAINID for compliance. They cannot be listed on standard DEXes (Uniswap, etc.) as the smart contract enforces transfer restrictions. Cireta may announce secondary market partnerships in the future.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-num">Q15.</span> How do I report a problem or dispute?</div>
+        <div class="faq-a">Use the in-app Help & Support section or email investor-support@cireta.com. For compliance-related matters, contact compliance@cireta.com. For urgent security issues, email security@cireta.com. All disputes are logged and tracked with a ticket reference number provided by return email.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">17</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 18 — GLOSSARY A–L
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 16 — Glossary (A–L)</span>
+    <span class="page-header-num">Page 18</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 16</div>
+      <div class="section-title"><span>Glossary</span> A–L</div>
+      <div class="section-desc">Key terms used throughout the Cireta platform and this guide.</div>
+
+      <div class="cols2">
+        <div class="col">
+          <div class="gloss-item">
+            <div class="gloss-term">AML (Anti-Money Laundering)</div>
+            <div class="gloss-def">Regulatory framework requiring financial institutions to detect and prevent the proceeds of crime from entering the financial system.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Base</div>
+            <div class="gloss-def">An Ethereum Layer 2 (L2) blockchain developed by Coinbase. Provides fast, low-cost transactions secured by Ethereum's mainnet.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Chainlink PoR</div>
+            <div class="gloss-def">Chainlink Proof of Reserve — decentralised oracle network data feed confirming that a tokenized asset is backed by real-world reserves.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Compliance Freeze</div>
+            <div class="gloss-def">A regulatory action that prevents a wallet from transferring or receiving security tokens. Enacted by the issuer or platform in response to legal requirements.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">ERC-3643</div>
+            <div class="gloss-def">An Ethereum token standard for compliant security tokens. Enforces transfer restrictions and identity verification at the smart-contract level.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Forced Transfer</div>
+            <div class="gloss-def">A compliance action allowing an issuer to move tokens from one address to another, typically used for wallet recovery or regulatory orders.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Gas Fee</div>
+            <div class="gloss-def">A small fee paid in ETH to the Base network to process a blockchain transaction. On Base, gas fees are typically under $0.01.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Identity Registry</div>
+            <div class="gloss-def">An on-chain smart contract that maintains the list of KYC-approved wallet addresses permitted to hold a given security token.</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="gloss-item">
+            <div class="gloss-term">IPFS</div>
+            <div class="gloss-def">InterPlanetary File System — a distributed storage protocol. Cireta stores legal documents and token prospectuses on IPFS for immutable public access.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Issuer</div>
+            <div class="gloss-def">A regulated legal entity that creates and manages tokenized assets on the Cireta platform. Issuers undergo their own KYB (Know Your Business) verification.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">JWT (JSON Web Token)</div>
+            <div class="gloss-def">A cryptographically signed token used for authentication. Cireta uses short-lived access JWTs (15 minutes) with rotating refresh tokens (7 days).</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">KYC (Know Your Customer)</div>
+            <div class="gloss-def">The process of verifying the identity of an investor. Required by law for regulated securities platforms. Cireta uses Sumsub for KYC processing.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Layer 2 (L2)</div>
+            <div class="gloss-def">A secondary blockchain built on top of Ethereum that processes transactions faster and cheaper while inheriting Ethereum's security guarantees.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Liveness Check</div>
+            <div class="gloss-def">A brief video selfie performed during KYC to confirm that the person submitting documents is physically present and matches the provided ID.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">18</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 19 — GLOSSARY M–Z
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 17 — Glossary (M–Z)</span>
+    <span class="page-header-num">Page 19</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 17</div>
+      <div class="section-title"><span>Glossary</span> M–Z</div>
+      <div class="section-desc">Continued glossary of key platform terms.</div>
+
+      <div class="cols2">
+        <div class="col">
+          <div class="gloss-item">
+            <div class="gloss-term">NAV (Net Asset Value)</div>
+            <div class="gloss-def">The value per token calculated from the current market price of the underlying commodity, divided by total token supply. Used for redemption pricing.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">ONCHAINID</div>
+            <div class="gloss-def">A decentralised identity standard on Ethereum. Cireta uses ONCHAINID to bind KYC approval to a wallet address on-chain, enabling compliant token transfers.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Proof of Reserve (PoR)</div>
+            <div class="gloss-def">On-chain attestation via Chainlink that the physical asset backing a token is held in custody. Investors can verify the reserve amount independently.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">RWA (Real World Asset)</div>
+            <div class="gloss-def">Any tangible or financial asset from the traditional world — gold bullion, copper, real estate, bonds — that has been tokenized on a blockchain.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Sale Contract</div>
+            <div class="gloss-def">An audited smart contract deployed by the issuer that holds USDC contributions during a token sale and enforces fundraising rules on-chain.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Security Token</div>
+            <div class="gloss-def">A blockchain-based token that is classified as a financial security under applicable law. Subject to regulatory oversight and investor protection rules.</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="gloss-item">
+            <div class="gloss-term">Sumsub</div>
+            <div class="gloss-def">The KYC/AML verification provider used by Cireta. Sumsub processes identity documents, performs liveness checks, and screens against sanctions lists.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Token Claim</div>
+            <div class="gloss-def">The action of retrieving your purchased tokens from the sale contract to your wallet after a sale finalizes. Requires a small gas fee on Base.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Token Symbol</div>
+            <div class="gloss-def">A short ticker code identifying a security token (e.g., CGLD for Cireta Gold). Used in portfolio displays and on-chain logs.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Tranche</div>
+            <div class="gloss-def">A portion of vested tokens that becomes claimable at a specific date in a vesting schedule. Each tranche must be claimed individually.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">USDC</div>
+            <div class="gloss-def">USD Coin — a fully regulated, dollar-pegged stablecoin issued by Circle. Used as the contribution and settlement currency on the Cireta platform.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Vesting Schedule</div>
+            <div class="gloss-def">A predetermined token release timeline for vested sale investors. Tokens unlock in tranches over time, incentivising long-term holding.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">WalletConnect</div>
+            <div class="gloss-def">An open-source protocol for connecting crypto wallets to web applications. Cireta supports WalletConnect v2 for wallet integration.</div>
+          </div>
+          <div class="gloss-item">
+            <div class="gloss-term">Whitelist</div>
+            <div class="gloss-def">The on-chain list of KYC-approved wallet addresses permitted to hold a security token. Only whitelisted addresses can receive, hold, and transfer the token.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">19</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 20 — SUPPORT
+═══════════════════════════════════════════════════ -->
+<div class="pg">
+  <div class="page-header">
+    <span class="page-header-brand">CIRETA</span>
+    <span class="page-header-title">Chapter 18 — Support &amp; Contact</span>
+    <span class="page-header-num">Page 20</span>
+  </div>
+  <div class="content-area">
+    <div class="content-area-inner">
+      <div class="section-eyebrow">Chapter 18</div>
+      <div class="section-title">Support &amp; <span>Contact</span></div>
+      <div class="section-desc">The Cireta team is here to help. Use the appropriate channel below for your query to receive the fastest response.</div>
+
+      <div class="info-grid" style="margin-bottom:5mm">
+        <div class="info-box">
+          <div class="info-box-icon">📧</div>
+          <div class="info-box-title">General Investor Support</div>
+          <div class="info-box-body"><strong style="color:#F5A623">investor-support@cireta.com</strong><br><br>Account issues, investment questions, portal navigation, KYC queries. Response within 1 business day.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">⚖️</div>
+          <div class="info-box-title">Compliance &amp; Legal</div>
+          <div class="info-box-body"><strong style="color:#F5A623">compliance@cireta.com</strong><br><br>Wallet freeze enquiries, regulatory questions, dispute resolution, identity correction requests.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">🔐</div>
+          <div class="info-box-title">Security Incidents</div>
+          <div class="info-box-body"><strong style="color:#F5A623">security@cireta.com</strong><br><br>Suspected unauthorised access, phishing reports, security vulnerabilities. Treated as high priority.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-icon">🛡️</div>
+          <div class="info-box-title">Privacy &amp; Data</div>
+          <div class="info-box-body"><strong style="color:#F5A623">privacy@cireta.com</strong><br><br>GDPR data access requests, data deletion, privacy policy questions, PII corrections.</div>
+        </div>
+      </div>
+
+      <div class="divider divider-gold"></div>
+
+      <div class="cols2">
+        <div class="col">
+          <h3>In-App Help</h3>
+          <p>The quickest way to get help is via the <strong style="color:#F5A623">Help &amp; Support</strong> section inside the launchpad portal. You can:</p>
+          <ul class="bullets">
+            <li>Browse the searchable knowledge base</li>
+            <li>Submit a support ticket with automatic priority routing</li>
+            <li>Track your open tickets and view responses</li>
+            <li>Access video tutorials for common workflows</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h3>Response Times</h3>
+          <table class="tbl">
+            <thead><tr><th>Channel</th><th>Target Response</th></tr></thead>
+            <tbody>
+              <tr><td>In-app ticket</td><td>4–8 business hours</td></tr>
+              <tr><td>investor-support@</td><td>1 business day</td></tr>
+              <tr><td>compliance@</td><td>2 business days</td></tr>
+              <tr><td>security@</td><td>4 hours (high priority)</td></tr>
+              <tr><td>privacy@</td><td>5 business days (GDPR SLA)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:3mm">
+        <div class="callout-title">Website</div>
+        <div class="callout-body"><strong style="color:#F5A623">www.cireta.com</strong> — News, regulatory disclosures, issuer information, and platform announcements. Always verify you are on the official domain before logging in.</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span class="page-footer-left">Cireta RWA Launchpad</span>
+    <span class="page-footer-center">© 2026 Cireta. All rights reserved.</span>
+    <span class="page-footer-right">20</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 21 — BACK COVER
+═══════════════════════════════════════════════════ -->
+<div class="pg" style="page-break-after:auto">
+  <div class="back-cover">
+    <div class="back-orb"></div>
+    <div class="back-content">
+      <div class="back-mark">
+        <svg viewBox="0 0 24 24" width="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="12,2 22,8 22,16 12,22 2,16 2,8" fill="#000" stroke="#000" stroke-width="1"/>
+          <polygon points="12,5 19,9.5 19,16 12,20 5,16 5,9.5" fill="#000" opacity="0.8"/>
+        </svg>
+      </div>
+      <div class="back-name">Cireta<span>.</span></div>
+      <div class="back-tagline">Real World Asset Tokenization Launchpad on Base L2</div>
+      <div class="back-divider"></div>
+      <div class="back-url">www.cireta.com</div>
+      <div class="back-email">investor-support@cireta.com</div>
+      <div class="back-legal">
+        This document is for informational purposes only and does not constitute financial advice. Investing in tokenized assets involves risk, including the possible loss of principal. Past performance is not a guarantee of future results. Cireta security tokens are regulated financial instruments. Eligibility to invest is subject to applicable law in your jurisdiction and platform KYC requirements. © 2026 Cireta. All rights reserved.
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

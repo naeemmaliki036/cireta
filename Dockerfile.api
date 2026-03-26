@@ -1,26 +1,35 @@
 # Stage 1: Dependencies
 FROM python:3.11-slim AS deps
 WORKDIR /app
-RUN pip install poetry && poetry config virtualenvs.create false
+RUN pip install poetry && poetry config virtualenvs.in-project true
 COPY pyproject.toml poetry.lock* ./
 RUN poetry install --no-root --no-interaction --no-ansi
+
 
 # Stage 2: Runner
 FROM python:3.11-slim AS runner
 RUN useradd -m -r appuser
 WORKDIR /app
+COPY --from=deps /app/.venv /app/.venv
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
-COPY . .
 
-# Ensure entrypoint is executable
-COPY docker/entrypoint.sh /app/docker/entrypoint.sh
-RUN chmod +x /app/docker/entrypoint.sh
+# Explicitly copy application directories
+COPY pyproject.toml /app/pyproject.toml
+COPY apps /app/apps
+COPY packages /app/packages
+COPY infra /app/infra
+COPY scripts /app/scripts
+COPY .env.example /app/.env.example
+
+# Run Alembic migrations as root during build
+RUN poetry run alembic --script-location /app/infra/alembic -c infra/alembic/alembic.ini upgrade head
 
 # Verify alembic config and migrations are present
 RUN test -f infra/alembic/alembic.ini && test -d infra/alembic/versions
 
 USER appuser
 EXPOSE 8000
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
+ENTRYPOINT ["poetry", "run", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD is now unused because ENTRYPOINT is a full command
 CMD ["api"]

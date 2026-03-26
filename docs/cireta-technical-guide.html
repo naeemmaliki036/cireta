@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cireta RWA Platform — Technical Reference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #0A0A0A; color: #F2F2F2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pg { width: 210mm; height: 297mm; overflow: hidden; page-break-after: always; break-after: page; position: relative; background: #0A0A0A; color: #F2F2F2; }
+  :root {
+    --blue: #4A90E2; --blue-dim: rgba(74,144,226,0.1); --blue-border: rgba(74,144,226,0.25);
+    --bg: #0A0A0A; --bg2: #0F0F0F; --bg3: #161616; --bg4: #1E1E1E; --bg5: #242424;
+    --text: #F2F2F2; --text2: #AAAAAA; --text3: #666666;
+    --green: #27AE60; --red: #E74C3C; --orange: #F5A623;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  .cover-bg { width:100%;height:100%;background:linear-gradient(135deg,#0A0A0A 0%,#0a0d14 50%,#060c1a 100%);display:flex;flex-direction:column;position:relative;overflow:hidden; }
+  .cover-grid { position:absolute;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(74,144,226,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(74,144,226,0.04) 1px,transparent 1px);background-size:8mm 8mm;pointer-events:none; }
+  .cover-orb { position:absolute;width:300mm;height:300mm;border-radius:50%;background:radial-gradient(circle,rgba(74,144,226,0.15) 0%,transparent 65%);top:-80mm;right:-100mm;pointer-events:none; }
+  .cover-hdr { padding:16mm 18mm 0;display:flex;align-items:center;gap:4mm;position:relative;z-index:1; }
+  .cover-logo { width:10mm;height:10mm;background:var(--blue);border-radius:2mm;display:flex;align-items:center;justify-content:center; }
+  .cover-brand { font-size:7pt;font-weight:700;letter-spacing:0.15em;color:var(--blue);text-transform:uppercase; }
+  .cover-brand-sub { font-size:5.5pt;color:var(--text3);letter-spacing:0.08em; }
+  .cover-main { flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 18mm;position:relative;z-index:1; }
+  .cover-eyebrow { font-size:5.5pt;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--blue);margin-bottom:5mm;display:flex;align-items:center;gap:3mm; }
+  .cover-eyebrow::before { content:'';display:block;width:8mm;height:0.3mm;background:var(--blue); }
+  .cover-title { font-size:26pt;font-weight:900;line-height:1.05;color:var(--text);margin-bottom:4mm; }
+  .cover-title span { color:var(--blue); }
+  .cover-subtitle { font-size:10pt;font-weight:300;color:var(--text2);line-height:1.5;max-width:140mm;margin-bottom:8mm; }
+  .cover-pills { display:flex;gap:2.5mm;flex-wrap:wrap; }
+  .cover-pill { padding:1.5mm 3.5mm;border-radius:20mm;border:0.3mm solid var(--blue-border);background:var(--blue-dim);font-size:5pt;font-weight:600;color:var(--blue); }
+  .cover-footer { padding:8mm 18mm;border-top:0.3mm solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:flex-end;position:relative;z-index:1; }
+  .cover-footer-l { font-size:5.5pt;color:var(--text3);line-height:1.6; }
+  .cover-footer-r { font-size:5.5pt;color:var(--text3);text-align:right;line-height:1.6; }
+  .cover-ver { display:inline-block;padding:1mm 3mm;border-radius:1mm;background:var(--blue-dim);border:0.3mm solid var(--blue-border);font-size:5pt;font-weight:600;color:var(--blue); }
+  .ph { height:13mm;background:var(--bg2);border-bottom:0.3mm solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;padding:0 13mm; }
+  .ph-brand { font-size:5.5pt;font-weight:700;color:var(--blue);letter-spacing:0.12em;text-transform:uppercase; }
+  .ph-title { font-size:5.5pt;color:var(--text2); }
+  .ph-num { font-size:5.5pt;color:var(--text3); }
+  .pf { position:absolute;bottom:0;left:0;right:0;height:9mm;border-top:0.3mm solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;padding:0 13mm;background:var(--bg2); }
+  .pf span { font-size:4.5pt;color:var(--text3); }
+  .ca { height:calc(297mm - 13mm - 9mm);overflow:hidden; }
+  .cai { padding:7mm 13mm; }
+  .eyebrow { font-size:5pt;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--blue);margin-bottom:2mm;display:flex;align-items:center;gap:2mm; }
+  .eyebrow::before { content:'';display:block;width:4mm;height:0.3mm;background:var(--blue); }
+  .sec-title { font-size:15pt;font-weight:800;color:var(--text);margin-bottom:3mm;line-height:1.1; }
+  .sec-title span { color:var(--blue); }
+  .sec-desc { font-size:7pt;color:var(--text2);line-height:1.6;margin-bottom:4mm; }
+  h3 { font-size:8.5pt;font-weight:700;color:var(--text);margin-bottom:2mm; }
+  h4 { font-size:7pt;font-weight:600;color:var(--blue);margin-bottom:1.5mm; }
+  p { font-size:6.5pt;color:var(--text2);line-height:1.6;margin-bottom:2mm; }
+  li { font-size:6.5pt;color:var(--text2);line-height:1.6;margin-bottom:1mm; }
+  .code-block { background:var(--bg4);border:0.3mm solid rgba(255,255,255,0.08);border-radius:2mm;padding:3mm 4mm;font-family:var(--mono);font-size:5.5pt;color:#A8D8A8;line-height:1.7;margin-bottom:3mm;white-space:pre;overflow:hidden; }
+  .code-block-with-hdr { background:var(--bg4);border:0.3mm solid rgba(255,255,255,0.08);border-radius:2mm;margin-bottom:3mm;overflow:hidden; }
+  .code-hdr { background:var(--bg5);padding:1.5mm 4mm;border-bottom:0.3mm solid rgba(255,255,255,0.06);display:flex;align-items:center; }
+  .code-hdr-label { font-size:5pt;color:var(--text3);font-family:var(--mono); }
+  .code-body { padding:3mm 4mm;font-family:var(--mono);font-size:5.5pt;color:#A8D8A8;line-height:1.7;white-space:pre; }
+  .badge { display:inline-block;padding:0.5mm 2mm;border-radius:1mm;font-size:5pt;font-weight:700;font-family:var(--mono); }
+  .badge-get { background:rgba(74,144,226,0.15);color:#4A90E2;border:0.2mm solid rgba(74,144,226,0.3); }
+  .badge-post { background:rgba(39,174,96,0.15);color:#27AE60;border:0.2mm solid rgba(39,174,96,0.3); }
+  .badge-patch { background:rgba(245,166,35,0.15);color:#F5A623;border:0.2mm solid rgba(245,166,35,0.3); }
+  .badge-delete { background:rgba(231,76,60,0.15);color:#E74C3C;border:0.2mm solid rgba(231,76,60,0.3); }
+  .badge-warn { background:rgba(245,166,35,0.1);color:#F5A623;border:0.2mm solid rgba(245,166,35,0.25);font-family:var(--mono); }
+  .badge-ok { background:rgba(39,174,96,0.1);color:#27AE60;border:0.2mm solid rgba(39,174,96,0.25); }
+  .badge-info { background:var(--blue-dim);color:var(--blue);border:0.2mm solid var(--blue-border); }
+  .ep { display:flex;align-items:baseline;gap:2.5mm;padding:2mm 3mm;border-radius:1.5mm;margin-bottom:1.5mm;background:var(--bg3);border:0.2mm solid rgba(255,255,255,0.05); }
+  .ep-path { font-family:var(--mono);font-size:6pt;color:var(--text);flex:1; }
+  .ep-auth { font-size:5pt;color:var(--text3); }
+  .card { background:var(--bg3);border:0.3mm solid rgba(255,255,255,0.07);border-radius:2.5mm;padding:3.5mm 4.5mm;margin-bottom:2.5mm; }
+  .card-blue { border-color:var(--blue-border);background:linear-gradient(135deg,var(--bg3) 0%,rgba(74,144,226,0.03) 100%); }
+  .card-title { font-size:7pt;font-weight:700;color:var(--text);margin-bottom:1.5mm; }
+  .card-body { font-size:6pt;color:var(--text2);line-height:1.6; }
+  .cols2 { display:flex;gap:4mm; }
+  .col { flex:1; }
+  .tbl { width:100%;border-collapse:collapse;font-size:6pt; }
+  .tbl th { background:var(--bg4);color:var(--blue);font-weight:700;padding:2mm 2.5mm;text-align:left;border-bottom:0.3mm solid var(--blue-border);font-size:5.5pt; }
+  .tbl td { padding:1.8mm 2.5mm;border-bottom:0.2mm solid rgba(255,255,255,0.04);color:var(--text2);vertical-align:top; }
+  .tbl tr:last-child td { border-bottom:none; }
+  .callout { border-left:1mm solid var(--blue);background:var(--blue-dim);padding:3mm 4mm;border-radius:0 2mm 2mm 0;margin-bottom:3mm; }
+  .callout-title { font-size:6.5pt;font-weight:700;color:var(--blue);margin-bottom:1mm; }
+  .callout-body { font-size:6pt;color:var(--text2);line-height:1.5; }
+  .callout-warn { border-color:#E74C3C;background:rgba(231,76,60,0.08); }
+  .callout-warn .callout-title { color:#E74C3C; }
+  .callout-ok { border-color:#27AE60;background:rgba(39,174,96,0.08); }
+  .callout-ok .callout-title { color:#27AE60; }
+  .toc-item { display:flex;align-items:baseline;justify-content:space-between;padding:1.5mm 0;border-bottom:0.2mm solid rgba(255,255,255,0.04); }
+  .toc-chapter { font-size:5.5pt;font-weight:600;color:var(--text3);min-width:7mm; }
+  .toc-title { font-size:6.5pt;font-weight:700;color:var(--text);flex:1;margin-left:1mm; }
+  .toc-dots { flex:1;border-bottom:0.2mm dotted rgba(255,255,255,0.1);margin:0 2mm;height:3mm; }
+  .toc-page { font-size:6.5pt;color:var(--blue);font-weight:600; }
+  .toc-group { font-size:5pt;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text3);margin:3mm 0 1mm; }
+  .ascii { font-family:var(--mono);font-size:4.6pt;color:#7BB3F0;line-height:1.5;background:var(--bg4);padding:3mm 4mm;border-radius:2mm;border:0.2mm solid rgba(255,255,255,0.06);white-space:pre;margin-bottom:3mm; }
+  .stack-row { display:flex;gap:3mm;margin-bottom:2mm; }
+  .stack-layer { flex:0 0 26mm;background:var(--bg4);border-radius:1.5mm;padding:2mm 3mm;font-size:5.5pt;font-weight:700;color:var(--blue);display:flex;align-items:center; }
+  .stack-items { flex:1;display:flex;gap:2mm;flex-wrap:wrap;align-items:center; }
+  .stack-item { background:var(--bg3);border:0.2mm solid rgba(255,255,255,0.07);border-radius:1.5mm;padding:1.5mm 2.5mm;font-size:5.5pt;color:var(--text2); }
+  .div { height:0.3mm;background:rgba(255,255,255,0.06);margin:3mm 0; }
+  .div-blue { background:linear-gradient(90deg,var(--blue-border) 0%,transparent 100%); }
+  .contract-box { background:var(--bg3);border:0.3mm solid var(--blue-border);border-radius:2.5mm;padding:3.5mm 4mm;margin-bottom:2.5mm; }
+  .contract-name { font-size:8pt;font-weight:700;color:var(--text);margin-bottom:1mm; }
+  .contract-addr { font-family:var(--mono);font-size:5.5pt;color:var(--blue);background:var(--bg4);padding:1.5mm 2.5mm;border-radius:1mm;margin-bottom:1.5mm;display:block;word-break:break-all; }
+  .contract-desc { font-size:6pt;color:var(--text2);line-height:1.5; }
+  .env-row { display:flex;gap:2mm;padding:1.5mm 0;border-bottom:0.2mm solid rgba(255,255,255,0.04); }
+  .env-key { font-family:var(--mono);font-size:5.5pt;color:#FFD06A;flex:0 0 50mm; }
+  .env-val { font-size:5.5pt;color:var(--text2);flex:1; }
+  .info-grid { display:flex;flex-wrap:wrap;gap:3mm; }
+  .info-box { flex:1;min-width:40mm;background:var(--bg3);border:0.3mm solid rgba(255,255,255,0.07);border-radius:2mm;padding:3mm 3.5mm; }
+  .info-box-title { font-size:6.5pt;font-weight:700;color:var(--text);margin-bottom:1mm; }
+  .info-box-body { font-size:5.5pt;color:var(--text2);line-height:1.5; }
+  ul.bullets { padding-left:4mm;list-style:disc; }
+  ul.bullets li { font-size:6.5pt;color:var(--text2);line-height:1.6;margin-bottom:1mm; }
+  .scr { background:var(--bg3);border:0.3mm solid var(--blue-border);border-radius:2mm;overflow:hidden; }
+  .scr-bar { background:var(--bg4);padding:1.5mm 3mm;border-bottom:0.2mm solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:1.5mm; }
+  .dot { width:2mm;height:2mm;border-radius:50%; }
+  .dot-r { background:#E74C3C; } .dot-y { background:#F5A623; } .dot-g { background:#27AE60; }
+  .scr-url { font-size:4.5pt;color:var(--text3);margin-left:2mm; }
+  .back-cover { width:100%;height:100%;background:linear-gradient(180deg,#0A0A0A 0%,#060c1a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden; }
+  .back-grid { position:absolute;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(74,144,226,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(74,144,226,0.03) 1px,transparent 1px);background-size:10mm 10mm;pointer-events:none; }
+  .back-orb { position:absolute;width:260mm;height:260mm;border-radius:50%;background:radial-gradient(circle,rgba(74,144,226,0.1) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none; }
+  .back-content { text-align:center;position:relative;z-index:1; }
+  .back-mark { width:18mm;height:18mm;border-radius:4mm;background:var(--blue);display:flex;align-items:center;justify-content:center;margin:0 auto 5mm; }
+  .back-name { font-size:18pt;font-weight:900;color:var(--text);margin-bottom:2mm; }
+  .back-name span { color:var(--blue); }
+  .back-tagline { font-size:8pt;color:var(--text3);margin-bottom:8mm; }
+  .back-div { width:20mm;height:0.3mm;background:var(--blue);margin:0 auto 8mm; }
+  .back-url { font-size:8pt;font-weight:600;color:var(--blue);margin-bottom:2mm; }
+  .back-email { font-size:7pt;color:var(--text3); }
+  .back-legal { margin-top:10mm;padding:0 20mm;font-size:5pt;color:var(--text3);text-align:center;line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 — COVER -->
+<div class="pg">
+  <div class="cover-bg">
+    <div class="cover-grid"></div>
+    <div class="cover-orb"></div>
+    <div class="cover-hdr">
+      <div class="cover-logo">
+        <svg viewBox="0 0 24 24" width="22" fill="none"><polygon points="12,2 22,8 22,16 12,22 2,16 2,8" fill="#000" stroke="#4A90E2" stroke-width="1.5"/><polygon points="12,6 18,10 18,16 12,18 6,16 6,10" fill="#4A90E2" opacity="0.6"/></svg>
+      </div>
+      <div>
+        <div class="cover-brand">Cireta</div>
+        <div class="cover-brand-sub">RWA Tokenization Launchpad · Base L2</div>
+      </div>
+    </div>
+    <div class="cover-main">
+      <div class="cover-eyebrow">Technical Documentation</div>
+      <div class="cover-title">Platform<br>Technical<br><span>Reference</span></div>
+      <div class="cover-subtitle">Complete technical reference for the Cireta RWA Launchpad — architecture, API endpoints, smart contracts, database schema, deployment, and security model.</div>
+      <div class="cover-pills">
+        <span class="cover-pill">FastAPI · Python 3.11</span>
+        <span class="cover-pill">Next.js 16 · React 19</span>
+        <span class="cover-pill">ERC-3643 Tokens</span>
+        <span class="cover-pill">Base L2 · Chain ID 8453</span>
+        <span class="cover-pill">SQLAlchemy 2.0</span>
+        <span class="cover-pill">Redis · arq Workers</span>
+      </div>
+    </div>
+    <div class="cover-footer">
+      <div class="cover-footer-l"><strong style="color:#F2F2F2">Cireta RWA Launchpad</strong><br>api.cireta.com<br>tech@cireta.com</div>
+      <div class="cover-footer-r"><span class="cover-ver">v1.0 — March 2026</span><br><br>INTERNAL TECHNICAL REFERENCE<br>Confidential</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2 — TABLE OF CONTENTS -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Technical Reference</span><span class="ph-num">Page 2</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Navigation</div>
+    <div class="sec-title">Table of <span>Contents</span></div>
+    <div style="margin-top:4mm">
+      <div class="toc-group">Architecture &amp; Stack</div>
+      <div class="toc-item"><span class="toc-chapter">01</span><span class="toc-title">System Architecture</span><span class="toc-dots"></span><span class="toc-page">3</span></div>
+      <div class="toc-item"><span class="toc-chapter">02</span><span class="toc-title">Technology Stack</span><span class="toc-dots"></span><span class="toc-page">4</span></div>
+      <div class="toc-group">API Reference</div>
+      <div class="toc-item"><span class="toc-chapter">03</span><span class="toc-title">API Reference — Auth &amp; KYC</span><span class="toc-dots"></span><span class="toc-page">5</span></div>
+      <div class="toc-item"><span class="toc-chapter">04</span><span class="toc-title">API Reference — Tokens &amp; Sales</span><span class="toc-dots"></span><span class="toc-page">6</span></div>
+      <div class="toc-item"><span class="toc-chapter">05</span><span class="toc-title">API Reference — Portfolio &amp; Admin</span><span class="toc-dots"></span><span class="toc-page">7</span></div>
+      <div class="toc-item"><span class="toc-chapter">06</span><span class="toc-title">API Reference — Compliance &amp; Health</span><span class="toc-dots"></span><span class="toc-page">8</span></div>
+      <div class="toc-group">Smart Contracts</div>
+      <div class="toc-item"><span class="toc-chapter">07</span><span class="toc-title">Contract Architecture &amp; Addresses</span><span class="toc-dots"></span><span class="toc-page">9</span></div>
+      <div class="toc-item"><span class="toc-chapter">08</span><span class="toc-title">Contract Details &amp; Modules</span><span class="toc-dots"></span><span class="toc-page">10</span></div>
+      <div class="toc-group">Data &amp; Configuration</div>
+      <div class="toc-item"><span class="toc-chapter">09</span><span class="toc-title">Database Schema (Part 1)</span><span class="toc-dots"></span><span class="toc-page">11</span></div>
+      <div class="toc-item"><span class="toc-chapter">10</span><span class="toc-title">Database Schema (Part 2)</span><span class="toc-dots"></span><span class="toc-page">12</span></div>
+      <div class="toc-item"><span class="toc-chapter">11</span><span class="toc-title">Environment Variables</span><span class="toc-dots"></span><span class="toc-page">13</span></div>
+      <div class="toc-group">Operations</div>
+      <div class="toc-item"><span class="toc-chapter">12</span><span class="toc-title">Deployment &amp; Docker</span><span class="toc-dots"></span><span class="toc-page">14</span></div>
+      <div class="toc-item"><span class="toc-chapter">13</span><span class="toc-title">Security Model</span><span class="toc-dots"></span><span class="toc-page">15</span></div>
+      <div class="toc-item"><span class="toc-chapter">14</span><span class="toc-title">Background Workers</span><span class="toc-dots"></span><span class="toc-page">16</span></div>
+      <div class="toc-item"><span class="toc-chapter">15</span><span class="toc-title">Testing Strategy</span><span class="toc-dots"></span><span class="toc-page">17</span></div>
+      <div class="toc-item"><span class="toc-chapter">16</span><span class="toc-title">Troubleshooting Guide</span><span class="toc-dots"></span><span class="toc-page">18</span></div>
+    </div>
+    <div class="callout" style="margin-top:5mm">
+      <div class="callout-title">Admin Portal Screenshots</div>
+      <div class="callout-body">This document references the admin portal at admin.cireta.com — screenshots are included throughout to illustrate the management interface. The portal serves both issuer administrators and platform admins with role-scoped views.</div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>2</span></div>
+</div>
+
+<!-- PAGE 3 — SYSTEM ARCHITECTURE -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 01 — System Architecture</span><span class="ph-num">Page 3</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 01</div>
+    <div class="sec-title">System <span>Architecture</span></div>
+    <div class="sec-desc">Cireta is a monorepo on Base L2. Request flow: Client → Middleware Stack → FastAPI Router → Service Layer → Repository → Database.</div>
+    <div class="ascii">┌──────────────────────────────────────────────────────────────────────────────┐
+│                                   USERS                                      │
+│      Investors (Browser+Wallet)      Issuers (Admin)       Platform Admin     │
+└──────────┬─────────────────────────────┬──────────────────────┬──────────────┘
+           │                             │                      │
+           ▼                             ▼                      ▼
+  ┌────────────────┐          ┌─────────────────────┐  ┌───────────────────┐
+  │ Launchpad App  │          │    Admin Portal      │  │  Platform Routes  │
+  │ Next.js 16     │          │    Next.js 16        │  │  (same admin app) │
+  │ Port: 3000     │          │    Port: 3001        │  │                   │
+  │ RainbowKit     │          │    Token/Sale mgmt   │  │  Compliance mgmt  │
+  │ wagmi · TanQ   │          │    Issuer dashboard  │  │  User management  │
+  └───────┬────────┘          └──────────┬───────────┘  └────────┬──────────┘
+          │         REST API JSON        │                        │
+          └──────────────────────────────┴────────────────────────┘
+                                         │
+                                         ▼
+       ┌──────────────────────────────────────────────────────────────┐
+       │                  FastAPI Backend  :8000                       │
+       │   AuthService  KYCService  SaleService  Web3Service  ...     │
+       │  ┌───────────────────────────────────────────────────────┐   │
+       │  │        PostgreSQL 16  (SQLAlchemy 2.0 + Alembic)      │   │
+       │  └───────────────────────────────────────────────────────┘   │
+       │  Redis 7  (JWT blacklist · rate limits · session cache)       │
+       │  arq Worker  (email · KYC · screening · reconciliation)       │
+       └───────────────────────────────────────┬──────────────────────┘
+                                               │ JSON-RPC
+                                               ▼
+       ┌──────────────────────────────────────────────────────────────┐
+       │              Base L2  (Chain ID: 8453)                        │
+       │  CiretaTokenFactory · CiretaSaleFactory · FractionFactory     │
+       │  Per-token: ERC-3643 · IdentityRegistry · ModularCompliance   │
+       └──────────────────────────────────────────────────────────────┘</div>
+
+    <div class="cols2">
+      <div class="col">
+        <div class="card card-blue">
+          <div class="card-title">Monorepo Structure</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">cireta/<br>├── apps/api/          FastAPI backend<br>├── apps/launchpad/    Next.js investor<br>├── apps/admin/        Next.js admin<br>├── packages/common/   Shared Python lib<br>├── contracts/         Hardhat ERC-3643<br>├── infra/alembic/     DB migrations<br>├── tests/             pytest suites<br>└── docs/              Architecture docs</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card card-blue">
+          <div class="card-title">Design Principles</div>
+          <div class="card-body">
+            <ul class="bullets">
+              <li>Thin controllers — endpoints validate + delegate only</li>
+              <li>Service layer holds ALL business logic</li>
+              <li>Repository pattern — DB access abstracted</li>
+              <li>Dependency injection via FastAPI Depends()</li>
+              <li>EncryptedString/JSON for all PII at rest</li>
+              <li>300 LOC max per file / 150 per hook</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>3</span></div>
+</div>
+
+<!-- PAGE 4 — TECH STACK -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 02 — Technology Stack</span><span class="ph-num">Page 4</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 02</div>
+    <div class="sec-title">Technology <span>Stack</span></div>
+    <div class="sec-desc">Full stack breakdown across backend, frontend, blockchain, infrastructure, and tooling.</div>
+    <div class="stack-row"><div class="stack-layer">Backend</div><div class="stack-items"><span class="stack-item">FastAPI (Python 3.11+)</span><span class="stack-item">SQLAlchemy 2.0</span><span class="stack-item">Alembic</span><span class="stack-item">Pydantic v2</span><span class="stack-item">asyncpg</span><span class="stack-item">uvicorn</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Frontend</div><div class="stack-items"><span class="stack-item">Next.js 16 (App Router)</span><span class="stack-item">React 19</span><span class="stack-item">TypeScript strict</span><span class="stack-item">Tailwind CSS 4</span><span class="stack-item">TanStack Query</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Web3</div><div class="stack-items"><span class="stack-item">RainbowKit</span><span class="stack-item">wagmi</span><span class="stack-item">viem</span><span class="stack-item">web3.py</span><span class="stack-item">Hardhat</span><span class="stack-item">OpenZeppelin</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Identity</div><div class="stack-items"><span class="stack-item">Sumsub KYC/AML</span><span class="stack-item">ONCHAINID</span><span class="stack-item">Chainlink PoR Feeds</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Infra</div><div class="stack-items"><span class="stack-item">PostgreSQL 16</span><span class="stack-item">Redis 7</span><span class="stack-item">arq (async worker)</span><span class="stack-item">Docker</span><span class="stack-item">Railway</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Testing</div><div class="stack-items"><span class="stack-item">pytest</span><span class="stack-item">Vitest</span><span class="stack-item">Playwright E2E</span><span class="stack-item">Hardhat tests</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Storage</div><div class="stack-items"><span class="stack-item">IPFS via Pinata</span><span class="stack-item">PostgreSQL encrypted fields</span><span class="stack-item">Redis session cache</span></div></div>
+    <div class="stack-row"><div class="stack-layer">Comms</div><div class="stack-items"><span class="stack-item">Resend (transactional email)</span><span class="stack-item">arq job queue</span></div></div>
+    <div class="div div-blue"></div>
+    <div class="cols2">
+      <div class="col">
+        <div class="scr">
+          <div class="scr-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="scr-url">admin.cireta.com — Overview</span></div>
+          <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/11-admin-overview.png" alt="Admin overview" style="width:100%;display:block">
+        </div>
+      </div>
+      <div class="col">
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Frontend Conventions</div>
+          <div class="card-body">CSS variables only — no hardcoded colours. Atomic design: atoms → molecules → organisms → templates → pages. Atoms: forwardRef + extend HTML attrs. Never raw fetch() — all calls via lib/api/repositories/.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mandatory Security Headers</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;color:#7BB3F0;line-height:1.7">X-Content-Type-Options: nosniff<br>X-Frame-Options: DENY<br>X-XSS-Protection: 1; mode=block<br>Referrer-Policy: strict-origin<br>Content-Security-Policy: default-src 'self'<br>HSTS: max-age=31536000 (prod only)</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>4</span></div>
+</div>
+
+<!-- PAGE 5 — API AUTH & KYC -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 03 — API: Auth &amp; KYC</span><span class="ph-num">Page 5</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 03</div>
+    <div class="sec-title">API — <span>Auth &amp; KYC</span></div>
+    <div class="sec-desc">Base URL: <code style="font-family:var(--mono);color:var(--blue);font-size:6pt">https://api.cireta.com</code> &nbsp;·&nbsp; All responses: <code style="font-family:var(--mono);color:var(--blue);font-size:6pt">application/json</code> &nbsp;·&nbsp; Errors: <code style="font-family:var(--mono);color:#E74C3C;font-size:6pt">{"code":"ERROR_CODE","message":"..."}</code></div>
+    <h3 style="margin-bottom:2mm">Authentication</h3>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/auth/register</span><span class="ep-auth">public · 10/min</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/auth/login</span><span class="ep-auth">public · 5/min</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/auth/refresh</span><span class="ep-auth">bearer token</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/auth/logout</span><span class="ep-auth">bearer token</span></div>
+    <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/auth/me</span><span class="ep-auth">bearer token</span></div>
+    <div class="div div-blue"></div>
+    <h3 style="margin-bottom:2mm">KYC</h3>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/kyc/initiate</span><span class="ep-auth">bearer · kyc_level≥1</span></div>
+    <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/kyc/status</span><span class="ep-auth">bearer token</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/kyc/webhook</span><span class="ep-auth">HMAC-SHA256 verified · Sumsub only — NOT public</span></div>
+    <div class="div div-blue"></div>
+    <div class="cols2">
+      <div class="col">
+        <h3>JWT Strategy</h3>
+        <table class="tbl" style="margin-bottom:2mm">
+          <thead><tr><th>Token</th><th>TTL</th><th>Storage</th></tr></thead>
+          <tbody>
+            <tr><td>Access JWT</td><td>15 min</td><td>Memory / Authorization header</td></tr>
+            <tr><td>Refresh Token</td><td>7 days</td><td>httpOnly cookie</td></tr>
+            <tr><td>Blacklist</td><td>Until expiry</td><td>Redis hash set</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <div class="callout-title">Token Rotation</div>
+          <div class="callout-body">On every refresh: old token invalidated, new one issued. Old hash stored in Redis for remaining TTL to prevent replay attacks.</div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Sumsub Webhook Validation</h3>
+        <div class="code-block-with-hdr">
+          <div class="code-hdr"><span class="code-hdr-label">kyc/webhook.py — VALIDATE FIRST</span></div>
+          <div class="code-body">import hmac, hashlib
+
+def validate_sig(body: bytes,
+    sig: str, secret: str) -> bool:
+  exp = hmac.new(
+    secret.encode(), body,
+    hashlib.sha256).hexdigest()
+  return hmac.compare_digest(exp, sig)
+
+body = await request.body()
+sig  = request.headers["X-App-Token"]
+if not validate_sig(body,sig,SECRET):
+  raise HTTPException(401, ...)</div>
+        </div>
+        <div class="callout callout-warn">
+          <div class="callout-title">⚠ Critical Security Rule</div>
+          <div class="callout-body">HMAC validation MUST run BEFORE any processing. Return 401 if invalid. Never process webhook payload before signature check.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>5</span></div>
+</div>
+
+<!-- PAGE 6 — API TOKENS & SALES -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 04 — API: Tokens &amp; Sales</span><span class="ph-num">Page 6</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 04</div>
+    <div class="sec-title">API — <span>Tokens &amp; Sales</span></div>
+    <div class="cols2">
+      <div class="col">
+        <h3 style="margin-bottom:2mm">Token Endpoints</h3>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/tokens/</span><span class="ep-auth">public</span></div>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/tokens/{id}</span><span class="ep-auth">public</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/tokens/</span><span class="ep-auth">issuer role</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/tokens/{id}/deploy</span><span class="ep-auth">issuer role</span></div>
+        <div style="margin-top:3mm">
+          <div class="scr">
+            <div class="scr-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="scr-url">admin.cireta.com/tokens/new</span></div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/16-admin-token-new.png" alt="New token" style="width:100%;display:block;max-height:48mm;object-fit:cover;object-position:top">
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3 style="margin-bottom:2mm">Sale Endpoints</h3>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/sales/</span><span class="ep-auth">public</span></div>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/sales/{id}</span><span class="ep-auth">public</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/sales/</span><span class="ep-auth">issuer role</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/sales/{id}/contribute</span><span class="ep-auth">bearer · kyc≥2 · 20/min</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/sales/{id}/finalize</span><span class="ep-auth">issuer role</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/sales/{id}/claim</span><span class="ep-auth">bearer token</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/sales/{id}/refund</span><span class="ep-auth">bearer token</span></div>
+        <div style="margin-top:3mm">
+          <div class="scr">
+            <div class="scr-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="scr-url">admin.cireta.com/sales</span></div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/13-admin-sales.png" alt="Sales admin" style="width:100%;display:block;max-height:48mm;object-fit:cover;object-position:top">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="div div-blue"></div>
+    <div class="callout">
+      <div class="callout-title">Rate Limits</div>
+      <div class="callout-body">login: 5/min &nbsp;·&nbsp; register: 10/min &nbsp;·&nbsp; contribute: 20/min &nbsp;·&nbsp; default: 100/min. Redis sliding window. Exceeds return 429 with <code style="font-family:var(--mono);font-size:5pt">Retry-After</code> header.</div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>6</span></div>
+</div>
+
+<!-- PAGE 7 — API PORTFOLIO & ADMIN -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 05 — API: Portfolio &amp; Admin</span><span class="ph-num">Page 7</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 05</div>
+    <div class="sec-title">API — <span>Portfolio &amp; Admin</span></div>
+    <div class="cols2">
+      <div class="col">
+        <h3 style="margin-bottom:2mm">Portfolio Endpoints</h3>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/portfolio/holdings</span><span class="ep-auth">bearer token</span></div>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/portfolio/vesting</span><span class="ep-auth">bearer token</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/portfolio/vesting/{id}/claim</span><span class="ep-auth">bearer</span></div>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/portfolio/redemptions</span><span class="ep-auth">bearer token</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/portfolio/redemptions</span><span class="ep-auth">bearer · kyc≥2</span></div>
+        <div style="margin-top:3mm">
+          <div class="scr">
+            <div class="scr-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="scr-url">admin.cireta.com/investors</span></div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/15-admin-investors.png" alt="Investors" style="width:100%;display:block;max-height:45mm;object-fit:cover;object-position:top">
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <h3 style="margin-bottom:2mm">Admin Endpoints</h3>
+        <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/admin/issuers/</span><span class="ep-auth">platform_admin</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/issuers/</span><span class="ep-auth">platform_admin</span></div>
+        <div class="ep"><span class="badge badge-patch">PATCH</span><span class="ep-path">/api/v1/admin/issuers/{id}/fee</span><span class="ep-auth">platform_admin</span></div>
+        <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/issuers/{id}/revoke</span><span class="ep-auth">platform_admin</span></div>
+        <div style="margin-top:3mm">
+          <div class="scr">
+            <div class="scr-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="scr-url">admin.cireta.com/tokens</span></div>
+            <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/12-admin-tokens.png" alt="Tokens admin" style="width:100%;display:block;max-height:45mm;object-fit:cover;object-position:top">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="div div-blue"></div>
+    <div class="callout">
+      <div class="callout-title">Role Hierarchy</div>
+      <div class="callout-body"><strong style="color:#F2F2F2">investor</strong> — authenticated user with KYC &nbsp;·&nbsp; <strong style="color:#F2F2F2">issuer</strong> — approved entity managing own tokens/sales &nbsp;·&nbsp; <strong style="color:#F2F2F2">platform_admin</strong> — full access, manages issuers and compliance</div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>7</span></div>
+</div>
+
+<!-- PAGE 8 — API COMPLIANCE & HEALTH -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 06 — API: Compliance &amp; Health</span><span class="ph-num">Page 8</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 06</div>
+    <div class="sec-title">API — <span>Compliance &amp; Health</span></div>
+    <h3 style="margin-bottom:2mm">Compliance Endpoints</h3>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/compliance/freeze</span><span class="ep-auth">issuer | admin</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/compliance/unfreeze</span><span class="ep-auth">issuer | admin</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/compliance/forced-transfer</span><span class="ep-auth">issuer role</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/compliance/recover</span><span class="ep-auth">issuer role</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/compliance/pause/{token_id}</span><span class="ep-auth">issuer role</span></div>
+    <div class="ep"><span class="badge badge-post">POST</span><span class="ep-path">/api/v1/admin/compliance/unpause/{token_id}</span><span class="ep-auth">issuer role</span></div>
+    <div class="div div-blue"></div>
+    <h3 style="margin-bottom:2mm">Health Endpoints</h3>
+    <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/health/live</span><span class="ep-auth">public — liveness probe</span></div>
+    <div class="ep"><span class="badge badge-get">GET</span><span class="ep-path">/api/v1/health/ready</span><span class="ep-auth">public — readiness probe (checks DB + Redis)</span></div>
+    <div class="div div-blue"></div>
+    <div class="cols2">
+      <div class="col">
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Audit Log Guarantee</div>
+          <div class="card-body">Every compliance action writes an immutable row to <code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">audit_logs</code>. Table is append-only — no UPDATE or DELETE ever issued. Fields: actor_id, action, target_type, target_id, payload JSON, ip_address, created_at.</div>
+        </div>
+        <div class="scr">
+          <div class="scr-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="scr-url">admin.cireta.com/compliance</span></div>
+          <img src="file:///Users/zephyroc/projects/cireta/docs/screenshots/14-admin-compliance.png" alt="Compliance" style="width:100%;display:block;max-height:40mm;object-fit:cover;object-position:top">
+        </div>
+      </div>
+      <div class="col">
+        <h3>Standard Error Format</h3>
+        <div class="code-block">{
+  "code": "ERROR_CODE",
+  "message": "Human readable text",
+  "detail": {}  // optional
+}
+
+// 400 — validation error
+// 401 — not authenticated
+// 403 — insufficient role/kyc
+// 404 — resource not found
+// 422 — Pydantic validation fail
+// 429 — rate limit exceeded
+// 500 — internal server error</div>
+        <div class="callout callout-warn">
+          <div class="callout-title">Never expose stack traces</div>
+          <div class="callout-body">500 errors return generic message only. Full traceback written to structured logs. Sentry captures unhandled exceptions in production.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>8</span></div>
+</div>
+
+<!-- PAGE 9 — CONTRACT ARCHITECTURE -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 07 — Smart Contracts</span><span class="ph-num">Page 9</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 07</div>
+    <div class="sec-title">Smart Contract <span>Architecture</span></div>
+    <div class="sec-desc">Base Mainnet (Chain ID: 8453). Platform contracts deployed once; per-token contracts deployed via factory. All upgradeable via OpenZeppelin UUPS proxy.</div>
+    <h3 style="margin-bottom:2mm">Platform Contracts (Deployed Once)</h3>
+    <div class="contract-box">
+      <div class="contract-name">CiretaTokenFactory</div>
+      <code class="contract-addr">Deploys ERC-3643 compliant security tokens with IdentityRegistry + ModularCompliance</code>
+      <div class="contract-desc">Issuer entry point for all token deployment. Each deployment creates: CiretaToken (ERC-3643), IdentityRegistry, ModularCompliance.</div>
+    </div>
+    <div class="contract-box">
+      <div class="contract-name">CiretaSaleFactory</div>
+      <code class="contract-addr">0xe4a06Eaa949D12B173B0bA5f7CaABe473b4e8b5F</code>
+      <div class="contract-desc">Deploys Sale contracts for each token sale. Manages USDC contributions, finalization, claim, and refund logic on-chain.</div>
+    </div>
+    <div class="contract-box">
+      <div class="contract-name">FractionFactory</div>
+      <code class="contract-addr">0x224fa1965b5B8C1428eD5D92E6d04CF5967aE9ac</code>
+      <div class="contract-desc">Deploys VaultImpl + FractionTokenImpl for vested sale mechanics. Manages vesting schedules and tranche releases on-chain.</div>
+    </div>
+    <div class="contract-box">
+      <div class="contract-name">PlatformFeeManager</div>
+      <code class="contract-addr">0x545Ce9dc34E3086B505D9fd8DB443906E2c796f6</code>
+      <div class="contract-desc">Collects and distributes platform fees from sales. Fee receiver: <code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">0xBE84C7a8f44F673173d51C0A212C9C66267066A0</code>. Default fee: 200 bps (2%).</div>
+    </div>
+    <div class="callout">
+      <div class="callout-title">Deployer Wallet</div>
+      <div class="callout-body">Contract deployment uses the key at <code style="font-family:var(--mono);font-size:5pt">~/.ferron/x402-server-wallet.json</code>. Must have ETH on Base Mainnet for gas. Keep this key in hardware storage — it controls all UUPS upgrade operations.</div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>9</span></div>
+</div>
+
+<!-- PAGE 10 — CONTRACT DETAILS -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 08 — Contract Details &amp; Modules</span><span class="ph-num">Page 10</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 08</div>
+    <div class="sec-title">Contract Details &amp; <span>Modules</span></div>
+    <div class="cols2">
+      <div class="col">
+        <h3>Per-Token Contracts (via Factory)</h3>
+        <table class="tbl" style="margin-bottom:3mm">
+          <thead><tr><th>Contract</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">CiretaToken</code></td><td>ERC-3643 security token with transfer hooks</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">IdentityRegistry</code></td><td>KYC-approved wallet whitelist on-chain</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">ModularCompliance</code></td><td>Pluggable compliance rule enforcement</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">Sale</code></td><td>USDC contributions + finalize/claim/refund</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">VestingVault</code></td><td>Time-locked token release schedules</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">RedemptionManager</code></td><td>Token burn + USDC settlement</td></tr>
+          </tbody>
+        </table>
+        <h3>Compliance Modules</h3>
+        <table class="tbl">
+          <thead><tr><th>Module</th><th>Rule</th></tr></thead>
+          <tbody>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">CountryAllowModule</code></td><td>Restrict by investor country code</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">MaxOwnershipModule</code></td><td>Cap max % ownership per investor</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">MaxHolderCountModule</code></td><td>Limit total holder count</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">ConditionalTransferModule</code></td><td>Require approval for transfers</td></tr>
+            <tr><td><code style="font-family:var(--mono);color:#7BB3F0;font-size:5pt">TimeTransfersLimitModule</code></td><td>Throttle transfer frequency</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <h3>ONCHAINID Integration</h3>
+        <p>Each KYC-approved investor gets an on-chain identity via ONCHAINID. Claims issued by Cireta's trusted issuer key, stored on identity contract.</p>
+        <div class="code-block" style="font-size:5pt;margin-bottom:2mm">// Claim Topics
+CLAIM_KYC_APPROVED = 1
+CLAIM_COUNTRY_CODE = 7
+CLAIM_AML_CLEARED  = 3
+
+// Web3Service.issue_claim()
+identity.addClaim(
+  topic, scheme, issuer,
+  signature, data, uri
+)</div>
+        <div class="callout" style="margin-bottom:2mm">
+          <div class="callout-title">Transfer Validation Flow</div>
+          <div class="callout-body">1. Sender calls <code style="font-family:var(--mono);font-size:5pt">token.transfer(to, amt)</code><br>2. Hook calls <code style="font-family:var(--mono);font-size:5pt">compliance.canTransfer(from,to,amt)</code><br>3. Each compliance module checked in sequence<br>4. Identity registry validates KYC claims for both addresses<br>5. Transfer executes or reverts with reason</div>
+        </div>
+        <div class="callout callout-ok">
+          <div class="callout-title">Upgradeability</div>
+          <div class="callout-body">All platform contracts use OpenZeppelin UUPS proxy. Upgrades require the deployer wallet with a 48-hour timelock enforced on-chain.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>10</span></div>
+</div>
+
+<!-- PAGE 11 — DB SCHEMA PART 1 -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 09 — Database Schema (Part 1)</span><span class="ph-num">Page 11</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 09</div>
+    <div class="sec-title">Database Schema <span>Part 1</span></div>
+    <div class="sec-desc">PostgreSQL 16 · SQLAlchemy 2.0 mapped_column syntax · Alembic migrations · PII fields marked <span class="badge badge-warn">ENC</span></div>
+    <div class="cols2">
+      <div class="col">
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">users</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id          UUID PK<br>email       str unique indexed<br>hashed_pwd  str<br>role        enum(investor|issuer|admin)<br>kyc_status  enum(none|pending|approved|rejected)<br>kyc_level   int default 0<br>onchain_id  str nullable<br>sumsub_id   <span style="color:#FFD06A">EncryptedString</span> nullable<br>created_at  datetime<br>updated_at  datetime</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">kyc_applications</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id              UUID PK<br>user_id         UUID FK → users<br>sumsub_review   <span style="color:#FFD06A">EncryptedString</span><br>result_payload  <span style="color:#FFD06A">EncryptedJSON</span><br>status          str<br>submitted_at    datetime<br>reviewed_at     datetime nullable</div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-title">wallets</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id               UUID PK<br>user_id          UUID FK → users<br>address          <span style="color:#FFD06A">EncryptedString</span><br>address_checksum str indexed <span style="color:#555">← EIP-55</span><br>chain_id         int (8453 = Base)<br>is_primary       bool<br>created_at       datetime</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">issuers</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id                UUID PK<br>user_id           UUID FK → users<br>name              str<br>slug              str unique<br>wallet_address    <span style="color:#FFD06A">EncryptedString</span><br>fee_bps           int default 200<br>status            enum(pending|active|suspended)<br>legal_entity_name str<br>jurisdiction      str<br>created_at        datetime</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">tokens</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id                UUID PK<br>issuer_id         UUID FK → issuers<br>name / symbol     str<br>asset_type        enum(commodity|futures)<br>contract_address  str nullable<br>chain_id          int default 8453<br>total_supply      Numeric<br>decimals          int default 18<br>ipfs_docs_hash    str nullable<br>chainlink_por     str nullable<br>is_paused         bool default false<br>created_at        datetime</div>
+        </div>
+        <div class="callout">
+          <div class="callout-title">PII Encryption</div>
+          <div class="callout-body"><span style="color:#FFD06A;font-family:var(--mono);font-size:5pt">EncryptedString</span> / <span style="color:#FFD06A;font-family:var(--mono);font-size:5pt">EncryptedJSON</span> fields are AES-256 (Fernet) encrypted at ORM layer before write. Requires valid ENCRYPTION_KEY env var.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>11</span></div>
+</div>
+
+<!-- PAGE 12 — DB SCHEMA PART 2 -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 10 — Database Schema (Part 2)</span><span class="ph-num">Page 12</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 10</div>
+    <div class="sec-title">Database Schema <span>Part 2</span></div>
+    <div class="cols2">
+      <div class="col">
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">token_sales</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id            UUID PK<br>token_id      UUID FK → tokens<br>issuer_id     UUID FK → issuers<br>payment_token str (USDC address)<br>soft_cap      Numeric<br>hard_cap      Numeric<br>status        enum(draft|active|paused|<br>              finalized|failed)<br>total_raised  Numeric default 0<br>created_at    datetime</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">sale_phases</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id               UUID PK<br>sale_id          UUID FK → token_sales<br>phase_number     int<br>name             str<br>price_per_token  Numeric<br>allocation       Numeric<br>min_contribution Numeric<br>max_contribution Numeric<br>start_time       datetime<br>end_time         datetime<br>whitelist_only   bool default false<br>created_at       datetime</div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-title">contributions</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id               UUID PK<br>user_id          UUID FK → users<br>sale_id          UUID FK → token_sales<br>phase_id         UUID FK → sale_phases<br>amount           Numeric<br>tokens_allocated Numeric<br>tx_hash          str unique<br>status           enum(pending|confirmed|<br>                 claimed|refunded)<br>claimed_at       datetime nullable<br>created_at       datetime</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">vesting_schedules</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id              UUID PK<br>token_id        UUID FK → tokens<br>user_id         UUID FK → users<br>total_amount    Numeric<br>claimed_amount  Numeric default 0<br>cliff_end       datetime<br>vesting_end     datetime<br>last_claim_at   datetime nullable<br>created_at      datetime</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">redemption_requests</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id               UUID PK<br>token_id         UUID FK → tokens<br>user_id          UUID FK → users<br>amount           Numeric<br>fulfillment      enum(physical|cash)<br>status           enum(pending|processing|<br>                 fulfilled|cancelled)<br>tx_hash          str<br>fulfilled_at     datetime nullable<br>notes            str nullable<br>created_at       datetime</div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-title">audit_logs — APPEND ONLY</div>
+          <div class="card-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#7BB3F0">id          UUID PK<br>actor_id    UUID FK → users<br>action      str<br>target_type str<br>target_id   str<br>payload     JSON<br>ip_address  str<br>created_at  datetime<br><span style="color:#E74C3C">-- NEVER UPDATE OR DELETE ROWS</span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>12</span></div>
+</div>
+
+<!-- PAGE 13 — ENV VARS -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 11 — Environment Variables</span><span class="ph-num">Page 13</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 11</div>
+    <div class="sec-title">Environment <span>Variables</span></div>
+    <div class="sec-desc">All config via the <code style="font-family:var(--mono);font-size:6pt;color:var(--blue)">Settings</code> class (Pydantic BaseSettings). Never hardcode secrets in source.</div>
+    <div class="cols2">
+      <div class="col">
+        <h4 style="margin-bottom:1.5mm">Core Application</h4>
+        <div class="env-row"><span class="env-key">ENVIRONMENT</span><span class="env-val">development | staging | production</span></div>
+        <div class="env-row"><span class="env-key">DATABASE_URL</span><span class="env-val">postgresql+asyncpg://user:pass@host/db</span></div>
+        <div class="env-row"><span class="env-key">REDIS_URL</span><span class="env-val">redis://localhost:6379/0</span></div>
+        <div class="env-row"><span class="env-key">CORS_ORIGINS</span><span class="env-val">https://launchpad.cireta.com,https://admin.cireta.com</span></div>
+        <h4 style="margin-top:3mm;margin-bottom:1.5mm">Security &amp; Auth</h4>
+        <div class="env-row"><span class="env-key">JWT_SECRET_KEY</span><span class="env-val">32+ char random (secrets.token_hex(32))</span></div>
+        <div class="env-row"><span class="env-key">ENCRYPTION_KEY</span><span class="env-val">Fernet key (Fernet.generate_key())</span></div>
+        <h4 style="margin-top:3mm;margin-bottom:1.5mm">KYC / Sumsub</h4>
+        <div class="env-row"><span class="env-key">SUMSUB_SECRET_KEY</span><span class="env-val">Sumsub dashboard → Apps → Secret</span></div>
+        <div class="env-row"><span class="env-key">SUMSUB_APP_TOKEN</span><span class="env-val">Sumsub dashboard → Apps → App token</span></div>
+        <h4 style="margin-top:3mm;margin-bottom:1.5mm">Blockchain</h4>
+        <div class="env-row"><span class="env-key">WEB3_RPC_URL</span><span class="env-val">https://mainnet.base.org (or Alchemy)</span></div>
+        <div class="env-row"><span class="env-key">DEPLOYER_PRIVATE_KEY</span><span class="env-val">~/.ferron/x402-server-wallet.json</span></div>
+        <div class="env-row"><span class="env-key">TOKEN_FACTORY_ADDRESS</span><span class="env-val">Deployed factory contract address</span></div>
+        <div class="env-row"><span class="env-key">CHAIN_ID</span><span class="env-val">8453 (Mainnet) | 84532 (Sepolia)</span></div>
+        <div class="env-row"><span class="env-key">PLATFORM_FEE_RECEIVER</span><span class="env-val">0xBE84C7a8f44F673173d51C0A212C9C66267066A0</span></div>
+        <h4 style="margin-top:3mm;margin-bottom:1.5mm">Third-Party Services</h4>
+        <div class="env-row"><span class="env-key">PINATA_API_KEY</span><span class="env-val">IPFS pinning for legal documents</span></div>
+        <div class="env-row"><span class="env-key">RESEND_API_KEY</span><span class="env-val">Transactional email</span></div>
+      </div>
+      <div class="col">
+        <div class="callout" style="margin-bottom:3mm">
+          <div class="callout-title">Secret Generation</div>
+          <div class="callout-body" style="font-family:var(--mono);font-size:5pt;line-height:1.8;color:#A8D8A8"># JWT secret
+python -c "import secrets; \
+  print(secrets.token_hex(32))"
+
+# Fernet encryption key
+python -c "from cryptography.fernet \
+  import Fernet; \
+  print(Fernet.generate_key().decode())"</div>
+        </div>
+        <div class="callout callout-warn" style="margin-bottom:3mm">
+          <div class="callout-title">⚠ Production Secrets</div>
+          <div class="callout-body">Never commit .env files. Use Railway secret injection. Rotating ENCRYPTION_KEY requires a full re-encryption migration — not a simple swap. Back up old key before rotating.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Env File Hierarchy</div>
+          <div class="card-body">
+            <code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">.env</code> — local dev (gitignored)<br><br>
+            <code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">.env.test</code> — CI/test overrides<br><br>
+            Railway Dashboard → Environment Variables for staging and production<br><br>
+            Never commit <code style="font-family:var(--mono);font-size:5pt;color:#E74C3C">.env.production</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>13</span></div>
+</div>
+
+<!-- PAGE 14 — DEPLOYMENT -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 12 — Deployment &amp; Docker</span><span class="ph-num">Page 14</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 12</div>
+    <div class="sec-title">Deployment &amp; <span>Docker</span></div>
+    <div class="sec-desc">Multi-stage Docker builds. Deployed to Railway. All Dockerfiles at repo root. Non-root appuser in runner stage.</div>
+    <div class="cols2">
+      <div class="col">
+        <h3>Dockerfile Pattern</h3>
+        <div class="code-block" style="font-size:4.8pt;line-height:1.7">## Dockerfile.api (multi-stage)
+FROM python:3.11-slim AS deps
+WORKDIR /app
+COPY pyproject.toml poetry.lock ./
+RUN pip install poetry && \
+    poetry install --no-root --no-dev
+
+FROM deps AS builder
+COPY . .
+RUN poetry install --no-dev
+
+FROM python:3.11-slim AS runner
+RUN useradd -m appuser
+WORKDIR /app
+COPY --from=builder /app .
+USER appuser
+EXPOSE 8000
+CMD ["uvicorn","apps.api.main:app",\
+     "--host","0.0.0.0","--port","8000"]</div>
+        <h3 style="margin-top:2mm">Services</h3>
+        <table class="tbl">
+          <thead><tr><th>Dockerfile</th><th>Service</th><th>Domain</th></tr></thead>
+          <tbody>
+            <tr><td><code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">Dockerfile.api</code></td><td>FastAPI</td><td>api.cireta.com</td></tr>
+            <tr><td><code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">Dockerfile.launchpad</code></td><td>Investor app</td><td>launchpad.cireta.com</td></tr>
+            <tr><td><code style="font-family:var(--mono);font-size:5pt;color:#7BB3F0">Dockerfile.admin</code></td><td>Admin app</td><td>admin.cireta.com</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <h3>Audit Protocol (run after every step)</h3>
+        <div class="code-block" style="font-size:4.8pt;line-height:1.7">poetry run ruff check .
+python -c "from apps.api.main import app"
+poetry run pytest tests/ -x -q
+
+cd apps/launchpad && npx tsc --noEmit
+cd apps/admin && npx tsc --noEmit
+cd contracts && npx hardhat test
+
+docker build -f Dockerfile.api . \
+  --no-cache
+docker build -f Dockerfile.launchpad . \
+  --no-cache</div>
+        <div class="callout callout-warn" style="margin-top:2mm">
+          <div class="callout-title">⚠ Migrations</div>
+          <div class="callout-body">Always run <code style="font-family:var(--mono);font-size:5pt">alembic upgrade head</code> before starting the API in production. Never use <code style="font-family:var(--mono);font-size:5pt">create_all()</code> — migrations only.</div>
+        </div>
+        <div class="callout callout-ok" style="margin-top:2mm">
+          <div class="callout-title">BUILD_LOG.md Protocol</div>
+          <div class="callout-body">After every build step, append to <code style="font-family:var(--mono);font-size:5pt">docs/BUILD_LOG.md</code>: step name, files changed, audit results (pytest/ruff/tsc/docker), decisions/issues.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>14</span></div>
+</div>
+
+<!-- PAGE 15 — SECURITY MODEL -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 13 — Security Model</span><span class="ph-num">Page 15</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 13</div>
+    <div class="sec-title">Security <span>Model</span></div>
+    <div class="sec-desc">Security enforced at every layer: middleware headers, rate limits, data encryption, HMAC webhook validation, and on-chain compliance rules.</div>
+    <div class="cols2">
+      <div class="col">
+        <h3>Middleware Stack (global)</h3>
+        <table class="tbl" style="margin-bottom:3mm">
+          <thead><tr><th>Middleware</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>SecurityHeadersMiddleware</td><td>OWASP headers on every response</td></tr>
+            <tr><td>RateLimitMiddleware</td><td>Redis-backed sliding window</td></tr>
+            <tr><td>CORSMiddleware</td><td>Restrict to allowed origins</td></tr>
+            <tr><td>RequestLoggingMiddleware</td><td>Structured request/response logs</td></tr>
+            <tr><td>JWTAuthMiddleware</td><td>Token validation + blacklist check</td></tr>
+          </tbody>
+        </table>
+        <h3>Encrypted PII Fields</h3>
+        <table class="tbl">
+          <thead><tr><th>Table.Column</th><th>Type</th></tr></thead>
+          <tbody>
+            <tr><td>users.sumsub_applicant_id</td><td><span class="badge badge-warn">EncStr</span></td></tr>
+            <tr><td>wallets.address</td><td><span class="badge badge-warn">EncStr</span></td></tr>
+            <tr><td>issuers.wallet_address</td><td><span class="badge badge-warn">EncStr</span></td></tr>
+            <tr><td>kyc_applications.sumsub_review_id</td><td><span class="badge badge-warn">EncStr</span></td></tr>
+            <tr><td>kyc_applications.result_payload</td><td><span class="badge badge-warn">EncJSON</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <h3>Rate Limits</h3>
+        <table class="tbl" style="margin-bottom:3mm">
+          <thead><tr><th>Route Pattern</th><th>Limit</th></tr></thead>
+          <tbody>
+            <tr><td>/auth/login</td><td>5/min per IP</td></tr>
+            <tr><td>/auth/register</td><td>10/min per IP</td></tr>
+            <tr><td>/sales/*/contribute</td><td>20/min per user</td></tr>
+            <tr><td>All other routes</td><td>100/min per IP</td></tr>
+          </tbody>
+        </table>
+        <h3>Wallet Address Rules</h3>
+        <div class="callout" style="margin-bottom:2mm">
+          <div class="callout-title">Checksum Enforcement (EIP-55)</div>
+          <div class="callout-body">Addresses stored checksummed in <code style="font-family:var(--mono);font-size:5pt">address_checksum</code> for indexed lookups. Raw address stored encrypted. Always return checksummed on read.</div>
+        </div>
+        <h3>HSTS Policy</h3>
+        <div class="callout callout-warn">
+          <div class="callout-title">Production Only</div>
+          <div class="callout-body"><code style="font-family:var(--mono);font-size:5pt">Strict-Transport-Security: max-age=31536000; includeSubDomains</code> emitted only when <code style="font-family:var(--mono);font-size:5pt">ENVIRONMENT=production</code>. Dev skips HSTS to allow HTTP.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>15</span></div>
+</div>
+
+<!-- PAGE 16 — BACKGROUND WORKERS -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 14 — Background Workers</span><span class="ph-num">Page 16</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 14</div>
+    <div class="sec-title">Background <span>Workers</span></div>
+    <div class="sec-desc">Two background processes alongside the API: arq job queue for async tasks and an event listener for on-chain sync (every ~12s).</div>
+    <div class="cols2">
+      <div class="col">
+        <h3>arq Worker Jobs</h3>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Email Notifications</div>
+          <div class="card-body">Triggered by: KYC status change, sale finalization, dividend declaration, vesting tranche ready, redemption status change. Uses Resend API with HTML templates.</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">KYC Processing</div>
+          <div class="card-body">After Sumsub webhook: validate HMAC → parse result → update kyc_status + kyc_level → issue ONCHAINID claims → write audit_log → queue email.</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">AML Screening</div>
+          <div class="card-body">Periodic re-screening of existing investors against updated sanctions lists. Triggers compliance freeze on new hits. Every run writes audit_log.</div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-title">Reconciliation</div>
+          <div class="card-body">Reconciles on-chain token balances with DB holdings. Flags discrepancies for review. Also reconciles pending contributions against confirmed tx hashes.</div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Event Listener (Chain Sync)</h3>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Block Polling — 12s interval</div>
+          <div class="card-body">Listens for Base events every ~12s. Events tracked: Transfer, TokensClaimed, SaleFinalized, VestingClaimed, RedemptionFulfilled. Updates DB state accordingly.</div>
+        </div>
+        <h3 style="margin-top:2mm">Worker Config</h3>
+        <div class="code-block" style="font-size:4.8pt;line-height:1.7">## apps/api/worker.py
+from arq import create_pool
+from arq.connections import RedisSettings
+
+class WorkerSettings:
+  functions = [
+    send_email_notification,
+    process_kyc_result,
+    run_aml_screening,
+    reconcile_balances,
+  ]
+  redis_settings = RedisSettings(
+    host=settings.redis_host
+  )
+  max_jobs = 10
+  job_timeout = 300  # 5 minutes</div>
+        <div class="callout callout-ok">
+          <div class="callout-title">Worker Deployment</div>
+          <div class="callout-body">Separate Railway service using same Docker image. CMD: <code style="font-family:var(--mono);font-size:5pt">arq apps.api.worker.WorkerSettings</code>. Shares PostgreSQL + Redis with the API.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>16</span></div>
+</div>
+
+<!-- PAGE 17 — TESTING -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 15 — Testing Strategy</span><span class="ph-num">Page 17</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 15</div>
+    <div class="sec-title">Testing <span>Strategy</span></div>
+    <div class="sec-desc">Three-tier pyramid: unit tests for services, integration tests against real test DB, E2E via Playwright (85 tests).</div>
+    <div class="cols2">
+      <div class="col">
+        <h3>Backend (pytest)</h3>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Unit Tests — tests/unit/</div>
+          <div class="card-body">Every service method in isolation. External deps (Sumsub, Web3) mocked via pytest-mock. ComplianceMock for compliance logic. Target: 100% service coverage.</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Integration Tests — tests/integration/</div>
+          <div class="card-body">FastAPI TestClient + real PostgreSQL. Full request → service → DB round-trip. No DB mocks — real migrations applied. Sumsub/Web3 still mocked.</div>
+        </div>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">E2E Tests — tests/e2e/</div>
+          <div class="card-body">Playwright. 85 tests covering full investor journey: register → KYC → wallet → contribute → claim → portfolio → redemption.</div>
+        </div>
+        <div class="code-block" style="font-size:5pt;line-height:1.6">pytest tests/unit/ -q
+pytest tests/integration/ -q
+pytest tests/e2e/ -q --headed</div>
+      </div>
+      <div class="col">
+        <h3>Contract Tests (Hardhat)</h3>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Hardhat Test Suite</div>
+          <div class="card-body">TypeScript tests. Deploy factory → token → run transfer/compliance scenarios → test vesting → test sale flow. Uses Hardhat Network (local Base fork).</div>
+        </div>
+        <div class="code-block" style="font-size:5pt;line-height:1.6;margin-bottom:3mm">cd contracts
+npx hardhat test
+npx hardhat coverage</div>
+        <h3>Frontend (Vitest)</h3>
+        <div class="card card-blue" style="margin-bottom:2mm">
+          <div class="card-title">Component Tests</div>
+          <div class="card-body">Vitest + React Testing Library for all atoms/molecules. Mock API repositories. Assert render, a11y, and event handling.</div>
+        </div>
+        <div class="code-block" style="font-size:5pt;line-height:1.6;margin-bottom:2mm">cd apps/launchpad && npx vitest run
+cd apps/admin && npx vitest run</div>
+        <div class="callout callout-warn">
+          <div class="callout-title">⚠ CI Requirement</div>
+          <div class="callout-body">All 3 tiers must pass before merging to main. Results documented in BUILD_LOG.md. Failing test = blocked merge.</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>17</span></div>
+</div>
+
+<!-- PAGE 18 — TROUBLESHOOTING -->
+<div class="pg">
+  <div class="ph"><span class="ph-brand">CIRETA</span><span class="ph-title">Chapter 16 — Troubleshooting</span><span class="ph-num">Page 18</span></div>
+  <div class="ca"><div class="cai">
+    <div class="eyebrow">Chapter 16</div>
+    <div class="sec-title"><span>Troubleshooting</span> Guide</div>
+    <div class="sec-desc">Common issues and resolutions. Start with: <code style="font-family:var(--mono);font-size:6pt;color:var(--blue)">railway logs --tail 100</code></div>
+    <div class="cols2">
+      <div class="col">
+        <h3>API Issues</h3>
+        <table class="tbl" style="margin-bottom:3mm">
+          <thead><tr><th>Symptom</th><th>Cause &amp; Fix</th></tr></thead>
+          <tbody>
+            <tr><td>500 on startup</td><td>Missing env var — check Settings validation errors in logs</td></tr>
+            <tr><td>DB connection refused</td><td>Wrong DATABASE_URL — verify asyncpg:// format</td></tr>
+            <tr><td>KYC webhook 401</td><td>Bad HMAC — verify SUMSUB_SECRET_KEY matches dashboard</td></tr>
+            <tr><td>Token deploy fails</td><td>No ETH — top up deployer wallet on Base Mainnet</td></tr>
+            <tr><td>429 in tests</td><td>Redis not cleared — run redis-cli FLUSHDB between runs</td></tr>
+            <tr><td>JWT expired instantly</td><td>Clock skew — sync server time via NTP</td></tr>
+          </tbody>
+        </table>
+        <h3>Contract Issues</h3>
+        <table class="tbl">
+          <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr><td>Transfer reverts silently</td><td>Check IdentityRegistry — investor wallet may not be whitelisted</td></tr>
+            <tr><td>Claim fails post-finalize</td><td>Verify sale is finalized on-chain (not just DB)</td></tr>
+            <tr><td>UUPS upgrade fails</td><td>Caller must be contract owner — verify deployer wallet</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <h3>Common Commands</h3>
+        <div class="code-block" style="font-size:4.6pt;line-height:1.7">## DB migrations
+alembic current
+alembic history --verbose
+alembic upgrade head
+
+## Redis inspection
+redis-cli keys "*"
+redis-cli ttl "jwt:blacklist:TOKEN"
+redis-cli FLUSHDB  # test env only!
+
+## Reset test DB
+dropdb cireta_test && createdb cireta_test
+alembic upgrade head
+
+## Contract state check
+cd contracts
+npx hardhat run scripts/check-status.ts \
+  --network base
+
+## Logs
+railway logs --tail 50
+railway logs --service api --tail 100
+
+## Docker build validation
+docker build -f Dockerfile.api . \
+  --no-cache 2>&1 | tail -20</div>
+        <div class="callout" style="margin-top:2mm">
+          <div class="callout-title">Structured Logs</div>
+          <div class="callout-body">All logs are structured JSON with: timestamp, level, service, request_id, user_id, endpoint, status_code, duration_ms. Filter with: <code style="font-family:var(--mono);font-size:5pt">railway logs | jq 'select(.level=="ERROR")'</code></div>
+        </div>
+        <div class="callout callout-ok" style="margin-top:2mm">
+          <div class="callout-title">Support</div>
+          <div class="callout-body"><strong style="color:#F2F2F2">tech@cireta.com</strong> — infrastructure &nbsp;·&nbsp; <strong style="color:#F2F2F2">security@cireta.com</strong> — incidents &nbsp;·&nbsp; GitHub Issues — tracked bugs</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="pf"><span>Cireta RWA Launchpad</span><span>© 2026 Cireta. All rights reserved.</span><span>18</span></div>
+</div>
+
+<!-- PAGE 19 — BACK COVER -->
+<div class="pg" style="page-break-after:auto">
+  <div class="back-cover">
+    <div class="back-grid"></div>
+    <div class="back-orb"></div>
+    <div class="back-content">
+      <div class="back-mark">
+        <svg viewBox="0 0 24 24" width="40" fill="none"><polygon points="12,2 22,8 22,16 12,22 2,16 2,8" fill="#000" stroke="#000" stroke-width="1"/><polygon points="12,5 19,9.5 19,16 12,20 5,16 5,9.5" fill="#000" opacity="0.8"/></svg>
+      </div>
+      <div class="back-name">Cireta<span>.</span></div>
+      <div class="back-tagline">Real World Asset Tokenization Launchpad — Technical Reference v1.0</div>
+      <div class="back-div"></div>
+      <div class="back-url">api.cireta.com</div>
+      <div class="back-email">tech@cireta.com · security@cireta.com</div>
+      <div class="back-legal">This document is a confidential internal technical reference for authorised Cireta development team members and approved partners. Redistribution without explicit written permission from Cireta is prohibited. Contract addresses listed herein are for reference only — always verify against the official deployment registry before use. © 2026 Cireta. All rights reserved.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
