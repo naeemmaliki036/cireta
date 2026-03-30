@@ -7,7 +7,7 @@ const SumsubWebSdk = dynamic(() => import("@sumsub/websdk-react"), { ssr: false 
 import { Shield, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button, Spinner } from "@/components/atoms";
 import { initiateKYC, getKYCStatus } from "@/lib/api/repositories/kyc.repository";
-import { getAccessToken } from "@/lib/api/client";
+// Auth handled by httpOnly cookie via proxy
 
 type VerificationState = "loading" | "ready" | "processing" | "approved" | "error";
 
@@ -21,31 +21,20 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch SDK token on mount
+  // Fetch SDK token on mount (auth handled by httpOnly cookie via proxy)
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      setError("Please log in first");
-      setState("error");
-      return;
-    }
-
     (async () => {
       try {
-        // Check existing status first
-        const status = await getKYCStatus(token);
+        const status = await getKYCStatus("");
         if (status.status === "approved") {
           setState("approved");
           return;
         }
-
-        // Initiate and get SDK token
-        const result = await initiateKYC(token);
+        const result = await initiateKYC("");
         setAccessToken(result.access_token);
         setState("ready");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to start verification";
-        // If already pending, show processing
         if (msg.includes("pending") || msg.includes("APPLICATION_PENDING")) {
           setState("processing");
         } else if (msg.includes("ALREADY_VERIFIED")) {
@@ -67,13 +56,11 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         setState("processing");
         // Poll for final status after a short delay
         setTimeout(async () => {
-          const token = getAccessToken();
-          if (!token) return;
           try {
-            const status = await getKYCStatus(token);
+            const status = await getKYCStatus("");
             if (status.status === "approved") {
               setState("approved");
-              setTimeout(() => router.push("/explore"), 2000);
+              setTimeout(() => router.push("/projects"), 2000);
             }
           } catch {
             // Keep processing state
@@ -107,7 +94,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Identity Verified</h2>
         <p className="text-darkBlack/50 mb-8">Your KYC verification has been approved</p>
-        <Button variant="primary" onClick={() => router.push("/explore")}>
+        <Button variant="primary" onClick={() => router.push("/projects")}>
           Start Investing
         </Button>
       </div>
@@ -124,7 +111,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         <p className="text-darkBlack/50 mb-8">
           Your documents are being reviewed. This usually takes a few minutes.
         </p>
-        <Button variant="outline" onClick={() => router.push("/explore")}>
+        <Button variant="outline" onClick={() => router.push("/projects")}>
           Continue Browsing
         </Button>
       </div>
@@ -156,7 +143,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
       <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[500px]">
         <SumsubWebSdk
           accessToken={accessToken}
-          expirationHandler={() => initiateKYC(getAccessToken()!).then((r) => r.access_token)}
+          expirationHandler={() => initiateKYC("").then((r) => r.access_token)}
           config={{ lang: "en" }}
           options={{ addViewportTag: false, adaptIframeHeight: true }}
           onMessage={handleMessage}

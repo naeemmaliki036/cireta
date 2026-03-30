@@ -1,0 +1,18 @@
+{
+  "identityRegistryStorage": "0x38Ab5b8551D0b3f7bA434013d7a6eA7e7265e711",
+  "claimTopicsRegistry": "0xd6C5B5228f0598cC631c01c9Ec0c6e80b031E3af",
+  "trustedIssuersRegistry": "0xc4E7aE312CA224B58f44f8d9E16B34D8b9B2319C",
+  "issuerRegistry": "0x0d763263DC8640d7eA3FF649EC11E14CaA6AfFeC",
+  "platformFeeManager": "0x0EF3471b4230b103d2725d83d909785c659A1b07",
+  "tokenImplementation": "0x8CBec9e6e4Ab230be7eCB6Ec250af4464558dc27",
+  "identityRegistryImplementation": "0x2b7Aa22EbF130ae83d4D6B6A8a913CCAc4aad55a",
+  "complianceImplementation": "0x1f9641d157F51938378B5D39D3689782753416cE",
+  "saleImplementation": "0x039E1A9eD0004E0d4008514ceb1598726Ce8d48A",
+  "tokenFactory": "0x257291849c2F528366E6d2C522b10D58408928D8",
+  "saleFactory": "0x6d821c1F5C72fD6a4E194c0fF76826BA6A5aB55d",
+  "countryAllowModule": "0xD971cE805d91E47b517936C5ceff4ee67655e32C",
+  "maxHolderCountModule": "0xFcf93DAFF7DD8B4BA68cDC4dd2604fc17fe33692",
+  "vaultImplementation": "0xFA2f1C046eF860AC9db9155e39fF677092735bC1",
+  "fractionFactory": "0xec591AC67443De54D338beBBeF4275e4188E980F",
+  "fractionTokenImplementation": "0x8F7B63418a80201cA09Fe09Aedc1125693a9E196"
+}

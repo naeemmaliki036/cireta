@@ -2,22 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   Building2,
   Search,
   Check,
   DollarSign,
+  ListChecks,
 } from "lucide-react";
 import { Button, Select } from "@/components/atoms";
 import { DataTable } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
-import { formatCurrency } from "@/lib/utils";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 function mapIssuer(i: APIIssuer): Issuer {
-  return { id: i.id, name: i.name, legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
-    wallet: i.wallet_address ?? "—", feeBps: i.fee_bps, status: i.status as Issuer["status"], tokens: 0, totalRaised: 0, /* TODO: fetch real token count + raised totals per issuer */ createdAt: i.created_at.slice(0, 10) };
+  return {
+    id: i.id, name: i.name, legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
+    wallet: i.wallet_address ?? "—", walletStatus: i.wallet_status, identityStatus: i.identity_status,
+    issuerType: i.issuer_type, feeBps: i.fee_bps, status: i.status as Issuer["status"],
+    tokens: 0, totalRaised: 0, createdAt: i.created_at.slice(0, 10),
+  };
 }
 
 type Issuer = IssuerRow;
@@ -79,9 +84,12 @@ export default function IssuersPage() {
       title="Issuer Management"
       description="Manage platform issuers, fees, and approvals"
       actions={
-        <Button variant="primary" >
-          Onboard Issuer
-        </Button>
+        <Link href="/platform/issuers/whitelist">
+          <Button variant="primary">
+            <ListChecks className="h-4 w-4 mr-2" />
+            Manage Whitelist
+          </Button>
+        </Link>
       }
     >
       {/* Stats */}
@@ -153,7 +161,7 @@ export default function IssuersPage() {
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wide">Total Raised</p>
               <p className="text-2xl font-bold text-text">
-                {formatCurrency(apiIssuers.reduce((sum, i) => sum + i.totalRaised, 0))}
+                ${apiIssuers.reduce((sum, i) => sum + i.totalRaised, 0).toLocaleString()}
               </p>
             </div>
           </div>

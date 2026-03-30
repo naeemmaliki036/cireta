@@ -34,7 +34,7 @@ class SaleContributeService:
     ) -> Contribution:
         """Record a contribution to a token sale from an on-chain transaction.
 
-        Verifies the tx_hash on-chain, parses the ContributionMade event,
+        Verifies the tx_hash on-chain, parses the Purchase event,
         and records data sourced from the chain event (not user input).
         Deduplicates on tx_hash — returns existing if already recorded.
 
@@ -141,7 +141,7 @@ class SaleContributeService:
         # Resolve contribution data: prefer on-chain, fallback to request
         contrib_amount = on_chain_data["amount"] if on_chain_data else amount
         contrib_tokens = on_chain_data["tokens_allocated"] if on_chain_data else None
-        contrib_wallet = on_chain_data["contributor"] if on_chain_data else wallet_address
+        contrib_wallet = on_chain_data["buyer"] if on_chain_data else wallet_address
         chain_phase_id = on_chain_data["phase_id"] if on_chain_data else None
 
         # Find the matching phase
@@ -323,7 +323,7 @@ class SaleContributeService:
     async def _verify_on_chain(
         self, tx_hash: str, user: User
     ) -> dict | None:
-        """Verify a tx_hash on-chain and parse the ContributionMade event.
+        """Verify a tx_hash on-chain and parse the Purchase event.
 
         Returns parsed event data or None if verification is unavailable.
         """
@@ -341,13 +341,13 @@ class SaleContributeService:
             )
             user_wallets = [w.address.lower() for w in wallet_result.scalars().all()]
 
-            contributor = event_data["contributor"].lower()
-            if user_wallets and contributor not in user_wallets:
+            buyer = event_data["buyer"].lower()
+            if user_wallets and buyer not in user_wallets:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail={
-                        "code": "CONTRIBUTOR_MISMATCH",
-                        "message": "Transaction contributor does not match your wallet",
+                        "code": "BUYER_MISMATCH",
+                        "message": "Transaction buyer does not match your wallet",
                     },
                 )
 
@@ -364,12 +364,13 @@ class SaleContributeService:
             )
             return None
 
-    async def finalize_sale(self, user_id: UUID, sale_id: UUID) -> TokenSale:
+    async def finalize_sale(self, user_id: UUID, sale_id: UUID, admin_override: bool = False) -> TokenSale:
         """Finalize a token sale.
 
         Args:
-            user_id: User UUID (must be issuer).
+            user_id: User UUID (admin or issuer).
             sale_id: Sale UUID.
+            admin_override: If True, skip issuer ownership check (admin calling).
 
         Returns:
             Updated sale.
@@ -390,7 +391,7 @@ class SaleContributeService:
                 detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"},
             )
 
-        if sale.issuer.user_id != user_id:
+        if not admin_override and sale.issuer.user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"},

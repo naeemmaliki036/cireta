@@ -1,7 +1,10 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+if (!API_BASE) {
+  throw new Error("API_URL (or NEXT_PUBLIC_API_URL) is required. Set it in .env.local");
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.json();

@@ -43,7 +43,9 @@ function saveDeployment(network: string, addresses: Partial<DeploymentAddresses>
 async function main() {
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
-  const networkName = network.chainId === 84532n ? "base-sepolia" : network.chainId === 8453n ? "base" : "hardhat";
+  // Detect local hardhat node: --network localhost or hardhat's in-process node
+  const isLocalhost = process.env.HARDHAT_NETWORK === "localhost" || process.env.HARDHAT_NETWORK === "hardhat";
+  const networkName = isLocalhost ? "localhost" : network.chainId === 84532n ? "base-sepolia" : network.chainId === 8453n ? "base" : network.chainId === 11155111n ? "sepolia" : "hardhat";
 
   console.log("Deploying contracts with account:", deployer.address);
   console.log("Network:", networkName, "(chainId:", network.chainId.toString(), ")");

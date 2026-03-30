@@ -80,7 +80,7 @@ export function DashboardLayout({
           {/* Bottom Actions */}
           <div className="mt-auto pt-6 border-t border-white/10">
             <Link
-              href="/explore"
+              href="/projects"
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
             >
               <Wallet className="h-5 w-5" />

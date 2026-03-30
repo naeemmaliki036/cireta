@@ -147,6 +147,13 @@ class TokenService:
                 detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to deploy this token"},
             )
 
+        # Check issuer is fully activated
+        if not token.issuer.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer must be fully activated before deploying. Complete onboarding first."},
+            )
+
         if token.is_deployed:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

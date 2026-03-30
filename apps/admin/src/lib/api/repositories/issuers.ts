@@ -9,6 +9,10 @@ export interface Issuer {
   jurisdiction: string | null;
   wallet_address: string | null;
   status: "pending" | "active" | "suspended";
+  issuer_type: "individual" | "corporate";
+  wallet_status: "none" | "pending_approval" | "approved" | "rejected";
+  identity_status: "none" | "pending" | "approved" | "rejected";
+  identity_verified_at: string | null;
   fee_bps: number;
   created_at: string;
 }
@@ -36,6 +40,13 @@ export async function getIssuers(
     `/api/v1/admin/issuers/?page=${page}&size=${size}`,
     { token },
   );
+}
+
+export async function getIssuer(
+  id: string,
+  token?: string,
+): Promise<Issuer> {
+  return apiFetch<Issuer>(`/api/v1/admin/issuers/${id}`, { token });
 }
 
 export async function createIssuer(

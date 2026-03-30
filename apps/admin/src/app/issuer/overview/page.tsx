@@ -5,26 +5,144 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Coins, Users, TrendingUp, Wallet, Plus, ArrowUpRight, BarChart3, Clock,
+  CheckCircle2, AlertCircle, Loader2,
 } from "lucide-react";
 import { Button, Badge, ProgressBar, Spinner } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import { getSales, type Sale } from "@/lib/api/repositories/sales";
+import { getOnboardingStatus, type OnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
+
+function StatusIcon({ status }: { status: string }) {
+  if (status === "approved" || status === "active") return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+  if (status === "pending" || status === "pending_approval") return <Loader2 className="h-5 w-5 text-amber-500 animate-spin" />;
+  if (status === "rejected") return <AlertCircle className="h-5 w-5 text-red-500" />;
+  return <div className="h-5 w-5 rounded-full border-2 border-zinc-300" />;
+}
+
+function OnboardingChecklist({ onboarding }: { onboarding: OnboardingStatus }) {
+  return (
+    <IssuerDashboardLayout title="Complete Your Onboarding" description="Finish these steps to start issuing tokens">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Wallet */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl p-6 border border-zinc-200">
+          <div className="flex items-start gap-4">
+            <StatusIcon status={onboarding.wallet_status} />
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Connect Wallet</h3>
+              <p className="text-sm text-zinc-500 mt-1">
+                {onboarding.wallet_status === "none" && "Link your Ethereum wallet to the platform"}
+                {onboarding.wallet_status === "pending_approval" && "Your wallet is submitted and awaiting admin approval"}
+                {onboarding.wallet_status === "approved" && "Wallet approved"}
+                {onboarding.wallet_status === "rejected" && "Wallet rejected — contact support to resubmit"}
+              </p>
+            </div>
+            {onboarding.wallet_status === "none" && (
+              <Link href="/issuer/onboarding/wallet">
+                <Button variant="primary" size="sm">Connect</Button>
+              </Link>
+            )}
+            {onboarding.wallet_status === "approved" && (
+              <Badge variant="active" size="sm">Done</Badge>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Identity Verification */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl p-6 border border-zinc-200">
+          <div className="flex items-start gap-4">
+            <StatusIcon status={onboarding.identity_status} />
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">
+                Verify Identity ({onboarding.issuer_type === "corporate" ? "KYB" : "KYC"})
+              </h3>
+              <p className="text-sm text-zinc-500 mt-1">
+                {onboarding.identity_status === "none" && `Complete ${onboarding.issuer_type === "corporate" ? "corporate KYB" : "individual KYC"} verification via Sumsub`}
+                {onboarding.identity_status === "pending" && "Verification under review"}
+                {onboarding.identity_status === "approved" && "Identity verified"}
+                {onboarding.identity_status === "rejected" && "Verification rejected — contact support"}
+              </p>
+            </div>
+            {onboarding.identity_status === "none" && (
+              <Link href="/issuer/onboarding/identity">
+                <Button variant="primary" size="sm">Start</Button>
+              </Link>
+            )}
+            {onboarding.identity_status === "approved" && (
+              <Badge variant="active" size="sm">Done</Badge>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Admin Activation */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl p-6 border border-zinc-200">
+          <div className="flex items-start gap-4">
+            <StatusIcon status={onboarding.issuer_status} />
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Admin Activation</h3>
+              <p className="text-sm text-zinc-500 mt-1">
+                {onboarding.issuer_status === "pending" &&
+                  (onboarding.wallet_status === "approved" && onboarding.identity_status === "approved"
+                    ? "All gates met — awaiting admin activation"
+                    : "Complete wallet and identity steps first"
+                  )
+                }
+                {onboarding.issuer_status === "active" && "Your account is fully activated"}
+                {onboarding.issuer_status === "suspended" && "Account suspended — contact support"}
+              </p>
+            </div>
+            {onboarding.issuer_status === "active" && (
+              <Badge variant="active" size="sm">Active</Badge>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Help */}
+        <div className="text-center pt-4">
+          <p className="text-sm text-zinc-400">
+            Need help? Contact <span className="font-medium text-zinc-500">admin@cireta.io</span>
+          </p>
+        </div>
+      </div>
+    </IssuerDashboardLayout>
+  );
+}
 
 export default function IssuerOverviewPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await getSales(1, 20);
-        setSales(data.items);
-      } catch (err) { console.error("Failed to load sales:", err); }
+        const [salesData, onboardingData] = await Promise.allSettled([
+          getSales(1, 20),
+          getOnboardingStatus(),
+        ]);
+        if (salesData.status === "fulfilled") setSales(salesData.value.items);
+        if (onboardingData.status === "fulfilled") setOnboarding(onboardingData.value);
+      } catch (err) { console.error("Failed to load data:", err); }
       finally { setLoading(false); }
     })();
   }, []);
+
+  if (loading) {
+    return (
+      <IssuerDashboardLayout title="Dashboard">
+        <div className="flex justify-center py-16"><Spinner /></div>
+      </IssuerDashboardLayout>
+    );
+  }
+
+  // Show onboarding checklist if issuer is not fully activated
+  if (onboarding && !onboarding.can_deploy) {
+    return <OnboardingChecklist onboarding={onboarding} />;
+  }
 
   const totalRaised = sales.reduce((s, x) => s + parseFloat(x.total_raised || "0"), 0);
   const activeSales = sales.filter((s) => s.status === "active");
@@ -35,8 +153,8 @@ export default function IssuerOverviewPage() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <StatCard label="Total Raised" value={totalRaised} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Active Sales" value={activeSales.length} icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard label="Total Investors" value={0} icon={<Users className="h-5 w-5" />} />{/* TODO: fetch from /investors endpoint */}
-        <StatCard label="Fees Earned" value={0} prefix="$" icon={<Wallet className="h-5 w-5" />} />{/* TODO: fetch from /platform/stats endpoint */}
+        <StatCard label="Total Investors" value={0} icon={<Users className="h-5 w-5" />} />
+        <StatCard label="Fees Earned" value={0} prefix="$" icon={<Wallet className="h-5 w-5" />} />
       </div>
 
       {/* Quick Actions */}
@@ -70,9 +188,7 @@ export default function IssuerOverviewPage() {
             <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" />}>View All</Button>
           </Link>
         </div>
-        {loading ? (
-          <div className="flex justify-center py-8"><Spinner /></div>
-        ) : activeSales.length === 0 ? (
+        {activeSales.length === 0 ? (
           <p className="text-center text-darkBlack/40 py-8">No active sales yet</p>
         ) : (
           <div className="space-y-3">

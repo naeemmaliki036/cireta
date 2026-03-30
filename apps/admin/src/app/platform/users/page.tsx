@@ -12,8 +12,8 @@ interface PlatformUser {
   email: string;
   kyc_level: number;
   kyc_status: string;
-  wallets: number;
-  country: string;
+  wallet_address: string | null;
+  onchain_id: string | null;
   created_at: string;
 }
 
@@ -41,8 +41,7 @@ const columns: Column<PlatformUser>[] = [
       </Badge>
     ),
   },
-  { key: "wallets", header: "Wallets" },
-  { key: "country", header: "Country" },
+  { key: "wallet_address", header: "Wallet", render: (row) => <span className="font-mono text-xs">{row.wallet_address ? `${row.wallet_address.slice(0, 6)}...${row.wallet_address.slice(-4)}` : "—"}</span> },
   { key: "created_at", header: "Registered" },
 ];
 
@@ -52,8 +51,8 @@ export default function PlatformUsersPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<{ users: PlatformUser[] }>("/api/v1/admin/platform/users")
-      .then((data) => setUsers(data.users ?? []))
+    apiFetch<{ items: PlatformUser[]; total: number }>("/api/v1/admin/investors/?page=1&size=100")
+      .then((data) => setUsers(data.items ?? []))
       .catch(() => setError("Failed to load users."))
       .finally(() => setLoading(false));
   }, []);

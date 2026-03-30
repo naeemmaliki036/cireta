@@ -7,7 +7,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.tokens import generate_email_verify_token
+# from apps.api.core.tokens import generate_email_verify_token  # replaced by OTP flow
 from apps.api.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -23,7 +23,7 @@ from apps.api.schemas.auth import (
     UserResponse,
 )
 from apps.api.services.auth_service import CiretaAuthService
-from apps.api.services.email_service import send_email_verify, send_password_reset
+from apps.api.services.email_service import EmailService
 from packages.common.core.auth_deps import CurrentUserId
 from packages.common.db.session import get_db
 
@@ -74,9 +74,31 @@ async def register(
     refresh_token = auth_service.create_refresh_token(user.id)
     _set_refresh_cookie(response, refresh_token)
 
-    # Send verification email (fire-and-forget, don't block registration)
-    verify_token = generate_email_verify_token(user.email)
-    await send_email_verify(user.email, verify_token)
+    # Send welcome email (non-blocking)
+    try:
+        email_svc = EmailService(auth_service.db)
+        await email_svc.send("welcome", user.email, {"display_name": user.display_name or ""})
+    except Exception:
+        pass  # Non-fatal
+
+    return TokenResponse(access_token=access_token)
+
+
+@router.post("/register/issuer", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register_issuer(
+    request: RegisterRequest,
+    response: Response,
+    auth_service: Annotated[CiretaAuthService, Depends(get_auth_service)],
+) -> TokenResponse:
+    """Register a new issuer account. Requires email to be whitelisted."""
+    user = await auth_service.register_issuer(
+        request.email,
+        request.password,
+        display_name=request.display_name,
+    )
+    access_token = auth_service.create_access_token(user.id)
+    refresh_token = auth_service.create_refresh_token(user.id)
+    _set_refresh_cookie(response, refresh_token)
 
     return TokenResponse(access_token=access_token)
 
@@ -115,6 +137,165 @@ async def login(
         return TokenResponse(access_token=access_token, requires_mfa=True)
 
     _set_refresh_cookie(response, refresh_token)
+    return TokenResponse(access_token=access_token)
+
+
+# ==================== Passwordless OTP Auth ====================
+
+from pydantic import BaseModel as PydanticBaseModel
+
+
+class OTPRequestBody(PydanticBaseModel):
+    email: str
+    purpose: str = "login"
+
+
+class OTPVerifyBody(PydanticBaseModel):
+    email: str
+    code: str
+    purpose: str = "login"
+    display_name: str | None = None
+
+
+@router.post("/otp/request")
+async def request_otp(
+    request: OTPRequestBody,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Request a 6-digit OTP sent to email. In dev mode returns dev_otp for UI toast."""
+    from apps.api.services.otp_service import OTPService
+
+    if request.purpose not in ("login", "register", "verify_email"):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_PURPOSE", "message": "Must be login, register, or verify_email"})
+
+    from sqlalchemy import select
+    from apps.api.models.user import User
+
+    if request.purpose == "login":
+        result = await db.execute(select(User).where(User.email == request.email.lower()))
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "No account with this email"})
+
+    if request.purpose == "register":
+        result = await db.execute(select(User).where(User.email == request.email.lower()))
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail={"code": "EMAIL_EXISTS", "message": "Email already registered"})
+
+    otp_svc = OTPService(db)
+    return await otp_svc.request_otp(request.email, request.purpose)
+
+
+@router.post("/otp/verify", response_model=TokenResponse)
+async def verify_otp_endpoint(
+    request: OTPVerifyBody,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TokenResponse:
+    """Verify OTP. For register: creates account. For login: authenticates. For verify_email: marks verified."""
+    from apps.api.services.otp_service import OTPService
+    from apps.api.services.email_service import EmailService
+    from sqlalchemy import select
+    from apps.api.models.user import User
+    from apps.api.models.enums import UserRole
+    from datetime import UTC, datetime
+
+    otp_svc = OTPService(db)
+    await otp_svc.verify_otp(request.email, request.code, request.purpose)
+    email = request.email.lower().strip()
+
+    if request.purpose == "register":
+        user = User()
+        user.email = email
+        user.display_name = request.display_name or email.split("@")[0]
+        user.role = UserRole.INVESTOR
+        user.email_verified = True
+        user.email_verified_at = datetime.now(UTC)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        email_svc = EmailService(db)
+        await email_svc.send("welcome", email, {"display_name": user.display_name or ""})
+    elif request.purpose == "verify_email":
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.now(UTC)
+            await db.commit()
+            email_svc = EmailService(db)
+            await email_svc.send("welcome", email, {"display_name": user.display_name or ""})
+    else:
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    auth_service = CiretaAuthService(db)
+    access_token = auth_service.create_access_token(user.id)
+    refresh_token = auth_service.create_refresh_token(user.id)
+    _set_refresh_cookie(response, refresh_token)
+    await db.commit()
+    return TokenResponse(access_token=access_token)
+
+
+# ==================== Google OAuth ====================
+
+
+class GoogleAuthBody(PydanticBaseModel):
+    id_token: str
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_auth(
+    request: GoogleAuthBody,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TokenResponse:
+    """Authenticate with Google. Auto-registers new investors. Launchpad only."""
+    from packages.common.core.config import settings as cfg
+
+    if not cfg.google_client_id:
+        raise HTTPException(status_code=501, detail={"code": "GOOGLE_NOT_CONFIGURED", "message": "Google login not available"})
+
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+        idinfo = google_id_token.verify_oauth2_token(request.id_token, google_requests.Request(), cfg.google_client_id)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail={"code": "INVALID_GOOGLE_TOKEN", "message": "Invalid Google token"}) from exc
+
+    google_email = idinfo.get("email", "").lower()
+    if not google_email or not idinfo.get("email_verified"):
+        raise HTTPException(status_code=400, detail={"code": "UNVERIFIED_EMAIL", "message": "Google email not verified"})
+
+    from sqlalchemy import select
+    from apps.api.models.user import User
+    from apps.api.models.enums import UserRole
+    from datetime import UTC, datetime
+
+    result = await db.execute(select(User).where(User.email == google_email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        user = User()
+        user.email = google_email
+        user.display_name = idinfo.get("name", google_email.split("@")[0])
+        user.role = UserRole.INVESTOR
+        user.email_verified = True
+        user.email_verified_at = datetime.now(UTC)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        from apps.api.services.email_service import EmailService
+        await EmailService(db).send("welcome", google_email, {"display_name": user.display_name or ""})
+
+    auth_service = CiretaAuthService(db)
+    access_token = auth_service.create_access_token(user.id)
+    refresh_token = auth_service.create_refresh_token(user.id)
+    _set_refresh_cookie(response, refresh_token)
+    await db.commit()
     return TokenResponse(access_token=access_token)
 
 
@@ -157,7 +338,11 @@ async def forgot_password(
     """Send password reset email (always returns 200 to avoid email enumeration)."""
     token = await auth_service.forgot_password(request.email)
     if token:
-        await send_password_reset(request.email, token)
+        try:
+            email_svc = EmailService(auth_service.db)
+            await email_svc.send("otp_code", request.email, {"code": token[:6]})
+        except Exception:
+            pass
     return MessageResponse(message="If that email exists, a reset link has been sent.")
 
 

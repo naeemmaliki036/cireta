@@ -20,6 +20,10 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 8453,
     },
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      chainId: 8453,
+    },
     base: {
       url: process.env.WEB3_RPC_URL || "https://mainnet.base.org",
       chainId: 8453,
@@ -30,6 +34,13 @@ const config: HardhatUserConfig = {
     baseSepolia: {
       url: "https://sepolia.base.org",
       chainId: 84532,
+      accounts: process.env.DEPLOYER_PRIVATE_KEY
+        ? [process.env.DEPLOYER_PRIVATE_KEY]
+        : [],
+    },
+    sepolia: {
+      url: process.env.WEB3_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/demo",
+      chainId: 11155111,
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]
         : [],

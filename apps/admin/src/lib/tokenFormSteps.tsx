@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, Upload, Rocket } from "lucide-react";
+import { CheckCircle2, Rocket } from "lucide-react";
 import { Input, Select, Textarea, Badge } from "@/components/atoms";
 
 export interface TokenFormData {
@@ -49,34 +49,6 @@ export function StepTokenDetails({
         </div>
         <Textarea label="Description" placeholder="Describe the underlying asset..."
           value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-      </div>
-    </div>
-  );
-}
-
-export function StepDocumentation() {
-  return (
-    <div className="max-w-2xl mx-auto">
-      <h2 className="text-xl font-semibold text-text mb-6">Documentation</h2>
-      <div className="space-y-6">
-        <div>
-          <label className="input-label">Legal Documents</label>
-          <div className="border-2 border-dashed border-darkBlack/20 rounded-2xl p-8 text-center hover:border-darkAqua transition-colors cursor-pointer">
-            <Upload className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-            <p className="font-medium text-text mb-1">Upload legal documents</p>
-            <p className="text-sm text-gray-500">PDF, DOC up to 10MB each</p>
-          </div>
-        </div>
-        <div>
-          <label className="input-label">Proof of Reserve</label>
-          <div className="border-2 border-dashed border-darkBlack/20 rounded-2xl p-8 text-center hover:border-darkAqua transition-colors cursor-pointer">
-            <Upload className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-            <p className="font-medium text-text mb-1">Upload proof of reserve</p>
-            <p className="text-sm text-gray-500">Audit reports, custody certificates</p>
-          </div>
-        </div>
-        <Input label="Chainlink PoR Feed Address (Optional)" placeholder="0x..."
-          helperText="Connect to Chainlink Proof of Reserve for real-time verification" />
       </div>
     </div>
   );
@@ -146,14 +118,14 @@ export function StepDeploy({
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Network</span>
-            <span className="font-medium">Base Mainnet</span>
+            <span className="font-medium">Ethereum Sepolia</span>
           </div>
         </div>
       </div>
       <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 text-left">
         <p className="text-sm text-gray-600">
           <strong className="text-gold">Note:</strong>{" "}
-          Deploying will create the token contract on Base Mainnet.
+          Deploying will create the token contract on-chain.
           This action requires a transaction fee and cannot be undone.
         </p>
       </div>

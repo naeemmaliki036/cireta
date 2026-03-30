@@ -15,26 +15,13 @@ async def task_send_email(
     to: str,
     **kwargs: Any,
 ) -> None:
-    """Send a transactional email via Resend."""
-    from apps.api.services import email_service as es
+    """Send a transactional email via the EmailService."""
+    from apps.api.services.email_service import EmailService
 
-    dispatch = {
-        "email_verify": es.send_email_verify,
-        "password_reset": es.send_password_reset,
-        "kyc_approved": es.send_kyc_approved,
-        "kyc_rejected": es.send_kyc_rejected,
-        "investment_confirmed": es.send_investment_confirmed,
-        "sale_finalized": es.send_sale_finalized,
-        "redemption_fulfilled": es.send_redemption_fulfilled,
-        "kyc_expiry_warning": es.send_kyc_expiry_warning,
-    }
-    fn = dispatch.get(template)
-    if not fn:
-        logger.warning("Unknown email template: %s", template)
-        return
     try:
-        await fn(to, **kwargs)
-        logger.info("Email sent: template=%s to=%s", template, to)
+        email_svc = EmailService()
+        result = await email_svc.send(template, to, variables=kwargs)
+        logger.info("Email sent: template=%s to=%s result=%s", template, to, result.get("status"))
     except Exception as e:
         logger.error("Email failed: template=%s to=%s error=%s", template, to, e)
         raise
@@ -399,13 +386,10 @@ class WorkerSettings:
     job_timeout = 60
     keep_result = 3600
 
-    @classmethod
-    def redis_settings(cls):  # type: ignore[override]
-        from arq.connections import RedisSettings
+    from arq.connections import RedisSettings as _RedisSettings
+    from packages.common.core.config import settings as _settings
 
-        from packages.common.core.config import settings
-
-        return RedisSettings.from_dsn(settings.redis_url or "redis://localhost:6379")
+    redis_settings = _RedisSettings.from_dsn(_settings.redis_url)
 
     @staticmethod
     async def on_startup(ctx: dict[str, Any]) -> None:
@@ -438,7 +422,7 @@ class WorkerSettings:
 
             while True:
                 try:
-                    r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+                    r = aioredis.from_url(settings.redis_url)
                     await r.set(
                         "cireta:worker:heartbeat",
                         datetime.now(UTC).isoformat(),

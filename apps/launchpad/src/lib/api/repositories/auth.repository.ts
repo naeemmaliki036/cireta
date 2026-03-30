@@ -29,35 +29,51 @@ export interface User {
   created_at?: string;
 }
 
-export async function login(data: LoginRequest): Promise<AuthTokens> {
-  return apiFetch<AuthTokens>("/api/v1/auth/login", {
+/**
+ * Auth functions call Next.js API routes (not the proxy) because
+ * these routes set/clear httpOnly cookies server-side.
+ */
+
+export async function login(data: LoginRequest): Promise<{ success: boolean }> {
+  const res = await fetch("/api/auth/login", {
     method: "POST",
-    body: data,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail?.message ?? error.detail ?? "Login failed");
+  }
+  return res.json();
 }
 
-export async function register(data: RegisterRequest): Promise<AuthTokens> {
-  return apiFetch<AuthTokens>("/api/v1/auth/register", {
+export async function register(data: RegisterRequest): Promise<{ success: boolean }> {
+  const res = await fetch("/api/auth/register", {
     method: "POST",
-    body: data,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail?.message ?? error.detail ?? "Registration failed");
+  }
+  return res.json();
 }
 
-export async function me(): Promise<User> {
-  return apiFetch<User>("/api/v1/auth/me");
-}
-
-export async function refreshToken(): Promise<AuthTokens> {
-  return apiFetch<AuthTokens>("/api/v1/auth/refresh", {
-    method: "POST",
-    body: {},
-  });
+export async function refreshToken(): Promise<{ success: boolean }> {
+  const res = await fetch("/api/auth/refresh", { method: "POST" });
+  if (!res.ok) throw new Error("Refresh failed");
+  return res.json();
 }
 
 export async function logout(): Promise<void> {
-  return apiFetch<void>("/api/v1/auth/logout", {
-    method: "POST",
-  });
+  await fetch("/api/auth/logout", { method: "POST" });
+}
+
+/** These go through the proxy (cookie attached server-side) */
+
+export async function me(): Promise<User> {
+  return apiFetch<User>("/api/v1/auth/me");
 }
 
 export async function forgotPassword(email: string): Promise<{ message: string }> {

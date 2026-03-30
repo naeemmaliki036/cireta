@@ -12,25 +12,34 @@ interface ChainAddresses {
   identityRegistry: `0x${string}` | null;
 }
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required. Set it in .env.local`);
+  }
+  return value;
+}
+
 // Base Mainnet (8453)
 const BASE_MAINNET: ChainAddresses = {
   usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-  saleFactory: (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) ?? null,
-  tokenFactory: (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) ?? null,
-  identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) ?? null,
+  saleFactory: (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) || null,
+  tokenFactory: (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) || null,
+  identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) || null,
 };
 
-// Base Sepolia (84532)
-const BASE_SEPOLIA: ChainAddresses = {
-  usdc: (process.env.NEXT_PUBLIC_USDC_ADDRESS as `0x${string}`) ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  saleFactory: (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) ?? null,
-  tokenFactory: (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) ?? null,
-  identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) ?? null,
+// Base Sepolia (84532) / Sepolia (11155111)
+const TESTNET: ChainAddresses = {
+  usdc: requireEnv("NEXT_PUBLIC_USDC_ADDRESS") as `0x${string}`,
+  saleFactory: (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) || null,
+  tokenFactory: (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) || null,
+  identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) || null,
 };
 
 const ADDRESSES: Record<number, ChainAddresses> = {
   8453: BASE_MAINNET,
-  84532: BASE_SEPOLIA,
+  84532: TESTNET,
+  11155111: TESTNET,
 };
 
 /**
@@ -52,7 +61,7 @@ export function getAddresses(chainId: number): ChainAddresses {
   const addrs = ADDRESSES[chainId];
   if (!addrs) {
     throw new Error(
-      `Unsupported chain ID: ${chainId}. Cireta supports Base Mainnet (8453) and Base Sepolia (84532).`
+      `Unsupported chain ID: ${chainId}. Cireta supports Base Mainnet (8453), Base Sepolia (84532), and Sepolia (11155111).`
     );
   }
   return addrs;
@@ -67,6 +76,7 @@ export function getUsdcAddress(chainId: number): `0x${string}` {
  */
 export function getExplorerUrl(chainId: number): string {
   if (chainId === 84532) return "https://sepolia.basescan.org";
+  if (chainId === 11155111) return "https://sepolia.etherscan.io";
   return "https://basescan.org";
 }
 

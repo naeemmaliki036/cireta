@@ -169,6 +169,30 @@ class KYCService:
             "expiration": datetime.now(UTC),
         }
 
+    async def dev_approve(self, user_id: UUID) -> dict[str, Any]:
+        """DEV ONLY: Directly approve KYC without Sumsub.
+
+        Sets kyc_status=approved, kyc_level=2, triggers on-chain identity registration.
+        """
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"},
+            )
+        if user.kyc_status == KYCStatus.APPROVED:
+            return {"status": "already_approved", "kyc_level": user.kyc_level}
+
+        user.kyc_status = KYCStatus.APPROVED
+        user.kyc_level = 2
+        user.kyc_provider = "dev-bypass"
+        user.kyc_verified_at = datetime.now(UTC)
+        await self._issue_onchain_claims(user)
+        await self.db.commit()
+        log.info("DEV KYC approved for user %s", user_id)
+        return {"status": "approved", "kyc_level": 2}
+
     async def get_status(self, user_id: UUID) -> dict[str, Any]:
         """Get KYC status for a user."""
         result = await self.db.execute(select(User).where(User.id == user_id))
@@ -288,19 +312,44 @@ class KYCService:
         await self.db.commit()
 
     async def _issue_onchain_claims(self, user: User) -> None:
-        """Deploy ONCHAINID + issue claims + register in IdentityRegistry.
+        """Register user's identity on-chain after KYC approval.
 
-        Full flow for a verified user:
-        1. Deploy ONCHAINID via CREATE2 (idempotent)
-        2. Issue KYC, country, investor type claims with real ECDSA signatures
-        3. Register wallet → identity in IdentityRegistry
-        4. Store identity address on user model
+        Mode is controlled by IDENTITY_MODE config:
+        - "simple": adds wallets to SimpleIdentityRegistry whitelist
+        - "erc3643": deploys ONCHAINID + issues claims + registers in full IdentityRegistry
 
         Dev mode: logs and skips.
         """
         from packages.common.core.config import get_settings
 
         settings = get_settings()
+
+        if not settings.identity_registry_address:
+            log.warning("IDENTITY_REGISTRY_ADDRESS not configured — skipping on-chain identity")
+            return
+
+        if settings.identity_mode == "simple":
+            await self._register_simple_identity(user, settings)
+        else:
+            await self._register_erc3643_identity(user, settings)
+
+    async def _register_simple_identity(self, user: User, settings: object) -> None:
+        """Simple whitelist mode — add all wallets to SimpleIdentityRegistry."""
+        try:
+            from apps.api.services.simple_identity_bridge_service import (
+                SimpleIdentityBridgeService,
+            )
+            bridge = SimpleIdentityBridgeService(self.db)
+            result = await bridge.provision_identity(user.id)
+            log.info(
+                "Simple identity registered for user %s: %d wallet(s)",
+                user.id, len(result.get("registered_wallets", [])),
+            )
+        except Exception as exc:
+            log.error("Failed simple identity registration for user %s: %s", user.id, exc)
+
+    async def _register_erc3643_identity(self, user: User, settings: object) -> None:
+        """Full ERC-3643 mode — deploy ONCHAINID + issue claims."""
         if not _has_sumsub_credentials(settings):
             if settings.environment != "development":
                 log.error("Sumsub credentials missing in %s — cannot issue on-chain claims", settings.environment)
@@ -308,14 +357,9 @@ class KYCService:
             log.warning("Dev mode — skipping on-chain identity for user %s (no Sumsub credentials)", user.id)
             return
 
-        # Get user's primary wallet
         primary_wallet = next((w for w in user.wallets if w.is_primary), None)
         if not primary_wallet:
             log.warning("User %s has no primary wallet — cannot deploy ONCHAINID", user.id)
-            return
-
-        if not settings.identity_registry_address:
-            log.warning("IDENTITY_REGISTRY_ADDRESS not configured — skipping")
             return
 
         try:
@@ -330,7 +374,6 @@ class KYCService:
                 investor_type=user.investor_type or "individual",
             )
 
-            # Store identity address on user model
             user.onchain_id = identity_address
             log.info(
                 "Full ONCHAINID registration complete for user %s: %s",
@@ -338,7 +381,6 @@ class KYCService:
                 identity_address,
             )
         except Exception as exc:
-            # Non-fatal: log error, admin can retry via compliance dashboard
             log.error("Failed ONCHAINID registration for user %s: %s", user.id, exc)
 
     async def initiate_corporate(self, user_id: UUID, body: Any) -> dict[str, Any]:

@@ -81,10 +81,12 @@ export function IssuerDashboardLayout({
                   onClick={() => setIsSidebarOpen(false)}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-darkAqua/25 text-darkAqua border border-darkAqua/30 font-semibold"
-                      : "text-white hover:text-white hover:bg-white/10"
+                    isActive && "font-semibold"
                   )}
+                  style={isActive
+                    ? { backgroundColor: "rgba(19,99,111,0.3)", color: "#fff", border: "1px solid rgba(19,99,111,0.4)" }
+                    : { color: "rgba(255,255,255,0.7)" }
+                  }
                 >
                   <link.icon className="h-5 w-5" />
                   {link.label}
@@ -97,19 +99,28 @@ export function IssuerDashboardLayout({
           <div className="mt-auto pt-6 border-t border-white/10 space-y-1">
             <Link
               href="/platform/issuers"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gold hover:text-gold hover:bg-gold/10 transition-colors text-sm font-medium"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-medium"
+              style={{ color: "#C9913D" }}
             >
               <Shield className="h-5 w-5" />
               Platform Admin
             </Link>
             <Link
               href="/issuer/settings"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
+              style={{ color: "rgba(255,255,255,0.7)" }}
             >
               <Settings className="h-5 w-5" />
               Settings
             </Link>
-            <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-sm font-medium w-full">
+            <button
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+                window.location.href = "/login";
+              }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-medium w-full"
+              style={{ color: "#f87171" }}
+            >
               <LogOut className="h-5 w-5" />
               Disconnect
             </button>
@@ -154,10 +165,12 @@ export function IssuerDashboardLayout({
             </div>
             <div className="flex items-center gap-3">
               {actions}
-              <Button variant="outline" size="sm">
-                <Wallet className="h-4 w-4 mr-2" />
-                Wallet
-              </Button>
+              <Link href="/issuer/onboarding/wallet">
+                <Button variant="outline" size="sm">
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Wallet
+                </Button>
+              </Link>
             </div>
           </div>
         </header>

@@ -33,6 +33,7 @@ class User(BaseModel):
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
 
     role: Mapped[UserRole] = mapped_column(String(20), default=UserRole.INVESTOR)
+    is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Email verification
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -3,12 +3,14 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import SaleStatus
 from apps.api.models.sale_phase import SalePhase
+from apps.api.models.token_sale import TokenSale
 from apps.api.schemas.sale import (
     ContributeRequest,
     ContributionResponse,
@@ -56,8 +58,25 @@ def _sale_to_response(sale) -> SaleResponse:
     """Convert sale model to response."""
     return SaleResponse(
         id=str(sale.id),
-        token_id=str(sale.token_id),
+        token_id=str(sale.token_id) if sale.token_id else None,
         issuer_id=str(sale.issuer_id),
+        title=sale.title,
+        description_text=sale.description,
+        full_description=sale.full_description,
+        banner_image_url=sale.banner_image_url,
+        is_coming_soon=sale.is_coming_soon,
+        otc_enabled=sale.otc_enabled,
+        otc_content=sale.otc_content,
+        website_url=sale.website_url,
+        twitter_url=sale.twitter_url,
+        linkedin_url=sale.linkedin_url,
+        instagram_url=sale.instagram_url,
+        facebook_url=sale.facebook_url,
+        telegram_url=sale.telegram_url,
+        discord_url=sale.discord_url,
+        sale_structure=sale.sale_structure.value if hasattr(sale.sale_structure, "value") else sale.sale_structure,
+        cliff_duration_days=sale.cliff_duration_days,
+        vesting_duration_days=sale.vesting_duration_days,
         payment_token=sale.payment_token,
         soft_cap=str(sale.soft_cap),
         hard_cap=str(sale.hard_cap),
@@ -96,6 +115,10 @@ def _contribution_to_response(contrib) -> ContributionResponse:
         tx_hash=contrib.tx_hash,
         status=(contrib.status.value if hasattr(contrib.status, "value") else contrib.status),
         claimed_at=contrib.claimed_at,
+        claim_tx_hash=getattr(contrib, "claim_tx_hash", None),
+        is_otc=getattr(contrib, "is_otc", False),
+        otc_reference=getattr(contrib, "otc_reference", None),
+        wallet_address=getattr(contrib, "wallet_address", None),
     )
 
 
@@ -123,11 +146,11 @@ async def list_sales(
     size: int = Query(default=20, ge=1, le=100),
     status_filter: SaleStatus | None = None,
 ) -> SaleListResponse:
-    """List all token sales with pagination.
+    """List public token sales (ACTIVE + APPROVED_COMING_SOON).
 
     Public endpoint.
     """
-    sales, total = await sale_service.list_sales(page, size, status_filter)
+    sales, total = await sale_service.list_sales(page, size, status_filter, public_only=True)
 
     return SaleListResponse(
         items=[_sale_to_response(s) for s in sales],
@@ -162,12 +185,65 @@ async def create_sale(
     """
     sale = await sale_service.create_sale(
         user_id=user_id,
-        token_id=UUID(request.token_id),
+        token_id=UUID(request.token_id) if request.token_id else None,
         payment_token=request.payment_token,
         soft_cap=request.soft_cap,
         hard_cap=request.hard_cap,
         phases=[p.model_dump() for p in request.phases],
+        title=request.title,
+        description=request.description,
+        full_description=request.full_description,
+        banner_image_url=request.banner_image_url,
+        is_coming_soon=request.is_coming_soon,
+        otc_enabled=request.otc_enabled,
+        otc_content=request.otc_content,
+        website_url=request.website_url,
+        twitter_url=request.twitter_url,
+        linkedin_url=request.linkedin_url,
+        instagram_url=request.instagram_url,
+        facebook_url=request.facebook_url,
+        telegram_url=request.telegram_url,
+        discord_url=request.discord_url,
+        sale_mode=request.sale_mode,
+        sale_structure=request.sale_structure,
+        cliff_duration_days=request.cliff_duration_days,
+        vesting_duration_days=request.vesting_duration_days,
     )
+    return _sale_to_response(sale)
+
+
+class OtcContentUpdate(BaseModel):
+    """Update OTC content for a sale."""
+
+    otc_enabled: bool
+    otc_content: str | None = None
+
+
+@router.put("/{sale_id}/otc-content", response_model=SaleResponse)
+async def update_otc_content(
+    sale_id: UUID,
+    request: OtcContentUpdate,
+    user_id: CurrentUserId,
+    db: AsyncSession = Depends(get_db),
+) -> SaleResponse:
+    """Update OTC toggle and content for a sale. Issuer only."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.phases), selectinload(TokenSale.token), selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not your sale"})
+
+    sale.otc_enabled = request.otc_enabled
+    sale.otc_content = request.otc_content
+    await db.commit()
+    await db.refresh(sale)
     return _sale_to_response(sale)
 
 
@@ -198,6 +274,16 @@ async def deploy_sale(
         raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
     if sale.issuer.user_id != user_id:
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if not sale.issuer.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer must be fully activated before deploying. Complete onboarding first."},
+        )
+    if sale.status not in (SaleStatus.APPROVED, SaleStatus.DRAFT):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "SALE_NOT_APPROVED", "message": f"Sale must be approved before deployment, currently: {sale.status}"},
+        )
     if not sale.token or not sale.token.contract_address:
         raise HTTPException(
             status_code=400,
@@ -208,7 +294,12 @@ async def deploy_sale(
     from packages.common.core.config import settings as _settings
 
     web3_sale = Web3SaleService()
-    identity_reg = sale.token.identity_registry_address or request.identity_registry
+    identity_reg = request.identity_registry or sale.token.identity_registry_address
+    if not identity_reg:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "MISSING_IDENTITY_REGISTRY", "message": "Identity registry address is required — set it on the token or provide it in the request"},
+        )
     issuer_addr = sale.issuer.wallet_address or web3_sale.tx_svc._account.address
     fee_mgr = _settings.platform_fee_receiver or web3_sale.tx_svc._account.address
     soft = int(sale.soft_cap * 10**6)
@@ -357,6 +448,70 @@ async def contribute(
     return _contribution_to_response(contribution)
 
 
+@router.post("/{sale_id}/submit-for-approval")
+async def submit_for_approval(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> dict:
+    """Submit a draft sale for admin approval.
+
+    Requires: issuer (must own the sale).
+    """
+    from fastapi import HTTPException
+    from sqlalchemy.orm import selectinload
+
+    result = await sale_service.db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if sale.status != SaleStatus.DRAFT:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be DRAFT, currently: {sale.status}"})
+
+    sale.status = SaleStatus.PENDING_APPROVAL
+    await sale_service.db.commit()
+    return {"sale_id": str(sale_id), "status": "pending_approval", "message": "Sale submitted for admin approval"}
+
+
+@router.post("/{sale_id}/convert-to-live")
+async def convert_coming_soon_to_live(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> dict:
+    """Convert a Coming Soon sale back to DRAFT for the issuer to add
+    token, phases, caps and resubmit for approval as a live sale.
+
+    Requires: issuer (must own the sale).
+    """
+    from fastapi import HTTPException
+    from sqlalchemy.orm import selectinload
+
+    result = await sale_service.db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if sale.status != SaleStatus.APPROVED_COMING_SOON:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be APPROVED_COMING_SOON, currently: {sale.status}"})
+
+    sale.is_coming_soon = False
+    sale.status = SaleStatus.DRAFT
+    await sale_service.db.commit()
+    return {"sale_id": str(sale_id), "status": "draft", "message": "Sale converted to draft — add token, phases, and resubmit for approval"}
+
+
 @router.post("/{sale_id}/finalize", response_model=SaleResponse)
 async def finalize_sale(
     sale_id: UUID,
@@ -441,11 +596,11 @@ async def otc_allocate(
         select(Wallet).where(Wallet.address == request.investor_wallet)
     )
     investor_wallet = wallet_result.scalar_one_or_none()
-    investor_user_id = investor_wallet.user_id if investor_wallet else None
+    investor_user_id = investor_wallet.user_id if investor_wallet else user_id
 
     # Create OTC contribution (is_otc=True, excluded from fee base)
     contrib = Contribution()
-    contrib.user_id = investor_user_id  # attribute to investor, not issuer
+    contrib.user_id = investor_user_id  # attribute to investor if found, else issuer
     contrib.sale_id = sale_id
     contrib.phase_id = (
         (

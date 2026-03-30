@@ -36,6 +36,10 @@ contract CiretaTokenFactory is
     address[] public deployedTokens;
     mapping(address => bool) public isDeployedToken;
 
+    /// @dev When true, uses SimpleIdentityRegistry (whitelist mode).
+    ///      When false, uses full IdentityRegistry (ERC-3643 ONCHAINID mode).
+    bool public simpleIdentityMode;
+
     /// @dev Reserved storage gap for future upgrades
     uint256[50] private __gap;
 
@@ -53,6 +57,7 @@ contract CiretaTokenFactory is
         address identityRegistry,
         address compliance
     );
+    event IdentityModeChanged(bool simpleMode);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -81,6 +86,15 @@ contract CiretaTokenFactory is
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /**
+     * @dev Toggle between simple whitelist mode and full ERC-3643 ONCHAINID mode.
+     *      Only affects NEW token deployments — existing tokens keep their registry.
+     */
+    function setSimpleIdentityMode(bool _simpleMode) external onlyOwner {
+        simpleIdentityMode = _simpleMode;
+        emit IdentityModeChanged(_simpleMode);
+    }
 
     function updateImplementations(
         address _tokenImpl,
@@ -119,7 +133,7 @@ contract CiretaTokenFactory is
         // Check issuer is registered (optional check)
         // require(IIssuerRegistry(issuerRegistry).isActiveIssuer(issuer), "issuer not active");
 
-        // Deploy Identity Registry
+        // Deploy Identity Registry (same initialize signature for both implementations)
         bytes memory irInitData = abi.encodeWithSelector(
             IdentityRegistry.initialize.selector,
             issuer,
@@ -160,10 +174,12 @@ contract CiretaTokenFactory is
         // Transfer compliance ownership to the issuer
         ModularCompliance(complianceProxy).transferOwnership(issuer);
 
-        // Bind identity registry to storage
-        IIdentityRegistryStorage(identityRegistryStorage).bindIdentityRegistry(
-            identityRegistryProxy
-        );
+        // Bind identity registry to shared storage (only in full ERC-3643 mode)
+        if (!simpleIdentityMode) {
+            IIdentityRegistryStorage(identityRegistryStorage).bindIdentityRegistry(
+                identityRegistryProxy
+            );
+        }
 
         // Track deployment
         deployedTokens.push(tokenProxy);

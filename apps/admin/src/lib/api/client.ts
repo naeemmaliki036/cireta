@@ -109,3 +109,9 @@ export async function apiPatch<T, D = unknown>(
     token: options?.token,
   });
 }
+
+export async function apiDelete(
+  path: string,
+): Promise<void> {
+  await apiFetch<void>(path, { method: "DELETE" });
+}

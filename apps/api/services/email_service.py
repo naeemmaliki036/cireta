@@ -1,8 +1,11 @@
-"""Email service using Resend API for transactional emails."""
+"""Email Service — sends transactional emails via Resend.
 
-from __future__ import annotations
+Loads templates from DB (admin-editable). Falls back to built-in defaults.
+In dev mode without RESEND_API_KEY, logs emails and returns dev_otp for UI toast.
+"""
 
 import logging
+import re
 
 import resend
 
@@ -10,250 +13,173 @@ from packages.common.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Templates base URL
-_BASE_URL = settings.frontend_url if hasattr(settings, "frontend_url") else "https://cireta.com"
+DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
+    "otp_code": {
+        "subject": "Your Cireta verification code: {{code}}",
+        "html_body": (
+            '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 20px">'
+            '<h2 style="color:#111">Your verification code</h2>'
+            '<p style="color:#555;margin-bottom:24px">Enter this code to continue:</p>'
+            '<div style="background:#f5f5f5;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">'
+            '<span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#111">{{code}}</span></div>'
+            '<p style="color:#888;font-size:13px">This code expires in 10 minutes.</p>'
+            '<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
+            '<p style="color:#aaa;font-size:12px">Cireta</p></div>'
+        ),
+        "description": "OTP code for login, register, email verification",
+    },
+    "welcome": {
+        "subject": "Welcome to Cireta, {{display_name}}!",
+        "html_body": (
+            '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">'
+            '<h1 style="color:#111">Welcome to Cireta</h1>'
+            '<p style="color:#555">Hi {{display_name}},</p>'
+            '<p style="color:#555">Your email is verified and your account is ready.</p>'
+            '<div style="background:#f8f9fa;border-radius:12px;padding:20px;margin:24px 0">'
+            '<h3 style="color:#111;margin-top:0">Next Steps</h3>'
+            '<ol style="color:#555;padding-left:20px">'
+            '<li style="margin-bottom:8px"><strong>Complete KYC</strong> — 5-10 min, required before investing.</li>'
+            '<li style="margin-bottom:8px"><strong>Connect wallet</strong> — Link your crypto wallet (optional).</li>'
+            '<li style="margin-bottom:8px"><strong>Browse assets</strong> — Gold, copper, infrastructure.</li>'
+            '</ol></div>'
+            '<a href="{{frontend_url}}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;'
+            'border-radius:8px;text-decoration:none;font-weight:600">Browse Assets</a>'
+            '<hr style="border:none;border-top:1px solid #eee;margin:32px 0">'
+            '<p style="color:#aaa;font-size:12px">Cireta — Regulated Commodity Tokenization</p></div>'
+        ),
+        "description": "Welcome email after email verification",
+    },
+    "investment_confirmation": {
+        "subject": "Investment confirmed — {{token_name}}",
+        "html_body": (
+            '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">'
+            '<h2 style="color:#111">Investment Confirmed</h2>'
+            '<p style="color:#555">Hi {{display_name}}, your investment has been recorded:</p>'
+            '<div style="background:#f8f9fa;border-radius:12px;padding:20px;margin:24px 0">'
+            '<table style="width:100%;color:#555;font-size:14px">'
+            '<tr><td style="padding:6px 0;color:#888">Asset</td><td style="text-align:right;font-weight:600">{{token_name}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Amount</td><td style="text-align:right;font-weight:600">{{amount}} USDC</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Tokens</td><td style="text-align:right;font-weight:600">{{tokens_allocated}}</td></tr>'
+            '</table></div>'
+            '<a href="{{frontend_url}}/portfolio" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;'
+            'border-radius:8px;text-decoration:none;font-weight:600">View Portfolio</a>'
+            '<hr style="border:none;border-top:1px solid #eee;margin:32px 0">'
+            '<p style="color:#aaa;font-size:12px">Cireta</p></div>'
+        ),
+        "description": "Sent after successful investment",
+    },
+    "kyc_approved": {
+        "subject": "KYC approved — You're ready to invest",
+        "html_body": (
+            '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">'
+            '<h2 style="color:#111">Identity Verified</h2>'
+            '<p style="color:#555">Hi {{display_name}}, your identity verification is complete. You can now invest.</p>'
+            '<a href="{{frontend_url}}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;'
+            'border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px">Browse Assets</a>'
+            '<hr style="border:none;border-top:1px solid #eee;margin:32px 0">'
+            '<p style="color:#aaa;font-size:12px">Cireta</p></div>'
+        ),
+        "description": "Sent when KYC approved",
+    },
+    "kyc_rejected": {
+        "subject": "KYC verification update",
+        "html_body": (
+            '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">'
+            '<h2 style="color:#111">Verification Update</h2>'
+            '<p style="color:#555">Hi {{display_name}}, we could not verify your identity. Please try again or contact support@cireta.com.</p>'
+            '<hr style="border:none;border-top:1px solid #eee;margin:32px 0">'
+            '<p style="color:#aaa;font-size:12px">Cireta</p></div>'
+        ),
+        "description": "Sent when KYC rejected",
+    },
+    "issuer_approved": {
+        "subject": "Your issuer account is now active",
+        "html_body": (
+            '<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:40px 20px">'
+            '<h2 style="color:#111">Issuer Account Activated</h2>'
+            '<p style="color:#555">Hi {{display_name}}, your issuer account is approved. Create tokens and launch sales.</p>'
+            '<a href="{{admin_url}}/issuer/sales/new" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;'
+            'border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px">Create Your First Sale</a>'
+            '<hr style="border:none;border-top:1px solid #eee;margin:32px 0">'
+            '<p style="color:#aaa;font-size:12px">Cireta</p></div>'
+        ),
+        "description": "Sent when issuer activated by admin",
+    },
+}
 
 
-def _get_client() -> bool:
-    """Configure Resend client. Returns True if ready, handles dev fallback.
+class EmailService:
+    """Send transactional emails via Resend with DB-backed templates."""
 
-    In production/staging: raises RuntimeError if RESEND_API_KEY not set.
-    In development: logs warning and returns False (skip send).
-    """
-    if not settings.resend_api_key:
-        if settings.environment != "development":
-            raise RuntimeError(
-                "RESEND_API_KEY not configured — email sending unavailable. "
-                "Set RESEND_API_KEY env var."
+    def __init__(self, db=None) -> None:
+        self.db = db
+        self._configured = bool(settings.resend_api_key)
+        if self._configured:
+            resend.api_key = settings.resend_api_key
+
+    async def send(
+        self,
+        template_key: str,
+        to_email: str,
+        variables: dict[str, str] | None = None,
+    ) -> dict:
+        """Send an email using a template.
+
+        Returns dict with status. In dev without Resend, returns dev_otp for UI toast.
+        """
+        variables = variables or {}
+        variables.setdefault("frontend_url", settings.frontend_url)
+        variables.setdefault("admin_url", "https://admin.cireta.com")
+
+        template = await self._get_template(template_key)
+        if not template:
+            logger.error("Email template not found: %s", template_key)
+            return {"status": "error", "message": f"Template '{template_key}' not found"}
+
+        subject = self._render(template["subject"], variables)
+        html_body = self._render(template["html_body"], variables)
+
+        # Dev mode: log and return OTP for UI notification
+        if not self._configured:
+            logger.info(
+                "DEV EMAIL [%s] to=%s subject='%s' %s",
+                template_key, to_email, subject,
+                f"code={variables.get('code')}" if "code" in variables else "",
             )
-        logger.warning(
-            "RESEND_API_KEY not set in development — skipping email send"
-        )
-        return False
-    resend.api_key = settings.resend_api_key
-    return True
+            result: dict = {"status": "dev_logged", "to": to_email, "subject": subject}
+            if "code" in variables:
+                result["dev_otp"] = variables["code"]
+            return result
 
-
-async def send_email_verify(to: str, token: str) -> bool:
-    """Send email verification link."""
-    if not _get_client():
-        return False
-    verify_url = f"{_BASE_URL}/verify-email?token={token}"
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": "Verify your Cireta account",
-                "html": f"""
-            <h2>Welcome to Cireta</h2>
-            <p>Click the link below to verify your email address:</p>
-            <p><a href="{verify_url}">Verify Email</a></p>
-            <p>This link expires in 24 hours.</p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send verify email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
-
-
-async def send_password_reset(to: str, token: str) -> bool:
-    """Send password reset link."""
-    if not _get_client():
-        return False
-    reset_url = f"{_BASE_URL}/reset-password?token={token}"
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": "Reset your Cireta password",
-                "html": f"""
-            <h2>Password Reset</h2>
-            <p>Click the link below to reset your password:</p>
-            <p><a href="{reset_url}">Reset Password</a></p>
-            <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send reset email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
-
-
-async def send_kyc_approved(to: str, kyc_level: int) -> bool:
-    """Send KYC approval notification."""
-    if not _get_client():
-        return False
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": "KYC Verification Approved",
-                "html": f"""
-            <h2>You are verified!</h2>
-            <p>Your KYC verification (Level {kyc_level}) has been approved.</p>
-            <p>You can now invest in tokenized real-world assets on Cireta.</p>
-            <p><a href="{_BASE_URL}/explore">Browse Projects</a></p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send KYC approved email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
-
-
-async def send_kyc_rejected(to: str, reason: str = "") -> bool:
-    """Send KYC rejection notification."""
-    if not _get_client():
-        return False
-    reason_text = f"<p>Reason: {reason}</p>" if reason else ""
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": "KYC Verification Update",
-                "html": f"""
-            <h2>Verification Not Approved</h2>
-            <p>Unfortunately your KYC verification was not approved.</p>
-            {reason_text}
-            <p><a href="{_BASE_URL}/settings/verification">Try Again</a></p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send KYC rejected email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
-
-
-async def send_investment_confirmed(to: str, amount: str, token_symbol: str, tx_hash: str) -> bool:
-    """Send investment confirmation."""
-    if not _get_client():
-        return False
-    tx_url = f"https://basescan.org/tx/{tx_hash}"
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": f"Investment Confirmed — {token_symbol}",
-                "html": f"""
-            <h2>Investment Confirmed</h2>
-            <p>Your investment of <strong>{amount} USDC</strong> in <strong>{token_symbol}</strong> has been confirmed.</p>
-            <p><a href="{tx_url}">View Transaction</a></p>
-            <p>Tokens will be available to claim once the sale finalizes.</p>
-            <p><a href="{_BASE_URL}/portfolio">View Portfolio</a></p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send investment confirmed email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
-
-
-async def send_sale_finalized(to: str, token_symbol: str, success: bool) -> bool:
-    """Send sale finalization notification."""
-    if not _get_client():
-        return False
-    if success:
-        subject = f"Sale Finalized — {token_symbol} tokens available to claim"
-        body = f"""
-        <h2>Sale Successfully Finalized</h2>
-        <p>The <strong>{token_symbol}</strong> token sale has finalized successfully.</p>
-        <p>Your tokens are now available to claim.</p>
-        <p><a href="{_BASE_URL}/portfolio">Claim Tokens</a></p>
-        """
-    else:
-        subject = f"Sale Failed — {token_symbol} refund available"
-        body = f"""
-        <h2>Sale Did Not Meet Soft Cap</h2>
-        <p>The <strong>{token_symbol}</strong> token sale did not reach its minimum funding goal.</p>
-        <p>Your full USDC contribution is available to claim as a refund.</p>
-        <p><a href="{_BASE_URL}/portfolio">Claim Refund</a></p>
-        """
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
+        try:
+            response = resend.Emails.send({
+                "from": settings.smtp_from,
+                "to": [to_email],
                 "subject": subject,
-                "html": body,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send sale finalized email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
+                "html": html_body,
+            })
+            logger.info("Email sent: %s to %s (id=%s)", template_key, to_email, response.get("id"))
+            return {"status": "sent", "id": response.get("id")}
+        except Exception:
+            logger.exception("Failed to send email: %s to %s", template_key, to_email)
+            return {"status": "error", "message": "Email send failed"}
 
+    async def _get_template(self, key: str) -> dict[str, str] | None:
+        if self.db:
+            from sqlalchemy import select
+            from apps.api.models.email_template import EmailTemplate
 
-async def send_kyc_expiry_warning(to: str, days_left: int) -> bool:
-    """Send KYC expiry warning email."""
-    if not _get_client():
-        return False
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": "KYC Verification Expiring Soon",
-                "html": f"""
-            <h2>Your KYC Verification is Expiring</h2>
-            <p>Your KYC verification will expire in <strong>{days_left} days</strong>.</p>
-            <p>To continue investing on Cireta, please re-verify your identity before it expires.</p>
-            <p><a href="{_BASE_URL}/settings/verification">Re-verify Now</a></p>
-            <p>If your KYC expires, you will be unable to make new investments until re-verified.</p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send KYC expiry warning: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
+            result = await self.db.execute(
+                select(EmailTemplate).where(EmailTemplate.key == key)
+            )
+            tmpl = result.scalar_one_or_none()
+            if tmpl:
+                return {"subject": tmpl.subject, "html_body": tmpl.html_body}
 
+        default = DEFAULT_TEMPLATES.get(key)
+        return {"subject": default["subject"], "html_body": default["html_body"]} if default else None
 
-async def send_redemption_fulfilled(to: str, token_symbol: str) -> bool:
-    """Send redemption fulfillment notification."""
-    if not _get_client():
-        return False
-    try:
-        resend.Emails.send(
-            {
-                "from": "Cireta <noreply@cireta.com>",
-                "to": [to],
-                "subject": f"Redemption Fulfilled — {token_symbol}",
-                "html": f"""
-            <h2>Your Redemption Has Been Fulfilled</h2>
-            <p>Your <strong>{token_symbol}</strong> commodity redemption has been fulfilled.</p>
-            <p>Your physical asset is on its way. Check your portfolio for details.</p>
-            <p><a href="{_BASE_URL}/portfolio">View Portfolio</a></p>
-            """,
-            }
-        )
-        return True
-    except Exception as e:
-        logger.error("Failed to send redemption fulfilled email: %s", e)
-        if settings.environment != "development":
-            raise
-        return False
+    def _render(self, text: str, variables: dict[str, str]) -> str:
+        def replace_var(match: re.Match) -> str:
+            return str(variables.get(match.group(1).strip(), match.group(0)))
+        return re.sub(r"\{\{(\w+)\}\}", replace_var, text)

@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, Coins, FileText, Shield, Rocket } from "lucide-react";
+import { ArrowRight, CheckCircle2, Coins, Shield, Rocket, Zap } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import {
-  StepTokenDetails, StepDocumentation, StepCompliance, StepDeploy,
+  StepTokenDetails, StepCompliance, StepDeploy,
   type TokenFormData,
 } from "@/lib/tokenFormSteps";
 import { createToken, deployToken } from "@/lib/api/repositories/tokens";
@@ -15,9 +15,8 @@ import { getAccessToken } from "@/lib/api/client";
 
 const STEPS = [
   { id: 1, title: "Token Details", icon: Coins },
-  { id: 2, title: "Documentation", icon: FileText },
-  { id: 3, title: "Compliance", icon: Shield },
-  { id: 4, title: "Deploy", icon: Rocket },
+  { id: 2, title: "Compliance", icon: Shield },
+  { id: 3, title: "Deploy", icon: Rocket },
 ];
 
 export default function CreateTokenPage() {
@@ -36,7 +35,6 @@ export default function CreateTokenPage() {
     setDeployError(null);
     try {
       const token = getAccessToken() ?? "";
-      // Step 1: Create the token in the backend
       const created = await createToken(
         {
           name: formData.name,
@@ -48,7 +46,6 @@ export default function CreateTokenPage() {
         },
         token,
       );
-      // Step 2: Deploy the token contract on-chain
       await deployToken(created.id, token);
       setDeploySuccess(true);
     } catch (err) {
@@ -62,11 +59,38 @@ export default function CreateTokenPage() {
     setSelectedModules((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
 
+  const isDev = process.env.NODE_ENV === "development";
+
+  const autoFill = () => {
+    setFormData({
+      name: "Wassa Gold Reserve",
+      symbol: "WGLD",
+      assetType: "commodity",
+      totalSupply: "1000000",
+      decimals: "18",
+      description: "ERC-3643 security token backed by physical gold reserves in West Africa. Each token represents fractional ownership of audited gold holdings.",
+    });
+    setSelectedModules(["country_allow", "max_ownership", "max_holders"]);
+  };
+
+  const totalSteps = STEPS.length;
+
   return (
     <IssuerDashboardLayout
       title="Create New Token" description="Deploy a new ERC-3643 security token"
       breadcrumbs={[{ label: "Tokens", href: "/issuer/tokens" }, { label: "Create New" }]}
     >
+      {/* Dev Auto-fill */}
+      {isDev && (
+        <div className="flex justify-end mb-4">
+          <button onClick={autoFill}
+            className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-full hover:bg-amber-600 transition-colors text-xs font-semibold">
+            <Zap className="h-3 w-3" />
+            Auto-fill Fields
+          </button>
+        </div>
+      )}
+
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex items-center justify-between relative">
@@ -85,7 +109,7 @@ export default function CreateTokenPage() {
           ))}
           <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200 -z-0">
             <div className="h-full bg-green-500 transition-all duration-500"
-              style={{ width: `${((currentStep - 1) / 3) * 100}%` }} />
+              style={{ width: `${((currentStep - 1) / (totalSteps - 1)) * 100}%` }} />
           </div>
         </div>
       </div>
@@ -94,9 +118,8 @@ export default function CreateTokenPage() {
       <motion.div key={currentStep} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
         className="bg-white rounded-3xl p-8 border border-darkBlack/10">
         {currentStep === 1 && <StepTokenDetails formData={formData} setFormData={setFormData} />}
-        {currentStep === 2 && <StepDocumentation />}
-        {currentStep === 3 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} />}
-        {currentStep === 4 && <StepDeploy formData={formData} selectedModules={selectedModules} />}
+        {currentStep === 2 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} />}
+        {currentStep === 3 && <StepDeploy formData={formData} selectedModules={selectedModules} />}
       </motion.div>
 
       {/* Navigation */}
@@ -106,7 +129,7 @@ export default function CreateTokenPage() {
         ) : (
           <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>
         )}
-        {currentStep < 4 ? (
+        {currentStep < totalSteps ? (
           <Button variant="primary" onClick={() => setCurrentStep(currentStep + 1)}
             rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
         ) : (

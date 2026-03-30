@@ -28,7 +28,7 @@ export function HeroSection() {
         </p>
 
         <div className="flex items-center gap-6">
-          <Link href="/explore"
+          <Link href="/projects"
             className="inline-flex items-center justify-center rounded-full py-5 px-10 text-base font-semibold bg-[#13636F] text-white hover:bg-[#13636F]/90 transition-all duration-300 shadow-lg">
             Explore Projects
           </Link>

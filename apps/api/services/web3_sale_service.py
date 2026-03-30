@@ -177,9 +177,9 @@ class Web3SaleService:
     async def record_on_chain_contribution(
         self, tx_hash: str
     ) -> dict[str, Any]:
-        """Read a ContributionMade event from a tx receipt.
+        """Read a Purchase event from a tx receipt.
 
-        Returns dict with: contributor, phaseId, amount, tokensAllocated.
+        Returns dict with: buyer, phaseId, amount, tokensAllocated.
         """
         receipt = await self.tx_svc.get_receipt(tx_hash)
 
@@ -193,15 +193,15 @@ class Web3SaleService:
             address=Web3.to_checksum_address(sale_address), abi=sale_abi
         )
 
-        events = self.tx_svc.parse_events(receipt, sale_contract, "ContributionMade")
+        events = self.tx_svc.parse_events(receipt, sale_contract, "Purchase")
         if not events:
             raise ValueError(
-                f"No ContributionMade event in tx {tx_hash}"
+                f"No Purchase event in tx {tx_hash}"
             )
 
         event = events[0]
         return {
-            "contributor": event["contributor"],
+            "buyer": event["buyer"],
             "phase_id": event["phaseId"],
             "amount": Decimal(str(event["amount"])) / Decimal(10**USDC_DECIMALS),
             "amount_raw": event["amount"],

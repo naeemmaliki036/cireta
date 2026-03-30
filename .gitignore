@@ -3,6 +3,14 @@
 .env.local
 .env.*.local
 .env.backend
+.env.sepolia.bak
+
+# Uploads (local dev storage)
+uploads/
+
+# Playwright
+playwright-report/
+test-results/
 .env.production
 apps/*/.env.production
 !.env.example

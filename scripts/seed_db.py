@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -24,14 +24,13 @@ from apps.api.models.issuer import Issuer
 from apps.api.models.kyc_application import KYCApplication
 from apps.api.models.notification import Notification
 from apps.api.models.notification_preferences import NotificationPreferences
-from apps.api.models.platform_settings import PlatformSettings
+from apps.api.models.platform_setting import PlatformSetting
 from apps.api.models.redemption_request import RedemptionRequest
 from apps.api.models.sale_phase import SalePhase
 from apps.api.models.token import Token
 from apps.api.models.token_document import TokenDocument
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
-from apps.api.models.vault_snapshot import VaultSnapshot
 from apps.api.models.vesting_schedule import VestingSchedule
 from apps.api.models.wallet import Wallet
 from packages.common.core.config import settings
@@ -39,7 +38,8 @@ from packages.common.db.session import engine
 
 
 # --- Configuration ---
-PWD_CONTEXT = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 ASYNC_SESSION_LOCAL = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -50,7 +50,7 @@ ASYNC_SESSION_LOCAL = sessionmaker(
 
 # --- Helper Functions ---
 def get_password_hash(password: str) -> str:
-    return PWD_CONTEXT.hash(password)
+    return hash_password(password)
 
 async def _get_or_create(session: AsyncSession, model: Any, **kwargs: Any) -> Any:
     instance = await session.execute(
@@ -76,7 +76,6 @@ async def seed_data() -> None:
         await session.execute(delete(RedemptionRequest))
         await session.execute(delete(Contribution))
         await session.execute(delete(SalePhase))
-        await session.execute(delete(VaultSnapshot)) # Clear before TokenSale
         await session.execute(delete(TokenSale))
         await session.execute(delete(TokenDocument))
         await session.execute(delete(VestingSchedule))
@@ -85,19 +84,18 @@ async def seed_data() -> None:
         await session.execute(delete(Issuer))
         await session.execute(delete(Token))
         await session.execute(delete(User))
-        await session.execute(delete(PlatformSettings))
+        await session.execute(delete(PlatformSetting))
         await session.commit()
 
         # 2. Users
         print("Creating users...")
         users = {}
         for email, role, kyc_status, password, display_name, kyc_level in [
-            ("admin@cireta.io", UserRole.ADMIN, KYCStatus.APPROVED, "AdminPass123!", "Cireta Admin", 2),
-            ("issuer@goldcorp.io", UserRole.ISSUER, KYCStatus.APPROVED, "IssuerPass123!", "GoldCorp Issuer", 2),
-            ("alice@investor.io", UserRole.INVESTOR, KYCStatus.APPROVED, "AlicePass123!", "Alice Smith", 2),
-            ("bob@investor.io", UserRole.INVESTOR, KYCStatus.PENDING, "BobPass123!", "Bob Johnson", 1),
-            ("charlie@investor.io", UserRole.INVESTOR, KYCStatus.NONE, "CharliePass123!", "Charlie Brown", 0),
-            ("eve@blocked.io", UserRole.INVESTOR, KYCStatus.BLOCKED, "EvePass123!", "Eve Black", 0),
+            ("admin@cireta.com", UserRole.ADMIN, KYCStatus.APPROVED, "Password@123", "Cireta Admin", 2),
+            ("issuer+test@cireta.com", UserRole.ISSUER, KYCStatus.APPROVED, "Password@123", "Test Issuer", 2),
+            ("investor+verified@cireta.com", UserRole.INVESTOR, KYCStatus.APPROVED, "Password@123", "Verified Investor", 2),
+            ("investor+pending@cireta.com", UserRole.INVESTOR, KYCStatus.PENDING, "Password@123", "Pending Investor", 1),
+            ("investor+rejected@cireta.com", UserRole.INVESTOR, KYCStatus.REJECTED, "Password@123", "Rejected Investor", 0),
         ]:
             user_obj = User(
                 email=email,
@@ -108,18 +106,19 @@ async def seed_data() -> None:
                 email_verified_at=datetime.now(UTC),
                 kyc_status=kyc_status,
                 kyc_level=kyc_level,
-                walletconnect_id=f"wc-{email.split('@')[0]}", # Dummy ID
             )
             session.add(user_obj)
             await session.flush() # Populate ID for relationships
             users[email.split('@')[0]] = user_obj
             print(f"  Created user: {email} ({role})")
             
-        # 3. Create Issuer profile for 'issuer@goldcorp.io'
+        # 3. Create Issuer profile for 'issuer+test@cireta.com'
         print("Creating issuer profile...")
-        issuer_user = users["goldcorp"]
+        issuer_user = users["issuer+test"]
         issuer = Issuer(
             user_id=issuer_user.id,
+            name="GoldCorp",
+            slug="goldcorp",
             legal_entity_name="GoldCorp Inc.",
             jurisdiction="Dubai, UAE",
             wallet_address="0x" + "bb" * 20, # Dummy address
@@ -202,29 +201,30 @@ async def seed_data() -> None:
         await session.flush()
         print(f"  Created sale: {sale.id} with 2 phases")
 
-        # 6. Add a contribution (Alice to Public Round)
+        # 6. Add a contribution (verified investor to Public Round)
         print("Adding contribution...")
-        alice_user = users["alice"]
+        verified_user = users["investor+verified"]
         contribution = Contribution(
-            user_id=alice_user.id,
+            user_id=verified_user.id,
             sale_id=sale.id,
             phase_id=phase2.id,
-            wallet_address="0x" + "ae" * 20, # Alice's dummy wallet
+            wallet_address="0x" + "ae" * 20,
             amount=Decimal("500.00"), # 500 USDC
             tokens_allocated=Decimal("250.00"), # 500/2 = 250 TGLD
-            tx_hash="0x" + "cf" * 32, # Dummy tx hash
-            status=ContributionStatus.PENDING, # Pending claim
+            tx_hash="0x" + "cf" * 32,
+            status=ContributionStatus.PENDING,
         )
         session.add(contribution)
         await session.flush()
-        print(f"  Added contribution from Alice to sale {sale.id}")
+        print(f"  Added contribution from verified investor to sale {sale.id}")
         
         # 7. Platform Settings
         print("Creating placeholder platform settings...")
-        settings_obj = PlatformSettings(
+        settings_obj = PlatformSetting(
             id=UUID("00000000-0000-0000-0000-000000000001"), # Fixed ID
-            key="platform_name", 
-            value="Cireta RWA Launchpad"
+            key="platform_name",
+            value="Cireta RWA Launchpad",
+            updated_at=datetime.now(UTC),
         )
         await session.merge(settings_obj) # Use merge to prevent PK conflict on re-run
         await session.commit()
@@ -232,7 +232,7 @@ async def seed_data() -> None:
 
 if __name__ == "__main__":
     from sqlalchemy import select
-    from apps.api.models.base import Base # Import Base for metadata
+    from packages.common.db.base import Base # Import Base for metadata
 
     async def init_db_and_seed():
         # Ensure tables are created before seeding if not already

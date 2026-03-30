@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Coins, TrendingUp, Clock, DollarSign } from "lucide-react";
-import { PortfolioTable, type HoldingItem } from "@/components/organisms";
-import { DashboardLayout } from "@/components/templates";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  ShoppingBag, FolderOpen, CheckCircle2, Users,
+  DollarSign, Coins, TrendingUp, Clock, ArrowUpRight,
+} from "lucide-react";
+import Image from "next/image";
 import { Spinner } from "@/components/atoms";
+import { PortfolioTable, type HoldingItem } from "@/components/organisms";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getPortfolio,
@@ -13,24 +18,33 @@ import {
 } from "@/lib/api/repositories/portfolio.repository";
 import { formatCurrency } from "@/lib/utils";
 
-interface PortfolioStat {
+const SIDEBAR_LINKS = [
+  { href: "/projects", label: "Sales", icon: ShoppingBag },
+  { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
+];
+
+interface StatCardProps {
   title: string;
   value: string;
   icon: React.ElementType;
   positive?: boolean;
 }
 
-function PortfolioStatCard({ title, value, icon: Icon, positive }: PortfolioStat & { isLoading?: boolean }) {
+function StatCard({ title, value, icon: Icon, positive }: StatCardProps) {
   return (
-    <div className="bg-white rounded-3xl p-6 border border-darkBlack/10">
-      <div className="flex items-start justify-between mb-4">
-        <p className="text-xs uppercase tracking-wide font-medium text-darkBlack/50">{title}</p>
-        <Icon className="h-4 w-4 text-darkAqua" />
+    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+      <div className="flex items-start justify-between mb-3">
+        <p className="text-[11px] uppercase tracking-wider font-medium text-gray-400">
+          {title}
+        </p>
+        <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
+          <Icon className="h-4 w-4 text-darkAqua" />
+        </div>
       </div>
-      <p className="text-2xl font-bold text-text">{value}</p>
+      <p className="text-xl font-bold text-text">{value}</p>
       {positive !== undefined && (
-        <p className={`text-sm mt-1 font-medium ${positive ? "text-green-600" : "text-red-500"}`}>
-          {positive ? "▲" : "▼"} vs. cost basis
+        <p className={cn("text-xs mt-1 font-medium", positive ? "text-green-600" : "text-red-500")}>
+          {positive ? "+" : "-"} vs. cost basis
         </p>
       )}
     </div>
@@ -38,13 +52,14 @@ function PortfolioStatCard({ title, value, icon: Icon, positive }: PortfolioStat
 }
 
 export default function PortfolioPage() {
+  const pathname = usePathname();
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to finish before deciding
+    if (authLoading) return;
     if (!isAuthenticated || !accessToken) {
       setIsLoading(false);
       return;
@@ -78,7 +93,7 @@ export default function PortfolioPage() {
   const totalInvested = parseFloat(portfolio?.total_invested_usd ?? "0");
   const unrealizedGain = totalValue - totalInvested;
 
-  const stats: PortfolioStat[] = [
+  const stats: StatCardProps[] = [
     { title: "Total Portfolio Value", value: formatCurrency(totalValue), icon: DollarSign },
     { title: "Total Invested", value: formatCurrency(totalInvested), icon: Coins },
     { title: "Unrealised P&L", value: formatCurrency(unrealizedGain), icon: TrendingUp, positive: unrealizedGain >= 0 },
@@ -86,41 +101,130 @@ export default function PortfolioPage() {
   ];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-text">Portfolio</h1>
-          <p className="text-darkBlack/50 mt-1">Your tokenized asset holdings</p>
-        </motion.div>
+    <div className="flex min-h-screen bg-white">
+      {/* Sidebar */}
+      <aside className="hidden lg:flex w-48 border-r border-gray-100 flex-col p-4 sticky top-0 h-screen">
+        <div className="flex items-center gap-2 mb-8">
+          <Link href="/" className="flex items-center">
+            <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-8 w-auto" />
+          </Link>
+        </div>
 
-        {/* Stats */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          {isLoading ? (
-            <div className="flex justify-center py-8"><Spinner /></div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {stats.map((stat) => (
-                <PortfolioStatCard key={stat.title} {...stat} />
-              ))}
-            </div>
-          )}
-        </motion.div>
+        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+        <nav className="space-y-1">
+          {SIDEBAR_LINKS.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
+                )}
+              >
+                <link.icon className="h-4 w-4" />
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
 
-        {/* Holdings */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          {!isAuthenticated && !isLoading && !authLoading ? (
-            <div className="bg-white rounded-3xl p-12 border border-darkBlack/10 text-center">
-              <p className="text-gray-500 text-lg">Sign in to view your portfolio</p>
+      {/* Main Content */}
+      <div className="flex-1 min-w-0">
+        {/* Top Bar */}
+        <header className="sticky top-0 z-20 bg-white border-b border-gray-100 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-semibold text-text">Portfolio</h1>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/verify"
+                className="inline-flex items-center gap-1.5 border border-gray-200 rounded-full px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition-colors"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Get Verified
+              </Link>
+              {!isAuthenticated && (
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-1.5 bg-darkBlack text-white rounded-full px-4 py-1.5 text-xs font-medium hover:bg-darkBlack/90 transition-colors"
+                >
+                  <Users className="h-3.5 w-3.5" /> Register
+                </Link>
+              )}
             </div>
-          ) : error ? (
-            <div className="bg-white rounded-3xl p-12 border border-darkBlack/10 text-center">
-              <p className="text-gray-500">Could not load portfolio. Please try again later.</p>
+          </div>
+        </header>
+
+        <main className="p-6 max-w-5xl">
+          {/* Stats */}
+          <section className="mb-8">
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Spinner />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {stats.map((stat) => (
+                  <StatCard key={stat.title} {...stat} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Holdings */}
+          <section className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-base font-semibold text-text">Holdings</h2>
+              <span className="text-xs font-medium bg-gray-100 text-gray-500 px-2.5 py-0.5 rounded-full">
+                {holdings.length} tokens
+              </span>
             </div>
-          ) : (
-            <PortfolioTable holdings={holdings} />
-          )}
-        </motion.div>
+
+            {!isAuthenticated && !isLoading && !authLoading ? (
+              <div className="bg-white rounded-2xl p-12 border border-gray-100 text-center">
+                <FolderOpen className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm mb-4">Sign in to view your portfolio</p>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-5 py-2 rounded-full hover:bg-darkBlack/90 transition-colors"
+                >
+                  Sign In <ArrowUpRight className="h-3 w-3" />
+                </Link>
+              </div>
+            ) : error ? (
+              <div className="bg-white rounded-2xl p-12 border border-gray-100 text-center">
+                <p className="text-gray-500 text-sm">Could not load portfolio. Please try again later.</p>
+              </div>
+            ) : !isLoading && holdings.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 border border-gray-100 text-center">
+                <Coins className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm mb-1">No holdings yet</p>
+                <p className="text-gray-400 text-xs mb-4">Invest in a sale to start building your portfolio</p>
+                <Link
+                  href="/projects"
+                  className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-5 py-2 rounded-full hover:bg-darkBlack/90 transition-colors"
+                >
+                  Browse Sales <ArrowUpRight className="h-3 w-3" />
+                </Link>
+              </div>
+            ) : (
+              <PortfolioTable holdings={holdings} />
+            )}
+          </section>
+
+          {/* Recent Transactions */}
+          <section>
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-base font-semibold text-text">Recent Transactions</h2>
+            </div>
+            <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center">
+              <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">No recent transactions</p>
+            </div>
+          </section>
+        </main>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

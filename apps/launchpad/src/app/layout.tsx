@@ -6,10 +6,14 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Cireta Launchpad | RWA Tokenization",
+  title: "Cireta | Tokenized Real-World Asset Investment",
   description:
-    "Invest in tokenized real-world assets including gold, copper, and commodity futures on Base L2.",
-  keywords: ["RWA", "tokenization", "gold", "commodities", "Base", "ERC-3643"],
+    "Invest in tokenized gold and copper backed by physical reserves.",
+  keywords: ["RWA", "tokenization", "gold", "copper", "commodities", "ERC-3643"],
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/images/logo/cireta-colored.png",
+  },
 };
 
 export default function RootLayout({

@@ -36,9 +36,16 @@ class SaleQueryService:
         return result.scalar_one_or_none()
 
     async def list_sales(
-        self, page: int = 1, size: int = 20, status_filter: SaleStatus | None = None
+        self,
+        page: int = 1,
+        size: int = 20,
+        status_filter: SaleStatus | None = None,
+        public_only: bool = False,
     ) -> tuple[list[TokenSale], int]:
-        """List sales with pagination and optional status filter."""
+        """List sales with pagination and optional status filter.
+
+        If public_only=True, only returns ACTIVE and APPROVED_COMING_SOON sales.
+        """
         query = (
             select(TokenSale)
             .options(
@@ -48,12 +55,17 @@ class SaleQueryService:
             )
             .order_by(TokenSale.created_at.desc())
         )
-        if status_filter:
-            query = query.where(TokenSale.status == status_filter)
 
         count_query = select(func.count()).select_from(TokenSale)
-        if status_filter:
+
+        if public_only:
+            visible = [SaleStatus.ACTIVE, SaleStatus.APPROVED_COMING_SOON]
+            query = query.where(TokenSale.status.in_(visible))
+            count_query = count_query.where(TokenSale.status.in_(visible))
+        elif status_filter:
+            query = query.where(TokenSale.status == status_filter)
             count_query = count_query.where(TokenSale.status == status_filter)
+
         total_result = await self.db.execute(count_query)
         total = total_result.scalar() or 0
 

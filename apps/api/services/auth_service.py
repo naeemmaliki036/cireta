@@ -10,6 +10,9 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
+from apps.api.models.enums import IssuerStatus, UserRole
+from apps.api.models.issuer import Issuer
+from apps.api.models.issuer_whitelist import IssuerWhitelist
 from apps.api.models.user import User
 from packages.common.services.auth_service import (
     AuthService as BaseAuthService,
@@ -29,27 +32,16 @@ class CiretaAuthService(BaseAuthService):
     """
 
     async def register(self, email: str, password: str, display_name: str | None = None) -> User:
-        """Register a new user.
-
-        Args:
-            email: User email address.
-            password: Plain text password.
+        """Register a new investor account.
 
         Returns:
-            Created user object.
+            Created user object with role=INVESTOR.
 
         Raises:
             HTTPException: If email already exists.
         """
-        # Check if user exists
-        existing = await self.db.execute(select(User).where(User.email == email.lower()))
-        if existing.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "EMAIL_EXISTS", "message": "Email already registered"},
-            )
+        await self._check_email_exists(email)
 
-        # Create user with hashed password
         user = User()
         user.email = email.lower()
         user.hashed_password = self.hash_password(password)
@@ -60,6 +52,68 @@ class CiretaAuthService(BaseAuthService):
         await self.db.refresh(user)
 
         return user
+
+    async def register_issuer(self, email: str, password: str, display_name: str | None = None) -> User:
+        """Register a new issuer account. Requires email to be whitelisted.
+
+        Returns:
+            Created user object with role=ISSUER + linked Issuer record.
+
+        Raises:
+            HTTPException: If email not whitelisted or already exists.
+        """
+        await self._check_email_exists(email)
+
+        # Enforce whitelist
+        whitelist_result = await self.db.execute(
+            select(IssuerWhitelist).where(
+                IssuerWhitelist.email == email.lower(),
+                IssuerWhitelist.registered_at.is_(None),
+            )
+        )
+        whitelist_entry = whitelist_result.scalar_one_or_none()
+
+        if not whitelist_entry:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "NOT_WHITELISTED",
+                    "message": "This email is not whitelisted. Contact admin@cireta.io to get approved before registering.",
+                },
+            )
+
+        user = User()
+        user.email = email.lower()
+        user.hashed_password = self.hash_password(password)
+        user.display_name = display_name
+        user.role = UserRole.ISSUER
+
+        self.db.add(user)
+        await self.db.flush()
+
+        from datetime import datetime, UTC as _UTC
+        issuer = Issuer()
+        issuer.user_id = user.id
+        issuer.name = display_name or email.split("@")[0]
+        issuer.slug = email.split("@")[0].replace(".", "-").replace("+", "-").lower()
+        issuer.issuer_type = whitelist_entry.issuer_type
+        issuer.status = IssuerStatus.PENDING
+        self.db.add(issuer)
+
+        whitelist_entry.registered_at = datetime.now(_UTC)
+
+        await self.db.commit()
+        await self.db.refresh(user)
+
+        return user
+
+    async def _check_email_exists(self, email: str) -> None:
+        existing = await self.db.execute(select(User).where(User.email == email.lower()))
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "EMAIL_EXISTS", "message": "Email already registered"},
+            )
 
     async def login(
         self, email: str, password: str

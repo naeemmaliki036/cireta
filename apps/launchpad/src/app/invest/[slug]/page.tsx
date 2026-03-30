@@ -22,7 +22,7 @@ import { getProject, getSaleRawBySlug } from "@/lib/api/repositories/projects.re
 import { contribute } from "@/lib/api/repositories/sales";
 import type { Project } from "@/lib/api/repositories/projects.repository";
 import { Spinner } from "@/components/atoms";
-import { getAccessToken } from "@/lib/api/client";
+// Auth token handled by httpOnly cookie via proxy — no manual token needed
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
 
@@ -67,6 +67,8 @@ export default function InvestPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
+  const [saleOtcEnabled, setSaleOtcEnabled] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"crypto" | "otc" | null>(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<InvestStep>("amount");
   const [amount, setAmount] = useState("");
@@ -113,6 +115,9 @@ export default function InvestPage() {
         ]);
         setProject(proj);
         setSaleId(raw.id);
+        setSaleOtcEnabled(raw.otc_enabled ?? false);
+        // If OTC is not enabled, auto-select crypto
+        if (!raw.otc_enabled) setPaymentMethod("crypto");
       } catch {
         setError("Project not found");
       } finally {
@@ -135,10 +140,7 @@ export default function InvestPage() {
     // Record contribution in backend (non-blocking for UX — tx is already on-chain)
     (async () => {
       try {
-        const token = getAccessToken();
-        if (token) {
-          await contribute(saleId, { phase_id: "", amount, tx_hash: hash }, token);
-        }
+        await contribute(saleId, { phase_id: "", amount, tx_hash: hash });
       } catch {
         // Backend recording can be retried later; on-chain tx is the source of truth
       }
@@ -220,7 +222,7 @@ export default function InvestPage() {
         <Navbar variant="light" />
         <div className="pt-32 text-center">
           <p className="text-xl text-darkBlack/50">{error ?? "Project not found"}</p>
-          <Link href="/explore" className="text-darkAqua underline mt-4 block">Back to Explore</Link>
+          <Link href="/projects" className="text-darkAqua underline mt-4 block">Back to Explore</Link>
         </div>
         <Footer />
       </div>
@@ -264,9 +266,66 @@ export default function InvestPage() {
               </div>
             </div>
           )}
-          <motion.div key={step} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          <motion.div key={paymentMethod ?? "choose"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl p-8 border border-darkBlack/10">
-            {step === "amount" && (
+            {/* Payment Method Selector — shown when OTC is enabled and method not yet chosen */}
+            {saleOtcEnabled && !paymentMethod && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-text text-center">How would you like to invest?</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setPaymentMethod("crypto")}
+                    className="p-6 rounded-2xl border-2 border-darkBlack/10 hover:border-darkAqua transition-colors text-left space-y-2"
+                  >
+                    <span className="text-2xl">&#x1F4B0;</span>
+                    <h3 className="font-semibold text-text">On-Chain (USDC)</h3>
+                    <p className="text-sm text-gray-500">Pay with USDC from your connected wallet. Instant settlement on Base.</p>
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod("otc")}
+                    className="p-6 rounded-2xl border-2 border-darkBlack/10 hover:border-darkAqua transition-colors text-left space-y-2"
+                  >
+                    <span className="text-2xl">&#x1F3E6;</span>
+                    <h3 className="font-semibold text-text">OTC & Bank Transfer</h3>
+                    <p className="text-sm text-gray-500">Pay via wire transfer or OTC allocation. Suitable for larger investments.</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* OTC Info Card — shown when OTC method is selected */}
+            {paymentMethod === "otc" && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-text">OTC & Bank Transfer</h2>
+                <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100 space-y-3">
+                  <p className="text-sm text-gray-700">
+                    This sale accepts investments via bank wire transfer and OTC allocation.
+                    Review the full instructions on the project page.
+                  </p>
+                  <a
+                    href={`/project/${params.slug}#otc`}
+                    onClick={(e) => { e.preventDefault(); window.history.back(); }}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-darkAqua hover:underline"
+                  >
+                    View OTC & Bank Instructions on Project Page &#x2192;
+                  </a>
+                </div>
+                <div className="p-4 rounded-xl bg-gray-50 text-sm space-y-2">
+                  <p className="font-medium text-text">For large allocations ($50,000+)</p>
+                  <p className="text-gray-500">Contact our OTC desk directly for preferential pricing and dedicated support.</p>
+                  <p className="font-medium text-darkAqua">otc@cireta.com</p>
+                </div>
+                <button
+                  onClick={() => setPaymentMethod(null)}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  &#x2190; Back to payment options
+                </button>
+              </div>
+            )}
+
+            {/* Crypto flow — existing steps */}
+            {paymentMethod === "crypto" && step === "amount" && (
               <InvestAmountStep
                 project={project} activePhase={activePhase}
                 amount={amount} onAmountChange={setAmount}
@@ -274,13 +333,13 @@ export default function InvestPage() {
                 isConnected={isConnected} onConnect={() => openConnectModal?.()}
               />
             )}
-            {step === "approve" && (
+            {paymentMethod === "crypto" && step === "approve" && (
               <InvestApproveStep
                 amount={numericAmount} isLoading={isApproving}
                 error={error} onApprove={handleApprove}
               />
             )}
-            {step === "confirm" && (
+            {paymentMethod === "crypto" && step === "confirm" && (
               <InvestConfirmStep
                 project={project} amount={numericAmount}
                 tokensToReceive={tokensToReceive} isLoading={confirmLoading}
@@ -302,7 +361,7 @@ export default function InvestPage() {
                 </a>
               )}
               <Link href="/portfolio"><Button variant="primary" className="w-full" size="lg">View Portfolio</Button></Link>
-              <Link href="/explore"><Button variant="outline" className="w-full" size="lg">Explore More</Button></Link>
+              <Link href="/projects"><Button variant="outline" className="w-full" size="lg">Explore More</Button></Link>
             </div>
           )}
         </div>

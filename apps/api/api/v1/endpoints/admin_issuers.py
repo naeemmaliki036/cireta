@@ -13,6 +13,9 @@ from apps.api.schemas.admin import (
     IssuerListResponse,
     IssuerResponse,
     PlatformSettingsRequest,
+    WhitelistAddRequest,
+    WhitelistEntryResponse,
+    WhitelistListResponse,
 )
 from apps.api.services.compliance_service import ComplianceService
 from apps.api.services.issuer_service import IssuerService
@@ -52,6 +55,10 @@ def _issuer_to_response(issuer) -> IssuerResponse:
         wallet_address=issuer.wallet_address,
         fee_bps=issuer.fee_bps,
         status=(issuer.status.value if hasattr(issuer.status, "value") else issuer.status),
+        issuer_type=(issuer.issuer_type.value if hasattr(issuer.issuer_type, "value") else issuer.issuer_type),
+        wallet_status=(issuer.wallet_status.value if hasattr(issuer.wallet_status, "value") else issuer.wallet_status),
+        identity_status=(issuer.identity_status.value if hasattr(issuer.identity_status, "value") else issuer.identity_status),
+        identity_verified_at=issuer.identity_verified_at,
         legal_entity_name=issuer.legal_entity_name,
         jurisdiction=issuer.jurisdiction,
         created_at=issuer.created_at,
@@ -81,6 +88,17 @@ async def list_issuers(
         page=page,
         size=size,
     )
+
+
+@router.get("/issuers/{issuer_id}", response_model=IssuerResponse)
+async def get_issuer(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Get a single issuer by ID."""
+    issuer = await issuer_service._get_issuer(issuer_id)
+    return _issuer_to_response(issuer)
 
 
 @router.post("/issuers/", response_model=IssuerResponse, status_code=status.HTTP_201_CREATED)
@@ -145,6 +163,99 @@ async def activate_issuer(
     """
     issuer = await issuer_service.activate_issuer(issuer_id)
     return _issuer_to_response(issuer)
+
+
+# ==================== Identity Override ====================
+
+
+@router.post("/issuers/{issuer_id}/skip-identity", response_model=IssuerResponse)
+async def skip_identity_verification(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Admin override: mark issuer identity as approved without Sumsub verification."""
+    issuer = await issuer_service.set_identity_approved(issuer_id)
+    return _issuer_to_response(issuer)
+
+
+# ==================== Wallet Approval ====================
+
+
+@router.post("/issuers/{issuer_id}/approve-wallet", response_model=IssuerResponse)
+async def approve_issuer_wallet(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Approve an issuer's wallet address."""
+    issuer = await issuer_service.approve_wallet(issuer_id)
+    return _issuer_to_response(issuer)
+
+
+@router.post("/issuers/{issuer_id}/reject-wallet", response_model=IssuerResponse)
+async def reject_issuer_wallet(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Reject an issuer's wallet address."""
+    issuer = await issuer_service.reject_wallet(issuer_id)
+    return _issuer_to_response(issuer)
+
+
+# ==================== Issuer Whitelist ====================
+
+
+def _whitelist_to_response(e) -> WhitelistEntryResponse:
+    return WhitelistEntryResponse(
+        id=str(e.id),
+        email=e.email,
+        issuer_type=e.issuer_type.value if hasattr(e.issuer_type, "value") else e.issuer_type,
+        kyc_required=e.kyc_required,
+        invited_by=str(e.invited_by),
+        registered_at=e.registered_at,
+        created_at=e.created_at,
+    )
+
+
+@router.post("/issuers/whitelist", response_model=WhitelistEntryResponse, status_code=status.HTTP_201_CREATED)
+async def add_to_whitelist(
+    request: WhitelistAddRequest,
+    user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> WhitelistEntryResponse:
+    """Add an email to the issuer whitelist."""
+    entry = await issuer_service.add_to_whitelist(
+        email=request.email,
+        issuer_type=request.issuer_type,
+        invited_by=user_id,
+        kyc_required=request.kyc_required,
+    )
+    return _whitelist_to_response(entry)
+
+
+@router.get("/issuers/whitelist", response_model=WhitelistListResponse)
+async def list_whitelist(
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> WhitelistListResponse:
+    """List all whitelisted issuer emails."""
+    entries = await issuer_service.list_whitelist()
+    return WhitelistListResponse(
+        items=[_whitelist_to_response(e) for e in entries],
+        total=len(entries),
+    )
+
+
+@router.delete("/issuers/whitelist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_whitelist(
+    entry_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> None:
+    """Remove an email from the whitelist."""
+    await issuer_service.remove_from_whitelist(entry_id)
 
 
 # ==================== Compliance Actions ====================

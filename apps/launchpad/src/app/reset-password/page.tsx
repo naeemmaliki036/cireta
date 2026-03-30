@@ -4,8 +4,8 @@ import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock, CheckCircle, AlertCircle } from "lucide-react";
+import Image from "next/image";
 import { Button, Input } from "@/components/atoms";
-import { CiretaLogo } from "@/components/atoms";
 import { resetPassword } from "@/lib/api/repositories/auth.repository";
 
 function ResetForm() {
@@ -93,7 +93,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-6">
-            <CiretaLogo variant="full" color="dark" className="h-8 mx-auto" />
+            <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-8 w-auto mx-auto" />
           </Link>
         </div>
         <div className="bg-white rounded-3xl p-8 border border-darkBlack/10 shadow-card">

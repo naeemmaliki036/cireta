@@ -3,7 +3,7 @@ import "@/styles/globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
-  title: "Cireta Admin | Issuer Dashboard",
+  title: "Cireta | Issuer Admin Portal",
   description: "Manage your tokenized assets and token sales on Cireta.",
 };
 

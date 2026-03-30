@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import Image from "next/image";
 import { Button, Input } from "@/components/atoms";
-import { CiretaLogo } from "@/components/atoms";
 import { forgotPassword } from "@/lib/api/repositories/auth.repository";
 
 export default function ForgotPasswordPage() {
@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-6">
-            <CiretaLogo variant="full" color="dark" className="h-8 mx-auto" />
+            <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-8 w-auto mx-auto" />
           </Link>
         </div>
 

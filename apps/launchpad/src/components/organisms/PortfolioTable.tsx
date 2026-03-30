@@ -42,7 +42,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
           You haven&apos;t invested in any projects yet. Explore available
           opportunities to start building your portfolio.
         </p>
-        <Link href="/explore">
+        <Link href="/projects">
           <Button variant="primary">Explore Projects</Button>
         </Link>
       </motion.div>

@@ -4,17 +4,12 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { CiretaLogo } from "@/components/atoms";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
-const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/explore", label: "Explore" },
-  { href: "/portfolio", label: "Portfolio" },
-];
 
 export interface NavbarProps {
   variant?: "dark" | "light";
@@ -59,61 +54,28 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   }, [isMobileMenuOpen]);
 
   const textColor = variant === "dark" || isScrolled ? "text-white" : "text-text";
-  const logoColor = variant === "dark" || isScrolled ? "white" : "dark";
 
   return (
     <>
       <header
         className={cn(
-          "fixed left-0 right-0 z-50 w-full duration-300 px-4 md:px-8",
+          "fixed top-0 left-0 right-0 z-50 w-full duration-300 px-4 md:px-8",
           isScrolled
-            ? "bg-darkBlack/90 backdrop-blur-xl py-4 shadow-nav"
-            : "py-6 md:py-8",
+            ? "bg-darkBlack/90 backdrop-blur-xl py-2 shadow-nav"
+            : "py-3 md:py-4",
           variant === "light" && !isScrolled && "bg-white"
         )}
       >
         <nav className="relative w-full flex items-center justify-between mx-auto max-w-inner h-full">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <CiretaLogo variant="icon" color={isScrolled ? "teal" : logoColor} className="w-8 h-8" />
-            <span
-              className={cn(
-                "text-xl font-bold tracking-tight hidden sm:block",
-                isScrolled ? "text-white" : textColor
-              )}
-            >
-              Cireta
-            </span>
+          <Link href="/" className="flex items-center">
+            {(variant === "dark" || isScrolled) ? (
+              <Image src="/images/logo/cireta-white.png" alt="Cireta" width={320} height={90} className="h-10 w-auto" />
+            ) : (
+              <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={320} height={90} className="h-10 w-auto" />
+            )}
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-8">
-            <ul className="flex items-center gap-1">
-              {NAV_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-base font-medium transition-colors duration-200",
-                      pathname === link.href
-                        ? variant === "light" && !isScrolled
-                          ? "bg-darkAqua/10 text-darkAqua font-semibold"
-                          : "bg-white/20 text-white font-semibold"
-                        : cn(
-                            isScrolled
-                              ? "text-white/70 hover:text-white hover:bg-white/10"
-                              : variant === "dark"
-                              ? "text-white/70 hover:text-white hover:bg-white/10"
-                              : "text-text/70 hover:text-text hover:bg-darkBlack/5"
-                          )
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
 
           {/* Actions */}
           <div className="relative flex items-center gap-3">
@@ -189,6 +151,34 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                 );
               }}
             </ConnectButton.Custom>
+
+            {/* Auth CTAs — visible when not authenticated */}
+            {!isAuthenticated && (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-medium border transition-all duration-300 hover:opacity-80",
+                    isScrolled || variant === "dark"
+                      ? "border-white/30 text-white hover:bg-white/10"
+                      : "border-darkBlack/20 text-text hover:bg-darkBlack/5"
+                  )}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
+                    isScrolled || variant === "dark"
+                      ? "bg-white text-darkBlack"
+                      : "bg-darkBlack text-white"
+                  )}
+                >
+                  Register
+                </Link>
+              </div>
+            )}
 
             {/* User Menu */}
             {isAuthenticated && user && (
@@ -276,22 +266,24 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             />
             <div className="absolute right-0 top-0 h-full w-full max-w-sm bg-darkBlack shadow-aside p-6 pt-24">
               <nav className="flex flex-col gap-2">
-                {NAV_LINKS.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={cn(
-                      "px-4 py-3 rounded-xl text-lg font-medium transition-colors",
-                      pathname === link.href
-                        ? "bg-darkAqua/20 text-darkAqua"
-                        : "text-white/70 hover:text-white hover:bg-white/10"
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-3 rounded-xl text-lg font-medium text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                  Explore Projects
+                </Link>
               </nav>
+              {/* Sign Up / Log In (Mobile) */}
+              {!isAuthenticated && (
+                <div className="mt-6 border-t border-white/10 pt-6">
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-darkBlack text-base font-semibold transition-colors hover:bg-white/90"
+                  >
+                    <User className="h-5 w-5" />
+                    Sign Up / Log In
+                  </Link>
+                </div>
+              )}
               {/* User Info (Mobile) */}
               {isAuthenticated && user && (
                 <div className="mt-6 border-t border-white/10 pt-6">

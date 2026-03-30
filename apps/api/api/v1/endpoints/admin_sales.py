@@ -1,0 +1,121 @@
+"""Admin sale management endpoints — approval, rejection, finalization."""
+
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.models.enums import SaleStatus
+from apps.api.models.token_sale import TokenSale
+from apps.api.services.sale_service import SaleService
+from packages.common.core.auth_deps import RequireAdmin
+from packages.common.db.session import get_db
+
+router = APIRouter(prefix="/admin/sales", tags=["admin-sales"])
+
+
+async def get_sale_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SaleService:
+    return SaleService(db)
+
+
+class SaleActionRequest(BaseModel):
+    reason: str | None = None
+
+
+class SaleActionResponse(BaseModel):
+    sale_id: str
+    status: str
+    message: str
+
+
+@router.post("/{sale_id}/approve", response_model=SaleActionResponse)
+async def approve_sale(
+    sale_id: UUID,
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleActionResponse:
+    """Approve a pending sale.
+
+    If is_coming_soon → APPROVED_COMING_SOON (visible on launchpad, no buy).
+    If not coming_soon → APPROVED (issuer can deploy on-chain).
+    """
+    result = await sale_service.db.execute(
+        select(TokenSale).where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.status != SaleStatus.PENDING_APPROVAL:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be PENDING_APPROVAL, currently: {sale.status}"})
+
+    if sale.is_coming_soon:
+        sale.status = SaleStatus.APPROVED_COMING_SOON
+        msg = "Sale approved as Coming Soon — now visible on launchpad"
+    else:
+        sale.status = SaleStatus.APPROVED
+        msg = "Sale approved — issuer can now deploy on-chain"
+
+    await sale_service.db.commit()
+    return SaleActionResponse(sale_id=str(sale_id), status=sale.status.value, message=msg)
+
+
+@router.post("/{sale_id}/reject", response_model=SaleActionResponse)
+async def reject_sale(
+    sale_id: UUID,
+    request: SaleActionRequest,
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleActionResponse:
+    """Reject a pending sale — returns to rejected status."""
+    result = await sale_service.db.execute(
+        select(TokenSale).where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.status != SaleStatus.PENDING_APPROVAL:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be PENDING_APPROVAL, currently: {sale.status}"})
+
+    sale.status = SaleStatus.REJECTED
+    await sale_service.db.commit()
+    return SaleActionResponse(sale_id=str(sale_id), status=sale.status.value, message=f"Sale rejected: {request.reason or 'No reason provided'}")
+
+
+@router.post("/{sale_id}/finalize", response_model=SaleActionResponse)
+async def admin_finalize_sale(
+    sale_id: UUID,
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleActionResponse:
+    """Finalize a sale — admin only."""
+    sale = await sale_service.finalize_sale(user_id, sale_id, admin_override=True)
+    return SaleActionResponse(
+        sale_id=str(sale_id),
+        status=sale.status.value if hasattr(sale.status, "value") else sale.status,
+        message="Sale finalized",
+    )
+
+
+@router.get("/", response_model=dict)
+async def list_all_sales(
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
+    status_filter: SaleStatus | None = None,
+) -> dict:
+    """List all sales for admin — includes all statuses."""
+    sales, total = await sale_service.list_sales(page, size, status_filter)
+    from apps.api.api.v1.endpoints.sales import _sale_to_response
+
+    return {
+        "items": [_sale_to_response(s) for s in sales],
+        "total": total,
+        "page": page,
+        "size": size,
+    }

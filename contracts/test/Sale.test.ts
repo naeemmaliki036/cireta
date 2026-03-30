@@ -50,40 +50,40 @@ describe("Sale", () => {
   it("allows valid contribution", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.not.be.reverted;
+    await expect(sale.connect(investor).buy(0, amount)).to.not.be.reverted;
     expect(await sale.totalRaised()).to.equal(amount);
   });
 
   it("reverts below minimum", async () => {
     const amount = ethers.parseUnits("100", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "BelowMinContribution");
+    await expect(sale.connect(investor).buy(0, amount)).to.be.revertedWithCustomError(sale, "BelowMinContribution");
   });
 
   it("reverts when paused", async () => {
     await sale.pause();
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "InvalidStatus");
+    await expect(sale.connect(investor).buy(0, amount)).to.be.revertedWithCustomError(sale, "InvalidStatus");
   });
 
   it("reverts above max", async () => {
     const amount = ethers.parseUnits("150000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "ExceedsMaxContribution");
+    await expect(sale.connect(investor).buy(0, amount)).to.be.revertedWithCustomError(sale, "ExceedsMaxContribution");
   });
 
   it("emits Contributed event", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount))
+    await expect(sale.connect(investor).buy(0, amount))
       .to.emit(sale, "ContributionMade");
   });
 
   it("Direct mode: transfers tokens to investor on contribute", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     // Investor should have received project tokens
     const tokensAllocated = (amount * 10n ** 18n) / PRICE;
@@ -96,7 +96,7 @@ describe("Sale", () => {
   it("Direct mode: contribution marks claimed=true", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     const contrib = await sale.getContribution(investor.address);
     expect(contrib.claimed).to.be.true;
@@ -202,7 +202,7 @@ describe("Sale — Vested Mode", () => {
   it("contribute mints fraction tokens (not project tokens)", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     const tokensAllocated = (amount * 10n ** 18n) / PRICE;
     // Investor has fraction tokens, NOT project tokens
@@ -223,7 +223,7 @@ describe("Sale — Vested Mode", () => {
     // Contribute enough to reach soft cap then finalize
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     await sale.connect(issuer).finalizeSale();
 
@@ -237,7 +237,7 @@ describe("Sale — Vested Mode", () => {
   it("refund burns fraction tokens in vested mode", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     const tokensAllocated = (amount * 10n ** 18n) / PRICE;
     expect(await fractionToken.balanceOf(investor.address)).to.equal(tokensAllocated);

@@ -289,6 +289,13 @@ async def upload_token_document(
     if not token:
         raise HTTPException(status_code=404, detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"})
 
+    # Null check: token must have an associated issuer
+    if not token.issuer:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "NO_ISSUER", "message": "Token has no associated issuer"},
+        )
+
     # Ownership check: only the issuer who owns this token can attach documents
     if token.issuer.user_id != user_id:
         raise HTTPException(
