@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { User, Building2, Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2, X, Home, Scale, Lock } from "lucide-react";
+import { User, Building2, Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2, X, Home, Scale, Lock, Clock, Search } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { useAuth } from "@/contexts/AuthContext";
+import { useKYC } from "@/contexts/KYCContext";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { apiFetch } from "@/lib/api/client";
@@ -45,13 +46,14 @@ const COUNTRIES = [
 const STEPS: { id: Step; label: string; required: boolean }[] = [
   { id: "type", label: "Investor Type", required: true },
   { id: "details", label: "Personal Details", required: true },
-  { id: "wallet", label: "Connect Wallet", required: false },
+  { id: "wallet", label: "Wallet", required: false },
   { id: "kyc", label: "Verification", required: true },
 ];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { kycStatus } = useKYC();
   const { isConnected } = useAccount();
   const [step, setStep] = useState<Step>("type");
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
@@ -265,15 +267,24 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between mb-10">
             {STEPS.map((s, i) => (
               <div key={s.id} className="flex items-center">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                  i < currentStepIndex ? "bg-green-500 text-white"
-                  : i === currentStepIndex ? "bg-gray-900 text-white"
-                  : "bg-gray-200 text-gray-400"
-                }`}>
-                  {i < currentStepIndex ? <CheckCircle2 className="h-5 w-5" /> : i + 1}
+                <div className="flex flex-col items-center">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                    i < currentStepIndex ? "bg-green-500 text-white"
+                    : i === currentStepIndex ? "bg-gray-900 text-white"
+                    : "bg-gray-200 text-gray-400"
+                  }`}>
+                    {i < currentStepIndex ? <CheckCircle2 className="h-5 w-5" /> : i + 1}
+                  </div>
+                  <span className={`text-xs font-medium mt-1.5 whitespace-nowrap ${
+                    i < currentStepIndex ? "text-green-600"
+                    : i === currentStepIndex ? "text-gray-900"
+                    : "text-gray-400"
+                  }`}>
+                    {s.label}
+                  </span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`w-12 sm:w-20 h-0.5 mx-1 ${i < currentStepIndex ? "bg-green-500" : "bg-gray-200"}`} />
+                  <div className={`w-12 sm:w-20 h-0.5 mx-1 mb-5 ${i < currentStepIndex ? "bg-green-500" : "bg-gray-200"}`} />
                 )}
               </div>
             ))}
@@ -491,14 +502,44 @@ export default function OnboardingPage() {
         {/* Step 3: KYC */}
         {step === "kyc" && (
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-6">
-              <ShieldCheck className="h-8 w-8 text-green-600" />
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 ${
+              kycStatus.status === "pending" ? "bg-amber-50" : "bg-green-50"
+            }`}>
+              {kycStatus.status === "pending"
+                ? <Clock className="h-8 w-8 text-amber-600" />
+                : <ShieldCheck className="h-8 w-8 text-green-600" />}
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Identity Verification</h1>
             <p className="text-gray-500 text-sm mb-2">
               {investorType === "corporate" ? "Complete KYB (Know Your Business) verification" : "Complete KYC (Know Your Customer) verification"}
             </p>
             <p className="text-xs text-gray-400 mb-6">Usually takes 2-3 minutes</p>
+
+            {/* Status banner when KYC is pending */}
+            {kycStatus.status === "pending" && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 max-w-md mx-auto">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <p className="text-sm font-semibold text-amber-800">Verification In Progress</p>
+                </div>
+                <p className="text-xs text-amber-600">
+                  Your documents have been submitted and are being reviewed. This usually takes a few minutes but can take up to 24 hours.
+                </p>
+              </div>
+            )}
+
+            {/* Status banner when KYC is rejected */}
+            {kycStatus.status === "rejected" && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 max-w-md mx-auto">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <p className="text-sm font-semibold text-red-800">Verification Failed</p>
+                </div>
+                <p className="text-xs text-red-600">
+                  {kycStatus.message || "Your verification was not approved. Please try again with valid documents."}
+                </p>
+              </div>
+            )}
 
             {/* Compliance context */}
             <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 mb-6 text-left max-w-md mx-auto border border-gray-100">
@@ -516,24 +557,26 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-xl p-6 mb-8 text-left max-w-md mx-auto">
-              <h3 className="font-medium text-gray-900 text-sm mb-3">What you&apos;ll need:</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                {investorType === "individual" ? (
-                  <>
-                    <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Government-issued ID (passport, driver&apos;s license)</li>
-                    <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Selfie for face verification</li>
-                    <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Proof of address (utility bill, bank statement)</li>
-                  </>
-                ) : (
-                  <>
-                    <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Certificate of incorporation</li>
-                    <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Beneficial ownership documentation</li>
-                    <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Authorized representative ID</li>
-                  </>
-                )}
-              </ul>
-            </div>
+            {kycStatus.status !== "pending" && (
+              <div className="bg-gray-50 rounded-xl p-6 mb-8 text-left max-w-md mx-auto">
+                <h3 className="font-medium text-gray-900 text-sm mb-3">What you&apos;ll need:</h3>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  {investorType === "individual" ? (
+                    <>
+                      <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Government-issued ID (passport, driver&apos;s license)</li>
+                      <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Selfie for face verification</li>
+                      <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Proof of address (utility bill, bank statement)</li>
+                    </>
+                  ) : (
+                    <>
+                      <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Certificate of incorporation</li>
+                      <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Beneficial ownership documentation</li>
+                      <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Authorized representative ID</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            )}
 
             <div className="flex items-center justify-center gap-3">
               <Button onClick={() => setStep("wallet")} variant="outline" className="rounded-xl">
@@ -541,15 +584,23 @@ export default function OnboardingPage() {
               </Button>
               <Link href="/verify">
                 <Button className="bg-gray-900 text-white rounded-xl hover:bg-gray-800 px-12" size="lg">
-                  Start Verification <ArrowRight className="h-4 w-4 ml-2" />
+                  {kycStatus.status === "pending" ? (
+                    <><Search className="h-4 w-4 mr-2" /> Check Status</>
+                  ) : kycStatus.status === "rejected" ? (
+                    <>Retry Verification <ArrowRight className="h-4 w-4 ml-2" /></>
+                  ) : (
+                    <>Start Verification <ArrowRight className="h-4 w-4 ml-2" /></>
+                  )}
                 </Button>
               </Link>
             </div>
             {/* Dev bypass */}
-            <button onClick={handleDevKycApprove}
-              className="text-xs text-gray-400 hover:text-gray-600 underline mt-3">
-              Skip Verification (Dev Only)
-            </button>
+            {kycStatus.status !== "pending" && (
+              <button onClick={handleDevKycApprove}
+                className="text-xs text-gray-400 hover:text-gray-600 underline mt-3">
+                Skip Verification (Dev Only)
+              </button>
+            )}
             <ExitLink />
           </div>
         )}

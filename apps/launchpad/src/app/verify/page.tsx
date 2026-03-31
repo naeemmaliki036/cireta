@@ -52,7 +52,7 @@ export default function VerifyPage() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
-          <main className="p-6 max-w-2xl">
+          <main className="p-6 max-w-6xl">
             <h1 className="text-lg font-semibold text-text mb-1">Identity Verification</h1>
             <p className="text-sm text-gray-500 mb-6">
               {isCorperate
@@ -60,75 +60,81 @@ export default function VerifyPage() {
                 : "Complete KYC (Know Your Customer) verification for your personal account"}
             </p>
 
-            {/* Compliance explainer */}
-            <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 p-6 mb-6">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck className="h-5 w-5 text-green-600" />
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Left — Sumsub Widget */}
+              <div className="flex-1 min-w-0">
+                <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                  <Suspense
+                    fallback={
+                      <div className="flex justify-center py-12">
+                        <Spinner />
+                      </div>
+                    }
+                  >
+                    <SumsubVerification />
+                  </Suspense>
                 </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Why is verification required?</h2>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Cireta operates under strict regulatory standards for real-world asset tokenization.
-                    As a platform dealing in regulated security tokens, we are legally required to verify
-                    the identity of every investor before granting access to investment opportunities.
-                  </p>
-                </div>
+
+                <p className="text-[11px] text-gray-400 text-center mt-4">
+                  Verification is powered by Sumsub, a globally certified identity verification provider.
+                  Cireta does not store raw copies of your identity documents.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
-                  <Scale className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-800">AML/CFT Compliance</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Anti-money laundering and counter-terrorism financing regulations</p>
+              {/* Right — Why is verification required? */}
+              <div className="w-full lg:w-80 flex-shrink-0">
+                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100 p-5 sticky top-20">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                      <ShieldCheck className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-gray-900">Why is verification required?</h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Cireta operates under strict regulatory standards for real-world asset tokenization.
+                        We are legally required to verify the identity of every investor before granting access
+                        to investment opportunities.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
-                  <Globe className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-800">Securities Regulation</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Regulated security tokens require verified investors</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
-                  <Lock className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-800">Data Protection</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Your data is encrypted at rest and processed by our certified KYC partner</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
-                  <FileCheck className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-800">{isCorperate ? "KYB Process" : "KYC Process"}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      {isCorperate
-                        ? "Company incorporation docs, beneficial ownership & authorised representative ID"
-                        : "Government-issued ID, selfie verification & proof of address — usually under 3 minutes"}
-                    </p>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
+                      <Scale className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">AML/CFT Compliance</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Anti-money laundering and counter-terrorism financing regulations</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
+                      <Globe className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">Securities Regulation</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Regulated security tokens require verified investors</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
+                      <Lock className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">Data Protection</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Your data is encrypted at rest and processed by our certified KYC partner</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">
+                      <FileCheck className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">{isCorperate ? "KYB Process" : "KYC Process"}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {isCorperate
+                            ? "Company incorporation docs, beneficial ownership & authorised representative ID"
+                            : "Government-issued ID, selfie verification & proof of address — usually under 3 minutes"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Sumsub Widget */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100">
-              <Suspense
-                fallback={
-                  <div className="flex justify-center py-12">
-                    <Spinner />
-                  </div>
-                }
-              >
-                <SumsubVerification />
-              </Suspense>
-            </div>
-
-            <p className="text-[11px] text-gray-400 text-center mt-4">
-              Verification is powered by Sumsub, a globally certified identity verification provider.
-              Cireta does not store raw copies of your identity documents.
-            </p>
           </main>
         </div>
       </div>

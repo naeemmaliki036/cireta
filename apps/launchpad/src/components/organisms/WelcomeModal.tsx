@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { User, FileText, ShieldCheck, Wallet, ArrowRight, X, BellOff, CheckCircle2 } from "lucide-react";
+import { User, FileText, ShieldCheck, Wallet, ArrowRight, X, BellOff, CheckCircle2, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useKYC } from "@/contexts/KYCContext";
 import { getOnboardingStatus, type OnboardingStatus } from "@/lib/api/repositories/auth.repository";
 
 const STEPS = [
@@ -46,6 +47,7 @@ const STEPS = [
 
 export function WelcomeModal() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { kycStatus } = useKYC();
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
 
@@ -151,12 +153,19 @@ export function WelcomeModal() {
                 <div className="space-y-3">
                   {STEPS.map((step, i) => {
                     const done = isStepDone(step.key);
+                    const isKycPending = step.key === "kyc" && !done && kycStatus.status === "pending";
                     return (
                       <div key={step.title} className={`flex items-start gap-3.5 ${done ? "opacity-60" : ""}`}>
                         <div className="relative shrink-0">
-                          <div className={`w-10 h-10 rounded-xl ${done ? step.doneColor : step.color} flex items-center justify-center`}>
+                          <div className={`w-10 h-10 rounded-xl ${
+                            done ? step.doneColor
+                            : isKycPending ? "bg-amber-50 text-amber-600"
+                            : step.color
+                          } flex items-center justify-center`}>
                             {done
                               ? <CheckCircle2 className="h-5 w-5" />
+                              : isKycPending
+                              ? <Clock className="h-5 w-5" />
                               : <step.icon className="h-5 w-5" />}
                           </div>
                         </div>
@@ -164,6 +173,8 @@ export function WelcomeModal() {
                           <div className="flex items-center gap-2">
                             {done ? (
                               <span className="text-[10px] font-bold text-green-500">COMPLETED</span>
+                            ) : isKycPending ? (
+                              <span className="text-[10px] font-bold text-amber-500">IN REVIEW</span>
                             ) : (
                               <span className="text-[10px] font-bold text-gray-300">STEP {i + 1}</span>
                             )}
@@ -172,7 +183,13 @@ export function WelcomeModal() {
                             )}
                           </div>
                           <p className={`text-sm font-semibold ${done ? "text-gray-400 line-through" : "text-gray-900"}`}>{step.title}</p>
-                          {!done && <p className="text-xs text-gray-500 mt-0.5">{step.desc}</p>}
+                          {!done && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {isKycPending
+                                ? "Your documents are being reviewed. This usually takes a few minutes."
+                                : step.desc}
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
