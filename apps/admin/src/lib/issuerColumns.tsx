@@ -7,6 +7,7 @@ import { Badge, Button } from "@/components/atoms";
 export interface IssuerRow {
   id: string;
   name: string;
+  email: string;
   legalEntity: string;
   jurisdiction: string;
   wallet: string;
@@ -16,6 +17,7 @@ export interface IssuerRow {
   feeBps: number;
   status: "pending" | "active" | "suspended";
   tokens: number;
+  projectCount: number;
   totalRaised: number;
   createdAt: string;
 }
@@ -49,7 +51,7 @@ export function buildIssuerColumns(
       render: (row) => (
         <Link href={`/platform/issuers/${row.id}`} className="hover:underline">
           <p className="font-semibold text-text">{row.name}</p>
-          <p className="text-xs text-gray-500">{row.legalEntity}</p>
+          <p className="text-xs text-gray-500">{row.email}</p>
         </Link>
       ),
     },
@@ -58,6 +60,13 @@ export function buildIssuerColumns(
       header: "Type",
       render: (row) => (
         <span className="text-xs font-medium capitalize">{row.issuerType}</span>
+      ),
+    },
+    {
+      key: "projectCount",
+      header: "Projects",
+      render: (row) => (
+        <span className="font-mono text-sm">{row.projectCount}</span>
       ),
     },
     {

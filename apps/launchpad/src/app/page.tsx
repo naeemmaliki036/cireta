@@ -207,37 +207,65 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Jump on Board ── */}
+      {/* ── How It Works ── */}
       <section className="py-20 px-4 bg-white">
         <div className="max-w-inner mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-14">
             <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Jump on board. It&apos;s simple.</h2>
             <p className="text-gray-500 max-w-2xl mx-auto">
-              We blend strategy with creativity to craft designs that deliver real impact. Our focus is on purposeful experiences that drive results and stand out with clarity.
+              Three straightforward steps to start investing in tokenized real-world assets backed by verified issuers.
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-3">
             {[
-              { step: "Connect ~ 1", desc: "Sign up easily and securely to start your investment journey" },
-              { step: "Verify ~ 2", desc: "Follow a few simple steps to get yourself verified" },
-              { step: "Invest ~ 3", desc: "Choose from a variety of tokenized assets and invest with just a click" },
+              {
+                num: "01",
+                title: "Sign Up",
+                desc: "Create your account in seconds with just your email. No passwords needed — we use secure one-time codes.",
+                icon: Users,
+                color: "bg-blue-50 text-blue-600",
+              },
+              {
+                num: "02",
+                title: "Verify",
+                desc: "Complete a quick identity check (KYC) to comply with regulations. It usually takes under 5 minutes.",
+                icon: ShieldCheck,
+                color: "bg-emerald-50 text-emerald-600",
+              },
+              {
+                num: "03",
+                title: "Invest",
+                desc: "Browse curated commodity-backed tokens and invest on-chain with crypto or via bank transfer.",
+                icon: TrendingUp,
+                color: "bg-amber-50 text-amber-600",
+              },
             ].map((s, i) => (
               <motion.div
-                key={s.step}
+                key={s.num}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-box rounded-2xl p-6 min-h-[280px] flex flex-col"
+                transition={{ delay: i * 0.12 }}
+                className="relative bg-box rounded-2xl p-8 group hover:shadow-card transition-shadow"
               >
-                <h3 className="text-lg font-bold text-text mb-2">{s.step}</h3>
-                <p className="text-sm text-gray-500">{s.desc}</p>
-                <div className="flex-1" />
-                {/* Placeholder for UI preview */}
-                <div className="mt-6 h-24 bg-white rounded-xl border border-gray-200" />
+                <span className="absolute top-6 right-6 text-5xl font-black text-gray-100 select-none">{s.num}</span>
+                <div className={`w-12 h-12 rounded-xl ${s.color} flex items-center justify-center mb-6`}>
+                  <s.icon className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-bold text-text mb-3">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
               </motion.div>
             ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 bg-darkBlack text-white font-semibold px-8 py-3 rounded-full text-sm hover:bg-darkBlack/90 transition-colors"
+            >
+              Get Started <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>

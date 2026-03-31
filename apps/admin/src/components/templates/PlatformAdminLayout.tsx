@@ -26,6 +26,7 @@ const SIDEBAR_LINKS = [
   { href: "/platform/sales", label: "Sales", icon: ShoppingCart },
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
   { href: "/platform/issuers", label: "Issuers", icon: Building2 },
+  { href: "/platform/users", label: "Users", icon: Users },
 ];
 
 export interface PlatformAdminLayoutProps {

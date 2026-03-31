@@ -6,102 +6,157 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
-import { useAccount, useBalance, useDisconnect, usePublicClient } from "wagmi";
+import { useAccount, useBalance, useDisconnect, usePublicClient, useSignMessage } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { useAuth } from "@/contexts/AuthContext";
+import { listWallets, linkWallet } from "@/lib/api/repositories/wallets.repository";
 
 export const BASE_CHAIN_ID = 8453;
 
 interface Web3ContextValue {
-  /** Wallet connection state */
   address: string | undefined;
   isConnected: boolean;
   chainId: number | undefined;
   isCorrectChain: boolean;
-  /** ETH balance in ether */
   ethBalance: string;
-  /** Whether connected wallet is a smart contract (Safe/multisig) */
   isSafe: boolean;
-  /** Open RainbowKit connect modal */
+  isVerified: boolean;
+  isVerifying: boolean;
   connect: () => void;
-  /** Disconnect wallet */
   disconnect: () => void;
+  verifyWallet: () => Promise<void>;
 }
 
 const Web3Context = createContext<Web3ContextValue | null>(null);
 
-interface Web3ProviderProps {
-  children: ReactNode;
-}
-
-export function Web3Provider({ children }: Web3ProviderProps) {
+export function Web3Provider({ children }: { children: ReactNode }) {
   const { address, isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { disconnect } = useDisconnect();
   const publicClient = usePublicClient();
+  const { signMessageAsync } = useSignMessage();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [ethBalance, setEthBalance] = useState("0");
   const [isSafe, setIsSafe] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const { data: balanceData } = useBalance({ address });
+  // Cache to avoid repeated API calls
+  const verifiedAddresses = useRef<Set<string>>(new Set());
+  const checkInFlight = useRef(false);
+
+  const { data: balanceData } = useBalance({ address: isAuthenticated ? address : undefined });
 
   useEffect(() => {
     if (balanceData) {
-      const formatted = parseFloat(balanceData.formatted).toFixed(4);
-      setEthBalance(formatted);
+      setEthBalance(parseFloat(balanceData.formatted).toFixed(4));
     }
   }, [balanceData]);
 
-  // Detect Safe/contract wallets via eth_getCode
+  // Detect Safe/contract wallets
   useEffect(() => {
-    if (!address || !publicClient) {
-      setIsSafe(false);
+    if (!address || !publicClient) { setIsSafe(false); return; }
+    let cancelled = false;
+    publicClient
+      .getCode({ address: address as `0x${string}` })
+      .then((code) => { if (!cancelled) setIsSafe(!!code && code !== "0x"); })
+      .catch(() => { if (!cancelled) setIsSafe(false); });
+    return () => { cancelled = true; };
+  }, [address, publicClient]);
+
+  // Silently check if wallet is already linked — NO state changes that trigger re-renders in other contexts
+  useEffect(() => {
+    if (authLoading) return;
+    if (!address || !isConnected || !isAuthenticated) return;
+
+    const addr = address.toLowerCase();
+    if (verifiedAddresses.current.has(addr)) {
+      setIsVerified(true);
       return;
     }
 
-    let cancelled = false;
+    // Prevent concurrent checks
+    if (checkInFlight.current) return;
+    checkInFlight.current = true;
 
-    publicClient
-      .getCode({ address: address as `0x${string}` })
-      .then((code) => {
-        if (!cancelled) {
-          // If bytecode exists (not "0x"), it's a contract wallet (Safe)
-          setIsSafe(!!code && code !== "0x");
+    let cancelled = false;
+    listWallets()
+      .then((wallets) => {
+        if (cancelled) return;
+        const linked = wallets.some((w) => w.address.toLowerCase() === addr);
+        if (linked) {
+          verifiedAddresses.current.add(addr);
+          setIsVerified(true);
         }
       })
       .catch(() => {
-        if (!cancelled) setIsSafe(false);
+        // 401 or network error — silently ignore, do NOT retry
+      })
+      .finally(() => {
+        checkInFlight.current = false;
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [address, publicClient]);
+    return () => { cancelled = true; };
+    // Only run when address changes — NOT when isAuthenticated changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isConnected]);
 
-  const connect = useCallback(() => {
-    openConnectModal?.();
-  }, [openConnectModal]);
+  // Reset on disconnect or auth change
+  useEffect(() => {
+    if (!isConnected || !isAuthenticated) {
+      setIsVerified(false);
+    }
+  }, [isConnected, isAuthenticated]);
+
+  // Manual verification
+  const verifyWallet = useCallback(async () => {
+    if (!address || !isAuthenticated || isVerified) return;
+
+    setIsVerifying(true);
+    try {
+      const wallets = await listWallets();
+      const alreadyLinked = wallets.some((w) => w.address.toLowerCase() === address.toLowerCase());
+      if (alreadyLinked) {
+        verifiedAddresses.current.add(address.toLowerCase());
+        setIsVerified(true);
+        return;
+      }
+
+      const nonce = crypto.randomUUID();
+      const message = `Link wallet to Cireta account: ${nonce}`;
+      const signature = await signMessageAsync({ message });
+      await linkWallet({ address, signature, nonce });
+      verifiedAddresses.current.add(address.toLowerCase());
+      setIsVerified(true);
+    } catch {
+      setIsVerified(false);
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [address, isAuthenticated, isVerified, signMessageAsync]);
+
+  const connect = useCallback(() => { openConnectModal?.(); }, [openConnectModal]);
 
   const handleDisconnect = useCallback(() => {
     disconnect();
     setIsSafe(false);
+    setIsVerified(false);
   }, [disconnect]);
 
   const isCorrectChain = chainId === BASE_CHAIN_ID;
 
-  const value: Web3ContextValue = {
-    address,
-    isConnected,
-    chainId,
-    isCorrectChain,
-    ethBalance,
-    isSafe,
-    connect,
-    disconnect: handleDisconnect,
-  };
-
-  return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
+  return (
+    <Web3Context.Provider value={{
+      address, isConnected, chainId, isCorrectChain, ethBalance,
+      isSafe, isVerified, isVerifying, connect, disconnect: handleDisconnect, verifyWallet,
+    }}>
+      {children}
+    </Web3Context.Provider>
+  );
 }
 
 export function useWeb3(): Web3ContextValue {

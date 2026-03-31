@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, Date, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from apps.api.models.enums import KYCStatus, UserRole
@@ -55,7 +55,16 @@ class User(BaseModel):
         DateTime(timezone=True), nullable=True, default=None
     )
     country_code: Mapped[str | None] = mapped_column(String(2), nullable=True, default=None)
-    investor_type: Mapped[str] = mapped_column(String(20), default="individual")
+    investor_type: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
+
+    # Investor onboarding
+    date_of_birth: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country_of_residence: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    company_registration_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    company_jurisdiction: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # On-chain identity
     onchain_id: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True, default=None)

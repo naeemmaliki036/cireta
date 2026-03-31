@@ -1,4 +1,12 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import {
+  metaMaskWallet,
+  walletConnectWallet,
+  coinbaseWallet,
+  rainbowWallet,
+  rabbyWallet,
+  safeWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 import { base, baseSepolia } from "wagmi/chains";
 import { http, type Config } from "wagmi";
 
@@ -31,6 +39,16 @@ export function getWagmiConfig(): Config {
         [base.id]: http(rpcUrl),
         [baseSepolia.id]: http(rpcUrl),
       },
+      wallets: [
+        {
+          groupName: "Recommended",
+          wallets: [metaMaskWallet, coinbaseWallet, walletConnectWallet, rainbowWallet],
+        },
+        {
+          groupName: "More",
+          wallets: [rabbyWallet, safeWallet],
+        },
+      ],
       ssr: true,
     });
   }

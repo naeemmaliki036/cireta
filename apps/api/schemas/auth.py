@@ -104,7 +104,8 @@ class UserResponse(BaseModel):
     display_name: str | None = None
     email_verified: bool = False
     country_code: str | None = None
-    investor_type: str = "individual"
+    investor_type: str | None = None
+    onboarding_completed: bool = False
 
     class Config:
         from_attributes = True
@@ -130,3 +131,35 @@ class MFABackupCodesResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+# ==================== Onboarding Schemas ====================
+
+
+class OnboardingTypeRequest(BaseModel):
+    investor_type: str  # "individual" or "corporate"
+
+
+class OnboardingDetailsRequest(BaseModel):
+    # Individual
+    date_of_birth: str | None = None
+    nationality: str | None = None
+    country_of_residence: str | None = None
+    # Corporate
+    company_name: str | None = None
+    company_registration_number: str | None = None
+    company_jurisdiction: str | None = None
+
+
+class OnboardingStepStatus(BaseModel):
+    completed: bool
+    optional: bool = False
+    label: str
+
+
+class OnboardingStatusResponse(BaseModel):
+    investor_type: str
+    steps: dict[str, OnboardingStepStatus]
+    completed: bool
+    completed_count: int
+    total_required: int

@@ -24,7 +24,10 @@ export default function WhitelistPage() {
     try {
       const data = await getWhitelist();
       setEntries(data.items);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error("Whitelist fetch failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to load whitelist");
+    }
     finally { setLoading(false); }
   };
 

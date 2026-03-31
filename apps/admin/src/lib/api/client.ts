@@ -76,6 +76,11 @@ export async function apiFetch<T>(
     );
   }
 
+  // Handle 204 No Content (e.g. DELETE responses)
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 

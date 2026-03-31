@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
+// Disable Next.js route handler caching — all proxy calls must hit the backend
+export const dynamic = "force-dynamic";
+
 const API_BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
 
 async function handler(request: NextRequest) {

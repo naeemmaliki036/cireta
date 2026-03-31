@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from apps.api.models.enums import (
     IdentityVerificationStatus,
@@ -274,7 +275,11 @@ class IssuerService:
         self, page: int = 1, size: int = 20, status_filter: IssuerStatus | None = None
     ) -> tuple[list[Issuer], int]:
         """List issuers with pagination."""
-        query = select(Issuer).order_by(Issuer.created_at.desc())
+        query = (
+            select(Issuer)
+            .options(selectinload(Issuer.user), selectinload(Issuer.token_sales))
+            .order_by(Issuer.created_at.desc())
+        )
         if status_filter:
             query = query.where(Issuer.status == status_filter)
 

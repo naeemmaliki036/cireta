@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown } from "lucide-react";
+import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown, ShieldCheck, ShieldAlert, Clock, Shield } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,22 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
+
+  const kycBadge = (() => {
+    if (!user) return null;
+    switch (user.kycStatus) {
+      case "approved":
+        return { icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-50", label: "Verified", tooltip: "Identity verified" };
+      case "pending":
+        return { icon: Clock, color: "text-amber-500", bg: "bg-amber-50", label: "Pending", tooltip: "Verification in progress" };
+      case "rejected":
+        return { icon: ShieldAlert, color: "text-red-500", bg: "bg-red-50", label: "Rejected", tooltip: "Verification rejected" };
+      case "expired":
+        return { icon: ShieldAlert, color: "text-orange-500", bg: "bg-orange-50", label: "Expired", tooltip: "Verification expired" };
+      default:
+        return null;
+    }
+  })();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -70,9 +86,9 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             {(variant === "dark" || isScrolled) ? (
-              <Image src="/images/logo/cireta-white.png" alt="Cireta" width={320} height={90} className="h-10 w-auto" />
+              <Image src="/images/logo/cireta-logo-white.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
             ) : (
-              <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={320} height={90} className="h-10 w-auto" />
+              <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
             )}
           </Link>
 
@@ -156,7 +172,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             {!isAuthenticated && (
               <div className="hidden sm:flex items-center gap-2">
                 <Link
-                  href="/login"
+                  href={`/login?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
                     "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-medium border transition-all duration-300 hover:opacity-80",
                     isScrolled || variant === "dark"
@@ -167,7 +183,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   Sign In
                 </Link>
                 <Link
-                  href="/register"
+                  href={`/register?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
                     "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
                     isScrolled || variant === "dark"
@@ -178,6 +194,17 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   Register
                 </Link>
               </div>
+            )}
+
+            {/* Complete Profile CTA — shown when logged in but onboarding not done */}
+            {isAuthenticated && user && !user.onboarding_completed && (
+              <Link
+                href="/onboarding"
+                className="hidden sm:inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white transition-all duration-300 animate-pulse"
+                style={{ backgroundColor: "#13636F" }}
+              >
+                Complete Profile
+              </Link>
             )}
 
             {/* User Menu */}
@@ -192,10 +219,18 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                       : "text-text/80 hover:text-text hover:bg-darkBlack/5"
                   )}
                 >
-                  <div className="w-7 h-7 rounded-full bg-darkAqua/20 flex items-center justify-center">
+                  <div className="relative w-7 h-7 rounded-full bg-darkAqua/20 flex items-center justify-center">
                     <User className="h-3.5 w-3.5 text-darkAqua" />
+                    {kycBadge && (
+                      <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2", isScrolled || variant === "dark" ? "ring-darkBlack/90" : "ring-white", kycBadge.bg)} title={kycBadge.tooltip}>
+                        <kycBadge.icon className={cn("h-2 w-2", kycBadge.color)} />
+                      </span>
+                    )}
                   </div>
                   <span className="max-w-[120px] truncate">{user.display_name || user.email.split("@")[0]}</span>
+                  {kycBadge?.label === "Verified" && (
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" title="Verified" />
+                  )}
                   <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isUserMenuOpen && "rotate-180")} />
                 </button>
                 <AnimatePresence>
@@ -208,9 +243,26 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                       className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-darkBlack/10 py-2 z-50"
                     >
                       <div className="px-4 py-3 border-b border-darkBlack/5">
-                        <p className="text-sm font-semibold text-text truncate">{user.display_name || user.email.split("@")[0]}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-text truncate">{user.display_name || user.email.split("@")[0]}</p>
+                          {kycBadge && (
+                            <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", kycBadge.bg, kycBadge.color)}>
+                              <kycBadge.icon className="h-2.5 w-2.5" />
+                              {kycBadge.label}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-darkBlack/50 truncate">{user.email}</p>
                       </div>
+                      {user.kycStatus !== "approved" && (
+                        <Link href="/onboarding" onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors"
+                          style={{ color: "#13636F" }}
+                        >
+                          <Shield className="h-4 w-4" />
+                          {user.kycStatus === "none" ? "Complete Verification" : user.kycStatus === "pending" ? "Verification In Progress" : user.kycStatus === "rejected" ? "Re-submit Verification" : "Renew Verification"}
+                        </Link>
+                      )}
                       <Link href="/account" onClick={() => setIsUserMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-darkBlack/5 transition-colors">
                         <User className="h-4 w-4 text-darkBlack/40" /> Account
@@ -275,7 +327,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               {!isAuthenticated && (
                 <div className="mt-6 border-t border-white/10 pt-6">
                   <Link
-                    href="/login"
+                    href={`/login?redirect=${encodeURIComponent(pathname)}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-darkBlack text-base font-semibold transition-colors hover:bg-white/90"
                   >
@@ -288,9 +340,35 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               {isAuthenticated && user && (
                 <div className="mt-6 border-t border-white/10 pt-6">
                   <div className="px-4 mb-4">
-                    <p className="text-sm font-semibold text-white">{user.display_name || user.email.split("@")[0]}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-white">{user.display_name || user.email.split("@")[0]}</p>
+                      {kycBadge && (
+                        <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", kycBadge.bg, kycBadge.color)}>
+                          <kycBadge.icon className="h-2.5 w-2.5" />
+                          {kycBadge.label}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-white/50">{user.email}</p>
                   </div>
+                  {!user.onboarding_completed && (
+                    <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors animate-pulse"
+                      style={{ color: "#13636F" }}
+                    >
+                      <Shield className="h-5 w-5" />
+                      Complete Profile
+                    </Link>
+                  )}
+                  {user.onboarding_completed && user.kycStatus !== "approved" && (
+                    <Link href="/verify" onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors"
+                      style={{ color: "#13636F" }}
+                    >
+                      <Shield className="h-5 w-5" />
+                      {user.kycStatus === "pending" ? "Verification In Progress" : user.kycStatus === "rejected" ? "Re-submit Verification" : "Renew Verification"}
+                    </Link>
+                  )}
                   <Link href="/account" onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors text-base font-medium">
                     <User className="h-5 w-5" /> Account

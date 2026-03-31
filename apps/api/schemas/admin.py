@@ -38,6 +38,8 @@ class IssuerResponse(BaseModel):
     identity_verified_at: datetime | None
     legal_entity_name: str | None
     jurisdiction: str | None
+    email: str | None = None
+    project_count: int = 0
     created_at: datetime
 
     class Config:

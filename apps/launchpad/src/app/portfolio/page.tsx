@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ShoppingBag, FolderOpen, CheckCircle2, Users,
+  ShoppingBag, FolderOpen,
   DollarSign, Coins, TrendingUp, Clock, ArrowUpRight,
 } from "lucide-react";
-import Image from "next/image";
 import { Spinner } from "@/components/atoms";
+import { Navbar, Footer } from "@/components/organisms";
 import { PortfolioTable, type HoldingItem } from "@/components/organisms";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,14 +53,14 @@ function StatCard({ title, value, icon: Icon, positive }: StatCardProps) {
 
 export default function PortfolioPage() {
   const pathname = usePathname();
-  const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!isAuthenticated || !accessToken) {
+    if (!isAuthenticated) {
       setIsLoading(false);
       return;
     }
@@ -76,7 +76,7 @@ export default function PortfolioPage() {
       }
     }
     load();
-  }, [isAuthenticated, accessToken, authLoading]);
+  }, [isAuthenticated, authLoading]);
 
   const holdings: HoldingItem[] = (portfolio?.holdings ?? []).map((h) => ({
     id: h.token_id,
@@ -101,62 +101,36 @@ export default function PortfolioPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-48 border-r border-gray-100 flex-col p-4 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 mb-8">
-          <Link href="/" className="flex items-center">
-            <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-8 w-auto" />
-          </Link>
-        </div>
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar variant="light" />
 
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
-        <nav className="space-y-1">
-          {SIDEBAR_LINKS.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
-                )}
-              >
-                <link.icon className="h-4 w-4" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-20 bg-white border-b border-gray-100 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-text">Portfolio</h1>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/verify"
-                className="inline-flex items-center gap-1.5 border border-gray-200 rounded-full px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition-colors"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" /> Get Verified
-              </Link>
-              {!isAuthenticated && (
+      <div className="flex pt-16 flex-1">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <nav className="space-y-1">
+            {SIDEBAR_LINKS.map((link) => {
+              const isActive = pathname === link.href;
+              return (
                 <Link
-                  href="/register"
-                  className="inline-flex items-center gap-1.5 bg-darkBlack text-white rounded-full px-4 py-1.5 text-xs font-medium hover:bg-darkBlack/90 transition-colors"
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
+                  )}
                 >
-                  <Users className="h-3.5 w-3.5" /> Register
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
                 </Link>
-              )}
-            </div>
-          </div>
-        </header>
+              );
+            })}
+          </nav>
+        </aside>
 
-        <main className="p-6 max-w-5xl">
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          <main className="p-6 max-w-5xl">
           {/* Stats */}
           <section className="mb-8">
             {isLoading ? (
@@ -223,8 +197,10 @@ export default function PortfolioPage() {
               <p className="text-gray-400 text-sm">No recent transactions</p>
             </div>
           </section>
-        </main>
+          </main>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }

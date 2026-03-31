@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Shield, Building2, ArrowLeft, Loader2 } from "lucide-react";
 
 type Mode = "select" | "admin-otp" | "issuer-otp" | "issuer-register" | "verify";
@@ -17,6 +16,18 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [otpPurpose, setOtpPurpose] = useState<string>("login");
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [resendCount, setResendCount] = useState(0);
+  const [resendLocked, setResendLocked] = useState(false);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      countdownRef.current = setTimeout(() => setResendCountdown((c) => c - 1), 1000);
+      return () => { if (countdownRef.current) clearTimeout(countdownRef.current); };
+    }
+  }, [resendCountdown]);
 
   const requestOtp = async (purpose: string) => {
     setLoading(true);
@@ -32,7 +43,9 @@ export default function LoginPage() {
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to send code");
       // Dev mode: show OTP as notification
       if (data.dev_otp) setDevOtp(data.dev_otp);
+      setOtpPurpose(purpose);
       setMode("verify");
+      setResendCountdown(60);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to send code");
     } finally {
@@ -65,6 +78,36 @@ export default function LoginPage() {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0 || resendLocked) return;
+    if (resendCount >= 2) {
+      setResendLocked(true);
+      setError("Too many attempts. Please wait 5 minutes before trying again.");
+      setTimeout(() => { setResendLocked(false); setResendCount(0); setError(""); }, 5 * 60 * 1000);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setDevOtp(null);
+    try {
+      const res = await fetch("/api/auth/otp-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, purpose: otpPurpose }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail?.message ?? "Failed to resend code");
+      if (data.dev_otp) setDevOtp(data.dev_otp);
+      setResendCount((c) => c + 1);
+      setResendCountdown(60);
+      setOtp("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const reset = () => {
     setEmail("");
     setOtp("");
@@ -89,7 +132,7 @@ export default function LoginPage() {
         {/* Left branded panel */}
         <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
           <div>
-            <Image src="/cireta-logo-white.svg" alt="Cireta" width={140} height={40} className="h-10 w-auto" priority />
+            <img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" />
           </div>
           <div>
             <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">
@@ -151,7 +194,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex">
         {DevOtpToast}
         <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <Image src="/cireta-logo-white.svg" alt="Cireta" width={140} height={40} className="h-10 w-auto" priority />
+          <div><img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" /></div>
           <div>
             <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">
               {isIssuer ? "Create and manage tokenized real-world assets on Base L2." : "Platform administration and compliance management."}
@@ -212,7 +255,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex">
         {DevOtpToast}
         <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <Image src="/cireta-logo-white.svg" alt="Cireta" width={140} height={40} className="h-10 w-auto" priority />
+          <div><img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" /></div>
           <div>
             <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">Check your email for the verification code.</p>
           </div>
@@ -220,6 +263,9 @@ export default function LoginPage() {
         </div>
         <div className="flex-1 flex items-center justify-center bg-zinc-50 px-6">
           <div className="w-full max-w-sm space-y-6">
+            <button onClick={() => { setMode(loginRole === "admin" ? "admin-otp" : "issuer-otp"); setOtp(""); setError(""); }} className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-700">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
             <div>
               <h1 className="text-2xl font-bold text-zinc-900">Enter verification code</h1>
               <p className="text-zinc-500 text-sm mt-1">
@@ -227,7 +273,7 @@ export default function LoginPage() {
               </p>
             </div>
             {error && <p className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
-            <form onSubmit={(e) => { e.preventDefault(); verifyOtp("login"); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); verifyOtp(otpPurpose); }} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Verification Code</label>
                 <input
@@ -252,7 +298,13 @@ export default function LoginPage() {
             </form>
             <p className="text-center text-zinc-400 text-xs">
               Didn&apos;t receive it?{" "}
-              <button onClick={() => requestOtp("login")} className="text-blue-600 hover:underline">Resend code</button>
+              {resendLocked ? (
+                <span className="text-red-400">Locked — try again in 5 minutes</span>
+              ) : resendCountdown > 0 ? (
+                <span className="text-zinc-300">Resend in {resendCountdown}s</span>
+              ) : (
+                <button onClick={handleResendOtp} disabled={loading} className="text-blue-600 hover:underline">Resend code</button>
+              )}
             </p>
           </div>
         </div>
@@ -266,7 +318,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex">
         {DevOtpToast}
         <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <Image src="/cireta-logo-white.svg" alt="Cireta" width={140} height={40} className="h-10 w-auto" priority />
+          <div><img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" /></div>
           <div>
             <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">
               Launch tokenized real-world assets on a regulated platform.

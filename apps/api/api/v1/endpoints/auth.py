@@ -16,6 +16,8 @@ from apps.api.schemas.auth import (
     MFAEnableRequest,
     MFASetupResponse,
     MFAVerifyRequest,
+    OnboardingDetailsRequest,
+    OnboardingTypeRequest,
     RefreshTokenRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -204,13 +206,39 @@ async def verify_otp_endpoint(
     email = request.email.lower().strip()
 
     if request.purpose == "register":
+        # Check if email is in issuer whitelist — if so, register as issuer
+        from apps.api.models.issuer_whitelist import IssuerWhitelist
+        from apps.api.models.issuer import Issuer
+        from apps.api.models.enums import IssuerStatus, IssuerType
+        wl_result = await db.execute(select(IssuerWhitelist).where(IssuerWhitelist.email == email))
+        wl_entry = wl_result.scalar_one_or_none()
+
         user = User()
         user.email = email
         user.display_name = request.display_name or email.split("@")[0]
-        user.role = UserRole.INVESTOR
         user.email_verified = True
         user.email_verified_at = datetime.now(UTC)
-        db.add(user)
+
+        if wl_entry:
+            user.role = UserRole.ISSUER
+            user.investor_type = wl_entry.issuer_type.value if hasattr(wl_entry.issuer_type, "value") else wl_entry.issuer_type
+            db.add(user)
+            await db.flush()
+            # Create issuer record
+            issuer = Issuer()
+            issuer.user_id = user.id
+            issuer.name = user.display_name or email.split("@")[0]
+            issuer.slug = email.split("@")[0].lower().replace(" ", "-")
+            issuer.issuer_type = wl_entry.issuer_type
+            issuer.status = IssuerStatus.PENDING
+            issuer.fee_bps = 200
+            db.add(issuer)
+            # Mark whitelist entry as registered
+            wl_entry.registered_at = datetime.now(UTC)
+        else:
+            user.role = UserRole.INVESTOR
+            db.add(user)
+
         await db.commit()
         await db.refresh(user)
         email_svc = EmailService(db)
@@ -238,6 +266,135 @@ async def verify_otp_endpoint(
     _set_refresh_cookie(response, refresh_token)
     await db.commit()
     return TokenResponse(access_token=access_token)
+
+
+# ==================== Investor Onboarding ====================
+
+
+@router.get("/onboarding/status")
+async def get_onboarding_status(
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Get investor onboarding completion status."""
+    from sqlalchemy import select
+    from apps.api.models.user import User
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    has_type = user.investor_type is not None and user.investor_type in ("individual", "corporate")
+    has_details = bool(
+        (user.investor_type == "individual" and user.nationality and user.country_of_residence)
+        or (user.investor_type == "corporate" and user.company_name and user.company_jurisdiction)
+    )
+    # Check wallets via query to avoid lazy-load error in async context
+    from apps.api.models.wallet import Wallet
+    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == user_id).limit(1))
+    has_wallet = wallet_result.scalar_one_or_none() is not None
+    has_kyc = user.kyc_status == "approved" if hasattr(user.kyc_status, "__eq__") else str(user.kyc_status) == "approved"
+
+    return {
+        "investor_type": user.investor_type,
+        "steps": {
+            "type": {"completed": has_type, "label": "Investor Type"},
+            "details": {"completed": has_details, "label": "Personal Details"},
+            "wallet": {"completed": has_wallet, "optional": True, "label": "Connect Wallet"},
+            "kyc": {"completed": has_kyc, "label": "Identity Verification"},
+        },
+        "completed": user.onboarding_completed,
+        "completed_count": sum([has_type, has_details, has_kyc]),
+        "total_required": 3,
+    }
+
+
+@router.post("/onboarding/type")
+async def set_investor_type(
+    request: OnboardingTypeRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Set investor type. One-time only — cannot be changed after confirmation."""
+    if request.investor_type not in ("individual", "corporate"):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_TYPE", "message": "Must be 'individual' or 'corporate'"})
+
+    from sqlalchemy import select
+    from apps.api.models.user import User
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    # Block if type was already explicitly chosen (permanent selection)
+    if user.investor_type is not None:
+        raise HTTPException(status_code=400, detail={
+            "code": "TYPE_ALREADY_SET",
+            "message": "Investor type has already been set and cannot be changed.",
+        })
+
+    user.investor_type = request.investor_type
+    await db.commit()
+    return {"investor_type": user.investor_type}
+
+
+@router.post("/onboarding/details")
+async def save_onboarding_details(
+    request: OnboardingDetailsRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Save personal or corporate details during onboarding."""
+    from sqlalchemy import select
+    from apps.api.models.user import User
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    if not user.investor_type:
+        raise HTTPException(status_code=422, detail={"code": "TYPE_NOT_SELECTED", "message": "Please select investor type first"})
+
+    if user.investor_type == "individual":
+        if request.date_of_birth:
+            from datetime import date
+            user.date_of_birth = date.fromisoformat(request.date_of_birth)
+        if request.nationality:
+            user.nationality = request.nationality
+        if request.country_of_residence:
+            user.country_of_residence = request.country_of_residence
+    else:
+        if request.company_name:
+            user.company_name = request.company_name
+        if request.company_registration_number:
+            user.company_registration_number = request.company_registration_number
+        if request.company_jurisdiction:
+            user.company_jurisdiction = request.company_jurisdiction
+
+    await db.commit()
+    return {"status": "saved"}
+
+
+@router.post("/onboarding/complete")
+async def complete_onboarding(
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Mark onboarding as complete. Locks investor type."""
+    from sqlalchemy import select
+    from apps.api.models.user import User
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    user.onboarding_completed = True
+    await db.commit()
+    return {"completed": True}
 
 
 # ==================== Google OAuth ====================
@@ -393,6 +550,7 @@ async def get_current_user(
         email_verified=user.email_verified,
         country_code=user.country_code,
         investor_type=user.investor_type,
+        onboarding_completed=user.onboarding_completed,
     )
 
 

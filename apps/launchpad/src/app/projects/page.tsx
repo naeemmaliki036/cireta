@@ -6,9 +6,9 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Radio, Sparkles, Bookmark, CheckCircle2, Users, TrendingUp,
-  ArrowRight, Bell, ShoppingBag, FolderOpen, Play,
+  ArrowRight, Bell, ShoppingBag, FolderOpen,
 } from "lucide-react";
-import { QuickTourModal } from "@/components/organisms";
+import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -108,7 +108,6 @@ export default function ExplorePage() {
   const { isAuthenticated } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -124,63 +123,36 @@ export default function ExplorePage() {
   const comingSoonProjects = projects.filter((p) => p.isComingSoon);
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <QuickTourModal />
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-56 border-r border-gray-100 flex-col p-5 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 mb-8">
-          <Link href="/" className="flex items-center">
-            <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-9 w-auto" />
-          </Link>
-        </div>
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar variant="light" />
 
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
-        <nav className="space-y-1">
-          {SIDEBAR_LINKS.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
-                )}
-              >
-                <link.icon className="h-4 w-4" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-20 bg-white border-b border-gray-100 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-text">Sales</h1>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => window.dispatchEvent(new Event("open-quick-tour"))}
-                className="inline-flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                <Play className="h-4 w-4" /> How To?
-              </button>
-              <Link href="/verify" className="inline-flex items-center gap-2 border border-gray-200 rounded-full px-5 py-2 text-sm font-medium hover:bg-gray-50 transition-colors">
-                <CheckCircle2 className="h-4 w-4" /> Get Verified
-              </Link>
-              {!isAuthenticated && (
-                <Link href="/register" className="inline-flex items-center gap-2 bg-darkBlack text-white rounded-full px-5 py-2 text-sm font-medium hover:bg-darkBlack/90 transition-colors">
-                  <Users className="h-4 w-4" /> Register
+      <div className="flex pt-16 flex-1">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <nav className="space-y-1">
+            {SIDEBAR_LINKS.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
+                  )}
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
                 </Link>
-              )}
-            </div>
-          </div>
-        </header>
+              );
+            })}
+          </nav>
+        </aside>
 
-        <main className="p-8">
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          <main className="p-6">
           {/* Active Opportunities */}
           <section className="mb-14">
             <div className="flex items-center gap-3 mb-1">
@@ -230,8 +202,10 @@ export default function ExplorePage() {
               </div>
             )}
           </section>
-        </main>
+          </main>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }

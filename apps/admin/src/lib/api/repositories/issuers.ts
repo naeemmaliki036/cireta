@@ -14,6 +14,8 @@ export interface Issuer {
   identity_status: "none" | "pending" | "approved" | "rejected";
   identity_verified_at: string | null;
   fee_bps: number;
+  email: string | null;
+  project_count: number;
   created_at: string;
 }
 

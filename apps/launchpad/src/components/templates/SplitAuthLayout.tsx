@@ -31,7 +31,7 @@ export function SplitAuthLayout({
 
         <div className="relative z-10 flex flex-col justify-between h-full px-14 xl:px-20 py-12">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/images/logo/cireta-white.png" alt="Cireta" width={160} height={44} className="h-10 w-auto" />
+            <Image src="/images/logo/cireta-logo-white.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
           </Link>
 
           <div>
@@ -40,15 +40,15 @@ export function SplitAuthLayout({
               <span className="text-white/70">Real World Assets</span>
             </h1>
 
-            <p className="text-base text-white/50 max-w-sm leading-relaxed">
-              Regulated security tokens for gold, copper, and
-              commodity futures. Own real-world assets on-chain.
+            <p className="text-base text-white/50 leading-relaxed">
+              Regulated security tokens for commodities, infrastructure, and real-world projects.
+              <br />Invest with confidence.
             </p>
 
             <div className="mt-8 space-y-3">
               {[
-                "Fully regulated RWA security tokens",
-                "Institutional-grade compliance & custody",
+                "Regulated RWA security tokens",
+                "Institutional-grade compliance",
                 "Transparent on-chain ownership & redemption",
               ].map((feature, index) => (
                 <div key={index} className="flex items-center gap-3">

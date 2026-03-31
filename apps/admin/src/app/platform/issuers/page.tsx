@@ -18,10 +18,10 @@ import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 function mapIssuer(i: APIIssuer): Issuer {
   return {
-    id: i.id, name: i.name, legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
+    id: i.id, name: i.name, email: i.email ?? "—", legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
     wallet: i.wallet_address ?? "—", walletStatus: i.wallet_status, identityStatus: i.identity_status,
     issuerType: i.issuer_type, feeBps: i.fee_bps, status: i.status as Issuer["status"],
-    tokens: 0, totalRaised: 0, createdAt: i.created_at.slice(0, 10),
+    tokens: 0, projectCount: i.project_count, totalRaised: 0, createdAt: i.created_at.slice(0, 10),
   };
 }
 

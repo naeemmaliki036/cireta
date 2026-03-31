@@ -129,7 +129,7 @@ class KYCService:
                 # Create applicant
                 applicant_resp = await _sumsub_request(
                     "POST",
-                    "/resources/applicants?levelName=basic-kyc-level",
+                    f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                     json={"externalUserId": str(user_id), "email": user.email},
@@ -139,7 +139,7 @@ class KYCService:
                 # Get access token
                 token_resp = await _sumsub_request(
                     "POST",
-                    f"/resources/accessTokens?userId={applicant_id}&levelName=basic-kyc-level",
+                    f"/resources/accessTokens?userId={applicant_id}&levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                 )
@@ -419,7 +419,7 @@ class KYCService:
             try:
                 applicant_resp = await _sumsub_request(
                     "POST",
-                    "/resources/applicants?levelName=business-kyb-level",
+                    f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                     json={
@@ -438,7 +438,7 @@ class KYCService:
                 applicant_id = applicant_resp.get("id", applicant_id)
                 token_resp = await _sumsub_request(
                     "POST",
-                    f"/resources/accessTokens?userId={applicant_id}&levelName=business-kyb-level",
+                    f"/resources/accessTokens?userId={applicant_id}&levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                 )

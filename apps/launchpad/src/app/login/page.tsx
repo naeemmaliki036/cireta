@@ -100,7 +100,8 @@ function LoginForm() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail?.message ?? "Verification failed");
       }
-      window.location.href = "/projects";
+      const redirectTo = searchParams.get("redirect") || "/projects";
+      window.location.href = redirectTo;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setLoading(false);
@@ -194,7 +195,7 @@ function LoginForm() {
       <div className="mt-8 text-center">
         <p className="text-sm text-gray-500">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-semibold text-darkAqua hover:underline">Create account</Link>
+          <Link href={`/register?redirect=${encodeURIComponent(searchParams.get("redirect") || "/projects")}`} className="font-semibold text-darkAqua hover:underline">Create account</Link>
         </p>
       </div>
     </SplitAuthLayout>

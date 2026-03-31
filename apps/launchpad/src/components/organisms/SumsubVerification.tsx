@@ -7,7 +7,7 @@ const SumsubWebSdk = dynamic(() => import("@sumsub/websdk-react"), { ssr: false 
 import { Shield, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button, Spinner } from "@/components/atoms";
 import { initiateKYC, getKYCStatus } from "@/lib/api/repositories/kyc.repository";
-// Auth handled by httpOnly cookie via proxy
+import { useAuth } from "@/contexts/AuthContext";
 
 type VerificationState = "loading" | "ready" | "processing" | "approved" | "error";
 
@@ -17,35 +17,63 @@ interface SumsubVerificationProps {
 
 export function SumsubVerification({ className }: SumsubVerificationProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [state, setState] = useState<VerificationState>("loading");
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Fast-path: if auth context already knows KYC is approved, skip API calls
+  useEffect(() => {
+    if (user?.kycStatus === "approved") {
+      setState("approved");
+    }
+  }, [user?.kycStatus]);
+
   // Fetch SDK token on mount (auth handled by httpOnly cookie via proxy)
   useEffect(() => {
+    // Skip if auth context already says approved
+    if (user?.kycStatus === "approved") return;
+
+    let cancelled = false;
     (async () => {
       try {
-        const status = await getKYCStatus("");
-        if (status.status === "approved") {
+        const kycStatus = await getKYCStatus("");
+        if (cancelled) return;
+        if (kycStatus.status === "approved") {
           setState("approved");
           return;
         }
+        if (kycStatus.status === "pending") {
+          setState("processing");
+          return;
+        }
+      } catch {
+        // Status endpoint failed — continue to initiate
+      }
+
+      if (cancelled) return;
+
+      try {
         const result = await initiateKYC("");
+        if (cancelled) return;
         setAccessToken(result.access_token);
         setState("ready");
       } catch (err) {
+        if (cancelled) return;
         const msg = err instanceof Error ? err.message : "Failed to start verification";
-        if (msg.includes("pending") || msg.includes("APPLICATION_PENDING")) {
-          setState("processing");
-        } else if (msg.includes("ALREADY_VERIFIED")) {
+        const code = (err as { code?: string }).code ?? "";
+        if (code === "ALREADY_VERIFIED" || msg.includes("already approved")) {
           setState("approved");
+        } else if (code === "APPLICATION_PENDING" || msg.includes("pending")) {
+          setState("processing");
         } else {
           setError(msg);
           setState("error");
         }
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [user?.kycStatus]);
 
   const handleMessage = useCallback(
     (type: string) => {

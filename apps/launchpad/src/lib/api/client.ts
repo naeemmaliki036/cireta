@@ -19,6 +19,8 @@ interface FetchOptions {
   body?: unknown;
   token?: string; // Deprecated — kept for backward compat, ignored
   headers?: Record<string, string>;
+  /** If true, don't auto-redirect to /login on 401 */
+  skipAuthRedirect?: boolean;
 }
 
 export async function apiFetch<T>(
@@ -49,9 +51,9 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    if (response.status === 401 && typeof window !== "undefined") {
+    if (response.status === 401 && !options.skipAuthRedirect && typeof window !== "undefined") {
       const currentPath = window.location.pathname;
-      if (currentPath !== "/login") {
+      if (currentPath !== "/login" && currentPath !== "/register") {
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
         return new Promise<T>(() => {});
       }

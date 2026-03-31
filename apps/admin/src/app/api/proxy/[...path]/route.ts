@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
+// Disable Next.js route handler caching — all proxy calls must hit the backend
+export const dynamic = "force-dynamic";
+
 const API_BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
 if (!API_BASE) {
   throw new Error("API_URL (or NEXT_PUBLIC_API_URL) is required. Set it in .env.local");
@@ -33,15 +36,23 @@ async function handler(request: NextRequest) {
     }
   }
 
-  const res = await fetch(url, fetchInit);
+  try {
+    const res = await fetch(url, fetchInit);
 
-  const contentType = res.headers.get("content-type") ?? "application/json";
-  const responseBody = await res.arrayBuffer();
+    const contentType = res.headers.get("content-type") ?? "application/json";
+    const responseBody = await res.arrayBuffer();
 
-  return new NextResponse(responseBody, {
-    status: res.status,
-    headers: { "Content-Type": contentType },
-  });
+    return new NextResponse(responseBody, {
+      status: res.status,
+      headers: { "Content-Type": contentType },
+    });
+  } catch (err) {
+    console.error("[proxy] fetch error:", url, err);
+    return NextResponse.json(
+      { detail: { code: "PROXY_ERROR", message: String(err) } },
+      { status: 502 }
+    );
+  }
 }
 
 export const GET = handler;

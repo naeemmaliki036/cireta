@@ -22,14 +22,32 @@ router = APIRouter(tags=["admin"])
 class InvestorResponse(BaseModel):
     id: str
     email: str
+    display_name: str | None = None
+    investor_type: str | None = None
     kyc_status: str
     kyc_level: int
     onchain_id: str | None
     wallet_address: str | None
+    wallet_count: int = 0
+    onboarding_completed: bool = False
+    email_verified: bool = False
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class InvestorDetailResponse(InvestorResponse):
+    nationality: str | None = None
+    country_of_residence: str | None = None
+    date_of_birth: str | None = None
+    company_name: str | None = None
+    company_registration_number: str | None = None
+    company_jurisdiction: str | None = None
+    kyc_provider: str | None = None
+    kyc_verified_at: datetime | None = None
+    is_accredited: bool = False
+    wallets: list[dict] = []
 
 
 class InvestorListResponse(BaseModel):
@@ -69,17 +87,84 @@ async def list_investors(
         InvestorResponse(
             id=str(u.id),
             email=u.email,
+            display_name=u.display_name,
+            investor_type=u.investor_type,
             kyc_status=u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status),
             kyc_level=u.kyc_level,
             onchain_id=u.onchain_id,
             wallet_address=(u.wallets[0].address[:6] + "…" + u.wallets[0].address[-4:])
             if u.wallets and u.wallets[0].address and len(u.wallets[0].address) > 10
             else (u.wallets[0].address if u.wallets else None),
+            wallet_count=len(u.wallets) if u.wallets else 0,
+            onboarding_completed=u.onboarding_completed,
+            email_verified=u.email_verified,
             created_at=u.created_at,
         )
         for u in rows
     ]
     return InvestorListResponse(items=items, total=total, page=page, size=size)
+
+
+@router.get("/investors/{user_id}", response_model=InvestorDetailResponse)
+async def get_investor_detail(
+    user_id: UUID,
+    _admin_id: RequireAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> InvestorDetailResponse:
+    """Get detailed investor profile."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.wallets))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "USER_NOT_FOUND", "message": "User not found"},
+        )
+
+    wallet_list = []
+    primary_address = None
+    if user.wallets:
+        for w in user.wallets:
+            wallet_list.append({
+                "id": str(w.id),
+                "address": w.address,
+                "is_primary": getattr(w, "is_primary", False),
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+            })
+        if user.wallets[0].address and len(user.wallets[0].address) > 10:
+            primary_address = user.wallets[0].address[:6] + "…" + user.wallets[0].address[-4:]
+        else:
+            primary_address = user.wallets[0].address if user.wallets else None
+
+    return InvestorDetailResponse(
+        id=str(user.id),
+        email=user.email,
+        display_name=user.display_name,
+        investor_type=user.investor_type,
+        kyc_status=user.kyc_status.value if hasattr(user.kyc_status, "value") else str(user.kyc_status),
+        kyc_level=user.kyc_level,
+        onchain_id=user.onchain_id,
+        wallet_address=primary_address,
+        wallet_count=len(user.wallets) if user.wallets else 0,
+        onboarding_completed=user.onboarding_completed,
+        email_verified=user.email_verified,
+        nationality=user.nationality,
+        country_of_residence=user.country_of_residence,
+        date_of_birth=str(user.date_of_birth) if user.date_of_birth else None,
+        company_name=user.company_name,
+        company_registration_number=user.company_registration_number,
+        company_jurisdiction=user.company_jurisdiction,
+        kyc_provider=user.kyc_provider,
+        kyc_verified_at=user.kyc_verified_at,
+        is_accredited=user.is_accredited,
+        wallets=wallet_list,
+        created_at=user.created_at,
+    )
 
 
 # ==================== Admin Account Management ====================

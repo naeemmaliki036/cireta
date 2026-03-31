@@ -5,23 +5,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Wallet,
   Clock,
   FileText,
   User,
-  LogOut,
-  Menu,
-  X,
+  ShoppingBag,
+  FolderOpen,
 } from "lucide-react";
-import { CiretaLogo, Button } from "@/components/atoms";
+import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 const SIDEBAR_LINKS = [
+  { href: "/projects", label: "Sales", icon: ShoppingBag },
+  { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
+];
+
+const ACCOUNT_LINKS = [
+  { href: "/account", label: "Account", icon: User },
   { href: "/portfolio", label: "Holdings", icon: LayoutDashboard },
   { href: "/portfolio/vesting", label: "Vesting", icon: Clock },
   { href: "/portfolio/transactions", label: "Transactions", icon: FileText },
-  { href: "/account", label: "Account", icon: User },
 ];
 
 export interface DashboardLayoutProps {
@@ -36,106 +38,70 @@ export function DashboardLayout({
   description,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-box">
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed left-0 top-0 h-full w-64 bg-darkBlack z-40 transition-transform duration-300 lg:translate-x-0",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex flex-col h-full p-6">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 mb-10">
-            <CiretaLogo variant="icon" color="teal" className="w-8 h-8" />
-            <span className="text-xl font-bold text-white">Cireta</span>
-          </Link>
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar variant="light" />
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1">
+      <div className="flex pt-16 flex-1">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <nav className="space-y-1">
             {SIDEBAR_LINKS.map((link) => {
               const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  onClick={() => setIsSidebarOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-darkAqua/20 text-darkAqua"
-                      : "text-white/70 hover:text-white hover:bg-white/5"
+                    "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
                   )}
                 >
-                  <link.icon className="h-5 w-5" />
+                  <link.icon className="h-4 w-4" />
                   {link.label}
                 </Link>
               );
             })}
           </nav>
 
-          {/* Bottom Actions */}
-          <div className="mt-auto pt-6 border-t border-white/10">
-            <Link
-              href="/projects"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/5 transition-colors text-sm font-medium"
-            >
-              <Wallet className="h-5 w-5" />
-              Explore Projects
-            </Link>
-            <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-sm font-medium w-full">
-              <LogOut className="h-5 w-5" />
-              Disconnect
-            </button>
+          <div className="mt-6">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Account</p>
+            <nav className="space-y-1">
+              {ACCOUNT_LINKS.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href + link.label}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
+                    )}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          {title && (
+            <header className="border-b border-gray-100 px-6 py-4">
+              <h1 className="text-lg font-semibold text-text">{title}</h1>
+              {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+            </header>
+          )}
+          <main className="p-6">{children}</main>
         </div>
-      </aside>
-
-      {/* Mobile Overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="lg:pl-64">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-lg hover:bg-darkBlack/5 transition-colors"
-              >
-                <Menu className="h-6 w-6" />
-              </button>
-              <div>
-                {title && (
-                  <h1 className="text-xl font-semibold text-text">{title}</h1>
-                )}
-                {description && (
-                  <p className="text-sm text-gray-500">{description}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm">
-                <Wallet className="h-4 w-4 mr-2" />
-                Wallet
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="p-6">{children}</main>
       </div>
+
+      <Footer />
     </div>
   );
 }

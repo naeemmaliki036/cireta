@@ -18,3 +18,4 @@ export { SumsubVerification } from "./SumsubVerification";
 export { HeroSection } from "./HeroSection";
 export { ComplianceFeatures } from "./ComplianceFeatures";
 export { QuickTourModal } from "./QuickTourModal";
+export { WelcomeModal } from "./WelcomeModal";

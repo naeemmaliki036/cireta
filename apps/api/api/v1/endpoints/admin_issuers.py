@@ -47,6 +47,10 @@ def _get_client_ip(request: Request) -> str | None:
 
 def _issuer_to_response(issuer) -> IssuerResponse:
     """Convert issuer model to response."""
+    email = None
+    if hasattr(issuer, "user") and issuer.user is not None:
+        email = issuer.user.email
+    project_count = len(issuer.token_sales) if hasattr(issuer, "token_sales") and issuer.token_sales else 0
     return IssuerResponse(
         id=str(issuer.id),
         user_id=str(issuer.user_id),
@@ -61,8 +65,81 @@ def _issuer_to_response(issuer) -> IssuerResponse:
         identity_verified_at=issuer.identity_verified_at,
         legal_entity_name=issuer.legal_entity_name,
         jurisdiction=issuer.jurisdiction,
+        email=email,
+        project_count=project_count,
         created_at=issuer.created_at,
     )
+
+
+# ==================== Issuer Whitelist ====================
+# NOTE: Whitelist routes MUST be defined before /issuers/{issuer_id}
+# so FastAPI doesn't match "whitelist" as a UUID path parameter.
+
+
+def _whitelist_to_response(e) -> WhitelistEntryResponse:
+    return WhitelistEntryResponse(
+        id=str(e.id),
+        email=e.email,
+        issuer_type=e.issuer_type.value if hasattr(e.issuer_type, "value") else (e.issuer_type or "individual"),
+        kyc_required=e.kyc_required if e.kyc_required is not None else True,
+        invited_by=str(e.invited_by) if e.invited_by else "",
+        registered_at=e.registered_at,
+        created_at=e.created_at,
+    )
+
+
+@router.post("/issuers/whitelist", response_model=WhitelistEntryResponse, status_code=status.HTTP_201_CREATED)
+async def add_to_whitelist(
+    request: WhitelistAddRequest,
+    user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> WhitelistEntryResponse:
+    """Add an email to the issuer whitelist."""
+    entry = await issuer_service.add_to_whitelist(
+        email=request.email,
+        issuer_type=request.issuer_type,
+        invited_by=user_id,
+        kyc_required=request.kyc_required,
+    )
+    return _whitelist_to_response(entry)
+
+
+@router.get("/issuers/whitelist")
+async def list_whitelist(
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+):
+    """List all whitelisted issuer emails."""
+    import logging
+    log = logging.getLogger(__name__)
+    try:
+        entries = await issuer_service.list_whitelist()
+        items = []
+        for e in entries:
+            items.append({
+                "id": str(e.id),
+                "email": e.email,
+                "issuer_type": e.issuer_type.value if hasattr(e.issuer_type, "value") else (e.issuer_type or "individual"),
+                "kyc_required": e.kyc_required if e.kyc_required is not None else True,
+                "invited_by": str(e.invited_by) if e.invited_by else "",
+                "registered_at": e.registered_at.isoformat() if e.registered_at else None,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            })
+        return {"items": items, "total": len(items)}
+    except Exception as exc:
+        log.exception("Whitelist list failed: %s", exc)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"detail": {"code": "INTERNAL", "message": str(exc)}})
+
+
+@router.delete("/issuers/whitelist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_whitelist(
+    entry_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> None:
+    """Remove an email from the whitelist."""
+    await issuer_service.remove_from_whitelist(entry_id)
 
 
 # ==================== Issuer Management ====================
@@ -202,60 +279,6 @@ async def reject_issuer_wallet(
     """Reject an issuer's wallet address."""
     issuer = await issuer_service.reject_wallet(issuer_id)
     return _issuer_to_response(issuer)
-
-
-# ==================== Issuer Whitelist ====================
-
-
-def _whitelist_to_response(e) -> WhitelistEntryResponse:
-    return WhitelistEntryResponse(
-        id=str(e.id),
-        email=e.email,
-        issuer_type=e.issuer_type.value if hasattr(e.issuer_type, "value") else e.issuer_type,
-        kyc_required=e.kyc_required,
-        invited_by=str(e.invited_by),
-        registered_at=e.registered_at,
-        created_at=e.created_at,
-    )
-
-
-@router.post("/issuers/whitelist", response_model=WhitelistEntryResponse, status_code=status.HTTP_201_CREATED)
-async def add_to_whitelist(
-    request: WhitelistAddRequest,
-    user_id: RequireAdmin,
-    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
-) -> WhitelistEntryResponse:
-    """Add an email to the issuer whitelist."""
-    entry = await issuer_service.add_to_whitelist(
-        email=request.email,
-        issuer_type=request.issuer_type,
-        invited_by=user_id,
-        kyc_required=request.kyc_required,
-    )
-    return _whitelist_to_response(entry)
-
-
-@router.get("/issuers/whitelist", response_model=WhitelistListResponse)
-async def list_whitelist(
-    _user_id: RequireAdmin,
-    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
-) -> WhitelistListResponse:
-    """List all whitelisted issuer emails."""
-    entries = await issuer_service.list_whitelist()
-    return WhitelistListResponse(
-        items=[_whitelist_to_response(e) for e in entries],
-        total=len(entries),
-    )
-
-
-@router.delete("/issuers/whitelist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_from_whitelist(
-    entry_id: UUID,
-    _user_id: RequireAdmin,
-    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
-) -> None:
-    """Remove an email from the whitelist."""
-    await issuer_service.remove_from_whitelist(entry_id)
 
 
 # ==================== Compliance Actions ====================

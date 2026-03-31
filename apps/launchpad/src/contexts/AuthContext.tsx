@@ -17,6 +17,8 @@ interface User {
   role: "investor" | "issuer" | "admin";
   kycStatus: "none" | "pending" | "approved" | "rejected" | "expired";
   kycLevel: number;
+  investor_type: string | null;
+  onboarding_completed: boolean;
 }
 
 interface AuthState {
@@ -50,6 +52,8 @@ function mapUser(raw: authRepo.User): User {
     role: raw.role,
     kycStatus: raw.kyc_status,
     kycLevel: raw.kyc_level,
+    investor_type: raw.investor_type ?? null,
+    onboarding_completed: raw.onboarding_completed ?? false,
   };
 }
 

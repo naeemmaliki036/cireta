@@ -5,12 +5,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeft, CheckCircle2, Users, ShoppingBag, FolderOpen, Coins,
+  ArrowLeft, ShoppingBag, FolderOpen, Coins,
   FileText, ChevronDown, ChevronUp, Download,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
+import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
 import { apiGet } from "@/lib/api/client";
@@ -32,7 +32,6 @@ type Tab = (typeof ALL_TABS)[number];
 export default function ProjectDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { isAuthenticated } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
   const [saleRaw, setSaleRaw] = useState<SaleRaw | null>(null);
@@ -69,7 +68,7 @@ export default function ProjectDetailPage() {
   if (error || !project) return (
     <div className="min-h-screen flex flex-col items-center justify-center">
       <h1 className="text-2xl font-bold mb-2">Project Not Found</h1>
-      <Link href="/explore" className="text-darkAqua font-semibold hover:underline">Back to Sales</Link>
+      <Link href="/projects" className="text-darkAqua font-semibold hover:underline">Back to Sales</Link>
     </div>
   );
   const ap = project.phases?.find((p) => p.is_active) ?? project.phases?.[0] ?? null;
@@ -88,42 +87,30 @@ export default function ProjectDetailPage() {
   const statusColor: Record<string, string> = { active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500", paused: "text-amber-600" };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-48 border-r border-gray-100 flex-col p-4 sticky top-0 h-screen">
-        <Link href="/" className="flex items-center mb-8">
-          <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-8 w-auto" />
-        </Link>
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
-        <nav className="space-y-1">
-          {SIDEBAR_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-text transition-colors">
-              <link.icon className="h-4 w-4" />{link.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        <header className="sticky top-0 z-20 bg-white border-b border-gray-100 px-6 py-3">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-white flex flex-col">
+      <Navbar variant="light" />
+
+      <div className="flex pt-16 flex-1">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <nav className="space-y-1">
+            {SIDEBAR_LINKS.map((link) => (
+              <Link key={link.href} href={link.href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-text transition-colors">
+                <link.icon className="h-4 w-4" />{link.label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <header className="sticky top-16 z-20 bg-white border-b border-gray-100 px-6 py-3">
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Link href="/explore" className="hover:text-text">Sales</Link>
+              <Link href="/projects" className="hover:text-text">Sales</Link>
               <span>/</span>
               <span className="text-text font-medium truncate">{project.title}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Link href="/verify" className="inline-flex items-center gap-1.5 border border-gray-200 rounded-full px-4 py-1.5 text-xs font-medium hover:bg-gray-50 transition-colors">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Get Verified
-              </Link>
-              {!isAuthenticated && (
-                <Link href="/register" className="inline-flex items-center gap-1.5 bg-darkBlack text-white rounded-full px-4 py-1.5 text-xs font-medium hover:bg-darkBlack/90 transition-colors">
-                  <Users className="h-3.5 w-3.5" /> Register
-                </Link>
-              )}
-            </div>
-          </div>
-        </header>
+          </header>
         <div className="flex">
           {/* Left column */}
           <main className="flex-1 min-w-0 max-w-4xl">
@@ -132,7 +119,7 @@ export default function ProjectDetailPage() {
               <div className="relative h-[340px] overflow-hidden">
                 <Image src={gallery[selectedImage]?.url ?? bannerImg} alt={project.title} fill className="object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <Link href="/explore" className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium z-10">
+                <Link href="/projects" className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium z-10">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Link>
                 <div className="absolute bottom-4 left-6 z-10">
@@ -315,9 +302,11 @@ export default function ProjectDetailPage() {
               </div>
               <button className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors">Buy Now</button>
             </div>
-          </aside>
+            </aside>
+          </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

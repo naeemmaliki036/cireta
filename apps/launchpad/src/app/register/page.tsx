@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<"info" | "otp">("info");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -98,7 +99,8 @@ export default function RegisterPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail?.message ?? "Verification failed");
       }
-      window.location.href = "/projects";
+      const redirectTo = searchParams.get("redirect") || "/projects";
+      window.location.href = redirectTo;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setLoading(false);
@@ -208,9 +210,17 @@ export default function RegisterPage() {
       <div className="mt-8 text-center">
         <p className="text-sm text-gray-500">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-darkAqua hover:underline">Sign in</Link>
+          <Link href={`/login?redirect=${encodeURIComponent(searchParams.get("redirect") || "/projects")}`} className="font-semibold text-darkAqua hover:underline">Sign in</Link>
         </p>
       </div>
     </SplitAuthLayout>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }
