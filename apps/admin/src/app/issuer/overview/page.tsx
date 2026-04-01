@@ -5,14 +5,15 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Coins, Users, TrendingUp, Wallet, Plus, ArrowUpRight, BarChart3, Clock,
-  CheckCircle2, AlertCircle, Loader2,
+  CheckCircle2, AlertCircle, Loader2, Info,
 } from "lucide-react";
 import { Button, Badge, ProgressBar, Spinner } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
-import { formatCurrency } from "@/lib/utils";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
+import { formatCurrency, cn } from "@/lib/utils";
 import { getSales, type Sale } from "@/lib/api/repositories/sales";
-import { getOnboardingStatus, type OnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
+import { getOnboardingStatus, submitWalletForApproval, discardWallet, type OnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
 
 function StatusIcon({ status }: { status: string }) {
   if (status === "approved" || status === "active") return <CheckCircle2 className="h-5 w-5 text-green-500" />;
@@ -21,22 +22,140 @@ function StatusIcon({ status }: { status: string }) {
   return <div className="h-5 w-5 rounded-full border-2 border-zinc-300" />;
 }
 
-function OnboardingChecklist({ onboarding }: { onboarding: OnboardingStatus }) {
+function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: OnboardingStatus }) {
+  const [onboarding, setOnboarding] = useState(initialOnboarding);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const kycExempted = !onboarding.kyc_required;
+  const identityDone = onboarding.identity_status === "approved";
+
+  const handleSubmitWallet = async () => {
+    setWalletLoading(true);
+    try {
+      await submitWalletForApproval();
+      setOnboarding((prev) => ({ ...prev, wallet_status: "pending_approval" }));
+    } catch { /* error handled by API client */ }
+    finally { setWalletLoading(false); }
+  };
+
+  const handleDiscardWallet = async () => {
+    setWalletLoading(true);
+    try {
+      await discardWallet();
+      setOnboarding((prev) => ({ ...prev, wallet_status: "none", wallet_address: null, wallet_connected: false }));
+    } catch { /* error handled by API client */ }
+    finally { setWalletLoading(false); }
+  };
+
+  const identityReady = identityDone || kycExempted;
+
+  // Wallet verified + identity done or exempted + not yet submitted
+  const readyToSubmit =
+    onboarding.wallet_status === "verified" && identityReady && onboarding.issuer_status === "pending";
+
+  // Submitted and waiting for admin to activate
+  const awaitingApproval =
+    onboarding.wallet_status === "pending_approval" && identityReady && onboarding.issuer_status === "pending";
+
+  const completedCount = [
+    onboarding.wallet_status === "approved",
+    identityDone,
+    onboarding.issuer_status === "active",
+  ].filter(Boolean).length;
+
+  const allGatesMetAwaitingAdmin = awaitingApproval ||
+    (onboarding.wallet_status === "approved" && identityReady && onboarding.issuer_status !== "active");
+
+  const bannerType = readyToSubmit ? "ready" : allGatesMetAwaitingAdmin ? "awaiting" : "onboarding";
+
   return (
     <IssuerDashboardLayout title="Complete Your Onboarding" description="Finish these steps to start issuing tokens">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Wallet */}
+        {/* Notification banner */}
+        <div className={cn(
+          "flex items-start gap-3 p-4 rounded-xl border",
+          bannerType === "ready" ? "bg-teal-50 border-teal-200"
+            : bannerType === "awaiting" ? "bg-blue-50 border-blue-200"
+            : "bg-amber-50 border-amber-200"
+        )}>
+          <Info className={cn(
+            "h-5 w-5 mt-0.5 shrink-0",
+            bannerType === "ready" ? "text-teal-500"
+              : bannerType === "awaiting" ? "text-blue-500"
+              : "text-amber-500"
+          )} />
+          <div>
+            <p className={cn(
+              "text-sm font-medium",
+              bannerType === "ready" ? "text-teal-800"
+                : bannerType === "awaiting" ? "text-blue-800"
+                : "text-amber-800"
+            )}>
+              {bannerType === "ready" && "Ready to submit"}
+              {bannerType === "awaiting" && "Awaiting admin approval"}
+              {bannerType === "onboarding" && "Onboarding required"}
+            </p>
+            <p className={cn(
+              "text-xs mt-0.5",
+              bannerType === "ready" ? "text-teal-600"
+                : bannerType === "awaiting" ? "text-blue-600"
+                : "text-amber-600"
+            )}>
+              {bannerType === "ready" && "All steps are complete. Submit your profile below for admin review and activation."}
+              {bannerType === "awaiting" && "Your profile has been submitted. A platform administrator will review and activate your account."}
+              {bannerType === "onboarding" && "Complete the steps below before you can access platform features. Navigation is locked until your account is fully activated."}
+            </p>
+          </div>
+        </div>
+
+        {/* Step counter */}
+        <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <span className="font-medium text-zinc-600">
+            {completedCount}/3 steps completed
+          </span>
+        </div>
+
+        {/* Step 1: Wallet */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl p-6 border border-zinc-200">
           <div className="flex items-start gap-4">
-            <StatusIcon status={onboarding.wallet_status} />
+            {(onboarding.wallet_status === "verified" || onboarding.wallet_status === "pending_approval")
+              ? <CheckCircle2 className="h-5 w-5 text-green-500" />
+              : <StatusIcon status={onboarding.wallet_status} />
+            }
             <div className="flex-1">
               <h3 className="font-semibold text-lg">Connect Wallet</h3>
               <p className="text-sm text-zinc-500 mt-1">
-                {onboarding.wallet_status === "none" && "Link your Ethereum wallet to the platform"}
-                {onboarding.wallet_status === "pending_approval" && "Your wallet is submitted and awaiting admin approval"}
-                {onboarding.wallet_status === "approved" && "Wallet approved"}
-                {onboarding.wallet_status === "rejected" && "Wallet rejected — contact support to resubmit"}
+                {onboarding.wallet_status === "none" && "Connect your Ethereum wallet and sign a message to prove ownership."}
+                {onboarding.wallet_status === "verified" && "Wallet connected and ownership verified."}
+                {onboarding.wallet_status === "pending_approval" && "Wallet submitted and awaiting admin approval."}
+                {onboarding.wallet_status === "approved" && "Wallet verified and approved."}
+                {onboarding.wallet_status === "rejected" && "Wallet rejected — please contact support to resubmit."}
+              </p>
+              {/* Show linked wallet address */}
+              {onboarding.wallet_address && onboarding.wallet_status !== "none" && (
+                <div className="mt-2 flex items-center gap-2 bg-zinc-50 rounded-lg px-3 py-2 border border-zinc-100">
+                  <Wallet className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                  <CopyableAddress address={onboarding.wallet_address!} truncate className="text-xs text-zinc-600" />
+                  {onboarding.wallet_status === "verified" && (
+                    <button
+                      onClick={handleDiscardWallet}
+                      disabled={walletLoading}
+                      className="text-[11px] text-red-400 hover:text-red-600 underline shrink-0 ml-auto disabled:opacity-50"
+                    >
+                      Discard
+                    </button>
+                  )}
+                  {onboarding.wallet_status === "pending_approval" && (
+                    <Badge variant="pending" size="sm" className="shrink-0 ml-auto">Pending Approval</Badge>
+                  )}
+                  {onboarding.wallet_status === "approved" && (
+                    <Badge variant="active" size="sm" className="shrink-0 ml-auto">Approved</Badge>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-zinc-400 mt-2">
+                Your wallet is required to deploy project tokens, create token sales, and manage on-chain compliance.
+                Ownership verification ensures only you can operate as this issuer on the blockchain.
               </p>
             </div>
             {onboarding.wallet_status === "none" && (
@@ -50,56 +169,112 @@ function OnboardingChecklist({ onboarding }: { onboarding: OnboardingStatus }) {
           </div>
         </motion.div>
 
-        {/* Identity Verification */}
+        {/* Step 2: Identity Verification */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="bg-white rounded-2xl p-6 border border-zinc-200">
           <div className="flex items-start gap-4">
-            <StatusIcon status={onboarding.identity_status} />
+            {kycExempted ? (
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+            ) : (
+              <StatusIcon status={onboarding.identity_status} />
+            )}
             <div className="flex-1">
-              <h3 className="font-semibold text-lg">
-                Verify Identity ({onboarding.issuer_type === "corporate" ? "KYB" : "KYC"})
-              </h3>
-              <p className="text-sm text-zinc-500 mt-1">
-                {onboarding.identity_status === "none" && `Complete ${onboarding.issuer_type === "corporate" ? "corporate KYB" : "individual KYC"} verification via Sumsub`}
-                {onboarding.identity_status === "pending" && "Verification under review"}
-                {onboarding.identity_status === "approved" && "Identity verified"}
-                {onboarding.identity_status === "rejected" && "Verification rejected — contact support"}
-              </p>
+              {kycExempted ? (
+                <>
+                  <h3 className="font-semibold text-lg">Identity Verification (Exempted)</h3>
+                  <p className="text-sm text-green-600 mt-1">
+                    KYC/KYB verification is not required for your account. A platform administrator has pre-approved your identity.
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-2">
+                    This exemption was granted during your whitelist approval. If your issuer status changes, you may be asked to complete verification in the future.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-lg">
+                    Verify Identity ({onboarding.issuer_type === "corporate" ? "KYB" : "KYC"})
+                  </h3>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    {onboarding.identity_status === "none" && `Complete ${onboarding.issuer_type === "corporate" ? "corporate KYB (Know Your Business)" : "individual KYC (Know Your Customer)"} verification via our identity partner Sumsub.`}
+                    {onboarding.identity_status === "pending" && "Your verification is under review. This typically takes a few minutes."}
+                    {onboarding.identity_status === "approved" && "Identity successfully verified."}
+                    {onboarding.identity_status === "rejected" && "Verification was rejected — please contact support for assistance."}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-2">
+                    {onboarding.issuer_type === "corporate"
+                      ? "As a corporate issuer, you must provide company registration documents, director identification, and UBO (Ultimate Beneficial Owner) details. This is required by securities regulations to ensure compliance."
+                      : "As an individual issuer, you must provide a valid government-issued ID and a selfie. This is required by securities regulations to ensure all token issuers are properly identified."
+                    }
+                  </p>
+                </>
+              )}
             </div>
-            {onboarding.identity_status === "none" && (
+            {!kycExempted && onboarding.identity_status === "none" && (
               <Link href="/issuer/onboarding/identity">
                 <Button variant="primary" size="sm">Start</Button>
               </Link>
             )}
-            {onboarding.identity_status === "approved" && (
-              <Badge variant="active" size="sm">Done</Badge>
+            {(identityDone || kycExempted) && (
+              <Badge variant="active" size="sm">{kycExempted ? "Exempted" : "Done"}</Badge>
             )}
           </div>
         </motion.div>
 
-        {/* Admin Activation */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl p-6 border border-zinc-200">
-          <div className="flex items-start gap-4">
-            <StatusIcon status={onboarding.issuer_status} />
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">Admin Activation</h3>
-              <p className="text-sm text-zinc-500 mt-1">
-                {onboarding.issuer_status === "pending" &&
-                  (onboarding.wallet_status === "approved" && onboarding.identity_status === "approved"
-                    ? "All gates met — awaiting admin activation"
-                    : "Complete wallet and identity steps first"
-                  )
-                }
-                {onboarding.issuer_status === "active" && "Your account is fully activated"}
-                {onboarding.issuer_status === "suspended" && "Account suspended — contact support"}
-              </p>
+        {/* Submit for Approval CTA — only when wallet verified + identity done, before submission */}
+        {readyToSubmit && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl p-6 text-white">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">Ready to submit</h3>
+                <p className="text-sm text-teal-100 mt-1">
+                  Your wallet is verified and identity requirements are met. Submit your profile for platform admin review and activation.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white text-white hover:bg-white/10 shrink-0"
+                isLoading={walletLoading}
+                onClick={handleSubmitWallet}
+              >
+                Submit for Approval
+              </Button>
             </div>
-            {onboarding.issuer_status === "active" && (
+          </motion.div>
+        )}
+
+        {/* Awaiting Approval — after submission, before admin activates */}
+        {awaitingApproval && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+            <div className="flex items-start gap-4">
+              <Loader2 className="h-5 w-5 text-blue-500 animate-spin mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-lg text-blue-900">Awaiting Admin Approval</h3>
+                <p className="text-sm text-blue-600 mt-1">
+                  Your wallet and identity have been submitted. A platform administrator will review your profile and activate your account.
+                  You&apos;ll be notified once approved.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Step 3: Admin Activation — only show when already approved or active */}
+        {(onboarding.issuer_status === "active") && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl p-6 border border-zinc-200">
+            <div className="flex items-start gap-4">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">Admin Activation</h3>
+                <p className="text-sm text-zinc-500 mt-1">Your issuer account is fully activated.</p>
+              </div>
               <Badge variant="active" size="sm">Active</Badge>
-            )}
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Help */}
         <div className="text-center pt-4">
@@ -163,7 +338,7 @@ export default function IssuerOverviewPage() {
         <h2 className="text-lg font-semibold text-text mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { href: "/issuer/tokens/new", icon: <Plus className="h-6 w-6 text-darkAqua" />, bg: "bg-darkAqua/10", label: "Create Token", sub: "Deploy new ERC-3643" },
+            { href: "/issuer/tokens/new", icon: <Plus className="h-6 w-6 text-darkAqua" />, bg: "bg-darkAqua/10", label: "Create Token", sub: "Deploy new project token" },
             { href: "/issuer/sales/new", icon: <TrendingUp className="h-6 w-6 text-gold" />, bg: "bg-gold/10", label: "Start Sale", sub: "Launch token sale" },
             { href: "/issuer/compliance", icon: <Coins className="h-6 w-6 text-purple-600" />, bg: "bg-purple-100", label: "Compliance", sub: "Freeze, recover tokens" },
           ].map((a) => (

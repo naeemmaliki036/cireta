@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,20 +11,24 @@ import {
   Shield,
   Wallet,
   Settings,
-  LogOut,
   Menu,
   ChevronRight,
+  Lock,
 } from "lucide-react";
-import { CiretaLogo, Button } from "@/components/atoms";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { Button } from "@/components/atoms";
+import { SidebarUserProfile } from "@/components/molecules/SidebarUserProfile";
+import { NotificationBell } from "@/components/molecules/NotificationBell";
 import { cn } from "@/lib/utils";
+import { getOnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
 
 const SIDEBAR_LINKS = [
-  { href: "/issuer/overview", label: "Overview", icon: LayoutDashboard },
-  { href: "/issuer/tokens", label: "Tokens", icon: Coins },
-  { href: "/issuer/sales", label: "Token Sales", icon: ShoppingCart },
-  { href: "/issuer/investors", label: "Investors", icon: Users },
-  { href: "/issuer/compliance", label: "Compliance", icon: Shield },
-  { href: "/issuer/withdrawals", label: "Withdrawals", icon: Wallet },
+  { href: "/issuer/overview", label: "Overview", icon: LayoutDashboard, requiresOnboarding: false },
+  { href: "/issuer/tokens", label: "Tokens", icon: Coins, requiresOnboarding: true },
+  { href: "/issuer/sales", label: "Token Sales", icon: ShoppingCart, requiresOnboarding: true },
+  { href: "/issuer/investors", label: "Investors", icon: Users, requiresOnboarding: true },
+  { href: "/issuer/compliance", label: "Compliance", icon: Shield, requiresOnboarding: true },
+  { href: "/issuer/withdrawals", label: "Withdrawals", icon: Wallet, requiresOnboarding: true },
 ];
 
 export interface IssuerDashboardLayoutProps {
@@ -44,139 +48,166 @@ export function IssuerDashboardLayout({
 }: IssuerDashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [canDeploy, setCanDeploy] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getOnboardingStatus()
+      .then((s) => setCanDeploy(s.can_deploy))
+      .catch(() => setCanDeploy(false));
+  }, []);
+
+  const isLocked = canDeploy === false;
+
+  const NavLink = ({
+    href,
+    label,
+    icon: Icon,
+    disabled,
+  }: {
+    href: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    disabled?: boolean;
+  }) => {
+    const isActive = pathname.startsWith(href);
+
+    if (disabled) {
+      return (
+        <div
+          className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium text-zinc-300 cursor-not-allowed select-none"
+          title="Complete onboarding to unlock"
+        >
+          <Icon className="h-4 w-4" />
+          <span className="flex-1">{label}</span>
+          <Lock className="h-3 w-3 text-zinc-300" />
+        </div>
+      );
+    }
+
+    return (
+      <Link
+        href={href}
+        onClick={() => setIsSidebarOpen(false)}
+        className={cn(
+          "flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-colors",
+          isActive
+            ? "bg-zinc-100 text-zinc-900"
+            : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <div className="flex min-h-screen">
-      {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-darkBlack shadow-sidebar flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-auto",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex flex-col h-full p-6">
-          {/* Logo */}
-          <Link href="/issuer/overview" className="flex items-center gap-2 mb-10">
-            <CiretaLogo variant="icon" color="teal" className="w-8 h-8" />
-            <span className="text-xl font-bold text-white">Cireta</span>
-            <span className="text-xs text-white/70 ml-1">Issuer</span>
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-zinc-200 flex flex-col transition-transform duration-300 lg:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="flex flex-col h-full px-4 py-5 overflow-y-auto">
+          <Link href="/issuer/overview" className="flex items-center gap-2 mb-6 px-1">
+            <img src="/images/logo/cireta-logo.svg" alt="Cireta" className="h-7 w-auto" />
+            <span className="text-xs text-zinc-400 font-medium ml-auto">Issuer</span>
           </Link>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1">
-            {SIDEBAR_LINKS.map((link) => {
-              const isActive = pathname.startsWith(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                    isActive && "font-semibold"
-                  )}
-                  style={isActive
-                    ? { backgroundColor: "rgba(19,99,111,0.3)", color: "#fff", border: "1px solid rgba(19,99,111,0.4)" }
-                    : { color: "rgba(255,255,255,0.7)" }
-                  }
-                >
-                  <link.icon className="h-5 w-5" />
-                  {link.label}
-                </Link>
-              );
-            })}
+          <nav className="space-y-0.5 flex-1">
+            {SIDEBAR_LINKS.map((link) => (
+              <NavLink
+                key={link.href}
+                href={link.href}
+                label={link.label}
+                icon={link.icon}
+                disabled={link.requiresOnboarding && isLocked}
+              />
+            ))}
           </nav>
 
-          {/* Bottom Actions */}
-          <div className="mt-auto pt-6 border-t border-white/10 space-y-1">
+          {/* Locked notice */}
+          {isLocked && (
+            <div className="mx-1 mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+              <p className="text-[11px] text-amber-700 leading-tight">
+                Complete onboarding and get admin approval to unlock all features.
+              </p>
+            </div>
+          )}
+
+          <div className="pt-4 border-t border-zinc-200 space-y-0.5">
             <Link
-              href="/platform/issuers"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-medium"
-              style={{ color: "#C9913D" }}
+              href="/platform/overview"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium text-amber-600 hover:bg-amber-50 transition-colors"
             >
-              <Shield className="h-5 w-5" />
+              <Shield className="h-4 w-4" />
               Platform Admin
             </Link>
-            <Link
-              href="/issuer/settings"
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
-              style={{ color: "rgba(255,255,255,0.7)" }}
-            >
-              <Settings className="h-5 w-5" />
-              Settings
-            </Link>
-            <button
-              onClick={async () => {
-                await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-                window.location.href = "/login";
-              }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-medium w-full"
-              style={{ color: "#f87171" }}
-            >
-              <LogOut className="h-5 w-5" />
-              Disconnect
-            </button>
+            <NavLink href="/issuer/settings" label="Settings" icon={Settings} />
           </div>
+
+          {/* User profile */}
+          <SidebarUserProfile />
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-box">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-20 bg-box border-b border-darkBlack/5 px-8 py-4">
+      <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 lg:ml-56">
+        <header className="sticky top-0 z-20 bg-white border-b border-zinc-200 px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-lg hover:bg-darkBlack/5 transition-colors"
-              >
-                <Menu className="h-6 w-6" />
+            <div className="flex items-center gap-3">
+              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-1.5 rounded-md hover:bg-zinc-100 transition-colors">
+                <Menu className="h-5 w-5" />
               </button>
               <div>
                 {breadcrumbs && breadcrumbs.length > 0 && (
-                  <nav className="flex items-center gap-1 text-sm text-gray-500 mb-1">
+                  <nav className="flex items-center gap-1 text-xs text-zinc-400 mb-0.5">
                     {breadcrumbs.map((crumb, index) => (
                       <React.Fragment key={index}>
                         {crumb.href ? (
-                          <Link href={crumb.href} className="hover:text-darkAqua transition-colors">
-                            {crumb.label}
-                          </Link>
+                          <Link href={crumb.href} className="hover:text-zinc-600 transition-colors">{crumb.label}</Link>
                         ) : (
-                          <span className="text-text">{crumb.label}</span>
+                          <span className="text-zinc-600">{crumb.label}</span>
                         )}
-                        {index < breadcrumbs.length - 1 && (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
+                        {index < breadcrumbs.length - 1 && <ChevronRight className="h-3 w-3" />}
                       </React.Fragment>
                     ))}
                   </nav>
                 )}
-                {title && <h1 className="text-xl font-semibold text-text">{title}</h1>}
-                {description && <p className="text-sm text-gray-500">{description}</p>}
+                {title && <h1 className="text-base font-semibold text-zinc-900">{title}</h1>}
+                {description && <p className="text-xs text-zinc-500">{description}</p>}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {actions}
-              <Link href="/issuer/onboarding/wallet">
-                <Button variant="outline" size="sm">
-                  <Wallet className="h-4 w-4 mr-2" />
-                  Wallet
-                </Button>
-              </Link>
+              <NotificationBell />
+              <ConnectButton.Custom>
+                {({ account, chain, openConnectModal, openAccountModal, mounted }) => {
+                  const connected = mounted && account && chain;
+                  return (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={connected ? openAccountModal : openConnectModal}
+                    >
+                      <Wallet className="h-3.5 w-3.5 mr-1.5" />
+                      {connected
+                        ? `${account.displayName}${chain.unsupported ? " (Wrong Network)" : ""}`
+                        : "Wallet"
+                      }
+                    </Button>
+                  );
+                }}
+              </ConnectButton.Custom>
             </div>
           </div>
         </header>
-
-        {/* Page Content */}
-        <main className="flex-1 p-8">{children}</main>
+        <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
   );

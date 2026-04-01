@@ -25,6 +25,7 @@ class IssuerStatus(str, Enum):
 
 class WalletApprovalStatus(str, Enum):
     NONE = "none"
+    VERIFIED = "verified"  # Signed but not yet submitted for approval
     PENDING_APPROVAL = "pending_approval"
     APPROVED = "approved"
     REJECTED = "rejected"

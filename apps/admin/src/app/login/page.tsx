@@ -6,6 +6,38 @@ import { Shield, Building2, ArrowLeft, Loader2 } from "lucide-react";
 
 type Mode = "select" | "admin-otp" | "issuer-otp" | "issuer-register" | "verify";
 
+function BrandPanel() {
+  return (
+    <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#13636F] to-[#0a1a1e] relative overflow-hidden flex-col">
+      <div className="absolute inset-0">
+        <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-white/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-1/4 right-1/3 w-60 h-60 bg-[#13636F]/20 rounded-full blur-[80px]" />
+      </div>
+      <div className="relative z-10 flex flex-col h-full px-14 xl:px-20 py-12">
+        <img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto self-start" />
+        <div className="flex-1 flex flex-col justify-center">
+          <h1 className="text-3xl xl:text-4xl font-semibold text-white leading-tight mb-5 -tracking-[1px]">
+            Tokenized{" "}
+            <span className="text-white/70">Real World Assets</span>
+          </h1>
+          <p className="text-base text-white/50 leading-relaxed">
+            One platform for issuance, compliance, and distribution of regulated security tokens.
+          </p>
+          <div className="mt-8 space-y-3">
+            {["Regulated RWA security tokens", "Institutional-grade compliance (KYC/AML)", "On-chain ownership & transparent redemption"].map((f, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <span className="text-sm text-white/60">{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-xs text-white/30">&copy; {new Date().getFullYear()} Cireta. All rights reserved.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("select");
@@ -37,7 +69,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/otp-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, purpose }),
+        body: JSON.stringify({ email, purpose, login_role: loginRole }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to send code");
@@ -66,11 +98,21 @@ export default function LoginPage() {
         body: JSON.stringify(body),
         credentials: "include",
       });
+      const resData = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail?.message ?? "Verification failed");
+        throw new Error(resData.detail?.message ?? "Verification failed");
       }
-      router.push(loginRole === "admin" ? "/platform/overview" : "/issuer/overview");
+      // Route based on actual user role from backend, not the selected login path
+      const actualRole = resData.role;
+      if (actualRole === "admin") {
+        router.push("/platform/overview");
+      } else if (actualRole === "issuer") {
+        router.push("/issuer/overview");
+      } else {
+        // Investor or unknown role shouldn't be on admin portal
+        setError("This account does not have admin or issuer access.");
+        return;
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Verification failed");
     } finally {
@@ -93,7 +135,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/otp-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, purpose: otpPurpose }),
+        body: JSON.stringify({ email, purpose: otpPurpose, login_role: loginRole }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to resend code");
@@ -129,24 +171,10 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex">
         {DevOtpToast}
-        {/* Left branded panel */}
-        <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <div>
-            <img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" />
-          </div>
-          <div>
-            <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">
-              Regulated commodity tokenization — one platform for issuance, compliance, and distribution.
-            </p>
-            <p className="text-white/40 text-sm mt-4 flex items-center gap-2">
-              <span className="w-8 h-px bg-white/30" /> Admin Portal
-            </p>
-          </div>
-          <p className="text-white/20 text-xs">&copy; {new Date().getFullYear()} Cireta. All rights reserved.</p>
-        </div>
+        <BrandPanel />
 
         {/* Right form panel */}
-        <div className="flex-1 flex items-center justify-center bg-zinc-50 px-6">
+        <div className="flex-1 flex items-center justify-center bg-white px-6">
           <div className="w-full max-w-md space-y-8">
             <div>
               <h1 className="text-2xl font-bold text-zinc-900">Welcome back</h1>
@@ -193,16 +221,8 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex">
         {DevOtpToast}
-        <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <div><img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" /></div>
-          <div>
-            <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">
-              {isIssuer ? "Create and manage tokenized real-world assets on Base L2." : "Platform administration and compliance management."}
-            </p>
-          </div>
-          <p className="text-white/20 text-xs">&copy; {new Date().getFullYear()} Cireta. All rights reserved.</p>
-        </div>
-        <div className="flex-1 flex items-center justify-center bg-zinc-50 px-6">
+        <BrandPanel />
+        <div className="flex-1 flex items-center justify-center bg-white px-6">
           <div className="w-full max-w-sm space-y-6">
             <button onClick={() => setMode("select")} className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-700">
               <ArrowLeft className="h-4 w-4" /> Back
@@ -254,14 +274,8 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex">
         {DevOtpToast}
-        <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <div><img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" /></div>
-          <div>
-            <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">Check your email for the verification code.</p>
-          </div>
-          <p className="text-white/20 text-xs">&copy; {new Date().getFullYear()} Cireta. All rights reserved.</p>
-        </div>
-        <div className="flex-1 flex items-center justify-center bg-zinc-50 px-6">
+        <BrandPanel />
+        <div className="flex-1 flex items-center justify-center bg-white px-6">
           <div className="w-full max-w-sm space-y-6">
             <button onClick={() => { setMode(loginRole === "admin" ? "admin-otp" : "issuer-otp"); setOtp(""); setError(""); }} className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-700">
               <ArrowLeft className="h-4 w-4" /> Back
@@ -317,16 +331,8 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex">
         {DevOtpToast}
-        <div className="hidden lg:flex w-[45%] bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] flex-col justify-between p-10">
-          <div><img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto" /></div>
-          <div>
-            <p className="text-white/90 text-2xl font-light leading-relaxed max-w-md">
-              Launch tokenized real-world assets on a regulated platform.
-            </p>
-          </div>
-          <p className="text-white/20 text-xs">&copy; {new Date().getFullYear()} Cireta. All rights reserved.</p>
-        </div>
-        <div className="flex-1 flex items-center justify-center bg-zinc-50 px-6">
+        <BrandPanel />
+        <div className="flex-1 flex items-center justify-center bg-white px-6">
           <div className="w-full max-w-sm space-y-6">
             <button onClick={() => { reset(); setMode("issuer-otp"); }} className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-700">
               <ArrowLeft className="h-4 w-4" /> Back to Login

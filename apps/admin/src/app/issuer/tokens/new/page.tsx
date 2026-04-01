@@ -78,7 +78,6 @@ export default function CreateTokenPage() {
   return (
     <IssuerDashboardLayout
       title="Create New Token" description="Deploy a new ERC-3643 security token"
-      breadcrumbs={[{ label: "Tokens", href: "/issuer/tokens" }, { label: "Create New" }]}
     >
       {/* Dev Auto-fill */}
       {isDev && (

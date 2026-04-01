@@ -45,6 +45,7 @@ export default function RichTextEditor({
       Link.configure({ openOnClick: false }),
     ],
     content,
+    immediatelyRender: false,
     onUpdate: ({ editor: ed }) => {
       onChange(ed.getHTML());
     },

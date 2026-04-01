@@ -10,7 +10,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
-from apps.api.models.enums import IssuerStatus, UserRole
+from apps.api.models.enums import IdentityVerificationStatus, IssuerStatus, UserRole
 from apps.api.models.issuer import Issuer
 from apps.api.models.issuer_whitelist import IssuerWhitelist
 from apps.api.models.user import User
@@ -98,6 +98,10 @@ class CiretaAuthService(BaseAuthService):
         issuer.slug = email.split("@")[0].replace(".", "-").replace("+", "-").lower()
         issuer.issuer_type = whitelist_entry.issuer_type
         issuer.status = IssuerStatus.PENDING
+        # Auto-approve identity when whitelist entry has kyc_required=False
+        if not whitelist_entry.kyc_required:
+            issuer.identity_status = IdentityVerificationStatus.APPROVED
+            issuer.identity_verified_at = datetime.now(_UTC)
         self.db.add(issuer)
 
         whitelist_entry.registered_at = datetime.now(_UTC)
@@ -152,9 +156,10 @@ class CiretaAuthService(BaseAuthService):
             )
             return user, mfa_token, "", True
 
-        # Generate tokens
-        access_token = self.create_access_token(user.id)
-        refresh_token = self.create_refresh_token(user.id)
+        # Generate tokens (role-aware: admin/issuer get shorter sessions)
+        user_role = user.role.value if hasattr(user.role, "value") else user.role
+        access_token = self.create_access_token(user.id, role=user_role)
+        refresh_token = self.create_refresh_token(user.id, role=user_role)
 
         return user, access_token, refresh_token, False
 
@@ -215,9 +220,10 @@ class CiretaAuthService(BaseAuthService):
         old_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         _token_blacklist.add(old_hash)
 
-        # Generate new tokens (rotation)
-        new_access_token = self.create_access_token(user_id)
-        new_refresh_token = self.create_refresh_token(user_id)
+        # Generate new tokens (rotation, role-aware)
+        user_role = user.role.value if hasattr(user.role, "value") else user.role
+        new_access_token = self.create_access_token(user_id, role=user_role)
+        new_refresh_token = self.create_refresh_token(user_id, role=user_role)
 
         return new_access_token, new_refresh_token
 

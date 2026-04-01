@@ -35,12 +35,35 @@ async def submit_wallet(
     user_id: RequireIssuerOrAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
 ) -> dict:
-    """Issuer submits their wallet address for admin approval."""
+    """Issuer connects and verifies wallet (signed, not yet submitted for approval)."""
     issuer = await issuer_service.submit_wallet(user_id, request.wallet_address)
     return {
         "wallet_address": issuer.wallet_address,
         "wallet_status": issuer.wallet_status.value if hasattr(issuer.wallet_status, "value") else str(issuer.wallet_status),
     }
+
+
+@router.post("/wallet/submit-for-approval")
+async def submit_wallet_for_approval(
+    user_id: RequireIssuerOrAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> dict:
+    """Issuer explicitly submits their verified wallet for admin approval."""
+    issuer = await issuer_service.submit_wallet_for_approval(user_id)
+    return {
+        "wallet_address": issuer.wallet_address,
+        "wallet_status": issuer.wallet_status.value if hasattr(issuer.wallet_status, "value") else str(issuer.wallet_status),
+    }
+
+
+@router.delete("/wallet")
+async def discard_wallet(
+    user_id: RequireIssuerOrAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> dict:
+    """Discard verified wallet before submission. Not allowed after submission or approval."""
+    issuer = await issuer_service.discard_wallet(user_id)
+    return {"wallet_status": "none"}
 
 
 @router.post("/identity/initiate")

@@ -52,7 +52,6 @@ export default function IdentityOnboardingPage() {
     <IssuerDashboardLayout
       title={`Identity Verification (${label})`}
       description="Complete your identity verification via Sumsub"
-      breadcrumbs={[{ label: "Dashboard", href: "/issuer/overview" }, { label: "Verify Identity" }]}
     >
       <div className="max-w-2xl mx-auto">
         {state === "loading" && (

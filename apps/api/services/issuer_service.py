@@ -139,10 +139,94 @@ class IssuerService:
     # ── Wallet ──
 
     async def submit_wallet(self, user_id: UUID, wallet_address: str) -> Issuer:
-        """Issuer submits their wallet address for admin approval."""
+        """Issuer connects and verifies wallet (signed, not yet submitted for approval)."""
         issuer = await self._get_issuer_by_user(user_id)
         issuer.wallet_address = wallet_address
+        issuer.wallet_status = WalletApprovalStatus.VERIFIED
+        await self.db.commit()
+        await self.db.refresh(issuer)
+        return issuer
+
+    async def submit_wallet_for_approval(self, user_id: UUID) -> Issuer:
+        """Issuer explicitly submits their verified wallet for admin approval."""
+        issuer = await self._get_issuer_by_user(user_id)
+        if not issuer.wallet_address:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "NO_WALLET", "message": "No wallet connected. Connect a wallet first."},
+            )
+        if issuer.wallet_status == WalletApprovalStatus.APPROVED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "ALREADY_APPROVED", "message": "Wallet is already approved."},
+            )
         issuer.wallet_status = WalletApprovalStatus.PENDING_APPROVAL
+        await self.db.commit()
+        await self.db.refresh(issuer)
+
+        # Notify all admin users
+        await self._notify_admins_issuer_submitted(issuer)
+
+        return issuer
+
+    async def _notify_admins_issuer_submitted(self, issuer: Issuer) -> None:
+        """Create in-app + email notifications for admins when issuer submits for approval."""
+        from apps.api.models.notification import Notification
+        from apps.api.services.email_service import EmailService
+
+        admin_results = await self.db.execute(
+            select(User).where(User.role == UserRole.ADMIN)
+        )
+        admins = list(admin_results.scalars().all())
+
+        for admin in admins:
+            notif = Notification()
+            notif.user_id = admin.id
+            notif.type = "issuer_approval_request"
+            notif.title = "Issuer submitted for approval"
+            notif.message = (
+                f"{issuer.name} has completed onboarding and submitted their profile for approval. "
+                f"Review their wallet and identity verification to activate their account."
+            )
+            notif.data = {
+                "issuer_id": str(issuer.id),
+                "issuer_name": issuer.name,
+                "action_url": f"/platform/issuers/{issuer.id}",
+            }
+            self.db.add(notif)
+
+        await self.db.commit()
+
+        # Send email (non-blocking, best-effort)
+        try:
+            email_svc = EmailService(self.db)
+            for admin in admins:
+                await email_svc.send(
+                    "issuer_approval_request",
+                    admin.email,
+                    {
+                        "issuer_name": issuer.name,
+                        "action_url": f"/platform/issuers/{issuer.id}",
+                    },
+                )
+        except Exception:
+            pass  # Non-fatal — in-app notification is the primary channel
+
+    async def discard_wallet(self, user_id: UUID) -> Issuer:
+        """Issuer discards their wallet before submission/approval."""
+        issuer = await self._get_issuer_by_user(user_id)
+        if issuer.wallet_status == WalletApprovalStatus.APPROVED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "ALREADY_APPROVED", "message": "Cannot discard an approved wallet. Contact admin."},
+            )
+        if issuer.wallet_status == WalletApprovalStatus.PENDING_APPROVAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "PENDING_APPROVAL", "message": "Cannot discard while pending approval. Contact admin."},
+            )
+        issuer.wallet_address = None
+        issuer.wallet_status = WalletApprovalStatus.NONE
         await self.db.commit()
         await self.db.refresh(issuer)
         return issuer
@@ -248,6 +332,16 @@ class IssuerService:
     async def get_onboarding_status(self, user_id: UUID) -> dict:
         """Get full onboarding status for an issuer."""
         issuer = await self._get_issuer_by_user(user_id)
+
+        # Look up whitelist entry to get kyc_required flag
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one()
+        wl_result = await self.db.execute(
+            select(IssuerWhitelist).where(IssuerWhitelist.email == user.email.lower())
+        )
+        wl_entry = wl_result.scalar_one_or_none()
+        kyc_required = wl_entry.kyc_required if wl_entry else True
+
         missing = []
         if issuer.wallet_status != WalletApprovalStatus.APPROVED:
             missing.append("wallet_approval")
@@ -263,8 +357,10 @@ class IssuerService:
             "issuer_status": _val(issuer.status),
             "issuer_type": _val(issuer.issuer_type),
             "wallet_connected": issuer.wallet_address is not None,
+            "wallet_address": issuer.wallet_address,
             "wallet_status": _val(issuer.wallet_status),
             "identity_status": _val(issuer.identity_status),
+            "kyc_required": kyc_required,
             "can_deploy": issuer.status == IssuerStatus.ACTIVE,
             "missing_gates": missing,
         }
@@ -310,7 +406,11 @@ class IssuerService:
     # ── Helpers ──
 
     async def _get_issuer(self, issuer_id: UUID) -> Issuer:
-        result = await self.db.execute(select(Issuer).where(Issuer.id == issuer_id))
+        result = await self.db.execute(
+            select(Issuer)
+            .options(selectinload(Issuer.user), selectinload(Issuer.token_sales))
+            .where(Issuer.id == issuer_id)
+        )
         issuer = result.scalar_one_or_none()
         if not issuer:
             raise HTTPException(

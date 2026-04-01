@@ -7,6 +7,7 @@ import {
   ArrowLeft, Loader2, AlertTriangle, TrendingUp,
 } from "lucide-react";
 import { Button, Badge, ProgressBar } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { PlatformAdminLayout } from "@/components/templates";
 import { getIssuer, activateIssuer, revokeIssuer, type Issuer } from "@/lib/api/repositories/issuers";
 import { approveIssuerWallet, rejectIssuerWallet, skipIssuerIdentity } from "@/lib/api/repositories/issuer-onboarding";
@@ -17,6 +18,7 @@ function StatusPill({ status }: { status: string }) {
     approved: { bg: "bg-green-50", text: "text-green-700", icon: <CheckCircle2 className="h-4 w-4" /> },
     active: { bg: "bg-green-50", text: "text-green-700", icon: <CheckCircle2 className="h-4 w-4" /> },
     pending: { bg: "bg-amber-50", text: "text-amber-700", icon: <Clock className="h-4 w-4" /> },
+    verified: { bg: "bg-teal-50", text: "text-teal-700", icon: <CheckCircle2 className="h-4 w-4" /> },
     pending_approval: { bg: "bg-amber-50", text: "text-amber-700", icon: <Clock className="h-4 w-4" /> },
     rejected: { bg: "bg-red-50", text: "text-red-700", icon: <XCircle className="h-4 w-4" /> },
     suspended: { bg: "bg-red-50", text: "text-red-700", icon: <XCircle className="h-4 w-4" /> },
@@ -96,7 +98,6 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
   return (
     <PlatformAdminLayout
       title={issuer.name}
-      breadcrumbs={[{ label: "Issuers", href: "/platform/issuers" }, { label: issuer.name }]}
     >
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2 text-red-700 text-sm">
@@ -146,11 +147,16 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
             <StatusPill status={issuer.wallet_status} />
           </div>
           {issuer.wallet_address ? (
-            <p className="text-xs font-mono bg-zinc-50 p-3 rounded-lg break-all mb-4">{issuer.wallet_address}</p>
+            <div className="text-xs bg-zinc-50 p-3 rounded-lg mb-4">
+              <CopyableAddress address={issuer.wallet_address} className="text-xs text-zinc-600" />
+            </div>
           ) : (
             <p className="text-sm text-zinc-400 mb-4">No wallet submitted yet</p>
           )}
-          {issuer.wallet_status === "pending_approval" && (
+          {issuer.wallet_status === "verified" && (
+            <p className="text-xs text-zinc-400 mb-2">Issuer has verified ownership but not yet submitted for approval.</p>
+          )}
+          {(issuer.wallet_status === "pending_approval" || issuer.wallet_status === "verified") && (
             <div className="flex gap-2">
               <Button
                 variant="primary"

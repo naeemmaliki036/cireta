@@ -72,7 +72,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   if (loading) {
     return (
-      <PlatformAdminLayout title="Loading..." breadcrumbs={[{ label: "Users", href: "/platform/users" }, { label: "..." }]}>
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 border-2 border-zinc-200 border-t-zinc-600 rounded-full animate-spin" />
         </div>
@@ -82,7 +81,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   if (error || !user) {
     return (
-      <PlatformAdminLayout title="Error" breadcrumbs={[{ label: "Users", href: "/platform/users" }, { label: "Error" }]}>
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
           <p className="text-red-600">{error ?? "User not found"}</p>
           <Link href="/platform/users">
@@ -99,7 +97,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     <PlatformAdminLayout
       title={user.display_name || user.email}
       description={user.email}
-      breadcrumbs={[{ label: "Users", href: "/platform/users" }, { label: user.display_name || user.email }]}
     >
       {/* Header card */}
       <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-6">

@@ -69,9 +69,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const isFinalizedSuccess = sale.status === "finalized_success" || sale.status === "finalized";
 
   return (
-    <PlatformAdminLayout title={sale.token_name ?? "Sale Review"} description={`Sale ID: ${sale.id}`}
-      breadcrumbs={[{ label: "Sales", href: "/platform/sales" }, { label: sale.token_name ?? "Sale" }]}>
-
+    <PlatformAdminLayout title={sale.token_name ?? "Sale Review"} description={`Sale ID: ${sale.id}`}>
       <div className="mb-6">
         <Link href="/platform/sales" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Sales

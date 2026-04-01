@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Users, Search, ShieldCheck, Clock, UserX } from "lucide-react";
-import { Badge, Select } from "@/components/atoms";
+import { Users, Search, ShieldCheck, Clock, UserX, ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/atoms";
 import { DataTable, type Column } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { getInvestors, type Investor } from "@/lib/api/repositories/investors";
@@ -23,6 +22,8 @@ export default function PlatformUsersPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     (async () => {
@@ -55,8 +56,8 @@ export default function PlatformUsersPage() {
       header: "User",
       render: (row) => (
         <div>
-          <p className="font-semibold text-text">{row.display_name || row.email.split("@")[0]}</p>
-          <p className="text-xs text-gray-500">{row.email}</p>
+          <p className="font-medium text-sm text-zinc-900">{row.display_name || row.email.split("@")[0]}</p>
+          <p className="text-xs text-zinc-400">{row.email}</p>
         </div>
       ),
     },
@@ -117,7 +118,7 @@ export default function PlatformUsersPage() {
       key: "created_at",
       header: "Registered",
       render: (row) => (
-        <span className="text-xs text-gray-500">{row.created_at.slice(0, 10)}</span>
+        <span className="text-xs text-zinc-500">{row.created_at.slice(0, 10)}</span>
       ),
     },
   ];
@@ -127,79 +128,90 @@ export default function PlatformUsersPage() {
       title="Investor Management"
       description="View and manage registered investors"
     >
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Inline stats */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         {[
-          { label: "Total Users", value: users.length, icon: Users, color: "bg-darkAqua/10 text-darkAqua" },
-          { label: "KYC Approved", value: approved, icon: ShieldCheck, color: "bg-green-100 text-green-600" },
-          { label: "Pending", value: pending, icon: Clock, color: "bg-amber-100 text-amber-600" },
-          { label: "Unverified", value: unverified, icon: UserX, color: "bg-zinc-100 text-zinc-500" },
-        ].map((stat, i) => (
-          <motion.div
+          { label: "Total Members", value: users.length, icon: Users, color: "text-zinc-600" },
+          { label: "Approved", value: approved, icon: ShieldCheck, color: "text-green-600" },
+          { label: "Pending", value: pending, icon: Clock, color: "text-amber-600" },
+          { label: "Unverified", value: unverified, icon: UserX, color: "text-zinc-400" },
+        ].map((stat) => (
+          <div
             key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-white rounded-3xl p-6 border border-darkBlack/10"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs"
           >
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color}`}>
-                <stat.icon className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">{stat.label}</p>
-                <p className="text-2xl font-bold text-text">{loading ? "—" : stat.value}</p>
-              </div>
-            </div>
-          </motion.div>
+            <stat.icon className={`h-3.5 w-3.5 ${stat.color}`} />
+            <span className="text-zinc-500">{stat.label}</span>
+            <span className="font-semibold text-zinc-900">{loading ? "—" : stat.value}</span>
+          </div>
         ))}
       </div>
 
       {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6"
-      >
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-12"
-            />
-          </div>
-          <Select
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "none", label: "Unverified" },
-              { value: "pending", label: "Pending" },
-              { value: "approved", label: "Approved" },
-              { value: "rejected", label: "Rejected" },
-            ]}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-white focus:outline-none focus:border-zinc-400"
           />
         </div>
-      </motion.div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-zinc-400"
+        >
+          <option value="all">All Status</option>
+          <option value="none">Unverified</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <DataTable
-          columns={columns}
-          data={filtered}
-          onRowClick={(row) => router.push(`/platform/users/${row.id}`)}
-          emptyMessage={loading ? "Loading users..." : "No users found"}
-        />
-      </motion.div>
+      {/* Pagination info + controls */}
+      {(() => {
+        const totalPages = Math.ceil(filtered.length / pageSize);
+        const start = (page - 1) * pageSize;
+        const paged = filtered.slice(start, start + pageSize);
+        return (
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-zinc-400">
+                Showing {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + pageSize, filtered.length)} of {filtered.length}
+              </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-1 rounded hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs text-zinc-600 px-2">{page} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="p-1 rounded hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <DataTable
+              columns={columns}
+              data={paged}
+              onRowClick={(row) => router.push(`/platform/users/${row.id}`)}
+              emptyMessage={loading ? "Loading users..." : "No users found"}
+            />
+          </>
+        );
+      })()}
     </PlatformAdminLayout>
   );
 }

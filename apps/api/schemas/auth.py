@@ -53,6 +53,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     requires_mfa: bool = False
+    role: str | None = None
     # refresh_token omitted — sent as httpOnly cookie
 
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import Link from "next/link";
 import {
   Building2,
@@ -9,13 +8,15 @@ import {
   Check,
   DollarSign,
   ListChecks,
+  Clock,
 } from "lucide-react";
-import { Button, Select } from "@/components/atoms";
+import { Button } from "@/components/atoms";
 import { DataTable } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
+
 function mapIssuer(i: APIIssuer): Issuer {
   return {
     id: i.id, name: i.name, email: i.email ?? "—", legalEntity: i.legal_entity_name ?? "—", jurisdiction: i.jurisdiction ?? "—",
@@ -26,8 +27,6 @@ function mapIssuer(i: APIIssuer): Issuer {
 }
 
 type Issuer = IssuerRow;
-
-
 type ModalType = "approve" | "fee" | "revoke" | null;
 
 export default function IssuersPage() {
@@ -40,6 +39,7 @@ export default function IssuersPage() {
       catch (err) { console.error("Failed to load issuers:", err); }
     })();
   }, []);
+
   const [statusFilter, setStatusFilter] = useState("all");
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedIssuer, setSelectedIssuer] = useState<Issuer | null>(null);
@@ -79,134 +79,68 @@ export default function IssuersPage() {
     setModalType(action);
     if (action === "fee" && fee !== undefined) setNewFee(fee.toString());
   });
+
+  const active = apiIssuers.filter((i) => i.status === "active").length;
+  const pendingCount = apiIssuers.filter((i) => i.status === "pending").length;
+
   return (
     <PlatformAdminLayout
       title="Issuer Management"
       description="Manage platform issuers, fees, and approvals"
-      actions={
-        <Link href="/platform/issuers/whitelist">
-          <Button variant="primary">
-            <ListChecks className="h-4 w-4 mr-2" />
-            Manage Whitelist
-          </Button>
-        </Link>
-      }
     >
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-darkAqua/10 flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-darkAqua" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Total Issuers</p>
-              <p className="text-2xl font-bold text-text">{apiIssuers.length}</p>
-            </div>
+      {/* Inline stats + Whitelist button */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {[
+          { label: "Total Issuers", value: apiIssuers.length, icon: Building2, color: "text-zinc-600" },
+          { label: "Active", value: active, icon: Check, color: "text-green-600" },
+          { label: "Pending", value: pendingCount, icon: Clock, color: "text-amber-600" },
+          { label: "Total Raised", value: `$${apiIssuers.reduce((sum, i) => sum + i.totalRaised, 0).toLocaleString()}`, icon: DollarSign, color: "text-purple-600" },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs"
+          >
+            <stat.icon className={`h-3.5 w-3.5 ${stat.color}`} />
+            <span className="text-zinc-500">{stat.label}</span>
+            <span className="font-semibold text-zinc-900">{stat.value}</span>
           </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-              <Check className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Active</p>
-              <p className="text-2xl font-bold text-text">
-                {apiIssuers.filter((i) => i.status === "active").length}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-gold" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Pending</p>
-              <p className="text-2xl font-bold text-text">
-                {apiIssuers.filter((i) => i.status === "pending").length}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Total Raised</p>
-              <p className="text-2xl font-bold text-text">
-                ${apiIssuers.reduce((sum, i) => sum + i.totalRaised, 0).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </motion.div>
+        ))}
       </div>
 
-      {/* Filters */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6"
-      >
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search issuers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-12"
-            />
-          </div>
-          <Select
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "active", label: "Active" },
-              { value: "pending", label: "Pending" },
-              { value: "suspended", label: "Suspended" },
-            ]}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+      {/* Filters + Whitelist button */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Search issuers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-white focus:outline-none focus:border-zinc-400"
           />
         </div>
-      </motion.div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-zinc-400"
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="suspended">Suspended</option>
+        </select>
+        <div className="ml-auto">
+          <Link href="/platform/issuers/whitelist">
+            <Button variant="outline" size="sm">
+              <ListChecks className="h-4 w-4 mr-2" />
+              Manage Issuer Whitelist
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-      {/* Issuers Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <DataTable columns={columns} data={filteredIssuers} />
-      </motion.div>
+      {/* Table */}
+      <DataTable columns={columns} data={filteredIssuers} />
 
       <IssuerActionModal
         modalType={modalType}

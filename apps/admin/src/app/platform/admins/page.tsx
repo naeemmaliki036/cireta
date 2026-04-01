@@ -74,7 +74,6 @@ export default function AdminAccountsPage() {
     <PlatformAdminLayout
       title="Admin Accounts"
       description="Manage platform administrator access"
-      breadcrumbs={[{ label: "Platform" }, { label: "Admin Accounts" }]}
     >
       <div className="max-w-3xl">
         {/* Add Admin Form */}

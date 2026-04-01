@@ -228,13 +228,17 @@ class IssuerOnboardingStatusResponse(BaseModel):
     issuer_status: str
     issuer_type: str
     wallet_connected: bool
+    wallet_address: str | None = None
     wallet_status: str
     identity_status: str
+    kyc_required: bool = True
     can_deploy: bool
     missing_gates: list[str]
 
 
 class IssuerWalletSubmitRequest(BaseModel):
-    """Request from issuer to submit their wallet address."""
+    """Request from issuer to submit their wallet address with ownership proof."""
 
     wallet_address: str = Field(..., min_length=42, max_length=42)
+    signature: str | None = Field(default=None, description="Signed message proving wallet ownership")
+    nonce: str | None = Field(default=None, description="Nonce used in the signed message")

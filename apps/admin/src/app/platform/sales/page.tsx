@@ -24,56 +24,43 @@ export default function PlatformSalesPage() {
     <PlatformAdminLayout
       title="All Sales"
       description="Token sales across all issuers on the platform"
-      breadcrumbs={[{ label: "Platform" }, { label: "Sales" }]}
     >
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-6 mb-6">
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center">
-            <ShoppingCart className="h-6 w-6 text-teal-600" />
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500 uppercase">Total Sales</p>
-            <p className="text-2xl font-bold">{sales.length}</p>
-          </div>
+      {/* Inline stats */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs">
+          <ShoppingCart className="h-3.5 w-3.5 text-teal-600" />
+          <span className="text-zinc-500">Total Sales</span>
+          <span className="font-semibold text-zinc-900">{sales.length}</span>
         </div>
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
-            <ShoppingCart className="h-6 w-6 text-green-600" />
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500 uppercase">Active</p>
-            <p className="text-2xl font-bold">{activeSales.length}</p>
-          </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs">
+          <ShoppingCart className="h-3.5 w-3.5 text-green-600" />
+          <span className="text-zinc-500">Active</span>
+          <span className="font-semibold text-zinc-900">{activeSales.length}</span>
         </div>
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-            <ShoppingCart className="h-6 w-6 text-purple-600" />
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500 uppercase">Total Raised</p>
-            <p className="text-2xl font-bold">${totalRaised.toLocaleString()}</p>
-          </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs">
+          <ShoppingCart className="h-3.5 w-3.5 text-purple-600" />
+          <span className="text-zinc-500">Total Raised</span>
+          <span className="font-semibold text-zinc-900">${totalRaised.toLocaleString()}</span>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-zinc-400">Loading...</div>
+          <div className="p-8 text-center text-zinc-400 text-sm">Loading...</div>
         ) : sales.length === 0 ? (
-          <div className="p-8 text-center text-zinc-400">No sales created yet</div>
+          <div className="p-8 text-center text-zinc-400 text-sm">No sales created yet</div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-zinc-500 uppercase border-b border-zinc-100">
-                <th className="px-6 py-3">Token</th>
-                <th className="px-6 py-3">Issuer</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Raised</th>
-                <th className="px-6 py-3">Hard Cap</th>
-                <th className="px-6 py-3">Progress</th>
-                <th className="px-6 py-3">Phases</th>
+                <th className="px-5 py-3">Token</th>
+                <th className="px-5 py-3">Issuer</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Raised</th>
+                <th className="px-5 py-3">Hard Cap</th>
+                <th className="px-5 py-3">Progress</th>
+                <th className="px-5 py-3">Phases</th>
               </tr>
             </thead>
             <tbody>
@@ -83,14 +70,14 @@ export default function PlatformSalesPage() {
                 const pct = hardCap > 0 ? (raised / hardCap) * 100 : 0;
                 return (
                   <tr key={sale.id} className="border-b border-zinc-50 hover:bg-zinc-50">
-                    <td className="px-6 py-4">
-                      <p className="font-semibold text-sm">{sale.token_name ?? "—"}</p>
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-sm">{sale.token_name ?? "—"}</p>
                       <p className="text-xs text-zinc-400">{sale.token_symbol}</p>
                     </td>
-                    <td className="px-6 py-4 text-sm text-zinc-600">
+                    <td className="px-5 py-3 text-sm text-zinc-600">
                       {sale.issuer_id.slice(0, 8)}...
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-3">
                       <Badge
                         variant={sale.status === "active" ? "active" : sale.status === "draft" ? "pending" : "default"}
                         size="sm"
@@ -99,12 +86,12 @@ export default function PlatformSalesPage() {
                         {sale.status}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium">${raised.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm text-zinc-500">${hardCap.toLocaleString()}</td>
-                    <td className="px-6 py-4 w-32">
+                    <td className="px-5 py-3 text-sm font-medium">${raised.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-sm text-zinc-500">${hardCap.toLocaleString()}</td>
+                    <td className="px-5 py-3 w-32">
                       <ProgressBar value={pct} size="sm" />
                     </td>
-                    <td className="px-6 py-4 text-sm text-zinc-500">{sale.phases.length}</td>
+                    <td className="px-5 py-3 text-sm text-zinc-500">{sale.phases.length}</td>
                   </tr>
                 );
               })}

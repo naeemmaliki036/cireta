@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default=DEFAULTS["JWT_ALGORITHM"])
     access_token_expire_seconds: int = Field(default=DEFAULTS["ACCESS_TOKEN_EXPIRE_SECONDS"])
     refresh_token_expire_seconds: int = Field(default=DEFAULTS["REFRESH_TOKEN_EXPIRE_SECONDS"])
+    refresh_token_expire_seconds_admin: int = Field(default=DEFAULTS["REFRESH_TOKEN_EXPIRE_SECONDS_ADMIN"])
 
     # Encryption (required)
     encryption_key: str = Field()

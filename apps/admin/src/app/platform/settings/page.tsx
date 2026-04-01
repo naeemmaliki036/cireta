@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { Shield, Bell } from "lucide-react";
 import { PlatformAdminLayout } from "@/components/templates";
 import { Button } from "@/components/atoms";
 import { apiFetch } from "@/lib/api/client";
@@ -10,6 +11,15 @@ const RichTextEditor = dynamic(
   () => import("@/components/molecules/RichTextEditor"),
   { ssr: false }
 );
+
+const TABS = [
+  { id: "general", label: "General" },
+  { id: "otc", label: "OTC Template" },
+  { id: "compliance", label: "Compliance" },
+  { id: "notifications", label: "Notifications" },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
 
 const DEFAULT_OTC_TEMPLATE = `<h2>OTC & Bank Transfer Instructions</h2>
 <p>This sale accepts investments via bank wire transfer and OTC allocation.</p>
@@ -38,6 +48,7 @@ const DEFAULT_OTC_TEMPLATE = `<h2>OTC & Bank Transfer Instructions</h2>
 </ul>`;
 
 export default function PlatformSettingsPage() {
+  const [activeTab, setActiveTab] = useState<TabId>("general");
   const [settings, setSettings] = useState({
     default_fee_bps: "200",
     blocked_countries: "US",
@@ -98,77 +109,121 @@ export default function PlatformSettingsPage() {
     <PlatformAdminLayout
       title="Platform Settings"
       description="Configure global platform defaults"
-      breadcrumbs={[{ label: "Platform" }, { label: "Settings" }]}
     >
-      <div className="max-w-3xl space-y-8">
-        {error && <p className="text-red-600 text-sm mb-4 p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
+      {/* Tab bar */}
+      <nav className="flex items-center gap-1 border-b border-zinc-200 mb-6 overflow-x-auto scrollbar-none">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`relative px-3 py-2.5 text-sm whitespace-nowrap transition-colors ${
+              activeTab === tab.id
+                ? "text-zinc-900 font-medium"
+                : "text-zinc-400 hover:text-zinc-600"
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-zinc-900 rounded-t" />
+            )}
+          </button>
+        ))}
+      </nav>
 
-        {/* General Settings */}
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-6">
-          <h2 className="text-lg font-semibold text-zinc-800">General</h2>
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Default Fee Rate (basis points)</label>
-            <input
-              value={settings.default_fee_bps}
-              onChange={(e) => setSettings((s) => ({ ...s, default_fee_bps: e.target.value }))}
-              className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 max-w-xs"
-              placeholder="200 = 2.0%"
-            />
-            <p className="text-zinc-400 text-xs mt-1">100 basis points = 1%. Applied to new issuers.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Globally Blocked Countries (comma-separated ISO codes)</label>
-            <input
-              value={settings.blocked_countries}
-              onChange={(e) => setSettings((s) => ({ ...s, blocked_countries: e.target.value }))}
-              className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-              placeholder="US, IR, KP"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1">Minimum KYC Level to Invest</label>
-            <select
-              value={settings.kyc_min_level}
-              onChange={(e) => setSettings((s) => ({ ...s, kyc_min_level: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-            >
-              <option value="1">Level 1 — Basic KYC</option>
-              <option value="2">Level 2 — Enhanced KYC</option>
-              <option value="3">Level 3 — Accredited</option>
-            </select>
-          </div>
-          <Button variant="primary" onClick={handleSave}>
-            {saved ? "Saved" : "Save Settings"}
-          </Button>
-        </div>
+      {error && <p className="text-red-600 text-sm mb-4 p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
 
-        {/* OTC Default Template */}
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-800">OTC & Bank Transfer Template</h2>
-            <p className="text-sm text-zinc-500 mt-1">
-              Default content auto-loaded when an issuer enables OTC on a new sale. Issuers can customize per sale.
-            </p>
-          </div>
-          <RichTextEditor
-            content={otcTemplate}
-            onChange={setOtcTemplate}
-            placeholder="Enter default OTC instructions..."
-          />
-          <div className="flex items-center gap-3">
-            <Button variant="primary" onClick={handleSaveOtc}>
-              {otcSaved ? "Saved" : "Save OTC Template"}
+      <div className="max-w-3xl">
+        {/* General Tab */}
+        {activeTab === "general" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
+            <h2 className="text-sm font-semibold text-zinc-800">General Settings</h2>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Default Fee Rate (basis points)</label>
+              <input
+                value={settings.default_fee_bps}
+                onChange={(e) => setSettings((s) => ({ ...s, default_fee_bps: e.target.value }))}
+                className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 max-w-xs"
+                placeholder="200 = 2.0%"
+              />
+              <p className="text-zinc-400 text-[11px] mt-1">100 basis points = 1%. Applied to new issuers.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Globally Blocked Countries (comma-separated ISO codes)</label>
+              <input
+                value={settings.blocked_countries}
+                onChange={(e) => setSettings((s) => ({ ...s, blocked_countries: e.target.value }))}
+                className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400"
+                placeholder="US, IR, KP"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Minimum KYC Level to Invest</label>
+              <select
+                value={settings.kyc_min_level}
+                onChange={(e) => setSettings((s) => ({ ...s, kyc_min_level: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400"
+              >
+                <option value="1">Level 1 — Basic KYC</option>
+                <option value="2">Level 2 — Enhanced KYC</option>
+                <option value="3">Level 3 — Accredited</option>
+              </select>
+            </div>
+            <Button variant="primary" size="sm" onClick={handleSave}>
+              {saved ? "Saved" : "Save Settings"}
             </Button>
-            <button
-              type="button"
-              onClick={() => setOtcTemplate(DEFAULT_OTC_TEMPLATE)}
-              className="text-sm text-zinc-500 hover:text-zinc-700 underline"
-            >
-              Reset to default
-            </button>
           </div>
-        </div>
+        )}
+
+        {/* OTC Template Tab */}
+        {activeTab === "otc" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-800">OTC & Bank Transfer Template</h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                Default content auto-loaded when an issuer enables OTC on a new sale. Issuers can customize per sale.
+              </p>
+            </div>
+            <RichTextEditor
+              content={otcTemplate}
+              onChange={setOtcTemplate}
+              placeholder="Enter default OTC instructions..."
+            />
+            <div className="flex items-center gap-3">
+              <Button variant="primary" size="sm" onClick={handleSaveOtc}>
+                {otcSaved ? "Saved" : "Save OTC Template"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setOtcTemplate(DEFAULT_OTC_TEMPLATE)}
+                className="text-xs text-zinc-500 hover:text-zinc-700 underline"
+              >
+                Reset to default
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Compliance Tab — placeholder */}
+        {activeTab === "compliance" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-8 text-center">
+            <Shield className="h-8 w-8 text-zinc-300 mx-auto mb-3" />
+            <h2 className="text-sm font-semibold text-zinc-800 mb-1">Compliance Settings</h2>
+            <p className="text-xs text-zinc-400">AML thresholds, compliance rules, and automated screening configuration.</p>
+            <p className="text-[11px] text-zinc-300 mt-3">Coming soon</p>
+          </div>
+        )}
+
+        {/* Notifications Tab — placeholder */}
+        {activeTab === "notifications" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-8 text-center">
+            <Bell className="h-8 w-8 text-zinc-300 mx-auto mb-3" />
+            <h2 className="text-sm font-semibold text-zinc-800 mb-1">Notification Settings</h2>
+            <p className="text-xs text-zinc-400">Email templates, webhook configuration, and alert preferences.</p>
+            <p className="text-[11px] text-zinc-300 mt-3">Coming soon</p>
+          </div>
+        )}
       </div>
     </PlatformAdminLayout>
   );
 }
+

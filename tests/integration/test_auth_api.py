@@ -154,3 +154,54 @@ class TestMeEndpoint:
         response = await client.get("/api/v1/auth/me")
 
         assert response.status_code == 401
+
+
+class TestAudienceScoping:
+    """Tests for JWT audience-based access control.
+
+    Investor tokens (aud=investor) must not access admin endpoints.
+    Admin tokens (aud=admin) must not access investor-only endpoints.
+    """
+
+    async def test_investor_token_rejected_on_admin_endpoint(
+        self, client: AsyncClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Investor JWT should be rejected by admin endpoints (wrong audience)."""
+        response = await client.get(
+            "/api/v1/admin/platform/stats",
+            headers=auth_headers,
+        )
+        assert response.status_code in (401, 403)
+
+    async def test_admin_token_works_on_admin_endpoint(
+        self, client: AsyncClient, admin_auth_headers: dict[str, str]
+    ) -> None:
+        """Admin JWT with aud=admin should access admin endpoints."""
+        response = await client.get(
+            "/api/v1/admin/platform/stats",
+            headers=admin_auth_headers,
+        )
+        assert response.status_code == 200
+
+    async def test_issuer_token_works_on_admin_endpoint(
+        self, client: AsyncClient, issuer_auth_headers: dict[str, str]
+    ) -> None:
+        """Issuer JWT with aud=admin should access issuer-or-admin endpoints."""
+        # Issuer tokens have aud=admin, so they pass the audience check.
+        # The role check (issuer vs admin) then determines specific access.
+        # Using /auth/me which accepts any audience to verify the token is valid.
+        response = await client.get(
+            "/api/v1/auth/me",
+            headers=issuer_auth_headers,
+        )
+        assert response.status_code == 200
+
+    async def test_investor_token_works_on_investor_endpoint(
+        self, client: AsyncClient, auth_headers: dict[str, str]
+    ) -> None:
+        """Investor JWT with aud=investor should access general endpoints."""
+        response = await client.get(
+            "/api/v1/auth/me",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200

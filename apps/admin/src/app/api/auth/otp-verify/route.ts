@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 15,
+    maxAge: 60 * 60 * 8, // 8 hours — matches admin/issuer refresh token lifetime
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, role: data.role ?? null });
 }

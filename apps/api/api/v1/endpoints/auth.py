@@ -72,8 +72,9 @@ async def register(
         request.password,
         display_name=request.display_name,
     )
-    access_token = auth_service.create_access_token(user.id)
-    refresh_token = auth_service.create_refresh_token(user.id)
+    user_role = user.role.value if hasattr(user.role, "value") else user.role
+    access_token = auth_service.create_access_token(user.id, role=user_role)
+    refresh_token = auth_service.create_refresh_token(user.id, role=user_role)
     _set_refresh_cookie(response, refresh_token)
 
     # Send welcome email (non-blocking)
@@ -98,8 +99,9 @@ async def register_issuer(
         request.password,
         display_name=request.display_name,
     )
-    access_token = auth_service.create_access_token(user.id)
-    refresh_token = auth_service.create_refresh_token(user.id)
+    user_role = user.role.value if hasattr(user.role, "value") else user.role
+    access_token = auth_service.create_access_token(user.id, role=user_role)
+    refresh_token = auth_service.create_refresh_token(user.id, role=user_role)
     _set_refresh_cookie(response, refresh_token)
 
     return TokenResponse(access_token=access_token)
@@ -150,6 +152,7 @@ from pydantic import BaseModel as PydanticBaseModel
 class OTPRequestBody(PydanticBaseModel):
     email: str
     purpose: str = "login"
+    audience: str | None = None  # "admin" restricts to admin/issuer, "investor" restricts to investor
 
 
 class OTPVerifyBody(PydanticBaseModel):
@@ -175,8 +178,19 @@ async def request_otp(
 
     if request.purpose == "login":
         result = await db.execute(select(User).where(User.email == request.email.lower()))
-        if not result.scalar_one_or_none():
+        user = result.scalar_one_or_none()
+        if not user:
             raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "No account with this email"})
+        # Enforce audience: strict role-based access per login path
+        user_role = user.role.value if hasattr(user.role, "value") else user.role
+        if request.audience == "platform_admin" and user_role != "admin":
+            raise HTTPException(status_code=403, detail={"code": "ROLE_MISMATCH", "message": "This email is not registered as a platform admin."})
+        if request.audience == "issuer_only" and user_role != "issuer":
+            raise HTTPException(status_code=403, detail={"code": "ROLE_MISMATCH", "message": "This email is not registered as an issuer."})
+        if request.audience == "admin" and user_role not in ("admin", "issuer"):
+            raise HTTPException(status_code=403, detail={"code": "ROLE_MISMATCH", "message": "Invalid login"})
+        if request.audience == "investor" and user_role != "investor":
+            raise HTTPException(status_code=403, detail={"code": "ROLE_MISMATCH", "message": "Invalid login"})
 
     if request.purpose == "register":
         result = await db.execute(select(User).where(User.email == request.email.lower()))
@@ -225,6 +239,7 @@ async def verify_otp_endpoint(
             db.add(user)
             await db.flush()
             # Create issuer record
+            from apps.api.models.enums import IdentityVerificationStatus, WalletApprovalStatus
             issuer = Issuer()
             issuer.user_id = user.id
             issuer.name = user.display_name or email.split("@")[0]
@@ -232,6 +247,10 @@ async def verify_otp_endpoint(
             issuer.issuer_type = wl_entry.issuer_type
             issuer.status = IssuerStatus.PENDING
             issuer.fee_bps = 200
+            # Auto-approve identity when whitelist has kyc_required=False
+            if not wl_entry.kyc_required:
+                issuer.identity_status = IdentityVerificationStatus.APPROVED
+                issuer.identity_verified_at = datetime.now(UTC)
             db.add(issuer)
             # Mark whitelist entry as registered
             wl_entry.registered_at = datetime.now(UTC)
@@ -261,11 +280,12 @@ async def verify_otp_endpoint(
             raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
 
     auth_service = CiretaAuthService(db)
-    access_token = auth_service.create_access_token(user.id)
-    refresh_token = auth_service.create_refresh_token(user.id)
+    user_role = user.role.value if hasattr(user.role, "value") else user.role
+    access_token = auth_service.create_access_token(user.id, role=user_role)
+    refresh_token = auth_service.create_refresh_token(user.id, role=user_role)
     _set_refresh_cookie(response, refresh_token)
     await db.commit()
-    return TokenResponse(access_token=access_token)
+    return TokenResponse(access_token=access_token, role=user_role)
 
 
 # ==================== Investor Onboarding ====================
@@ -449,11 +469,12 @@ async def google_auth(
         await EmailService(db).send("welcome", google_email, {"display_name": user.display_name or ""})
 
     auth_service = CiretaAuthService(db)
-    access_token = auth_service.create_access_token(user.id)
-    refresh_token = auth_service.create_refresh_token(user.id)
+    user_role = user.role.value if hasattr(user.role, "value") else user.role
+    access_token = auth_service.create_access_token(user.id, role=user_role)
+    refresh_token = auth_service.create_refresh_token(user.id, role=user_role)
     _set_refresh_cookie(response, refresh_token)
     await db.commit()
-    return TokenResponse(access_token=access_token)
+    return TokenResponse(access_token=access_token, role=user_role)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -649,8 +670,9 @@ async def mfa_verify(
 
     await auth_service.db.commit()
 
-    # Issue real tokens
-    access_token = auth_service.create_access_token(user_id)
-    refresh_token = auth_service.create_refresh_token(user_id)
+    # Issue real tokens (role-aware session)
+    user_role = user.role.value if hasattr(user.role, "value") else user.role
+    access_token = auth_service.create_access_token(user_id, role=user_role)
+    refresh_token = auth_service.create_refresh_token(user_id, role=user_role)
     _set_refresh_cookie(response, refresh_token)
     return TokenResponse(access_token=access_token)

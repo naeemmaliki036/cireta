@@ -10,7 +10,7 @@ export interface Issuer {
   wallet_address: string | null;
   status: "pending" | "active" | "suspended";
   issuer_type: "individual" | "corporate";
-  wallet_status: "none" | "pending_approval" | "approved" | "rejected";
+  wallet_status: "none" | "verified" | "pending_approval" | "approved" | "rejected";
   identity_status: "none" | "pending" | "approved" | "rejected";
   identity_verified_at: string | null;
   fee_bps: number;

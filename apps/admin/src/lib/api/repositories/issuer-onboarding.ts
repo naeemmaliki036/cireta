@@ -57,8 +57,10 @@ export interface OnboardingStatus {
   issuer_status: string;
   issuer_type: string;
   wallet_connected: boolean;
+  wallet_address: string | null;
   wallet_status: string;
   identity_status: string;
+  kyc_required: boolean;
   can_deploy: boolean;
   missing_gates: string[];
 }
@@ -67,8 +69,24 @@ export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   return apiGet<OnboardingStatus>("/api/v1/issuer/onboarding-status");
 }
 
-export async function submitWallet(walletAddress: string): Promise<{ wallet_address: string; wallet_status: string }> {
-  return apiPost("/api/v1/issuer/wallet", { wallet_address: walletAddress });
+export async function submitWallet(
+  walletAddress: string,
+  signature?: string,
+  nonce?: string
+): Promise<{ wallet_address: string; wallet_status: string }> {
+  return apiPost("/api/v1/issuer/wallet", {
+    wallet_address: walletAddress,
+    ...(signature && { signature }),
+    ...(nonce && { nonce }),
+  });
+}
+
+export async function submitWalletForApproval(): Promise<{ wallet_address: string; wallet_status: string }> {
+  return apiPost("/api/v1/issuer/wallet/submit-for-approval");
+}
+
+export async function discardWallet(): Promise<void> {
+  return apiDelete("/api/v1/issuer/wallet");
 }
 
 export async function initiateIdentity(): Promise<{

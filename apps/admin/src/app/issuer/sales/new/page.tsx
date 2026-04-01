@@ -151,8 +151,7 @@ export default function CreateSalePage() {
   };
 
   return (
-    <IssuerDashboardLayout title="Create New Sale" description="Set up a token sale with rich content"
-      breadcrumbs={[{ label: "Sales", href: "/issuer/sales" }, { label: "Create New" }]}>
+    <IssuerDashboardLayout title="Create New Sale" description="Set up a token sale with rich content">
       {/* Progress Steps */}
       <div className="mb-8 overflow-x-auto">
         <div className="flex items-center justify-between relative min-w-[600px]">

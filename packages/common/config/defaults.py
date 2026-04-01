@@ -21,7 +21,9 @@ DEFAULTS: dict[str, object] = {
     # Security (no secrets - these are just algorithm/timing configs)
     "JWT_ALGORITHM": "HS256",
     "ACCESS_TOKEN_EXPIRE_SECONDS": 900,  # 15 minutes per CLAUDE.md
-    "REFRESH_TOKEN_EXPIRE_SECONDS": 604800,  # 7 days per CLAUDE.md
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 604800,  # 7 days per CLAUDE.md (investors)
+    "REFRESH_TOKEN_EXPIRE_SECONDS_ADMIN": 28800,  # 8 hours for admin/issuer roles
+
     "BCRYPT_ROUNDS": 12,
     # Server
     "API_HOST": "0.0.0.0",
