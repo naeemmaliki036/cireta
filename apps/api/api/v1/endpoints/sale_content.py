@@ -206,6 +206,32 @@ async def add_image(
     await db.refresh(image)
     return ImageResponse(id=str(image.id), url=image.url, caption=image.caption, is_banner=image.is_banner, sort_order=image.sort_order, media_type=image.media_type, video_url=image.video_url)
 
+@router.post("/images/{image_id}/set-hero", response_model=ImageResponse)
+async def set_hero_image(
+    sale_id: UUID,
+    image_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ImageResponse:
+    """Set an image as the hero/banner. Clears is_banner on all other images
+    and also sets the sale's banner_image_url to this image's URL."""
+    sale = await _get_sale_with_auth(sale_id, user_id, db)
+    result = await db.execute(select(SaleImage).where(SaleImage.sale_id == sale_id))
+    all_images = result.scalars().all()
+    target = None
+    for img in all_images:
+        if img.id == image_id:
+            img.is_banner = True
+            target = img
+        else:
+            img.is_banner = False
+    if not target:
+        raise HTTPException(status_code=404, detail="Image not found")
+    sale.banner_image_url = target.url
+    await db.commit()
+    await db.refresh(target)
+    return ImageResponse(id=str(target.id), url=target.url, caption=target.caption, is_banner=target.is_banner, sort_order=target.sort_order, media_type=target.media_type, video_url=target.video_url)
+
 @router.delete("/images/{image_id}", status_code=204)
 async def remove_image(
     sale_id: UUID,

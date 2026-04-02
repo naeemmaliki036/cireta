@@ -28,6 +28,14 @@ export interface Sale {
   title: string | null;
   description_text: string | null;
   full_description: string | null;
+  banner_image_url: string | null;
+  website_url: string | null;
+  twitter_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  telegram_url: string | null;
+  discord_url: string | null;
   phases: SalePhase[];
   token_name: string | null;
   token_symbol: string | null;
@@ -214,5 +222,40 @@ export async function removeSaleImage(
   await apiFetch(`/api/v1/sales/${saleId}/images/${imageId}`, {
     method: "DELETE",
     token,
+  });
+}
+
+export interface UpdateSaleRequest {
+  title?: string;
+  description?: string;
+  full_description?: string;
+  banner_image_url?: string;
+  otc_enabled?: boolean;
+  otc_content?: string;
+  website_url?: string;
+  twitter_url?: string;
+  linkedin_url?: string;
+  instagram_url?: string;
+  facebook_url?: string;
+  telegram_url?: string;
+  discord_url?: string;
+}
+
+export async function updateSale(
+  saleId: string,
+  data: UpdateSaleRequest,
+): Promise<Sale> {
+  return apiFetch<Sale>(`/api/v1/sales/${saleId}`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
+export async function setHeroImage(
+  saleId: string,
+  imageId: string,
+): Promise<void> {
+  await apiFetch(`/api/v1/sales/${saleId}/images/${imageId}/set-hero`, {
+    method: "POST",
   });
 }

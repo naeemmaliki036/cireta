@@ -48,9 +48,14 @@ const columns: Column<Sale>[] = [
     key: "id",
     header: "",
     render: (row) => (
-      <Link href={`/issuer/sales/${row.id}`}>
-        <Button variant="ghost" size="sm">View</Button>
-      </Link>
+      <div className="flex items-center gap-1">
+        <Link href={`/issuer/sales/${row.id}`}>
+          <Button variant="ghost" size="sm">View</Button>
+        </Link>
+        <Link href={`/issuer/sales/${row.id}?edit=1`}>
+          <Button variant="ghost" size="sm">Edit</Button>
+        </Link>
+      </div>
     ),
   },
 ];

@@ -18,13 +18,77 @@ import {
 
 // Coming Soon projects now fetched from API (APPROVED_COMING_SOON status)
 
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".ogg"];
+
+function isVideoUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return VIDEO_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+
+function PlaceholderCover({ title, assetType }: { title: string; assetType: string }) {
+  const at = assetType.toLowerCase();
+  const gradient = at.includes("gold")
+    ? "from-[#C9913D] via-[#A87B2F] to-[#8B6914]"
+    : at.includes("copper")
+    ? "from-[#B87333] via-[#9A5E27] to-[#7D4E1F]"
+    : at.includes("steel") || at.includes("iron")
+    ? "from-[#6B7280] via-[#4B5563] to-[#374151]"
+    : "from-[#13636F] via-[#0f5460] to-[#0a3d45]";
+
+  return (
+    <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`}>
+      <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
+      <div className="absolute bottom-4 left-4 right-4">
+        <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Cireta RWA</p>
+        <p className="text-white/80 text-sm font-semibold truncate">{title}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProjectMedia({ src, alt, fill, className, assetType }: { src: string; alt: string; fill?: boolean; className?: string; assetType?: string }) {
+  const [error, setError] = useState(false);
+
+  if (!src || error) {
+    return <PlaceholderCover title={alt} assetType={assetType ?? "commodity"} />;
+  }
+
+  if (isVideoUrl(src)) {
+    return (
+      <video
+        src={src}
+        muted
+        autoPlay
+        loop
+        playsInline
+        className={cn(className, fill && "absolute inset-0 w-full h-full")}
+        style={fill ? { objectFit: "cover" } : undefined}
+        onError={() => setError(true)}
+      />
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill={fill}
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+}
+
 const SIDEBAR_LINKS = [
   { href: "/projects", label: "Sales", icon: ShoppingBag },
   { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
 ];
 
 function ActiveProjectCard({ project }: { project: Project }) {
-  const image = project.imageUrl || "/images/projects/gold-ghana.png";
   const raised = project.currentRaised || 0;
   const hardCap = project.targetAmount || 1;
   const progress = hardCap > 0 ? Math.round((raised / hardCap) * 100) : 0;
@@ -32,7 +96,7 @@ function ActiveProjectCard({ project }: { project: Project }) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow">
       <div className="relative h-72 overflow-hidden rounded-2xl m-3">
-        <Image src={image} alt={project.title} fill className="object-cover rounded-2xl" />
+        <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4">
           <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
             <span className="w-2 h-2 rounded-full bg-darkAqua animate-pulse" />
@@ -78,11 +142,10 @@ function ActiveProjectCard({ project }: { project: Project }) {
 }
 
 function ComingSoonCard({ project }: { project: Project }) {
-  const image = project.imageUrl || "/images/projects/gold-ghana.png";
   return (
     <Link href={`/project/${project.slug}`} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
       <div className="relative h-64 overflow-hidden rounded-2xl m-3">
-        <Image src={image} alt={project.title} fill className="object-cover rounded-2xl" />
+        <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4">
           <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
             <Sparkles className="h-3.5 w-3.5" />

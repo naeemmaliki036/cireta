@@ -22,6 +22,7 @@ from apps.api.schemas.sale import (
     SaleOnChainStatusResponse,
     SalePhaseResponse,
     SaleResponse,
+    SaleUpdateRequest,
 )
 from apps.api.services.sale_service import SaleService
 from packages.common.core.auth_deps import CurrentUserId
@@ -170,6 +171,45 @@ async def get_sale(
     Public endpoint.
     """
     sale = await sale_service.get_sale(sale_id)
+    return _sale_to_response(sale)
+
+
+@router.patch("/{sale_id}", response_model=SaleResponse)
+async def update_sale(
+    sale_id: UUID,
+    request: SaleUpdateRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SaleResponse:
+    """Update sale details. Issuer can edit anytime regardless of status.
+
+    Only content/marketing fields are editable — financial fields
+    (caps, payment token, phases) and on-chain fields are not affected.
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(
+            selectinload(TokenSale.issuer),
+            selectinload(TokenSale.token),
+            selectinload(TokenSale.phases),
+            selectinload(TokenSale.images),
+        )
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+
+    update_data = request.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(sale, field, value)
+
+    await db.commit()
+    await db.refresh(sale)
     return _sale_to_response(sale)
 
 

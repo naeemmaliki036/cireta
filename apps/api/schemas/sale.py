@@ -96,6 +96,24 @@ class SaleCreateRequest(BaseModel):
         return self
 
 
+class SaleUpdateRequest(BaseModel):
+    """Request to update sale details. All fields optional — only provided fields are updated."""
+
+    title: str | None = None
+    description: str | None = None
+    full_description: str | None = None
+    banner_image_url: str | None = None
+    otc_enabled: bool | None = None
+    otc_content: str | None = None
+    website_url: str | None = None
+    twitter_url: str | None = None
+    linkedin_url: str | None = None
+    instagram_url: str | None = None
+    facebook_url: str | None = None
+    telegram_url: str | None = None
+    discord_url: str | None = None
+
+
 class ContributeRequest(BaseModel):
     """Request to contribute to a sale."""
 

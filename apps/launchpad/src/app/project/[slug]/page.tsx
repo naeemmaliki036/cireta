@@ -124,13 +124,14 @@ export default function ProjectDetailPage() {
             {/* Banner + overlaid sale widget */}
             <div className="relative">
               <div className="relative h-[420px] overflow-hidden" style={{ backgroundColor: "#13636F" }}>
-                {gallery[selectedImage]?.media_type === "video" && gallery[selectedImage]?.video_url ? (
+                {gallery[selectedImage]?.media_type === "video" ? (
                   (() => {
-                    const embedUrl = getEmbedUrl(gallery[selectedImage].video_url!);
+                    const videoSrc = gallery[selectedImage].video_url || gallery[selectedImage].url;
+                    const embedUrl = gallery[selectedImage].video_url ? getEmbedUrl(gallery[selectedImage].video_url) : null;
                     return embedUrl ? (
                       <iframe src={embedUrl} className="absolute inset-0 w-full h-full" allow="autoplay; encrypted-media" allowFullScreen />
                     ) : (
-                      <video src={gallery[selectedImage].video_url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+                      <video src={videoSrc} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
                     );
                   })()
                 ) : (
@@ -183,11 +184,15 @@ export default function ProjectDetailPage() {
                 <div className="flex gap-3 px-6 py-4 overflow-x-auto">
                   {gallery.map((img, i) => (
                     <button key={img.id} onClick={() => setSelectedImage(i)} className={cn("relative w-28 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all", i === selectedImage ? "border-darkAqua ring-2 ring-darkAqua/30" : "border-zinc-200 opacity-70 hover:opacity-100")}>
-                      <Image src={img.url} alt={img.caption ?? ""} fill className="object-cover" />
-                      {img.media_type === "video" && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <Play className="h-5 w-5 text-white fill-white" />
-                        </div>
+                      {img.media_type === "video" ? (
+                        <>
+                          <video src={img.url} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play className="h-5 w-5 text-white fill-white" />
+                          </div>
+                        </>
+                      ) : (
+                        <Image src={img.url} alt={img.caption ?? ""} fill className="object-cover" />
                       )}
                     </button>
                   ))}
