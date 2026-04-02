@@ -86,7 +86,8 @@ contract CiretaToken is
         uint8 decimals_,
         address identityRegistry_,
         address compliance_,
-        address owner_
+        address owner_,
+        address admin_
     ) public initializer {
         __ERC20_init(name_, symbol_);
         __ERC20Burnable_init();
@@ -97,11 +98,21 @@ contract CiretaToken is
         _identityRegistry = IIdentityRegistry(identityRegistry_);
         _compliance = ICompliance(compliance_);
 
+        // Issuer (owner_) gets all roles
         _grantRole(DEFAULT_ADMIN_ROLE, owner_);
         _grantRole(AGENT_ROLE, owner_);
         _grantRole(SUPPLY_ROLE, owner_);
         _grantRole(FREEZE_ROLE, owner_);
         _grantRole(RECOVERY_ROLE, owner_);
+
+        // Platform admin gets oversight roles (NOT SUPPLY_ROLE —
+        // admin must never mint/burn an issuer's security tokens)
+        if (admin_ != address(0) && admin_ != owner_) {
+            _grantRole(DEFAULT_ADMIN_ROLE, admin_);
+            _grantRole(AGENT_ROLE, admin_);
+            _grantRole(FREEZE_ROLE, admin_);
+            _grantRole(RECOVERY_ROLE, admin_);
+        }
     }
 
     function _authorizeUpgrade(address newImplementation)

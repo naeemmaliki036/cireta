@@ -19,13 +19,33 @@ class SaleQueryService:
         self.db = db
 
     async def get_sale_by_token_slug(self, slug: str) -> TokenSale | None:
-        """Get a sale by the token's slug."""
+        """Get a sale by the token's slug, or by sale ID for tokenless sales."""
         from apps.api.models.token import Token
 
+        # Try token slug first
         query = (
             select(TokenSale)
             .join(Token, TokenSale.token_id == Token.id)
             .where(Token.slug == slug)
+            .options(
+                selectinload(TokenSale.phases),
+                selectinload(TokenSale.token),
+                selectinload(TokenSale.issuer),
+            )
+        )
+        result = await self.db.execute(query)
+        sale = result.scalar_one_or_none()
+        if sale:
+            return sale
+
+        # Fallback: try sale ID (coming-soon sales have no token)
+        try:
+            sale_uuid = UUID(slug)
+        except ValueError:
+            return None
+        query = (
+            select(TokenSale)
+            .where(TokenSale.id == sale_uuid)
             .options(
                 selectinload(TokenSale.phases),
                 selectinload(TokenSale.token),

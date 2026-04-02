@@ -274,6 +274,72 @@ async function main() {
     console.log("KYC claim topic already added (or failed — non-fatal)");
   }
 
+  // 7. Transfer ownership to platform admin (staged deploy — Option 2)
+  //    Deployer was temporary owner for setup convenience.
+  //    After this block, deployer retains ZERO access.
+  const platformAdmin = process.env.PLATFORM_ADMIN_ADDRESS;
+  const feeReceiver = process.env.PLATFORM_FEE_RECEIVER || platformAdmin;
+
+  if (platformAdmin && platformAdmin.toLowerCase() !== deployer.address.toLowerCase()) {
+    console.log("\n=== Transferring Ownership to Platform Admin ===");
+    console.log("Platform admin:", platformAdmin);
+
+    // Update PlatformFeeManager fee receiver BEFORE transferring ownership
+    // (setFeeReceiver is onlyOwner — deployer must still be owner)
+    if (feeReceiver) {
+      try {
+        const PFM = await ethers.getContractFactory("PlatformFeeManager");
+        const pfm = PFM.attach(addresses.platformFeeManager!) as any;
+        const currentReceiver = await pfm.feeReceiver();
+        if (currentReceiver.toLowerCase() !== feeReceiver.toLowerCase()) {
+          const tx = await pfm.setFeeReceiver(feeReceiver);
+          await tx.wait();
+          console.log(`  PlatformFeeManager.feeReceiver → updated to ${feeReceiver}`);
+        } else {
+          console.log(`  PlatformFeeManager.feeReceiver → already set to ${feeReceiver}`);
+        }
+      } catch (e: any) {
+        console.error(`  PlatformFeeManager.feeReceiver → update failed: ${e.message?.slice(0, 100)}`);
+      }
+    }
+
+    // Transfer ownership of all platform contracts to ciretaAdmin
+    const transfers: Array<{ name: string; address: string }> = [
+      { name: "ClaimTopicsRegistry", address: addresses.claimTopicsRegistry! },
+      { name: "TrustedIssuersRegistry", address: addresses.trustedIssuersRegistry! },
+      { name: "IssuerRegistry", address: addresses.issuerRegistry! },
+      { name: "PlatformFeeManager", address: addresses.platformFeeManager! },
+      { name: "CiretaTokenFactory", address: addresses.tokenFactory! },
+      { name: "CiretaSaleFactory", address: addresses.saleFactory! },
+      { name: "CountryAllowModule", address: addresses.countryAllowModule! },
+      { name: "MaxHolderCountModule", address: addresses.maxHolderCountModule! },
+    ];
+
+    for (const { name, address } of transfers) {
+      try {
+        const factory = await ethers.getContractFactory(name);
+        const contract = factory.attach(address) as any;
+        const currentOwner = await contract.owner();
+        if (currentOwner.toLowerCase() === deployer.address.toLowerCase()) {
+          const tx = await contract.transferOwnership(platformAdmin);
+          await tx.wait();
+          console.log(`  ${name} → ownership transferred to ${platformAdmin}`);
+        } else {
+          console.log(`  ${name} → already owned by ${currentOwner} (skipped)`);
+        }
+      } catch (e: any) {
+        console.error(`  ${name} → transfer failed: ${e.message?.slice(0, 100)}`);
+      }
+    }
+
+    console.log("\nOwnership transfer complete. Deployer wallet has ZERO access.");
+  } else if (!platformAdmin) {
+    console.log("\n⚠️  PLATFORM_ADMIN_ADDRESS not set — deployer retains ownership.");
+    console.log("   Set PLATFORM_ADMIN_ADDRESS env var for production deployments.");
+  } else {
+    console.log("\nPlatform admin is the deployer — no ownership transfer needed.");
+  }
+
   // Save all addresses
   saveDeployment(networkName, addresses);
 

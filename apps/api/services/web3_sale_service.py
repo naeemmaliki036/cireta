@@ -33,6 +33,7 @@ class Web3SaleService:
         payment_token: str,
         identity_registry: str,
         issuer_wallet: str,
+        sale_factory_address: str,
         fee_manager: str,
         soft_cap: int,
         hard_cap: int,
@@ -42,10 +43,11 @@ class Web3SaleService:
         """Deploy a Sale via CiretaSaleFactory.deploySale().
 
         Returns (sale_proxy_address, tx_hash).
+        The transaction must be signed by the issuer (active in IssuerRegistry).
         """
         factory = self.registry.get_contract("CiretaSaleFactory")
 
-        # Encode Sale.initialize() calldata
+        # Encode Sale.initialize() — factory is CiretaSaleFactory, admin resolved dynamically
         sale_abi = self.registry.get_abi("Sale")
         sale_iface = self.tx_svc.w3.eth.contract(abi=sale_abi)
         init_data = sale_iface.encode_abi(
@@ -54,13 +56,13 @@ class Web3SaleService:
                 Web3.to_checksum_address(token_address),
                 Web3.to_checksum_address(payment_token),
                 Web3.to_checksum_address(identity_registry),
-                Web3.to_checksum_address(issuer_wallet),
+                Web3.to_checksum_address(issuer_wallet),         # _issuer
+                Web3.to_checksum_address(sale_factory_address),  # _factory
                 Web3.to_checksum_address(fee_manager),
                 soft_cap,
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
-                Web3.to_checksum_address(issuer_wallet),  # _initialOwner
             ],
         )
 
@@ -68,10 +70,6 @@ class Web3SaleService:
             factory,
             "deploySale",
             Web3.to_checksum_address(token_address),
-            Web3.to_checksum_address(payment_token),
-            Web3.to_checksum_address(issuer_wallet),
-            soft_cap,
-            hard_cap,
             init_data,
             gas_limit=3_000_000,
         )
@@ -109,11 +107,11 @@ class Web3SaleService:
         """Deploy a Vested Sale via CiretaSaleFactory.deploySaleVested().
 
         Returns (sale_address, vault_address, fraction_address, tx_hash).
+        The transaction must be signed by the issuer (active in IssuerRegistry).
         """
         from packages.common.core.config import settings as _settings
         factory = self.registry.get_contract("CiretaSaleFactory")
-        # CRITICAL: _initialOwner in Sale.initialize must be SaleFactory,
-        # because SaleFactory calls sale.setVestedMode() before transferring to issuer.
+        # factory address = CiretaSaleFactory — admin is resolved via factory.owner()
         sale_factory_addr = _settings.sale_factory_address or self.tx_svc._account.address
 
         # Encode Sale.initialize() calldata
@@ -125,13 +123,13 @@ class Web3SaleService:
                 Web3.to_checksum_address(token_address),
                 Web3.to_checksum_address(payment_token),
                 Web3.to_checksum_address(identity_registry),
-                Web3.to_checksum_address(issuer_wallet),
+                Web3.to_checksum_address(issuer_wallet),       # _issuer
+                Web3.to_checksum_address(sale_factory_addr),   # _factory
                 Web3.to_checksum_address(fee_manager),
                 soft_cap,
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
-                Web3.to_checksum_address(sale_factory_addr),  # SaleFactory as initial owner
             ],
         )
 
@@ -139,10 +137,6 @@ class Web3SaleService:
             factory,
             "deploySaleVested",
             Web3.to_checksum_address(token_address),
-            Web3.to_checksum_address(payment_token),
-            Web3.to_checksum_address(issuer_wallet),
-            soft_cap,
-            hard_cap,
             init_data,
             fraction_name,
             fraction_symbol,

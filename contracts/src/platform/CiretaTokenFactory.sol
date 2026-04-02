@@ -154,7 +154,7 @@ contract CiretaTokenFactory is
             new ERC1967Proxy(complianceImplementation, compInitData)
         );
 
-        // Deploy Token
+        // Deploy Token — issuer gets all roles, platform admin gets oversight roles (not SUPPLY_ROLE)
         bytes memory tokenInitData = abi.encodeWithSelector(
             CiretaToken.initialize.selector,
             name,
@@ -162,7 +162,8 @@ contract CiretaTokenFactory is
             decimals,
             identityRegistryProxy,
             complianceProxy,
-            issuer
+            issuer,
+            owner()
         );
         tokenProxy = address(
             new ERC1967Proxy(tokenImplementation, tokenInitData)

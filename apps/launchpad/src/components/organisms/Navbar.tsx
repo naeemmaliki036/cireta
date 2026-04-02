@@ -125,10 +125,10 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                           <button
                             onClick={openConnectModal}
                             className={cn(
-                              "inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-300 hover:opacity-80",
+                              "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
                               isScrolled || variant === "dark"
-                                ? "bg-darkAqua text-white"
-                                : "bg-darkAqua text-white"
+                                ? "bg-white text-darkBlack"
+                                : "bg-darkBlack text-white"
                             )}
                           >
                             <Wallet className="h-4 w-4" />

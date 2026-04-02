@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -15,7 +15,11 @@ import "../otc/IssuerOTCToken.sol";
 
 /// @title Sale
 /// @notice Multi-phase token sale with soft/hard cap, platform fee, OTC allocation, and refunds.
-contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuard {
+///         Admin is resolved dynamically from factory.owner() — single source of truth.
+///         - admin: whoever owns the CiretaSaleFactory at call time (platform admin / multisig)
+///         - factory: the CiretaSaleFactory that deployed this sale (also treated as admin for deploy-time setup)
+///         - issuer: token issuer — day-to-day sale operations, fund withdrawal
+contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     enum SaleStatus { Draft, Active, Paused, FinalizedSuccess, FinalizedFailed }
@@ -47,6 +51,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     IERC20 public paymentToken;
     IIdentityRegistry public identityRegistry;
     address public issuer;
+    address public factory;     // CiretaSaleFactory — admin resolved via factory.owner()
     address public feeManager;
 
     uint256 public softCap;
@@ -67,13 +72,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     mapping(address => uint256) public otcAllocations;
 
     /// @notice Per-block contribution limit to mitigate front-running attacks.
-    /// @dev Prevents a single block from accumulating excessive USDC contributions,
-    ///      making sandwich attacks and MEV extraction uneconomical. Configurable via
-    ///      setMaxPerBlock(). Default: 50,000 USDC. For additional protection, issuers
-    ///      can: (1) lower maxPerBlock for high-value phases, (2) use whitelist-only
-    ///      phases, and (3) coordinate with block builders for private transactions.
-    ///      A commit-reveal scheme was considered but rejected due to UX complexity
-    ///      and the sufficient protection provided by per-block limits + KYC gating.
     uint256 public maxPerBlock;
     mapping(uint256 => uint256) private _blockContributions;
 
@@ -88,8 +86,12 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     // ── Sale structure ──────────────────────────────────────────────────────
     SaleStructure public saleStructure;
 
+    // ── Emergency withdrawal ────────────────────────────────────────────────
+    uint256 public finalizedAt;
+    uint256 public constant EMERGENCY_WITHDRAW_DELAY = 90 days;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[48] private __gap;
+    uint256[46] private __gap;
 
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
@@ -101,10 +103,15 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     event SaleStatusChanged(SaleStatus newStatus);
     event MaxPerBlockUpdated(uint256 newMax);
     event WhitelistUpdated(uint256 indexed phaseId, uint256 count, bool allow);
+    event EmergencyWithdraw(address indexed recipient, uint256 amount);
+    event ProjectTokensDeposited(uint256 amount);
+    event FundsWithdrawn(address indexed recipient, uint256 amount);
 
     // ── Errors ───────────────────────────────────────────────────────────────
     error InvalidStatus();
+    error NotAdmin();
     error NotIssuer();
+    error NotIssuerOrAdmin();
     error ZeroAddress();
     error NothingToClaim();
     error AlreadyClaimed();
@@ -125,13 +132,40 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
     error InvestorNotVerified();
     error CannotFinalize();
     error OTCNotEnabled();
+    error NothingToWithdraw();
+    error SaleNotFinalized();
+    error TokensNotDeposited();
+    error DelayNotElapsed();
+
+    // ── Access Control ──────────────────────────────────────────────────────
+
+    /// @dev Returns the current platform admin (factory's owner). Single source of truth.
+    function admin() public view returns (address) {
+        return OwnableUpgradeable(factory).owner();
+    }
+
+    /// @dev Is the caller the platform admin or the factory itself?
+    function _isAdmin() internal view returns (bool) {
+        return msg.sender == factory || msg.sender == OwnableUpgradeable(factory).owner();
+    }
+
+    modifier adminOnly() {
+        if (!_isAdmin()) revert NotAdmin();
+        _;
+    }
+
+    modifier onlyIssuer() {
+        if (msg.sender != issuer) revert NotIssuer();
+        _;
+    }
+
+    modifier onlyIssuerOrAdmin() {
+        if (msg.sender != issuer && !_isAdmin()) revert NotIssuerOrAdmin();
+        _;
+    }
 
     modifier onlyStatus(SaleStatus s) {
         if (status != s) revert InvalidStatus();
-        _;
-    }
-    modifier onlyIssuerOrOwner() {
-        if (msg.sender != issuer && msg.sender != owner()) revert NotIssuer();
         _;
     }
 
@@ -143,26 +177,25 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         address _paymentToken,
         address _identityRegistry,
         address _issuer,
+        address _factory,
         address _feeManager,
         uint256 _softCap,
         uint256 _hardCap,
         uint256 _feeBasisPoints,
-        uint256 _feeCapUsdc,
-        address _initialOwner
+        uint256 _feeCapUsdc
     ) external initializer {
         if (_token == address(0)) revert ZeroAddress();
         if (_paymentToken == address(0)) revert ZeroAddress();
         if (_identityRegistry == address(0)) revert ZeroAddress();
         if (_issuer == address(0)) revert ZeroAddress();
+        if (_factory == address(0)) revert ZeroAddress();
         if (_feeManager == address(0)) revert ZeroAddress();
-        if (_initialOwner == address(0)) revert ZeroAddress();
-
-        __Ownable_init(_initialOwner);
 
         token = _token;
         paymentToken = IERC20(_paymentToken);
         identityRegistry = IIdentityRegistry(_identityRegistry);
         issuer = _issuer;
+        factory = _factory;
         feeManager = _feeManager;
         softCap = _softCap;
         hardCap = _hardCap;
@@ -172,25 +205,33 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         status = SaleStatus.Draft;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override adminOnly {}
 
-    // ── Admin ────────────────────────────────────────────────────────────────
+    // ── Admin-Only Functions ────────────────────────────────────────────────
 
-    function activate() external onlyOwner onlyStatus(SaleStatus.Draft) {
+    /// @notice Activate the sale (Draft → Active). Admin approval gate.
+    function activate() external adminOnly onlyStatus(SaleStatus.Draft) {
         status = SaleStatus.Active;
         emit SaleStatusChanged(SaleStatus.Active);
     }
 
-    function pause() external onlyOwner onlyStatus(SaleStatus.Active) {
-        status = SaleStatus.Paused;
-        emit SaleStatusChanged(SaleStatus.Paused);
-    }
-
-    function unpause() external onlyOwner onlyStatus(SaleStatus.Paused) {
+    /// @notice Unpause the sale. Only admin can lift a regulatory hold.
+    function unpause() external adminOnly onlyStatus(SaleStatus.Paused) {
         status = SaleStatus.Active;
         emit SaleStatusChanged(SaleStatus.Active);
     }
 
+    /// @notice Configure vested mode. Must be called before activation.
+    function setVestedMode(address _vault, address _fractionToken) external adminOnly onlyStatus(SaleStatus.Draft) {
+        if (_vault == address(0) || _fractionToken == address(0)) revert ZeroAddress();
+        saleMode = SaleMode.Vested;
+        vault = CiretaVault(_vault);
+        fractionToken = CiretaFractionToken(_fractionToken);
+    }
+
+    // ── Issuer-Only Functions ───────────────────────────────────────────────
+
+    /// @notice Add a sale phase. Only issuer configures their own sale.
     function addPhase(
         string calldata name,
         uint256 pricePerToken,
@@ -200,7 +241,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         uint256 startTime,
         uint256 endTime,
         bool whitelistOnly
-    ) external onlyOwner {
+    ) external onlyIssuer {
         if (status != SaleStatus.Draft && status != SaleStatus.Active) revert CannotAddPhase();
         phases.push(Phase({
             name: name,
@@ -216,26 +257,95 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         emit PhaseAdded(phases.length - 1, name, pricePerToken);
     }
 
-    function setWhitelist(uint256 phaseId, address[] calldata addresses, bool allow) external onlyOwner {
+    /// @notice Manage investor whitelist per phase. Only issuer.
+    function setWhitelist(uint256 phaseId, address[] calldata addresses, bool allow) external onlyIssuer {
         for (uint256 i = 0; i < addresses.length; i++) {
             whitelisted[phaseId][addresses[i]] = allow;
         }
         emit WhitelistUpdated(phaseId, addresses.length, allow);
     }
 
-    function setMaxPerBlock(uint256 _maxPerBlock) external onlyOwner {
+    /// @notice Set per-block contribution limit. Only issuer.
+    function setMaxPerBlock(uint256 _maxPerBlock) external onlyIssuer {
         if (_maxPerBlock == 0) revert ZeroMaxPerBlock();
         maxPerBlock = _maxPerBlock;
         emit MaxPerBlockUpdated(_maxPerBlock);
     }
 
-    /// @notice Configure vested mode. Must be called before activation.
-    ///         Sets sale mode to Vested and links vault + fraction token.
-    function setVestedMode(address _vault, address _fractionToken) external onlyOwner onlyStatus(SaleStatus.Draft) {
-        if (_vault == address(0) || _fractionToken == address(0)) revert ZeroAddress();
-        saleMode = SaleMode.Vested;
-        vault = CiretaVault(_vault);
-        fractionToken = CiretaFractionToken(_fractionToken);
+    /// @notice Set or update the OTC token address. Only issuer.
+    function setOTCToken(address _otcToken) external onlyIssuer {
+        otcToken = IssuerOTCToken(_otcToken);
+    }
+
+    /// @notice Set the sale structure. Only issuer, only in Draft status.
+    function setSaleStructure(SaleStructure _structure) external onlyIssuer onlyStatus(SaleStatus.Draft) {
+        saleStructure = _structure;
+    }
+
+    /// @notice Issuer allocates tokens to investor who paid off-platform (OTC).
+    function issuerAllocate(
+        address investor,
+        uint256 tokenAmount,
+        string calldata paymentReference
+    ) external onlyIssuer {
+        if (status != SaleStatus.Active && status != SaleStatus.Draft) revert SaleNotActive();
+        if (!identityRegistry.isVerified(investor)) revert InvestorNotVerified();
+
+        contributions[investor].tokensAllocated += tokenAmount;
+        otcAllocations[investor] += tokenAmount;
+        totalOtcAllocated += tokenAmount;
+
+        emit OTCAllocation(investor, tokenAmount, paymentReference);
+    }
+
+    /// @notice Deposit project tokens into the vault for vested mode. Only issuer.
+    function depositProjectTokens(uint256 amount) external onlyIssuer nonReentrant {
+        if (saleMode != SaleMode.Vested) revert InvalidStatus();
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(token).approve(address(vault), amount);
+        vault.depositTokens(amount);
+        emit ProjectTokensDeposited(amount);
+    }
+
+    /// @notice Withdraw raised USDC to issuer wallet. Only issuer — admin cannot touch.
+    function withdrawFunds() external onlyIssuer nonReentrant {
+        if (status != SaleStatus.FinalizedSuccess) revert SaleNotFinalized();
+
+        uint256 balance = paymentToken.balanceOf(address(this));
+        if (balance == 0) revert NothingToWithdraw();
+
+        paymentToken.safeTransfer(issuer, balance);
+        emit FundsWithdrawn(issuer, balance);
+    }
+
+    // ── Dual Authority (Issuer or Admin) ────────────────────────────────────
+
+    /// @notice Pause the sale. Both issuer and admin can emergency-pause.
+    function pause() external onlyIssuerOrAdmin onlyStatus(SaleStatus.Active) {
+        status = SaleStatus.Paused;
+        emit SaleStatusChanged(SaleStatus.Paused);
+    }
+
+    /// @notice Finalize the sale. Issuer finalizes normally; admin override for abandoned sales.
+    function finalizeSale() external onlyIssuerOrAdmin nonReentrant {
+        if (status != SaleStatus.Active && status != SaleStatus.Paused) revert CannotFinalize();
+        _finalize();
+    }
+
+    // ── Emergency Withdrawal ────────────────────────────────────────────────
+
+    /// @notice Emergency withdrawal for admin when issuer disappears.
+    ///         Only callable 30 days after successful finalization.
+    function emergencyWithdraw(address recipient) external adminOnly nonReentrant {
+        if (status != SaleStatus.FinalizedSuccess) revert SaleNotFinalized();
+        if (block.timestamp < finalizedAt + EMERGENCY_WITHDRAW_DELAY) revert DelayNotElapsed();
+        if (recipient == address(0)) revert ZeroAddress();
+
+        uint256 remaining = paymentToken.balanceOf(address(this));
+        if (remaining == 0) revert NothingToWithdraw();
+
+        paymentToken.safeTransfer(recipient, remaining);
+        emit EmergencyWithdraw(recipient, remaining);
     }
 
     // ── Buy ─────────────────────────────────────────────────────────────────
@@ -246,7 +356,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         Phase storage phase = phases[phaseId];
         if (block.timestamp < phase.startTime) revert PhaseNotStarted();
         if (block.timestamp > phase.endTime) revert PhaseEnded();
-        // Min contribution: only enforced on first purchase (allows top-ups of any amount)
         if (totalContributed[msg.sender] == 0 && amount < phase.minContribution) revert BelowMinContribution();
         if (phase.maxContribution > 0 && totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
         if (totalRaised + amount > hardCap) revert ExceedsHardCap();
@@ -255,8 +364,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
 
         uint256 tokensToAllocate = (amount * 1e18) / phase.pricePerToken;
-        // PhaseAllocated: enforce per-phase allocation cap
-        // PriceTiered: skip per-phase cap, only global hardCap matters (checked above)
         if (saleStructure == SaleStructure.PhaseAllocated) {
             if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
         }
@@ -269,7 +376,7 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
 
-        // ── Interactions (CEI: all external calls after state updates) ──
+        // ── Interactions (CEI) ──
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
 
         if (saleMode == SaleMode.Direct) {
@@ -280,7 +387,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
             vault.recordAllocation(msg.sender, tokensToAllocate);
         }
 
-        // Auto-finalize if hard cap hit
         if (totalRaised >= hardCap) {
             _finalize();
         }
@@ -290,21 +396,15 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
 
     // ── OTC Token Purchase ──────────────────────────────────────────────────
 
-    /// @notice Buy project tokens using issuer OTC tokens instead of USDC.
-    ///         OTC tokens are burned on purchase. Same phase/KYC checks as buy().
-    ///         OTC purchases are excluded from platform fee calculation.
     function buyOTC(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
         if (address(otcToken) == address(0)) revert OTCNotEnabled();
 
-        // ── Checks ──
         if (phaseId >= phases.length) revert InvalidPhase();
         Phase storage phase = phases[phaseId];
         if (block.timestamp < phase.startTime) revert PhaseNotStarted();
         if (block.timestamp > phase.endTime) revert PhaseEnded();
-        // Min contribution: only enforced on first purchase
         if (totalContributed[msg.sender] == 0 && amount < phase.minContribution) revert BelowMinContribution();
         if (phase.maxContribution > 0 && totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
-        // OTC does not count toward hardCap (off-platform payment)
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
 
@@ -313,7 +413,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
             if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
         }
 
-        // ── Effects ──
         phase.sold += tokensToAllocate;
         totalOtcAllocated += tokensToAllocate;
         totalContributed[msg.sender] += amount;
@@ -321,8 +420,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         contributions[msg.sender].isOtc = true;
         otcAllocations[msg.sender] += tokensToAllocate;
 
-        // ── Interactions (CEI: all external calls after state updates) ──
-        // Transfer OTC tokens from buyer then burn them
         IERC20(address(otcToken)).safeTransferFrom(msg.sender, address(this), amount);
         otcToken.burn(address(this), amount);
 
@@ -337,72 +434,13 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         emit Purchase(msg.sender, phaseId, amount, tokensToAllocate, true);
     }
 
-    /// @notice Set or update the OTC token address. Only owner.
-    ///         Can be called after deployment to enable OTC purchases.
-    function setOTCToken(address _otcToken) external onlyOwner {
-        otcToken = IssuerOTCToken(_otcToken);
-    }
-
-    /// @notice Set the sale structure. Only owner, only in Draft status.
-    ///         PhaseAllocated = each phase has its own token cap.
-    ///         PriceTiered = 100% allocation shared, phases only change price.
-    function setSaleStructure(SaleStructure _structure) external onlyOwner onlyStatus(SaleStatus.Draft) {
-        saleStructure = _structure;
-    }
-
-    // ── OTC Allocation ───────────────────────────────────────────────────────
-
-    /// @notice Issuer allocates tokens to investor who paid off-platform (OTC).
-    ///         OTC amounts are excluded from platform fee calculation.
-    function issuerAllocate(
-        address investor,
-        uint256 tokenAmount,
-        string calldata paymentReference
-    ) external onlyIssuerOrOwner {
-        if (status != SaleStatus.Active && status != SaleStatus.Draft) revert SaleNotActive();
-        if (!identityRegistry.isVerified(investor)) revert InvestorNotVerified();
-
-        contributions[investor].tokensAllocated += tokenAmount;
-        otcAllocations[investor] += tokenAmount;
-        totalOtcAllocated += tokenAmount;
-
-        emit OTCAllocation(investor, tokenAmount, paymentReference);
-    }
-
-    // ── Project Token Deposit ────────────────────────────────────────────────
-
-    event ProjectTokensDeposited(uint256 amount);
-    error TokensNotDeposited();
-
-    /// @notice Deposit project tokens into the vault for vested mode.
-    ///         Issuer must approve Sale contract to spend project tokens first.
-    ///         Required before finalization in vested mode.
-    function depositProjectTokens(uint256 amount) external onlyIssuerOrOwner nonReentrant {
-        if (saleMode != SaleMode.Vested) revert InvalidStatus();
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        IERC20(token).approve(address(vault), amount);
-        vault.depositTokens(amount);
-        emit ProjectTokensDeposited(amount);
-    }
-
-    // ── Finalization ─────────────────────────────────────────────────────────
-
-    /// @notice Finalize the sale. Only issuer or owner (admin).
-    ///         On success: calculates and transfers platform fee to feeManager,
-    ///         starts vesting if applicable. Funds remain in contract until
-    ///         issuer calls withdrawFunds().
-    ///         On failure: enables refunds for investors.
-    ///         For vested mode: issuer must call depositProjectTokens() first.
-    function finalizeSale() external onlyIssuerOrOwner nonReentrant {
-        if (status != SaleStatus.Active && status != SaleStatus.Paused) revert CannotFinalize();
-        _finalize();
-    }
+    // ── Finalization (internal) ─────────────────────────────────────────────
 
     function _finalize() internal {
         if (totalRaised >= softCap) {
             status = SaleStatus.FinalizedSuccess;
+            finalizedAt = block.timestamp;
 
-            // Calculate and transfer platform fee (on-platform USDC only, OTC excluded)
             uint256 fee = 0;
             if (feeManager != address(0) && feeBasisPoints > 0) {
                 fee = (totalRaised * feeBasisPoints) / 10000;
@@ -411,7 +449,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
                 paymentToken.safeTransfer(feeManager, fee);
             }
 
-            // Start vesting if applicable
             if (saleMode == SaleMode.Vested) {
                 vault.startVesting();
             }
@@ -419,35 +456,14 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
             emit SaleFinalized(true, totalRaised, fee);
         } else {
             status = SaleStatus.FinalizedFailed;
+            finalizedAt = block.timestamp;
             emit SaleFinalized(false, totalRaised, 0);
         }
         emit SaleStatusChanged(status);
     }
 
-    // ── Fund Withdrawal ─────────────────────────────────────────────────────
-
-    event FundsWithdrawn(address indexed recipient, uint256 amount);
-
-    error NothingToWithdraw();
-    error SaleNotFinalized();
-
-    /// @notice Withdraw raised USDC to issuer wallet. Only issuer or owner.
-    ///         Can only be called after successful finalization.
-    ///         Platform fee is already deducted during finalization.
-    ///         Can be called multiple times (e.g., if late contributions arrive).
-    function withdrawFunds() external onlyIssuerOrOwner nonReentrant {
-        if (status != SaleStatus.FinalizedSuccess) revert SaleNotFinalized();
-
-        uint256 balance = paymentToken.balanceOf(address(this));
-        if (balance == 0) revert NothingToWithdraw();
-
-        paymentToken.safeTransfer(issuer, balance);
-        emit FundsWithdrawn(issuer, balance);
-    }
-
     // ── Claims & Refunds ─────────────────────────────────────────────────────
 
-    /// @notice Claim ERC-3643 tokens (direct mode only). Vested mode uses vault.claim().
     function claimTokens() external nonReentrant {
         if (saleMode == SaleMode.Vested) revert UseVaultClaim();
         if (status != SaleStatus.FinalizedSuccess) revert InvalidStatus();
@@ -460,8 +476,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
         emit TokensClaimed(msg.sender, contrib.tokensAllocated);
     }
 
-    /// @notice Claim USDC refund (only if sale failed to reach soft cap).
-    ///         Burns fraction tokens if vested mode.
     function claimRefund() external nonReentrant {
         if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
         Contribution storage contrib = contributions[msg.sender];
@@ -470,7 +484,6 @@ contract Sale is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyG
 
         contrib.refunded = true;
 
-        // Vested: burn any fraction tokens the investor holds
         if (saleMode == SaleMode.Vested) {
             uint256 fractionBalance = fractionToken.balanceOf(msg.sender);
             if (fractionBalance > 0) {

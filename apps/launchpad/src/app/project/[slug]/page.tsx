@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeft, ShoppingBag, FolderOpen, Coins,
+  ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell,
   FileText, ChevronDown, ChevronUp, Download,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
@@ -111,20 +111,52 @@ export default function ProjectDetailPage() {
               <span className="text-text font-medium truncate">{project.title}</span>
             </div>
           </header>
-        <div className="flex">
-          {/* Left column */}
-          <main className="flex-1 min-w-0 max-w-4xl">
-            {/* Banner + gallery */}
+          <main className="flex-1 min-w-0">
+            {/* Banner + overlaid sale widget */}
             <div className="relative">
-              <div className="relative h-[340px] overflow-hidden">
+              <div className="relative h-[420px] overflow-hidden" style={{ backgroundColor: "#13636F" }}>
                 <Image src={gallery[selectedImage]?.url ?? bannerImg} alt={project.title} fill className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#13636F]/80 via-[#13636F]/30 to-[#13636F]/10" />
                 <Link href="/projects" className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium z-10">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Link>
-                <div className="absolute bottom-4 left-6 z-10">
+                <div className="absolute bottom-6 left-6 right-[380px] z-10">
                   <p className="text-white/60 text-xs mb-1">{project.issuer.name}</p>
-                  <h1 className="text-2xl font-bold text-white">{project.title}</h1>
+                  <h1 className="text-2xl font-bold text-white mb-2">{project.title}</h1>
+                  {project.description && <p className="text-white/80 text-sm line-clamp-2">{project.description}</p>}
+                </div>
+                {/* Sale widget overlaid on banner */}
+                <div className="absolute top-4 right-4 w-[340px] bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-darkAqua/10 flex items-center justify-center"><Coins className="h-4 w-4 text-darkAqua" /></div>
+                      <div>
+                        <p className="font-bold text-sm">USDC</p>
+                        <p className="text-xs text-gray-500">Raised out of {formatCurrency(hardCap)} USDC</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn("w-2 h-2 rounded-full", project.status === "active" ? "bg-green-500" : project.isComingSoon ? "bg-amber-400" : "bg-gray-400")} />
+                      <span className={cn("text-xs font-semibold capitalize", project.isComingSoon ? "text-amber-600" : statusColor[project.status] ?? "text-gray-500")}>
+                        {project.isComingSoon ? "Coming Soon" : project.status}
+                      </span>
+                    </div>
+                  </div>
+                  {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
+                  <div className="space-y-2.5 text-sm mb-4">
+                    {endTime && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{formatCurrency(minContrib)} USDC</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Max. Buy</span><span className="font-medium">{formatCurrency(maxContrib)} USDC</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${formatCurrency(pricePerToken)} USDC` : "TBD"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
+                  </div>
+                  {project.isComingSoon ? (
+                    <button className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors flex items-center justify-center gap-2">
+                      <Bell className="h-4 w-4" /> Notify Me
+                    </button>
+                  ) : (
+                    <button className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors">Buy Now</button>
+                  )}
                 </div>
               </div>
               {gallery.length > 1 && (
@@ -150,17 +182,17 @@ export default function ProjectDetailPage() {
               </div>
             )}
             {/* Tabs */}
-            <div className="border-b border-gray-100 px-6">
-              <div className="flex gap-1 overflow-x-auto py-2">
+            <div className="border-b border-gray-100 mx-6">
+              <div className="flex gap-6 overflow-x-auto py-3">
                 {(saleRaw?.otc_enabled ? ALL_TABS : BASE_TABS).map((tab) => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTab === tab ? "bg-darkBlack text-white" : "text-gray-500 hover:bg-gray-100 hover:text-text")}>
+                  <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTab === tab ? "text-white" : "text-gray-500 hover:bg-gray-100 hover:text-text")} style={activeTab === tab ? { backgroundColor: "#13636F" } : undefined}>
                     {tab}
                   </button>
                 ))}
               </div>
             </div>
             {/* Tab content */}
-            <div className="p-6">
+            <div className="p-6 mr-6">
               {activeTab === "Overview" && (
                 <div className="space-y-6">
                   {(saleRaw as unknown as Record<string, unknown>)?.full_description ? (
@@ -283,27 +315,6 @@ export default function ProjectDetailPage() {
             </div>
           </main>
 
-          {/* Right sidebar - funding stats */}
-          <aside className="hidden xl:block w-80 border-l border-gray-100 p-5 sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
-            <div className="space-y-5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-darkAqua/10 flex items-center justify-center"><Coins className="h-4 w-4 text-darkAqua" /></div>
-                <div><p className="font-bold text-sm">{formatCurrency(raised)} USDC</p><p className="text-xs text-gray-500">raised of {formatCurrency(hardCap)}</p></div>
-              </div>
-              <ProgressBar value={progressPct} className="h-2" />
-              <div className="flex items-center gap-2">
-                <span className={cn("w-2 h-2 rounded-full", project.status === "active" ? "bg-green-500" : "bg-gray-400")} />
-                <span className={cn("text-xs font-semibold capitalize", statusColor[project.status] ?? "text-gray-500")}>{project.status}</span>
-              </div>
-              <div className="space-y-3 text-sm">
-                {[...(endTime ? [["Ends", fmtDate(endTime)]] : []), ["Min. Buy", `${formatCurrency(minContrib)} USDC`], ["Max. Buy", `${formatCurrency(maxContrib)} USDC`], ["Token Price", `${formatCurrency(pricePerToken)} USDC`], ["Currency", "USDC"]].map(([k, v]) => (
-                  <div key={k} className="flex justify-between"><span className="text-gray-500">{k}</span><span className="font-medium">{v}</span></div>
-                ))}
-              </div>
-              <button className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors">Buy Now</button>
-            </div>
-            </aside>
-          </div>
         </div>
       </div>
       <Footer />

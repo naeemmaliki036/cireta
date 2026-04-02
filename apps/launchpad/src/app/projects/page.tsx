@@ -77,11 +77,12 @@ function ActiveProjectCard({ project }: { project: Project }) {
   );
 }
 
-function ComingSoonCard({ image, title }: { image: string; title: string }) {
+function ComingSoonCard({ project }: { project: Project }) {
+  const image = project.imageUrl || "/images/projects/gold-ghana.png";
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow">
+    <Link href={`/project/${project.slug}`} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow block">
       <div className="relative h-64 overflow-hidden rounded-2xl m-3">
-        <Image src={image} alt={title} fill className="object-cover rounded-2xl" />
+        <Image src={image} alt={project.title} fill className="object-cover rounded-2xl" />
         <div className="absolute top-4 left-4">
           <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
             <Sparkles className="h-3.5 w-3.5" />
@@ -89,17 +90,17 @@ function ComingSoonCard({ image, title }: { image: string; title: string }) {
           </span>
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
-          <h3 className="text-white font-semibold text-base">{title}</h3>
+          <h3 className="text-white font-semibold text-base">{project.title}</h3>
         </div>
       </div>
       <div className="px-5 pb-5 pt-2 space-y-4">
-        <p className="text-sm text-gray-500 line-clamp-2">Wassa Gold offers a unique chance to buy certified Ghanaian gold reserves at up to 30% below...</p>
+        <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Upcoming investment opportunity — details coming soon."}</p>
         <button className="w-full inline-flex items-center justify-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-3 rounded-full hover:bg-darkBlack/90 transition-colors">
           <Bell className="h-4 w-4" />
           Notify me
         </button>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -197,7 +198,7 @@ export default function ExplorePage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {comingSoonProjects.map((p) => (
-                  <ComingSoonCard key={p.id} image={p.imageUrl || "/images/projects/gold-ghana.png"} title={p.title} />
+                  <ComingSoonCard key={p.id} project={p} />
                 ))}
               </div>
             )}
