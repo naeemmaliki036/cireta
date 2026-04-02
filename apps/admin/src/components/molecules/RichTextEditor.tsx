@@ -128,13 +128,14 @@ export default function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <EditorContent editor={editor} />
-
-      {!content && placeholder && (
-        <p className="text-zinc-400 text-sm px-4 -mt-[200px] pointer-events-none">
-          {placeholder}
-        </p>
-      )}
+      <div className="relative">
+        <EditorContent editor={editor} />
+        {!content && placeholder && (
+          <p className="absolute top-4 left-4 text-zinc-400 text-sm pointer-events-none">
+            {placeholder}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

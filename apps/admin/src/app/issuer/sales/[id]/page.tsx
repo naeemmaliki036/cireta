@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Clock, ArrowLeft, Wallet, Send, AlertCircle } from "lucide-react";
+import { BarChart3, Clock, ArrowLeft, Wallet, Send, AlertCircle, FileText, Users, HelpCircle, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
+import { SaleContentReview } from "@/components/molecules/SaleContentReview";
 import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
@@ -69,7 +70,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const isRejected = sale.status === "rejected";
 
   return (
-    <IssuerDashboardLayout title={sale.token_name ?? "Sale Details"} description={`Sale ID: ${sale.id}`}>
+    <IssuerDashboardLayout title={sale.title || sale.token_name || "Sale Details"} description={`Sale ID: ${sale.id}`}>
       <div className="mb-6 flex items-center justify-between">
         <Link href="/issuer/sales" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Sales
@@ -146,6 +147,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           </div>
         )}
       </motion.div>
+
+      {/* Sale Content: description, gallery, team, FAQ, documents */}
+      <div className="mt-6">
+        <SaleContentReview saleId={sale.id} description={sale.description_text} fullDescription={sale.full_description} />
+      </div>
     </IssuerDashboardLayout>
   );
 }

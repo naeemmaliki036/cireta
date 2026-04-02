@@ -9,21 +9,17 @@ import { DataTable, type Column } from "@/components/molecules";
 import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
-import { getSales, type Sale } from "@/lib/api/repositories/sales";
-import { getAccessToken } from "@/lib/api/client";
-
-function getToken() {
-  return getAccessToken() ?? undefined;
-}
+import { getIssuerSales, type Sale } from "@/lib/api/repositories/sales";
 
 const columns: Column<Sale>[] = [
   {
-    key: "token_name",
+    key: "title",
     header: "Sale",
     render: (row) => (
       <div>
-        <p className="font-semibold text-text">{row.token_name ?? "Unnamed"}</p>
-        <p className="text-xs text-darkBlack/40">{row.token_symbol}</p>
+        <p className="font-semibold text-text">{row.title || row.token_name || "Untitled"}</p>
+        {row.token_symbol && <p className="text-xs text-darkBlack/40">{row.token_symbol}</p>}
+        {row.is_coming_soon && <span className="text-[10px] text-amber-600 font-medium">Coming Soon</span>}
       </div>
     ),
   },
@@ -67,7 +63,7 @@ export default function SalesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getSales(1, 50, getToken());
+        const data = await getIssuerSales(1, 50);
         setSales(data.items);
       } catch (err) { console.error("Failed to load sales:", err); }
       finally { setLoading(false); }
@@ -76,7 +72,7 @@ export default function SalesPage() {
 
   const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
   const filtered = sales.filter((s) =>
-    !sanitizedSearch || (s.token_name ?? "").toLowerCase().includes(sanitizedSearch.toLowerCase()),
+    !sanitizedSearch || (s.title ?? s.token_name ?? "").toLowerCase().includes(sanitizedSearch.toLowerCase()),
   );
 
   const totalRaised = sales.reduce((acc, s) => acc + parseFloat(s.total_raised || "0"), 0);

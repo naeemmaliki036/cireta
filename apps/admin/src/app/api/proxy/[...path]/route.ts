@@ -17,9 +17,16 @@ async function handler(request: NextRequest) {
   const backendPath = request.nextUrl.pathname.replace(/^\/api\/proxy/, "");
   const url = `${API_BASE}${backendPath}${request.nextUrl.search}`;
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const contentType = request.headers.get("content-type") ?? "";
+  const isMultipart = contentType.startsWith("multipart/form-data");
+
+  const headers: Record<string, string> = {};
+  if (!isMultipart) {
+    headers["Content-Type"] = "application/json";
+  } else {
+    // Forward the original content-type with boundary intact
+    headers["Content-Type"] = contentType;
+  }
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -30,9 +37,14 @@ async function handler(request: NextRequest) {
   };
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const body = await request.text();
-    if (body) {
-      fetchInit.body = body;
+    if (isMultipart) {
+      // Forward raw multipart body (preserves file boundaries)
+      fetchInit.body = Buffer.from(await request.arrayBuffer());
+    } else {
+      const body = await request.text();
+      if (body) {
+        fetchInit.body = body;
+      }
     }
   }
 

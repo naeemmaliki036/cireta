@@ -18,6 +18,7 @@ import {
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button } from "@/components/atoms";
 import { SidebarUserProfile } from "@/components/molecules/SidebarUserProfile";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { NotificationBell } from "@/components/molecules/NotificationBell";
 import { cn } from "@/lib/utils";
 import { getOnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
@@ -47,6 +48,8 @@ export function IssuerDashboardLayout({
   actions,
 }: IssuerDashboardLayoutProps) {
   const pathname = usePathname();
+  const user = useCurrentUser();
+  const isAdmin = user?.role === "admin";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [canDeploy, setCanDeploy] = useState<boolean | null>(null);
 
@@ -140,13 +143,15 @@ export function IssuerDashboardLayout({
           )}
 
           <div className="pt-4 border-t border-zinc-200 space-y-0.5">
-            <Link
-              href="/platform/overview"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium text-amber-600 hover:bg-amber-50 transition-colors"
-            >
-              <Shield className="h-4 w-4" />
-              Platform Admin
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/platform/overview"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium text-amber-600 hover:bg-amber-50 transition-colors"
+              >
+                <Shield className="h-4 w-4" />
+                Platform Admin
+              </Link>
+            )}
             <NavLink href="/issuer/settings" label="Settings" icon={Settings} />
           </div>
 

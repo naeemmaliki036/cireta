@@ -26,6 +26,8 @@ export interface Sale {
   otc_enabled: boolean;
   otc_content: string | null;
   title: string | null;
+  description_text: string | null;
+  full_description: string | null;
   phases: SalePhase[];
   token_name: string | null;
   token_symbol: string | null;
@@ -46,6 +48,24 @@ export async function getSales(
   return apiFetch<SaleListResponse>(
     `/api/v1/sales/?page=${page}&size=${size}`,
     { token },
+  );
+}
+
+export async function getAdminSales(
+  page = 1,
+  size = 20,
+): Promise<SaleListResponse> {
+  return apiFetch<SaleListResponse>(
+    `/api/v1/admin/sales/?page=${page}&size=${size}`,
+  );
+}
+
+export async function getIssuerSales(
+  page = 1,
+  size = 20,
+): Promise<SaleListResponse> {
+  return apiFetch<SaleListResponse>(
+    `/api/v1/issuer/sales?page=${page}&size=${size}`,
   );
 }
 
@@ -161,6 +181,38 @@ export async function addSaleDocument(
   await apiFetch(`/api/v1/sales/${saleId}/documents`, {
     method: "POST",
     body: data,
+    token,
+  });
+}
+
+export interface ImageData {
+  url: string;
+  caption?: string;
+  is_banner?: boolean;
+  sort_order?: number;
+  media_type?: "image" | "video";
+  video_url?: string;
+}
+
+export async function addSaleImage(
+  saleId: string,
+  data: ImageData,
+  token?: string,
+): Promise<void> {
+  await apiFetch(`/api/v1/sales/${saleId}/images`, {
+    method: "POST",
+    body: data,
+    token,
+  });
+}
+
+export async function removeSaleImage(
+  saleId: string,
+  imageId: string,
+  token?: string,
+): Promise<void> {
+  await apiFetch(`/api/v1/sales/${saleId}/images/${imageId}`, {
+    method: "DELETE",
     token,
   });
 }

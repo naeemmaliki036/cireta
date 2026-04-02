@@ -3,21 +3,22 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
-import { ArrowRight, CheckCircle2, Coins, FileText, Calendar, Rocket, Users, HelpCircle, Clock, Settings } from "lucide-react";
+import { ArrowRight, CheckCircle2, Coins, FileText, Calendar, Rocket, Users, HelpCircle, Clock, Settings, ImageIcon } from "lucide-react";
 
 const RichTextEditor = dynamic(
   () => import("@/components/molecules/RichTextEditor"),
   { ssr: false }
 );
 import Link from "next/link";
-import { Button, Input, Select } from "@/components/atoms";
+import { Button, Input, Select, FileUpload } from "@/components/atoms";
+import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
 import {
-  createSale, addSaleTeamMember, addSaleFAQ, addSaleDocument, submitSaleForApproval,
+  createSale, addSaleTeamMember, addSaleFAQ, addSaleDocument, addSaleImage, submitSaleForApproval,
   type TeamMemberData, type FAQData, type DocumentData,
 } from "@/lib/api/repositories/sales";
-import { getAccessToken } from "@/lib/api/client";
+import { getAccessToken, apiFetch } from "@/lib/api/client";
 
 interface PhaseData { name: string; pricePerToken: string; allocation: string; startDate: string; endDate: string }
 const emptyPhase = (): PhaseData => ({ name: "", pricePerToken: "", allocation: "", startDate: "", endDate: "" });
@@ -34,14 +35,15 @@ export default function CreateSalePage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isComingSoon, setIsComingSoon] = useState(false);
-  const [saleMode, setSaleMode] = useState("vested");
-  const [saleStructure, setSaleStructure] = useState("phase_allocated");
+  const [saleMode, setSaleMode] = useState("");
+  const [saleStructure, setSaleStructure] = useState("");
   // OTC
   const [otcEnabled, setOtcEnabled] = useState(false);
   const [otcContent, setOtcContent] = useState("");
   // Step 2: Content
   const [fullDescription, setFullDescription] = useState("");
-  const [bannerImageUrl, setBannerImageUrl] = useState("");
+  // Step 3: Gallery
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   // Step 3: Team
   const [teamMembers, setTeamMembers] = useState<TeamMemberData[]>([emptyTeam()]);
   // Step 4: FAQ & Docs
@@ -84,16 +86,19 @@ export default function CreateSalePage() {
     }
   };
 
+  const bannerImageUrl = galleryItems.find((i) => i.is_banner)?.url || "";
+
   // Dynamic steps based on isComingSoon and saleMode
   const allSteps = [
     { id: 1, title: "Sale Info", icon: Coins },
     { id: 2, title: "Content", icon: FileText },
-    { id: 3, title: "Team", icon: Users },
-    { id: 4, title: "FAQ & Docs", icon: HelpCircle },
-    ...(!isComingSoon ? [{ id: 5, title: "Phases", icon: Calendar }] : []),
-    ...(!isComingSoon ? [{ id: 6, title: "Token & Caps", icon: Settings }] : []),
-    ...(!isComingSoon && saleMode === "vested" ? [{ id: 7, title: "Vesting", icon: Clock }] : []),
-    { id: 8, title: "Review", icon: Rocket },
+    { id: 3, title: "Gallery", icon: ImageIcon },
+    { id: 4, title: "Team", icon: Users },
+    { id: 5, title: "FAQ & Docs", icon: HelpCircle },
+    ...(!isComingSoon ? [{ id: 6, title: "Phases", icon: Calendar }] : []),
+    ...(!isComingSoon ? [{ id: 7, title: "Token & Caps", icon: Settings }] : []),
+    ...(!isComingSoon && saleMode === "vested" ? [{ id: 8, title: "Vesting", icon: Clock }] : []),
+    { id: 9, title: "Review", icon: Rocket },
   ];
   const visibleStepIds = allSteps.map((s) => s.id);
   const currentIdx = visibleStepIds.indexOf(step);
@@ -101,6 +106,19 @@ export default function CreateSalePage() {
   const prevStep = () => { const pi = currentIdx - 1; if (pi >= 0) setStep(visibleStepIds[pi]!); };
   const isLast = currentIdx === visibleStepIds.length - 1;
   const isFirst = currentIdx === 0;
+  const canProceed = (() => {
+    switch (step) {
+      case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "";
+      case 2: return true; // Content — optional
+      case 3: return true; // Gallery — optional
+      case 4: return true; // Team — optional
+      case 5: return true; // FAQ & Docs — optional
+      case 6: return phases.length > 0 && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== "");
+      case 7: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
+      case 8: return cliffDays !== "" && vestingDays !== "";
+      default: return true;
+    }
+  })();
   const selectedToken = tokens.find((t) => t.id === selectedTokenId);
 
   const upd = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>) =>
@@ -132,6 +150,10 @@ export default function CreateSalePage() {
         for (const m of teamMembers.filter((m) => m.name)) await addSaleTeamMember(sale.id, m, tk);
         for (const f of faqs.filter((f) => f.question)) await addSaleFAQ(sale.id, f, tk);
         for (const d of documents.filter((d) => d.url)) await addSaleDocument(sale.id, d, tk);
+        for (const g of galleryItems) await addSaleImage(sale.id, {
+          url: g.url, caption: g.caption, is_banner: g.is_banner,
+          sort_order: g.sort_order, media_type: g.media_type, video_url: g.video_url,
+        }, tk);
         return sale.id;
       }
       return savedSaleId;
@@ -183,9 +205,10 @@ export default function CreateSalePage() {
               <input type="checkbox" id="comingSoon" checked={isComingSoon} onChange={(e) => setIsComingSoon(e.target.checked)} className="h-5 w-5 rounded" />
               <label htmlFor="comingSoon" className="text-sm"><span className="font-semibold">Prelisting (coming soon)</span> — Publish as a preview without token or sale contract. You can convert to a live sale later.</label>
             </div>
-            <Select label="Sale Mode" options={[{ value: "vested", label: "Vested (fractions → claim after vesting)" }, { value: "direct", label: "Direct (ERC-3643 tokens immediately)" }]}
+            <Select label="Sale Mode" options={[{ value: "", label: "Select sale mode..." }, { value: "vested", label: "Vested (fractions → claim after vesting)" }, { value: "direct", label: "Direct (ERC-3643 tokens immediately)" }]}
               value={saleMode} onChange={(e) => setSaleMode(e.target.value)} />
             <Select label="Sale Structure" options={[
+              { value: "", label: "Select sale structure..." },
               { value: "phase_allocated", label: "Phase Allocated — each phase has its own token cap" },
               { value: "price_tiered", label: "Price Tiered — 100% allocation shared, phases only change price" },
             ]} value={saleStructure} onChange={(e) => setSaleStructure(e.target.value)} />
@@ -209,15 +232,23 @@ export default function CreateSalePage() {
         {step === 2 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Content</h2>
-            <div><label className="input-label">Full Description</label>
-              <textarea className={TA} rows={8} placeholder="Detailed project description, investment thesis, background..." value={fullDescription} onChange={(e) => setFullDescription(e.target.value)} />
-              <p className="text-xs text-gray-400 mt-1">Plain text for now. Rich text editor coming soon.</p></div>
-            <Input label="Banner Image URL" placeholder="https://example.com/banner.jpg" value={bannerImageUrl} onChange={(e) => setBannerImageUrl(e.target.value)} />
-            {bannerImageUrl && <div className="rounded-xl overflow-hidden border border-darkBlack/10"><img src={bannerImageUrl} alt="Banner preview" className="w-full h-48 object-cover" /></div>}
+            <div>
+              <label className="input-label">Full Description</label>
+              <p className="text-xs text-zinc-400 mb-2">Detailed project description, investment thesis, background. Supports rich formatting.</p>
+              <RichTextEditor content={fullDescription} onChange={setFullDescription} placeholder="Enter full project description..." />
+            </div>
           </div>
         )}
-        {/* Step 3: Team */}
+        {/* Step 3: Gallery */}
         {step === 3 && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <h2 className="text-xl font-semibold text-text">Media Gallery</h2>
+            <p className="text-gray-500">Upload images and add a video. Select one as the hero banner.</p>
+            <ImageGallery items={galleryItems} onChange={setGalleryItems} />
+          </div>
+        )}
+        {/* Step 4: Team */}
+        {step === 4 && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-2">Team Members</h2>
             <p className="text-gray-500 mb-6">Add key team members to display on the sale page</p>
@@ -230,14 +261,15 @@ export default function CreateSalePage() {
                     <Input label="Title" placeholder="CEO" value={m.title} onChange={(e) => updTeam(i, "title", e.target.value)} />
                   </div>
                   <div><label className="input-label">Bio</label><textarea className={TA} rows={2} value={m.bio} onChange={(e) => updTeam(i, "bio", e.target.value)} /></div>
-                  <Input label="Photo URL" placeholder="https://..." value={m.photo_url} onChange={(e) => updTeam(i, "photo_url", e.target.value)} />
+                  <FileUpload label="Photo" accept="image/*" prefix="team" value={m.photo_url || null} previewType="image"
+                    onUpload={(r) => updTeam(i, "photo_url", r.url)} onRemove={() => updTeam(i, "photo_url", "")} />
                 </div>))}
               <Button variant="outline" onClick={() => setTeamMembers((t) => [...t, emptyTeam()])} className="w-full">+ Add Team Member</Button>
             </div>
           </div>
         )}
-        {/* Step 4: FAQ & Docs */}
-        {step === 4 && (
+        {/* Step 5: FAQ & Docs */}
+        {step === 5 && (
           <div className="max-w-2xl mx-auto space-y-8">
             <div>
               <h2 className="text-xl font-semibold text-text mb-2">FAQs</h2>
@@ -261,15 +293,17 @@ export default function CreateSalePage() {
                       <Input label="Name" value={d.name} onChange={(e) => updDoc(i, "name", e.target.value)} />
                       <Select label="Type" options={DOC_TYPES} value={d.type} onChange={(e) => updDoc(i, "type", e.target.value)} />
                     </div>
-                    <Input label="URL" value={d.url} onChange={(e) => updDoc(i, "url", e.target.value)} />
+                    <FileUpload label="Document File" accept=".pdf" prefix="documents" value={d.url || null} previewType="document"
+                      visibility={["whitepaper", "legal"].includes(d.type) ? "public" : "private"}
+                      onUpload={(r) => updDoc(i, "url", r.url)} onRemove={() => updDoc(i, "url", "")} />
                   </div>))}
                 <Button variant="outline" onClick={() => setDocuments((ds) => [...ds, emptyDoc()])} className="w-full">+ Add Document</Button>
               </div>
             </div>
           </div>
         )}
-        {/* Step 5: Phases (skip if coming soon) */}
-        {step === 5 && (
+        {/* Step 6: Phases (skip if coming soon) */}
+        {step === 6 && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-2">Sale Phases</h2>
             <p className="text-gray-500 mb-6">Configure one or more phases</p>
@@ -291,8 +325,8 @@ export default function CreateSalePage() {
             </div>
           </div>
         )}
-        {/* Step 6: Token & Caps (skip if coming soon) */}
-        {step === 6 && (
+        {/* Step 7: Token & Caps (skip if coming soon) */}
+        {step === 7 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Token & Funding Caps</h2>
             <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.map((t) => ({ value: t.id, label: `${t.name} (${t.symbol})` }))]}
@@ -304,8 +338,8 @@ export default function CreateSalePage() {
             </div>
           </div>
         )}
-        {/* Step 7: Vesting (skip if direct or coming soon) */}
-        {step === 7 && (
+        {/* Step 8: Vesting (skip if direct or coming soon) */}
+        {step === 8 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Vesting Configuration</h2>
             <p className="text-gray-500">Configure how tokens are released to investors after purchase</p>
@@ -321,8 +355,8 @@ export default function CreateSalePage() {
             </div>
           </div>
         )}
-        {/* Step 8: Review */}
-        {step === 8 && (
+        {/* Step 9: Review */}
+        {step === 9 && (
           <div className="max-w-2xl mx-auto text-center">
             <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6"><Rocket className="h-10 w-10 text-darkAqua" /></div>
             <h2 className="text-xl font-semibold text-text mb-2">{isComingSoon ? "Ready to Publish as Coming Soon" : "Ready to Submit"}</h2>
@@ -344,7 +378,8 @@ export default function CreateSalePage() {
                 ["OTC & Bank Transfer", otcEnabled ? "Enabled" : "Disabled"],
                 ["Description", description ? `${description.slice(0, 60)}...` : "None"],
                 ["Full Description", fullDescription ? `${fullDescription.length} chars` : "None"],
-                ["Banner", bannerImageUrl ? "Set" : "None"],
+                ["Gallery", `${galleryItems.filter((i) => i.media_type === "image").length} images, ${galleryItems.filter((i) => i.media_type === "video").length} videos`],
+                ["Hero", bannerImageUrl ? "Selected" : "None"],
                 ["Team", `${teamMembers.filter((m) => m.name).length} members`],
                 ["FAQs", `${faqs.filter((f) => f.question).length}`],
                 ["Documents", `${documents.filter((d) => d.url).length}`],
@@ -371,7 +406,7 @@ export default function CreateSalePage() {
           {error && <span className="text-xs text-red-600">{error}</span>}
         </div>
         {!isLast ? (
-          <Button variant="primary" onClick={nextStep} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
+          <Button variant="primary" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
         ) : (
           <div className="flex flex-col items-end gap-2">
             {success ? <Link href="/issuer/sales"><Button variant="primary">View Sales</Button></Link>

@@ -63,7 +63,7 @@ def _sale_to_response(sale) -> SaleResponse:
         title=sale.title,
         description_text=sale.description,
         full_description=sale.full_description,
-        banner_image_url=sale.banner_image_url,
+        banner_image_url=sale.banner_image_url or next((img.url for img in getattr(sale, "images", []) if img.is_banner), next((img.url for img in sorted(getattr(sale, "images", []), key=lambda i: i.sort_order or 0)), None)),
         is_coming_soon=sale.is_coming_soon,
         otc_enabled=sale.otc_enabled,
         otc_content=sale.otc_content,

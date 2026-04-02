@@ -53,6 +53,8 @@ class ImageCreate(BaseModel):
     caption: str | None = None
     is_banner: bool = False
     sort_order: int = 0
+    media_type: str = "image"  # "image" or "video"
+    video_url: str | None = None
 
 class ImageResponse(BaseModel):
     id: str
@@ -60,6 +62,8 @@ class ImageResponse(BaseModel):
     caption: str | None
     is_banner: bool
     sort_order: int
+    media_type: str = "image"
+    video_url: str | None = None
 
 class DocumentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -186,7 +190,7 @@ async def list_images(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[ImageResponse]:
     result = await db.execute(select(SaleImage).where(SaleImage.sale_id == sale_id).order_by(SaleImage.sort_order))
-    return [ImageResponse(id=str(i.id), url=i.url, caption=i.caption, is_banner=i.is_banner, sort_order=i.sort_order) for i in result.scalars().all()]
+    return [ImageResponse(id=str(i.id), url=i.url, caption=i.caption, is_banner=i.is_banner, sort_order=i.sort_order, media_type=getattr(i, "media_type", "image"), video_url=getattr(i, "video_url", None)) for i in result.scalars().all()]
 
 @router.post("/images", response_model=ImageResponse, status_code=201)
 async def add_image(
@@ -196,11 +200,11 @@ async def add_image(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ImageResponse:
     await _get_sale_with_auth(sale_id, user_id, db)
-    image = SaleImage(sale_id=sale_id, url=data.url, caption=data.caption, is_banner=data.is_banner, sort_order=data.sort_order)
+    image = SaleImage(sale_id=sale_id, url=data.url, caption=data.caption, is_banner=data.is_banner, sort_order=data.sort_order, media_type=data.media_type, video_url=data.video_url)
     db.add(image)
     await db.commit()
     await db.refresh(image)
-    return ImageResponse(id=str(image.id), url=image.url, caption=image.caption, is_banner=image.is_banner, sort_order=image.sort_order)
+    return ImageResponse(id=str(image.id), url=image.url, caption=image.caption, is_banner=image.is_banner, sort_order=image.sort_order, media_type=image.media_type, video_url=image.video_url)
 
 @router.delete("/images/{image_id}", status_code=204)
 async def remove_image(

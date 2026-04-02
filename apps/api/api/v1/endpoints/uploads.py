@@ -1,6 +1,6 @@
 """File upload endpoint — auto-routes to public or private bucket."""
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, UploadFile, status
 
 from apps.api.services.file_storage_service import FileStorageService
 from packages.common.core.auth_deps import CurrentUserId
@@ -8,8 +8,9 @@ from packages.common.core.auth_deps import CurrentUserId
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
 ALLOWED_DOC_TYPES = {"application/pdf"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB (videos can be larger)
 
 
 @router.post("")
@@ -17,6 +18,7 @@ async def upload_file(
     file: UploadFile,
     _user_id: CurrentUserId,
     prefix: str = "general",
+    visibility: str = Query(default="auto", pattern="^(auto|public|private)$"),
 ) -> dict:
     """Upload a file. Images go to public bucket, PDFs to private.
 
@@ -28,7 +30,7 @@ async def upload_file(
             detail={"code": "MISSING_CONTENT_TYPE", "message": "File content type required"},
         )
 
-    all_allowed = ALLOWED_IMAGE_TYPES | ALLOWED_DOC_TYPES
+    all_allowed = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES | ALLOWED_DOC_TYPES
     if file.content_type not in all_allowed:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -42,12 +44,17 @@ async def upload_file(
     if len(data) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "FILE_TOO_LARGE", "message": "Maximum file size is 10 MB"},
+            detail={"code": "FILE_TOO_LARGE", "message": "Maximum file size is 50 MB"},
         )
 
     storage = FileStorageService()
     path = storage.generate_path(prefix, file.filename or "upload")
-    is_private = storage.is_private_content(file.content_type)
+    if visibility == "public":
+        is_private = False
+    elif visibility == "private":
+        is_private = True
+    else:
+        is_private = storage.is_private_content(file.content_type)
 
     if is_private:
         url = await storage.upload_private(data, path, content_type=file.content_type)

@@ -149,3 +149,50 @@ async def get_onboarding_status(
     """Get full onboarding status with all gates."""
     data = await issuer_service.get_onboarding_status(user_id)
     return IssuerOnboardingStatusResponse(**data)
+
+
+@router.get("/sales")
+async def list_issuer_sales(
+    user_id: RequireIssuerOrAdmin,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = 1,
+    size: int = 20,
+) -> dict:
+    """List all sales belonging to the current issuer (all statuses)."""
+    from sqlalchemy import func, select
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.issuer import Issuer
+    from apps.api.models.token_sale import TokenSale
+
+    # Find issuer for this user
+    result = await db.execute(select(Issuer).where(Issuer.user_id == user_id))
+    issuer = result.scalar_one_or_none()
+    if not issuer:
+        return {"items": [], "total": 0, "page": page, "size": size}
+
+    # Count
+    count_result = await db.execute(
+        select(func.count()).select_from(TokenSale).where(TokenSale.issuer_id == issuer.id)
+    )
+    total = count_result.scalar() or 0
+
+    # Fetch
+    query = (
+        select(TokenSale)
+        .where(TokenSale.issuer_id == issuer.id)
+        .options(selectinload(TokenSale.phases), selectinload(TokenSale.token), selectinload(TokenSale.issuer), selectinload(TokenSale.images))
+        .order_by(TokenSale.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )
+    result = await db.execute(query)
+    sales = list(result.scalars().all())
+
+    from apps.api.api.v1.endpoints.sales import _sale_to_response
+    return {
+        "items": [_sale_to_response(s) for s in sales],
+        "total": total,
+        "page": page,
+        "size": size,
+    }

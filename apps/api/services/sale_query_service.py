@@ -31,6 +31,7 @@ class SaleQueryService:
                 selectinload(TokenSale.phases),
                 selectinload(TokenSale.token),
                 selectinload(TokenSale.issuer),
+                selectinload(TokenSale.images),
             )
         )
         result = await self.db.execute(query)
@@ -50,6 +51,7 @@ class SaleQueryService:
                 selectinload(TokenSale.phases),
                 selectinload(TokenSale.token),
                 selectinload(TokenSale.issuer),
+                selectinload(TokenSale.images),
             )
         )
         result = await self.db.execute(query)
@@ -72,6 +74,7 @@ class SaleQueryService:
                 selectinload(TokenSale.phases),
                 selectinload(TokenSale.token),
                 selectinload(TokenSale.issuer),
+                selectinload(TokenSale.images),
             )
             .order_by(TokenSale.created_at.desc())
         )
@@ -101,6 +104,7 @@ class SaleQueryService:
                 selectinload(TokenSale.phases),
                 selectinload(TokenSale.token),
                 selectinload(TokenSale.issuer),
+                selectinload(TokenSale.images),
             )
             .where(TokenSale.id == sale_id)
         )

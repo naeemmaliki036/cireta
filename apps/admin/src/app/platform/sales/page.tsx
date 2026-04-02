@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { ShoppingCart } from "lucide-react";
 import { Badge, ProgressBar } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
-import { getSales, type Sale } from "@/lib/api/repositories/sales";
+import Link from "next/link";
+import { Button } from "@/components/atoms";
+import { getAdminSales, type Sale } from "@/lib/api/repositories/sales";
 
 export default function PlatformSalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getSales(1, 100)
+    getAdminSales(1, 100)
       .then((data) => setSales(data.items))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -54,13 +56,13 @@ export default function PlatformSalesPage() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-zinc-500 uppercase border-b border-zinc-100">
-                <th className="px-5 py-3">Token</th>
+                <th className="px-5 py-3">Sale</th>
                 <th className="px-5 py-3">Issuer</th>
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3">Raised</th>
                 <th className="px-5 py-3">Hard Cap</th>
                 <th className="px-5 py-3">Progress</th>
-                <th className="px-5 py-3">Phases</th>
+                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -71,11 +73,12 @@ export default function PlatformSalesPage() {
                 return (
                   <tr key={sale.id} className="border-b border-zinc-50 hover:bg-zinc-50">
                     <td className="px-5 py-3">
-                      <p className="font-medium text-sm">{sale.token_name ?? "—"}</p>
-                      <p className="text-xs text-zinc-400">{sale.token_symbol}</p>
+                      <p className="font-medium text-sm">{sale.title || sale.token_name || "Untitled"}</p>
+                      {sale.token_symbol && <p className="text-xs text-zinc-400">{sale.token_symbol}</p>}
+                      {sale.is_coming_soon && <span className="text-[10px] text-amber-600 font-medium">Coming Soon</span>}
                     </td>
                     <td className="px-5 py-3 text-sm text-zinc-600">
-                      {sale.issuer_id.slice(0, 8)}...
+                      {sale.issuer_name || sale.issuer_id.slice(0, 8) + "..."}
                     </td>
                     <td className="px-5 py-3">
                       <Badge
@@ -91,7 +94,9 @@ export default function PlatformSalesPage() {
                     <td className="px-5 py-3 w-32">
                       <ProgressBar value={pct} size="sm" />
                     </td>
-                    <td className="px-5 py-3 text-sm text-zinc-500">{sale.phases.length}</td>
+                    <td className="px-5 py-3">
+                      <Link href={`/platform/sales/${sale.id}`}><Button variant="ghost" size="sm">View</Button></Link>
+                    </td>
                   </tr>
                 );
               })}

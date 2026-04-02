@@ -6,6 +6,7 @@ import { BarChart3, Clock, ArrowLeft, CheckCircle2, XCircle, Flag, AlertCircle }
 import Link from "next/link";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
+import { SaleContentReview } from "@/components/molecules/SaleContentReview";
 import { ProgressBar } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
@@ -69,7 +70,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const isFinalizedSuccess = sale.status === "finalized_success" || sale.status === "finalized";
 
   return (
-    <PlatformAdminLayout title={sale.token_name ?? "Sale Review"} description={`Sale ID: ${sale.id}`}>
+    <PlatformAdminLayout title={sale.title || sale.token_name || "Sale Review"} description={`Sale ID: ${sale.id}`}>
       <div className="mb-6">
         <Link href="/platform/sales" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Sales
@@ -186,6 +187,11 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           </div>
         )}
       </motion.div>
+
+      {/* Sale Content: description, gallery, team, FAQ, documents */}
+      <div className="mt-6">
+        <SaleContentReview saleId={sale.id} description={sale.description_text} fullDescription={sale.full_description} />
+      </div>
     </PlatformAdminLayout>
   );
 }

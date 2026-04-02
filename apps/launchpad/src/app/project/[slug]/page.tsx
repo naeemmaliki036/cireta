@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell,
+  ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell, Play,
   FileText, ChevronDown, ChevronUp, Download,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
@@ -16,10 +16,19 @@ import { getToken, type Token } from "@/lib/api/repositories/tokens";
 import { apiGet } from "@/lib/api/client";
 
 /* ---------- types for sale content endpoints ---------- */
-interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number }
+interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: "image" | "video"; video_url?: string }
 interface SaleDocument { id: string; name: string; document_type: string; url: string }
 interface TeamMember { id: string; name: string; title: string; bio?: string; photo_url?: string }
 interface FAQ { id: string; question: string; answer: string }
+
+function getEmbedUrl(url: string): string | null {
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0&disablekb=1&fs=0&iv_load_policy=3&loop=1&playlist=${ytMatch[1]}`;
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&muted=1&controls=0&loop=1&title=0&byline=0&portrait=0`;
+  return null;
+}
+
 const SIDEBAR_LINKS = [
   { href: "/explore", label: "Sales", icon: ShoppingBag },
   { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
@@ -115,8 +124,19 @@ export default function ProjectDetailPage() {
             {/* Banner + overlaid sale widget */}
             <div className="relative">
               <div className="relative h-[420px] overflow-hidden" style={{ backgroundColor: "#13636F" }}>
-                <Image src={gallery[selectedImage]?.url ?? bannerImg} alt={project.title} fill className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#13636F]/80 via-[#13636F]/30 to-[#13636F]/10" />
+                {gallery[selectedImage]?.media_type === "video" && gallery[selectedImage]?.video_url ? (
+                  (() => {
+                    const embedUrl = getEmbedUrl(gallery[selectedImage].video_url!);
+                    return embedUrl ? (
+                      <iframe src={embedUrl} className="absolute inset-0 w-full h-full" allow="autoplay; encrypted-media" allowFullScreen />
+                    ) : (
+                      <video src={gallery[selectedImage].video_url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+                    );
+                  })()
+                ) : (
+                  <Image src={gallery[selectedImage]?.url ?? bannerImg} alt={project.title} fill className="object-cover" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#13636F]/80 via-[#13636F]/30 to-[#13636F]/10 pointer-events-none" />
                 <Link href="/projects" className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium z-10">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Link>
@@ -160,10 +180,15 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
               {gallery.length > 1 && (
-                <div className="flex gap-2 px-6 py-3 overflow-x-auto">
+                <div className="flex gap-3 px-6 py-4 overflow-x-auto">
                   {gallery.map((img, i) => (
-                    <button key={img.id} onClick={() => setSelectedImage(i)} className={cn("relative w-16 h-12 rounded-lg overflow-hidden border-2 flex-shrink-0", i === selectedImage ? "border-darkAqua" : "border-transparent opacity-60 hover:opacity-100")}>
+                    <button key={img.id} onClick={() => setSelectedImage(i)} className={cn("relative w-28 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all", i === selectedImage ? "border-darkAqua ring-2 ring-darkAqua/30" : "border-zinc-200 opacity-70 hover:opacity-100")}>
                       <Image src={img.url} alt={img.caption ?? ""} fill className="object-cover" />
+                      {img.media_type === "video" && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play className="h-5 w-5 text-white fill-white" />
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>

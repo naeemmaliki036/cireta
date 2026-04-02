@@ -120,3 +120,52 @@ export async function apiDelete(
 ): Promise<void> {
   await apiFetch<void>(path, { method: "DELETE" });
 }
+
+// --- File Upload ---
+
+export interface UploadResult {
+  url: string;
+  path: string;
+  content_type: string;
+  size: number;
+  private: boolean;
+}
+
+export function apiUpload(
+  file: File,
+  prefix = "general",
+  visibility: "auto" | "public" | "private" = "auto",
+  onProgress?: (pct: number) => void,
+): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open(
+      "POST",
+      `/api/proxy/api/v1/uploads?prefix=${encodeURIComponent(prefix)}&visibility=${visibility}`,
+    );
+    xhr.withCredentials = true;
+
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText) as UploadResult);
+      } else {
+        const err = JSON.parse(xhr.responseText).detail;
+        reject(new APIError(xhr.status, err?.code ?? "UPLOAD_ERROR", err?.message ?? "Upload failed"));
+      }
+    };
+
+    xhr.onerror = () => reject(new APIError(0, "NETWORK_ERROR", "Upload failed"));
+    xhr.send(formData);
+  });
+}

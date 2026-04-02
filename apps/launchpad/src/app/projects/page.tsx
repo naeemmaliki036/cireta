@@ -80,7 +80,7 @@ function ActiveProjectCard({ project }: { project: Project }) {
 function ComingSoonCard({ project }: { project: Project }) {
   const image = project.imageUrl || "/images/projects/gold-ghana.png";
   return (
-    <Link href={`/project/${project.slug}`} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow block">
+    <Link href={`/project/${project.slug}`} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
       <div className="relative h-64 overflow-hidden rounded-2xl m-3">
         <Image src={image} alt={project.title} fill className="object-cover rounded-2xl" />
         <div className="absolute top-4 left-4">
@@ -93,9 +93,9 @@ function ComingSoonCard({ project }: { project: Project }) {
           <h3 className="text-white font-semibold text-base">{project.title}</h3>
         </div>
       </div>
-      <div className="px-5 pb-5 pt-2 space-y-4">
-        <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Upcoming investment opportunity — details coming soon."}</p>
-        <button className="w-full inline-flex items-center justify-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-3 rounded-full hover:bg-darkBlack/90 transition-colors">
+      <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
+        <p className="text-sm text-gray-500 line-clamp-2 flex-1">{project.description || "Upcoming investment opportunity — details coming soon."}</p>
+        <button className="w-full inline-flex items-center justify-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-3 rounded-full hover:bg-darkBlack/90 transition-colors mt-4">
           <Bell className="h-4 w-4" />
           Notify me
         </button>
