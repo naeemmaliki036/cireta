@@ -266,7 +266,7 @@ class KYCService:
                 await self._issue_onchain_claims(user)
                 try:
                     notif_service = NotificationService(self.db)
-                    await notif_service.notify_kyc_approved(user.id, user.email, 2)
+                    await notif_service.notify_kyc_approved(user.id, user.email)
                 except Exception as e:
                     log.warning("KYC notification failed: %s", e)
                 try:
@@ -552,7 +552,7 @@ class KYCService:
                 user.kyc_verified_at = datetime.now(UTC)
                 try:
                     notif_service = NotificationService(self.db)
-                    await notif_service.notify_kyc_approved(user.id, user.email, 4)
+                    await notif_service.notify_kyc_approved(user.id, user.email)
                 except Exception as e:
                     log.warning("Corporate KYC notification failed: %s", e)
             elif review_answer == "RED":

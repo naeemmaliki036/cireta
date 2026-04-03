@@ -94,6 +94,7 @@ contract CiretaToken is
         __ERC20Pausable_init();
         __AccessControl_init();
 
+        require(decimals_ <= 6, "CiretaToken: max 6 decimals");
         _decimals = decimals_;
         _identityRegistry = IIdentityRegistry(identityRegistry_);
         _compliance = ICompliance(compliance_);

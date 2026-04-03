@@ -109,6 +109,15 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class OnChainRegistrationResponse(BaseModel):
+    """Response after on-chain issuer registration."""
+
+    issuer_id: str
+    wallet_address: str
+    tx_hash: str
+    message: str
+
+
 class AuditLogResponse(BaseModel):
     """Audit log entry response."""
 

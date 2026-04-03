@@ -106,6 +106,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     event EmergencyWithdraw(address indexed recipient, uint256 amount);
     event ProjectTokensDeposited(uint256 amount);
     event FundsWithdrawn(address indexed recipient, uint256 amount);
+    event TokensWithdrawn(address indexed recipient, uint256 amount);
 
     // ── Errors ───────────────────────────────────────────────────────────────
     error InvalidStatus();
@@ -182,7 +183,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         uint256 _softCap,
         uint256 _hardCap,
         uint256 _feeBasisPoints,
-        uint256 _feeCapUsdc
+        uint256 _feeCapUsdc,
+        address _otcToken
     ) external initializer {
         if (_token == address(0)) revert ZeroAddress();
         if (_paymentToken == address(0)) revert ZeroAddress();
@@ -201,6 +203,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         hardCap = _hardCap;
         feeBasisPoints = _feeBasisPoints;
         feeCapUsdc = _feeCapUsdc;
+        if (_otcToken != address(0)) otcToken = IssuerOTCToken(_otcToken);
         maxPerBlock = 50_000 * 1e6; // 50,000 USDC default per-block cap
         status = SaleStatus.Draft;
     }
@@ -211,8 +214,29 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @notice Activate the sale (Draft → Active). Admin approval gate.
     function activate() external adminOnly onlyStatus(SaleStatus.Draft) {
+        // Require project tokens deposited before activation
+        if (saleMode == SaleMode.Direct) {
+            // Direct: tokens must be in the sale contract
+            uint256 tokenBalance = IERC20(token).balanceOf(address(this));
+            if (tokenBalance == 0) revert TokensNotDeposited();
+        } else {
+            // Vested: tokens must be in the vault
+            uint256 vaultBalance = IERC20(token).balanceOf(address(vault));
+            if (vaultBalance == 0) revert TokensNotDeposited();
+        }
+        // Require at least one phase configured
+        if (phases.length == 0) revert InvalidStatus();
+
         status = SaleStatus.Active;
         emit SaleStatusChanged(SaleStatus.Active);
+    }
+
+    /// @notice Withdraw project tokens from a draft sale. Only issuer can reclaim before activation.
+    function withdrawTokens() external onlyIssuer onlyStatus(SaleStatus.Draft) nonReentrant {
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        if (balance == 0) revert NothingToWithdraw();
+        IERC20(token).safeTransfer(issuer, balance);
+        emit TokensWithdrawn(issuer, balance);
     }
 
     /// @notice Unpause the sale. Only admin can lift a regulatory hold.

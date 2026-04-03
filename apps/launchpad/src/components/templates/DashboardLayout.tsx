@@ -10,6 +10,7 @@ import {
   User,
   ShoppingBag,
   FolderOpen,
+  Send,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const ACCOUNT_LINKS = [
   { href: "/account", label: "Account", icon: User },
   { href: "/portfolio", label: "Holdings", icon: LayoutDashboard },
   { href: "/portfolio/vesting", label: "Vesting", icon: Clock },
+  { href: "/portfolio/transfer", label: "Transfer", icon: Send },
   { href: "/portfolio/transactions", label: "Transactions", icon: FileText },
 ];
 

@@ -2,14 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Pause, Play } from "lucide-react";
+import { ArrowLeft, Shield, Pause, Play, Rocket, Coins } from "lucide-react";
 import Link from "next/link";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { decodeEventLog, type Abi } from "viem";
 import { Button, Badge, Spinner } from "@/components/atoms";
 import { WalletBadge } from "@/components/molecules";
+import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
-import { getToken as fetchToken, type Token } from "@/lib/api/repositories/tokens";
+import { getToken as fetchToken, recordTokenDeployment, type Token } from "@/lib/api/repositories/tokens";
 import { pauseToken, unpauseToken } from "@/lib/api/repositories/compliance";
 import { getAccessToken } from "@/lib/api/client";
+import { useContractAction } from "@/hooks/useContractAction";
+import { TOKEN_FACTORY_ABI } from "@/lib/contracts/abis/tokenFactory";
+import { requireAddress } from "@/lib/contracts/addresses";
 
 function getAuthToken() {
   return getAccessToken() ?? "";
@@ -20,6 +27,11 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [resolvedId, setResolvedId] = useState<string>("");
+
+  // On-chain deployment
+  const { isConnected, address: walletAddress } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const deployAction = useContractAction();
 
   useEffect(() => {
     paramsPromise.then((p) => setResolvedId(p.id));
@@ -50,6 +62,66 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
       }
     } catch { /* TODO: toast */ }
     setToggling(false);
+  };
+
+  const handleDeployOnChain = async () => {
+    if (!token || !walletAddress) {
+      if (!isConnected) openConnectModal?.();
+      return;
+    }
+    let factoryAddress: `0x${string}`;
+    try {
+      factoryAddress = requireAddress("tokenFactory");
+    } catch {
+      deployAction.reset();
+      return;
+    }
+
+    const receipt = await deployAction.execute({
+      address: factoryAddress,
+      abi: TOKEN_FACTORY_ABI as unknown as Abi,
+      functionName: "deployToken",
+      args: [token.name, token.symbol, token.decimals ?? 18, walletAddress],
+    });
+
+    if (receipt) {
+      // Parse TokenDeployed event from logs
+      let tokenAddr: string | null = null;
+      let registryAddr: string | null = null;
+      let complianceAddr: string | null = null;
+
+      for (const log of receipt.logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: TOKEN_FACTORY_ABI,
+            data: log.data,
+            topics: log.topics,
+          });
+          if (decoded.eventName === "TokenDeployed") {
+            const args = decoded.args as {
+              token: string;
+              identityRegistry: string;
+              compliance: string;
+            };
+            tokenAddr = args.token;
+            registryAddr = args.identityRegistry;
+            complianceAddr = args.compliance;
+          }
+        } catch { /* not our event */ }
+      }
+
+      if (tokenAddr && registryAddr && complianceAddr) {
+        try {
+          const updated = await recordTokenDeployment(resolvedId, {
+            contract_address: tokenAddr,
+            identity_registry_address: registryAddr,
+            compliance_address: complianceAddr,
+            tx_hash: receipt.transactionHash,
+          });
+          setToken(updated);
+        } catch { /* on-chain is source of truth */ }
+      }
+    }
   };
 
   if (loading) {
@@ -100,9 +172,42 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
           className="bg-white rounded-3xl p-6 border border-darkBlack/10">
           <h2 className="text-lg font-semibold text-text mb-4">Contract</h2>
           {token.contract_address ? (
-            <WalletBadge address={token.contract_address} />
+            <div className="space-y-2">
+              <WalletBadge address={token.contract_address} />
+              {token.identity_registry_address && (
+                <div className="text-xs text-darkBlack/50">
+                  Identity Registry: <code className="font-mono bg-zinc-100 px-1 rounded">{token.identity_registry_address.slice(0, 10)}...{token.identity_registry_address.slice(-8)}</code>
+                </div>
+              )}
+              {token.compliance_address && (
+                <div className="text-xs text-darkBlack/50">
+                  Compliance: <code className="font-mono bg-zinc-100 px-1 rounded">{token.compliance_address.slice(0, 10)}...{token.compliance_address.slice(-8)}</code>
+                </div>
+              )}
+            </div>
           ) : (
-            <p className="text-sm text-darkBlack/40">Not yet deployed on-chain</p>
+            <div className="space-y-3">
+              <p className="text-sm text-darkBlack/40">Not yet deployed on-chain</p>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleDeployOnChain}
+                disabled={deployAction.isPending || deployAction.isConfirming}
+                isLoading={deployAction.isPending || deployAction.isConfirming}
+                leftIcon={<Rocket className="h-4 w-4" />}
+              >
+                Deploy On-Chain
+              </Button>
+              <TransactionStatus
+                isPending={deployAction.isPending}
+                isConfirming={deployAction.isConfirming}
+                isConfirmed={deployAction.isConfirmed}
+                txHash={deployAction.txHash}
+                txUrl={deployAction.txUrl}
+                error={deployAction.error}
+                successMessage="Token deployed on-chain. Contract addresses recorded."
+              />
+            </div>
           )}
 
           <div className="mt-6 pt-4 border-t border-darkBlack/10">
@@ -113,9 +218,15 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
                 onClick={handlePauseToggle} disabled={toggling || !token.contract_address}>
                 {token.is_paused ? "Unpause" : "Pause"} Token
               </Button>
-              <Link href={`/issuer/compliance`}>
+              <Link href={`/issuer/tokens/${resolvedId}/mint`}>
+                <Button variant="outline" size="sm" leftIcon={<Coins className="h-4 w-4" />}
+                  disabled={!token.contract_address}>
+                  Mint Tokens
+                </Button>
+              </Link>
+              <Link href={`/issuer/tokens/${resolvedId}/compliance`}>
                 <Button variant="outline" size="sm" leftIcon={<Shield className="h-4 w-4" />}>
-                  Compliance
+                  Compliance Modules
                 </Button>
               </Link>
             </div>

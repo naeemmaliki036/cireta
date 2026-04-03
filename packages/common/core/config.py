@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     # Identity mode: "simple" (whitelist) or "erc3643" (full ONCHAINID + claims)
     identity_mode: Literal["simple", "erc3643"] = Field(default="simple")
 
+    # Issuer registry (deployed via contracts/scripts/deploy.ts)
+    issuer_registry_address: str = Field(default="")
+
     # Token factory (deployed via contracts/scripts/deploy.ts)
     token_factory_address: str = Field(default="")
     sale_factory_address: str = Field(default="")

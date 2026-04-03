@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, Trash2, ChevronUp, ChevronDown, Plus, Play, Link as LinkIcon } from "lucide-react";
+import { Star, Trash2, ChevronUp, ChevronDown, Play, Link as LinkIcon } from "lucide-react";
 import { FileUpload } from "@/components/atoms";
 import { Input, Button } from "@/components/atoms";
 import { type UploadResult } from "@/lib/api/client";
@@ -89,7 +89,7 @@ export function ImageGallery({
   const remove = (id: string) => {
     const filtered = items.filter((i) => i.id !== id);
     if (filtered.length > 0 && !filtered.some((i) => i.is_banner)) {
-      filtered[0].is_banner = true;
+      filtered[0]!.is_banner = true;
     }
     onChange(filtered);
   };
@@ -102,7 +102,7 @@ export function ImageGallery({
     const next = idx + dir;
     if (next < 0 || next >= items.length) return;
     const arr = [...items];
-    [arr[idx], arr[next]] = [arr[next], arr[idx]];
+    [arr[idx], arr[next]] = [arr[next]!, arr[idx]!];
     onChange(arr.map((it, i) => ({ ...it, sort_order: i })));
   };
 

@@ -4,10 +4,13 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 
+import type { Editor } from "@tiptap/react";
+
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  editorRef?: (editor: Editor | null) => void;
 }
 
 function ToolbarButton({
@@ -38,6 +41,7 @@ export default function RichTextEditor({
   content,
   onChange,
   placeholder,
+  editorRef,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -56,6 +60,9 @@ export default function RichTextEditor({
       },
     },
   });
+
+  // Expose editor to parent for external operations (e.g. inserting variables)
+  if (editorRef) editorRef(editor);
 
   if (!editor) return null;
 

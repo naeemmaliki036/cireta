@@ -474,7 +474,7 @@ async def contribute(
                 contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
             )
             await _NS(sale_service.db).notify_investment_confirmed(
-                user_id, _user.email, str(request.amount), _token_symbol, request.tx_hash
+                user_id, _user.email, str(request.amount), _token_symbol,
             )
     except Exception:
         import logging

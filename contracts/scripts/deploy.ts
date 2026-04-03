@@ -1,24 +1,55 @@
+/**
+ * Cireta Platform — Master Deployment Script
+ *
+ * Deploys platform contracts based on identity mode selection.
+ * If IDENTITY_MODE is not set, prompts the user to choose.
+ *
+ * Modes:
+ *   - "simple"  → 13 contracts (SimpleIdentityRegistry whitelist)
+ *   - "erc3643" → 20 contracts (full ONCHAINID + claim verification)
+ *
+ * Idempotent: skips already-deployed contracts.
+ * Ownership: transfers ALL contracts to PLATFORM_ADMIN_ADDRESS at the end.
+ *
+ * Usage:
+ *   IDENTITY_MODE=simple npx hardhat run scripts/deploy.ts --network baseSepolia
+ */
+
 import { ethers, upgrades } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 
 interface DeploymentAddresses {
+  // Platform registries (simple mode skips identity-related ones)
+  issuerRegistry: string;
+  platformFeeManager: string;
+  // ERC-3643 only
   identityRegistryStorage: string;
   claimTopicsRegistry: string;
   trustedIssuersRegistry: string;
-  issuerRegistry: string;
-  platformFeeManager: string;
-  tokenFactory: string;
-  saleFactory: string;
+  // Implementations
   tokenImplementation: string;
-  saleImplementation: string;
+  simpleIdentityRegistryImplementation: string;
   identityRegistryImplementation: string;
   complianceImplementation: string;
+  saleImplementation: string;
+  fractionTokenImplementation: string;
+  vaultImplementation: string;
+  // ERC-3643 identity implementations
+  onchainIdImplementation: string;
+  onchainIdFactory: string;
+  claimIssuer: string;
+  // Factories
+  tokenFactory: string;
+  saleFactory: string;
+  fractionFactory: string;
+  // Compliance modules
   countryAllowModule: string;
   maxHolderCountModule: string;
-  // Per-token/sale addresses (populated by deploySale)
-  sampleToken?: string;
-  sampleSale?: string;
+  // Testnet only
+  ciretaUSDC: string;
+  // Metadata
+  identityMode: string;
 }
 
 const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
@@ -37,315 +68,560 @@ function saveDeployment(network: string, addresses: Partial<DeploymentAddresses>
   }
   const filePath = path.join(DEPLOYMENTS_DIR, `${network}.json`);
   fs.writeFileSync(filePath, JSON.stringify(addresses, null, 2) + "\n");
-  console.log(`\nDeployment addresses saved to: ${filePath}`);
+}
+
+function getNetworkName(chainId: bigint): string {
+  const hn = process.env.HARDHAT_NETWORK;
+  if (hn === "localhost" || hn === "hardhat") return "localhost";
+  if (chainId === 84532n) return "base-sepolia";
+  if (chainId === 8453n) return "base";
+  if (chainId === 11155111n) return "sepolia";
+  return "hardhat";
 }
 
 async function main() {
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
-  // Detect local hardhat node: --network localhost or hardhat's in-process node
-  const isLocalhost = process.env.HARDHAT_NETWORK === "localhost" || process.env.HARDHAT_NETWORK === "hardhat";
-  const networkName = isLocalhost ? "localhost" : network.chainId === 84532n ? "base-sepolia" : network.chainId === 8453n ? "base" : network.chainId === 11155111n ? "sepolia" : "hardhat";
+  const networkName = getNetworkName(network.chainId);
 
-  console.log("Deploying contracts with account:", deployer.address);
-  console.log("Network:", networkName, "(chainId:", network.chainId.toString(), ")");
+  // ── Identity mode selection ──
+  const identityMode = process.env.IDENTITY_MODE || "";
+
+  if (!identityMode || !["simple", "erc3643"].includes(identityMode)) {
+    console.log("");
+    console.log("╔══════════════════════════════════════════════════════════════╗");
+    console.log("║  IDENTITY_MODE not set. Set it in .env before deploying.    ║");
+    console.log("╠══════════════════════════════════════════════════════════════╣");
+    console.log("║                                                             ║");
+    console.log("║  IDENTITY_MODE=simple                                       ║");
+    console.log("║    Whitelist-based verification (recommended to start)       ║");
+    console.log("║    • 13 contracts deployed                                  ║");
+    console.log("║    • ~50K gas per investor (~$0.002)                         ║");
+    console.log("║    • Backend adds wallets to whitelist after KYC             ║");
+    console.log("║    • Can upgrade to ERC-3643 later without breaking          ║");
+    console.log("║      existing tokens                                        ║");
+    console.log("║                                                             ║");
+    console.log("║  IDENTITY_MODE=erc3643                                      ║");
+    console.log("║    Full ONCHAINID + Claims (institutional grade)             ║");
+    console.log("║    • 20 contracts deployed                                  ║");
+    console.log("║    • ~1.9M gas per investor (~$0.06)                         ║");
+    console.log("║    • Deploys per-investor identity contracts on-chain        ║");
+    console.log("║    • Cryptographic claim verification on every transfer      ║");
+    console.log("║    • Cross-platform identity portability (ERC-734/735)       ║");
+    console.log("║    • Requires CLAIM_SIGNER_PRIVATE_KEY env var               ║");
+    console.log("║                                                             ║");
+    console.log("╚══════════════════════════════════════════════════════════════╝");
+    console.log("");
+    console.log("  Set IDENTITY_MODE=simple or IDENTITY_MODE=erc3643 in your .env file and re-run.");
+    console.log("");
+    process.exit(1);
+  }
+
+  const isSimple = identityMode === "simple";
+
+  console.log("");
+  console.log("╔══════════════════════════════════════════════════════╗");
+  console.log("║         CIRETA PLATFORM DEPLOYMENT                  ║");
+  console.log("╚══════════════════════════════════════════════════════╝");
+  console.log(`  Deployer:       ${deployer.address}`);
+  console.log(`  Network:        ${networkName} (chainId: ${network.chainId})`);
+  console.log(`  Identity Mode:  ${identityMode.toUpperCase()}`);
 
   const balance = await ethers.provider.getBalance(deployer.address);
-  console.log("Account balance:", ethers.formatEther(balance), "ETH");
+  console.log(`  Balance:        ${ethers.formatEther(balance)} ETH`);
+
+  const platformAdmin = process.env.PLATFORM_ADMIN_ADDRESS;
+  const feeReceiver = process.env.PLATFORM_FEE_RECEIVER;
+  console.log(`  Platform Admin: ${platformAdmin || "deployer (no transfer)"}`);
+  console.log(`  Fee Receiver:   ${feeReceiver || "deployer"}`);
+  console.log(`  Contracts:      ${isSimple ? "~13" : "~20"}`);
+  console.log("");
 
   // Load existing deployment for idempotency
   const existing = loadExistingDeployment(networkName);
-  const addresses: Partial<DeploymentAddresses> = { ...existing };
+  const addr: Partial<DeploymentAddresses> = { ...existing };
+  addr.identityMode = identityMode;
 
-  // 1. Deploy platform registries (deploy once)
-  console.log("\n=== Deploying Platform Registries ===");
+  // ════════════════════════════════════════════════════════
+  // STEP 1: Platform Registries
+  // ════════════════════════════════════════════════════════
+  console.log("=== Step 1: Platform Registries ===");
 
-  if (!addresses.identityRegistryStorage) {
-    const IdentityRegistryStorage = await ethers.getContractFactory("IdentityRegistryStorage");
-    const identityStorageProxy = await upgrades.deployProxy(
-      IdentityRegistryStorage,
-      [deployer.address],
-      { kind: "uups" }
+  if (!addr.issuerRegistry) {
+    const F = await ethers.getContractFactory("IssuerRegistry");
+    const proxy = await upgrades.deployProxy(F, [deployer.address], { kind: "uups" });
+    await proxy.waitForDeployment();
+    addr.issuerRegistry = await proxy.getAddress();
+    console.log("  IssuerRegistry:", addr.issuerRegistry);
+  } else {
+    console.log("  IssuerRegistry: (exists)", addr.issuerRegistry);
+  }
+
+  if (!addr.platformFeeManager) {
+    const F = await ethers.getContractFactory("PlatformFeeManager");
+    const proxy = await upgrades.deployProxy(
+      F, [deployer.address, deployer.address, 200],
+      { kind: "uups" },
     );
-    await identityStorageProxy.waitForDeployment();
-    addresses.identityRegistryStorage = await identityStorageProxy.getAddress();
-    console.log("IdentityRegistryStorage deployed to:", addresses.identityRegistryStorage);
+    await proxy.waitForDeployment();
+    addr.platformFeeManager = await proxy.getAddress();
+    console.log("  PlatformFeeManager:", addr.platformFeeManager);
   } else {
-    console.log("IdentityRegistryStorage already deployed:", addresses.identityRegistryStorage);
+    console.log("  PlatformFeeManager: (exists)", addr.platformFeeManager);
   }
 
-  if (!addresses.claimTopicsRegistry) {
-    const ClaimTopicsRegistry = await ethers.getContractFactory("ClaimTopicsRegistry");
-    const claimTopicsProxy = await upgrades.deployProxy(
-      ClaimTopicsRegistry,
-      [deployer.address],
-      { kind: "uups" }
-    );
-    await claimTopicsProxy.waitForDeployment();
-    addresses.claimTopicsRegistry = await claimTopicsProxy.getAddress();
-    console.log("ClaimTopicsRegistry deployed to:", addresses.claimTopicsRegistry);
-  } else {
-    console.log("ClaimTopicsRegistry already deployed:", addresses.claimTopicsRegistry);
-  }
-
-  if (!addresses.trustedIssuersRegistry) {
-    const TrustedIssuersRegistry = await ethers.getContractFactory("TrustedIssuersRegistry");
-    const trustedIssuersProxy = await upgrades.deployProxy(
-      TrustedIssuersRegistry,
-      [deployer.address],
-      { kind: "uups" }
-    );
-    await trustedIssuersProxy.waitForDeployment();
-    addresses.trustedIssuersRegistry = await trustedIssuersProxy.getAddress();
-    console.log("TrustedIssuersRegistry deployed to:", addresses.trustedIssuersRegistry);
-  } else {
-    console.log("TrustedIssuersRegistry already deployed:", addresses.trustedIssuersRegistry);
-  }
-
-  if (!addresses.issuerRegistry) {
-    const IssuerRegistry = await ethers.getContractFactory("IssuerRegistry");
-    const issuerRegistryProxy = await upgrades.deployProxy(
-      IssuerRegistry,
-      [deployer.address],
-      { kind: "uups" }
-    );
-    await issuerRegistryProxy.waitForDeployment();
-    addresses.issuerRegistry = await issuerRegistryProxy.getAddress();
-    console.log("IssuerRegistry deployed to:", addresses.issuerRegistry);
-  } else {
-    console.log("IssuerRegistry already deployed:", addresses.issuerRegistry);
-  }
-
-  if (!addresses.platformFeeManager) {
-    const PlatformFeeManager = await ethers.getContractFactory("PlatformFeeManager");
-    const feeManagerProxy = await upgrades.deployProxy(
-      PlatformFeeManager,
-      [deployer.address, deployer.address, 200], // 2% default fee
-      { kind: "uups" }
-    );
-    await feeManagerProxy.waitForDeployment();
-    addresses.platformFeeManager = await feeManagerProxy.getAddress();
-    console.log("PlatformFeeManager deployed to:", addresses.platformFeeManager);
-  } else {
-    console.log("PlatformFeeManager already deployed:", addresses.platformFeeManager);
-  }
-
-  // 2. Deploy implementation contracts
-  console.log("\n=== Deploying Implementation Contracts ===");
-
-  if (!addresses.tokenImplementation) {
-    const CiretaToken = await ethers.getContractFactory("CiretaToken");
-    const tokenImpl = await CiretaToken.deploy();
-    await tokenImpl.waitForDeployment();
-    addresses.tokenImplementation = await tokenImpl.getAddress();
-    console.log("CiretaToken implementation deployed to:", addresses.tokenImplementation);
-  } else {
-    console.log("CiretaToken implementation already deployed:", addresses.tokenImplementation);
-  }
-
-  if (!addresses.identityRegistryImplementation) {
-    const IdentityRegistry = await ethers.getContractFactory("IdentityRegistry");
-    const identityRegistryImpl = await IdentityRegistry.deploy();
-    await identityRegistryImpl.waitForDeployment();
-    addresses.identityRegistryImplementation = await identityRegistryImpl.getAddress();
-    console.log("IdentityRegistry implementation deployed to:", addresses.identityRegistryImplementation);
-  } else {
-    console.log("IdentityRegistry implementation already deployed:", addresses.identityRegistryImplementation);
-  }
-
-  if (!addresses.complianceImplementation) {
-    const ModularCompliance = await ethers.getContractFactory("ModularCompliance");
-    const complianceImpl = await ModularCompliance.deploy();
-    await complianceImpl.waitForDeployment();
-    addresses.complianceImplementation = await complianceImpl.getAddress();
-    console.log("ModularCompliance implementation deployed to:", addresses.complianceImplementation);
-  } else {
-    console.log("ModularCompliance implementation already deployed:", addresses.complianceImplementation);
-  }
-
-  if (!addresses.saleImplementation) {
-    const Sale = await ethers.getContractFactory("Sale");
-    const saleImpl = await Sale.deploy();
-    await saleImpl.waitForDeployment();
-    addresses.saleImplementation = await saleImpl.getAddress();
-    console.log("Sale implementation deployed to:", addresses.saleImplementation);
-  } else {
-    console.log("Sale implementation already deployed:", addresses.saleImplementation);
-  }
-
-  // 3. Deploy Token Factory
-  console.log("\n=== Deploying Token Factory ===");
-
-  if (!addresses.tokenFactory) {
-    const CiretaTokenFactory = await ethers.getContractFactory("CiretaTokenFactory");
-    const factoryProxy = await upgrades.deployProxy(
-      CiretaTokenFactory,
-      [
-        deployer.address,
-        addresses.tokenImplementation,
-        addresses.identityRegistryImplementation,
-        addresses.complianceImplementation,
-        addresses.claimTopicsRegistry,
-        addresses.trustedIssuersRegistry,
-        addresses.identityRegistryStorage,
-        addresses.issuerRegistry,
-      ],
-      { kind: "uups" }
-    );
-    await factoryProxy.waitForDeployment();
-    addresses.tokenFactory = await factoryProxy.getAddress();
-    console.log("CiretaTokenFactory deployed to:", addresses.tokenFactory);
-  } else {
-    console.log("CiretaTokenFactory already deployed:", addresses.tokenFactory);
-  }
-
-  // 4. Deploy Sale Factory
-  console.log("\n=== Deploying Sale Factory ===");
-
-  if (!addresses.saleFactory) {
-    const CiretaSaleFactory = await ethers.getContractFactory("CiretaSaleFactory");
-    const saleFactoryProxy = await upgrades.deployProxy(
-      CiretaSaleFactory,
-      [deployer.address, addresses.saleImplementation],
-      { kind: "uups" }
-    );
-    await saleFactoryProxy.waitForDeployment();
-    addresses.saleFactory = await saleFactoryProxy.getAddress();
-    console.log("CiretaSaleFactory deployed to:", addresses.saleFactory);
-  } else {
-    console.log("CiretaSaleFactory already deployed:", addresses.saleFactory);
-  }
-
-  // 4b. Transfer IdentityRegistryStorage ownership to TokenFactory
-  //     so factory can call bindIdentityRegistry() (onlyOwner)
-  console.log("\n=== Transferring IdentityRegistryStorage ownership to TokenFactory ===");
-  {
-    const IdentityRegistryStorage = await ethers.getContractFactory("IdentityRegistryStorage");
-    const identityStorage = IdentityRegistryStorage.attach(addresses.identityRegistryStorage!) as any;
-    const currentOwner = await identityStorage.owner();
-    if (currentOwner.toLowerCase() !== addresses.tokenFactory!.toLowerCase()) {
-      const tx = await identityStorage.transferOwnership(addresses.tokenFactory!);
-      await tx.wait();
-      console.log("IdentityRegistryStorage ownership transferred to TokenFactory:", addresses.tokenFactory);
+  // ERC-3643 only: deploy shared identity registries
+  if (!isSimple) {
+    if (!addr.identityRegistryStorage) {
+      const F = await ethers.getContractFactory("IdentityRegistryStorage");
+      const proxy = await upgrades.deployProxy(F, [deployer.address], { kind: "uups" });
+      await proxy.waitForDeployment();
+      addr.identityRegistryStorage = await proxy.getAddress();
+      console.log("  IdentityRegistryStorage:", addr.identityRegistryStorage);
     } else {
-      console.log("IdentityRegistryStorage already owned by TokenFactory");
+      console.log("  IdentityRegistryStorage: (exists)", addr.identityRegistryStorage);
+    }
+
+    if (!addr.claimTopicsRegistry) {
+      const F = await ethers.getContractFactory("ClaimTopicsRegistry");
+      const proxy = await upgrades.deployProxy(F, [deployer.address], { kind: "uups" });
+      await proxy.waitForDeployment();
+      addr.claimTopicsRegistry = await proxy.getAddress();
+      console.log("  ClaimTopicsRegistry:", addr.claimTopicsRegistry);
+    } else {
+      console.log("  ClaimTopicsRegistry: (exists)", addr.claimTopicsRegistry);
+    }
+
+    if (!addr.trustedIssuersRegistry) {
+      const F = await ethers.getContractFactory("TrustedIssuersRegistry");
+      const proxy = await upgrades.deployProxy(F, [deployer.address], { kind: "uups" });
+      await proxy.waitForDeployment();
+      addr.trustedIssuersRegistry = await proxy.getAddress();
+      console.log("  TrustedIssuersRegistry:", addr.trustedIssuersRegistry);
+    } else {
+      console.log("  TrustedIssuersRegistry: (exists)", addr.trustedIssuersRegistry);
+    }
+  } else {
+    console.log("  IdentityRegistryStorage: SKIPPED (simple mode)");
+    console.log("  ClaimTopicsRegistry: SKIPPED (simple mode)");
+    console.log("  TrustedIssuersRegistry: SKIPPED (simple mode)");
+  }
+
+  saveDeployment(networkName, addr);
+
+  // ════════════════════════════════════════════════════════
+  // STEP 2: Implementation Contracts
+  // ════════════════════════════════════════════════════════
+  console.log("\n=== Step 2: Implementation Contracts ===");
+
+  if (!addr.tokenImplementation) {
+    const F = await ethers.getContractFactory("CiretaToken");
+    const impl = await F.deploy();
+    await impl.waitForDeployment();
+    addr.tokenImplementation = await impl.getAddress();
+    console.log("  CiretaToken impl:", addr.tokenImplementation);
+  } else {
+    console.log("  CiretaToken impl: (exists)", addr.tokenImplementation);
+  }
+
+  if (isSimple) {
+    // Simple mode: deploy only SimpleIdentityRegistry
+    if (!addr.simpleIdentityRegistryImplementation) {
+      const F = await ethers.getContractFactory("SimpleIdentityRegistry");
+      const impl = await F.deploy();
+      await impl.waitForDeployment();
+      addr.simpleIdentityRegistryImplementation = await impl.getAddress();
+      console.log("  SimpleIdentityRegistry impl:", addr.simpleIdentityRegistryImplementation);
+    } else {
+      console.log("  SimpleIdentityRegistry impl: (exists)", addr.simpleIdentityRegistryImplementation);
+    }
+    console.log("  IdentityRegistry impl: SKIPPED (simple mode)");
+  } else {
+    // ERC-3643 mode: deploy full IdentityRegistry
+    if (!addr.identityRegistryImplementation) {
+      const F = await ethers.getContractFactory("IdentityRegistry");
+      const impl = await F.deploy();
+      await impl.waitForDeployment();
+      addr.identityRegistryImplementation = await impl.getAddress();
+      console.log("  IdentityRegistry impl:", addr.identityRegistryImplementation);
+    } else {
+      console.log("  IdentityRegistry impl: (exists)", addr.identityRegistryImplementation);
+    }
+    console.log("  SimpleIdentityRegistry impl: SKIPPED (erc3643 mode)");
+  }
+
+  if (!addr.complianceImplementation) {
+    const F = await ethers.getContractFactory("ModularCompliance");
+    const impl = await F.deploy();
+    await impl.waitForDeployment();
+    addr.complianceImplementation = await impl.getAddress();
+    console.log("  ModularCompliance impl:", addr.complianceImplementation);
+  } else {
+    console.log("  ModularCompliance impl: (exists)", addr.complianceImplementation);
+  }
+
+  if (!addr.saleImplementation) {
+    const F = await ethers.getContractFactory("Sale");
+    const impl = await F.deploy();
+    await impl.waitForDeployment();
+    addr.saleImplementation = await impl.getAddress();
+    console.log("  Sale impl:", addr.saleImplementation);
+  } else {
+    console.log("  Sale impl: (exists)", addr.saleImplementation);
+  }
+
+  if (!addr.fractionTokenImplementation) {
+    const F = await ethers.getContractFactory("CiretaFractionToken");
+    const impl = await F.deploy();
+    await impl.waitForDeployment();
+    addr.fractionTokenImplementation = await impl.getAddress();
+    console.log("  FractionToken impl:", addr.fractionTokenImplementation);
+  } else {
+    console.log("  FractionToken impl: (exists)", addr.fractionTokenImplementation);
+  }
+
+  if (!addr.vaultImplementation) {
+    const F = await ethers.getContractFactory("CiretaVault");
+    const impl = await F.deploy();
+    await impl.waitForDeployment();
+    addr.vaultImplementation = await impl.getAddress();
+    console.log("  Vault impl:", addr.vaultImplementation);
+  } else {
+    console.log("  Vault impl: (exists)", addr.vaultImplementation);
+  }
+
+  saveDeployment(networkName, addr);
+
+  // ════════════════════════════════════════════════════════
+  // STEP 3: Factories
+  // ════════════════════════════════════════════════════════
+  console.log("\n=== Step 3: Factories ===");
+
+  const identityImpl = isSimple
+    ? addr.simpleIdentityRegistryImplementation!
+    : addr.identityRegistryImplementation!;
+
+  // For simple mode, pass zero addresses for unused registry references
+  const claimTopicsAddr = addr.claimTopicsRegistry || ethers.ZeroAddress;
+  const trustedIssuersAddr = addr.trustedIssuersRegistry || ethers.ZeroAddress;
+  const identityStorageAddr = addr.identityRegistryStorage || ethers.ZeroAddress;
+
+  if (!addr.tokenFactory) {
+    const F = await ethers.getContractFactory("CiretaTokenFactory");
+    const proxy = await upgrades.deployProxy(F, [
+      deployer.address,
+      addr.tokenImplementation,
+      identityImpl,
+      addr.complianceImplementation,
+      claimTopicsAddr,
+      trustedIssuersAddr,
+      identityStorageAddr,
+      addr.issuerRegistry,
+    ], { kind: "uups" });
+    await proxy.waitForDeployment();
+    addr.tokenFactory = await proxy.getAddress();
+    console.log("  CiretaTokenFactory:", addr.tokenFactory);
+  } else {
+    console.log("  CiretaTokenFactory: (exists)", addr.tokenFactory);
+  }
+
+  if (!addr.saleFactory) {
+    const F = await ethers.getContractFactory("CiretaSaleFactory");
+    const proxy = await upgrades.deployProxy(F, [
+      deployer.address,
+      addr.saleImplementation,
+    ], { kind: "uups" });
+    await proxy.waitForDeployment();
+    addr.saleFactory = await proxy.getAddress();
+    console.log("  CiretaSaleFactory:", addr.saleFactory);
+  } else {
+    console.log("  CiretaSaleFactory: (exists)", addr.saleFactory);
+  }
+
+  if (!addr.fractionFactory) {
+    const F = await ethers.getContractFactory("CiretaFractionFactory");
+    const proxy = await upgrades.deployProxy(F, [
+      deployer.address,
+      addr.fractionTokenImplementation,
+      addr.vaultImplementation,
+    ], { kind: "uups", unsafeAllow: ["constructor"] });
+    await proxy.waitForDeployment();
+    addr.fractionFactory = await proxy.getAddress();
+    console.log("  CiretaFractionFactory:", addr.fractionFactory);
+  } else {
+    console.log("  CiretaFractionFactory: (exists)", addr.fractionFactory);
+  }
+
+  saveDeployment(networkName, addr);
+
+  // ════════════════════════════════════════════════════════
+  // STEP 4: Identity Mode Configuration
+  // ════════════════════════════════════════════════════════
+  console.log(`\n=== Step 4: Identity Mode (${identityMode.toUpperCase()}) ===`);
+
+  const tokenFactory = (await ethers.getContractFactory("CiretaTokenFactory")).attach(addr.tokenFactory!) as any;
+
+  if (isSimple) {
+    try {
+      const tx = await tokenFactory.setSimpleIdentityMode(true);
+      await tx.wait();
+      console.log("  SimpleIdentityMode: ENABLED");
+    } catch (e: any) {
+      console.log("  SimpleIdentityMode: already set —", e.message?.slice(0, 60));
+    }
+  } else {
+    // ERC-3643: deploy identity contracts
+    if (!addr.onchainIdImplementation) {
+      const F = await ethers.getContractFactory("OnchainID");
+      const impl = await F.deploy();
+      await impl.waitForDeployment();
+      addr.onchainIdImplementation = await impl.getAddress();
+      console.log("  OnchainID impl:", addr.onchainIdImplementation);
+    }
+
+    if (!addr.onchainIdFactory) {
+      const F = await ethers.getContractFactory("OnchainIDFactory");
+      const proxy = await upgrades.deployProxy(F, [
+        addr.onchainIdImplementation, deployer.address,
+      ], { kind: "uups" });
+      await proxy.waitForDeployment();
+      addr.onchainIdFactory = await proxy.getAddress();
+      console.log("  OnchainIDFactory:", addr.onchainIdFactory);
+    }
+
+    if (!addr.claimIssuer) {
+      const claimSigner = process.env.CLAIM_SIGNER_ADDRESS || deployer.address;
+      const F = await ethers.getContractFactory("CiretaClaimIssuer");
+      const proxy = await upgrades.deployProxy(F, [
+        deployer.address, claimSigner,
+      ], { kind: "uups" });
+      await proxy.waitForDeployment();
+      addr.claimIssuer = await proxy.getAddress();
+      console.log("  CiretaClaimIssuer:", addr.claimIssuer);
+
+      // Register as trusted issuer
+      const tir = (await ethers.getContractFactory("TrustedIssuersRegistry")).attach(addr.trustedIssuersRegistry!) as any;
+      try {
+        const tx = await tir.addTrustedIssuer(addr.claimIssuer, [1, 2]);
+        await tx.wait();
+        console.log("  ClaimIssuer registered for topics [KYC=1, AML=2]");
+      } catch {
+        console.log("  ClaimIssuer: already registered (non-fatal)");
+      }
+    }
+
+    // Configure claim topics
+    try {
+      const ct = (await ethers.getContractFactory("ClaimTopicsRegistry")).attach(addr.claimTopicsRegistry!) as any;
+      await (await ct.addClaimTopic(1)).wait(); // KYC
+      console.log("  ClaimTopicsRegistry: added KYC topic (1)");
+    } catch {
+      console.log("  ClaimTopicsRegistry: KYC topic already added (non-fatal)");
+    }
+
+    try {
+      const tx = await tokenFactory.setSimpleIdentityMode(false);
+      await tx.wait();
+      console.log("  SimpleIdentityMode: DISABLED (using ERC-3643)");
+    } catch (e: any) {
+      console.log("  SimpleIdentityMode: already disabled —", e.message?.slice(0, 60));
+    }
+
+    saveDeployment(networkName, addr);
+  }
+
+  // ════════════════════════════════════════════════════════
+  // STEP 5: Cross-Contract Wiring
+  // ════════════════════════════════════════════════════════
+  console.log("\n=== Step 5: Cross-Contract Wiring ===");
+
+  // IdentityRegistryStorage → TokenFactory (ERC-3643 only)
+  if (!isSimple && addr.identityRegistryStorage) {
+    const irs = (await ethers.getContractFactory("IdentityRegistryStorage")).attach(addr.identityRegistryStorage) as any;
+    const currentOwner = await irs.owner();
+    if (currentOwner.toLowerCase() !== addr.tokenFactory!.toLowerCase()) {
+      const tx = await irs.transferOwnership(addr.tokenFactory!);
+      await tx.wait();
+      console.log("  IdentityRegistryStorage → TokenFactory");
+    } else {
+      console.log("  IdentityRegistryStorage → TokenFactory (already done)");
     }
   }
 
-  // 5. Deploy compliance modules
-  console.log("\n=== Deploying Compliance Modules ===");
+  // SaleFactory references
+  {
+    const sf = (await ethers.getContractFactory("CiretaSaleFactory")).attach(addr.saleFactory!) as any;
 
-  if (!addresses.countryAllowModule) {
-    const CountryAllowModule = await ethers.getContractFactory("CountryAllowModule");
-    const countryModuleProxy = await upgrades.deployProxy(
-      CountryAllowModule,
-      [deployer.address],
-      { kind: "uups" }
-    );
-    await countryModuleProxy.waitForDeployment();
-    addresses.countryAllowModule = await countryModuleProxy.getAddress();
-    console.log("CountryAllowModule deployed to:", addresses.countryAllowModule);
+    try {
+      await (await sf.setIssuerRegistry(addr.issuerRegistry!)).wait();
+      console.log("  SaleFactory.issuerRegistry →", addr.issuerRegistry);
+    } catch {
+      console.log("  SaleFactory.issuerRegistry: already set (non-fatal)");
+    }
+
+    try {
+      await (await sf.setPlatformFeeManager(addr.platformFeeManager!)).wait();
+      console.log("  SaleFactory.platformFeeManager →", addr.platformFeeManager);
+    } catch {
+      console.log("  SaleFactory.platformFeeManager: already set (non-fatal)");
+    }
+
+    try {
+      await (await sf.setFractionFactory(addr.fractionFactory!)).wait();
+      console.log("  SaleFactory.fractionFactory →", addr.fractionFactory);
+    } catch {
+      console.log("  SaleFactory.fractionFactory: already set (non-fatal)");
+    }
+  }
+
+  // Transfer FractionFactory ownership to SaleFactory (required for deploySaleVested)
+  {
+    const ff = (await ethers.getContractFactory("CiretaFractionFactory")).attach(addr.fractionFactory!) as any;
+    const ffOwner = await ff.owner();
+    if (ffOwner.toLowerCase() !== addr.saleFactory!.toLowerCase()) {
+      if (ffOwner.toLowerCase() === deployer.address.toLowerCase()) {
+        await (await ff.transferOwnership(addr.saleFactory!)).wait();
+        console.log("  FractionFactory → SaleFactory (ownership transferred)");
+      } else {
+        console.log("  FractionFactory → owned by", ffOwner.slice(0, 10), "(manual transfer needed)");
+      }
+    } else {
+      console.log("  FractionFactory → SaleFactory (already done)");
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // STEP 6: Compliance Modules
+  // ════════════════════════════════════════════════════════
+  console.log("\n=== Step 6: Compliance Modules ===");
+
+  if (!addr.countryAllowModule) {
+    const F = await ethers.getContractFactory("CountryAllowModule");
+    const proxy = await upgrades.deployProxy(F, [deployer.address], { kind: "uups" });
+    await proxy.waitForDeployment();
+    addr.countryAllowModule = await proxy.getAddress();
+    console.log("  CountryAllowModule:", addr.countryAllowModule);
   } else {
-    console.log("CountryAllowModule already deployed:", addresses.countryAllowModule);
+    console.log("  CountryAllowModule: (exists)", addr.countryAllowModule);
   }
 
-  if (!addresses.maxHolderCountModule) {
-    const MaxHolderCountModule = await ethers.getContractFactory("MaxHolderCountModule");
-    const maxHolderModuleProxy = await upgrades.deployProxy(
-      MaxHolderCountModule,
-      [deployer.address],
-      { kind: "uups" }
-    );
-    await maxHolderModuleProxy.waitForDeployment();
-    addresses.maxHolderCountModule = await maxHolderModuleProxy.getAddress();
-    console.log("MaxHolderCountModule deployed to:", addresses.maxHolderCountModule);
+  if (!addr.maxHolderCountModule) {
+    const F = await ethers.getContractFactory("MaxHolderCountModule");
+    const proxy = await upgrades.deployProxy(F, [deployer.address], { kind: "uups" });
+    await proxy.waitForDeployment();
+    addr.maxHolderCountModule = await proxy.getAddress();
+    console.log("  MaxHolderCountModule:", addr.maxHolderCountModule);
   } else {
-    console.log("MaxHolderCountModule already deployed:", addresses.maxHolderCountModule);
+    console.log("  MaxHolderCountModule: (exists)", addr.maxHolderCountModule);
   }
 
-  // 6. Configure claim topics
-  console.log("\n=== Configuring Claim Topics ===");
-  try {
-    const ClaimTopicsRegistry = await ethers.getContractFactory("ClaimTopicsRegistry");
-    const claimTopics = ClaimTopicsRegistry.attach(addresses.claimTopicsRegistry!) as any;
-    await claimTopics.addClaimTopic(1); // KYC claim topic
-    console.log("Added KYC claim topic (1)");
-  } catch {
-    console.log("KYC claim topic already added (or failed — non-fatal)");
+  saveDeployment(networkName, addr);
+
+  // ════════════════════════════════════════════════════════
+  // STEP 6b: Testnet Mock Tokens (skip on mainnet)
+  // ════════════════════════════════════════════════════════
+  const isMainnet = network.chainId === 8453n;
+  if (!isMainnet) {
+    console.log("\n=== Step 6b: Testnet Mock Tokens ===");
+    if (!addr.ciretaUSDC) {
+      const F = await ethers.getContractFactory("CiretaUSDC");
+      const token = await F.deploy();
+      await token.waitForDeployment();
+      addr.ciretaUSDC = await token.getAddress();
+      console.log("  CiretaUSDC (cUSDC):", addr.ciretaUSDC);
+    } else {
+      console.log("  CiretaUSDC: (exists)", addr.ciretaUSDC);
+    }
+    saveDeployment(networkName, addr);
+  } else {
+    console.log("\n=== Step 6b: Mainnet — using real USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913) ===");
   }
 
-  // 7. Transfer ownership to platform admin (staged deploy — Option 2)
-  //    Deployer was temporary owner for setup convenience.
-  //    After this block, deployer retains ZERO access.
-  const platformAdmin = process.env.PLATFORM_ADMIN_ADDRESS;
-  const feeReceiver = process.env.PLATFORM_FEE_RECEIVER || platformAdmin;
-
+  // ════════════════════════════════════════════════════════
+  // STEP 7: Transfer Ownership to Platform Admin
+  // ════════════════════════════════════════════════════════
   if (platformAdmin && platformAdmin.toLowerCase() !== deployer.address.toLowerCase()) {
-    console.log("\n=== Transferring Ownership to Platform Admin ===");
-    console.log("Platform admin:", platformAdmin);
+    console.log("\n=== Step 7: Transfer Ownership to Platform Admin ===");
+    console.log(`  Admin: ${platformAdmin}`);
 
-    // Update PlatformFeeManager fee receiver BEFORE transferring ownership
-    // (setFeeReceiver is onlyOwner — deployer must still be owner)
+    // Update fee receiver BEFORE transferring ownership
     if (feeReceiver) {
       try {
-        const PFM = await ethers.getContractFactory("PlatformFeeManager");
-        const pfm = PFM.attach(addresses.platformFeeManager!) as any;
-        const currentReceiver = await pfm.feeReceiver();
-        if (currentReceiver.toLowerCase() !== feeReceiver.toLowerCase()) {
-          const tx = await pfm.setFeeReceiver(feeReceiver);
-          await tx.wait();
-          console.log(`  PlatformFeeManager.feeReceiver → updated to ${feeReceiver}`);
+        const pfm = (await ethers.getContractFactory("PlatformFeeManager")).attach(addr.platformFeeManager!) as any;
+        const current = await pfm.feeReceiver();
+        if (current.toLowerCase() !== feeReceiver.toLowerCase()) {
+          await (await pfm.setFeeReceiver(feeReceiver)).wait();
+          console.log(`  FeeReceiver → ${feeReceiver}`);
         } else {
-          console.log(`  PlatformFeeManager.feeReceiver → already set to ${feeReceiver}`);
+          console.log(`  FeeReceiver → already set`);
         }
       } catch (e: any) {
-        console.error(`  PlatformFeeManager.feeReceiver → update failed: ${e.message?.slice(0, 100)}`);
+        console.error(`  FeeReceiver failed: ${e.message?.slice(0, 80)}`);
       }
     }
 
-    // Transfer ownership of all platform contracts to ciretaAdmin
+    // Build transfer list based on mode
     const transfers: Array<{ name: string; address: string }> = [
-      { name: "ClaimTopicsRegistry", address: addresses.claimTopicsRegistry! },
-      { name: "TrustedIssuersRegistry", address: addresses.trustedIssuersRegistry! },
-      { name: "IssuerRegistry", address: addresses.issuerRegistry! },
-      { name: "PlatformFeeManager", address: addresses.platformFeeManager! },
-      { name: "CiretaTokenFactory", address: addresses.tokenFactory! },
-      { name: "CiretaSaleFactory", address: addresses.saleFactory! },
-      { name: "CountryAllowModule", address: addresses.countryAllowModule! },
-      { name: "MaxHolderCountModule", address: addresses.maxHolderCountModule! },
+      { name: "IssuerRegistry", address: addr.issuerRegistry! },
+      { name: "PlatformFeeManager", address: addr.platformFeeManager! },
+      { name: "CiretaTokenFactory", address: addr.tokenFactory! },
+      { name: "CiretaSaleFactory", address: addr.saleFactory! },
+      // NOTE: FractionFactory ownership goes to SaleFactory (not admin)
+      // because SaleFactory.deploySaleVested() calls FractionFactory.deployVaultAndFraction() which is onlyOwner
+      { name: "CountryAllowModule", address: addr.countryAllowModule! },
+      { name: "MaxHolderCountModule", address: addr.maxHolderCountModule! },
     ];
 
+    // ERC-3643 only contracts
+    if (!isSimple) {
+      if (addr.claimTopicsRegistry) transfers.push({ name: "ClaimTopicsRegistry", address: addr.claimTopicsRegistry });
+      if (addr.trustedIssuersRegistry) transfers.push({ name: "TrustedIssuersRegistry", address: addr.trustedIssuersRegistry });
+      if (addr.onchainIdFactory) transfers.push({ name: "OnchainIDFactory", address: addr.onchainIdFactory });
+      if (addr.claimIssuer) transfers.push({ name: "CiretaClaimIssuer", address: addr.claimIssuer });
+    }
+
     for (const { name, address } of transfers) {
+      if (!address) continue;
       try {
-        const factory = await ethers.getContractFactory(name);
-        const contract = factory.attach(address) as any;
+        const contract = (await ethers.getContractFactory(name)).attach(address) as any;
         const currentOwner = await contract.owner();
         if (currentOwner.toLowerCase() === deployer.address.toLowerCase()) {
-          const tx = await contract.transferOwnership(platformAdmin);
-          await tx.wait();
-          console.log(`  ${name} → ownership transferred to ${platformAdmin}`);
+          await (await contract.transferOwnership(platformAdmin)).wait();
+          console.log(`  ${name} → transferred`);
         } else {
-          console.log(`  ${name} → already owned by ${currentOwner} (skipped)`);
+          console.log(`  ${name} → already owned by ${currentOwner.slice(0, 10)}...`);
         }
       } catch (e: any) {
-        console.error(`  ${name} → transfer failed: ${e.message?.slice(0, 100)}`);
+        console.error(`  ${name} → FAILED: ${e.message?.slice(0, 80)}`);
       }
     }
 
-    console.log("\nOwnership transfer complete. Deployer wallet has ZERO access.");
+    console.log("\n  Ownership transfer complete. Deployer has ZERO access.");
   } else if (!platformAdmin) {
     console.log("\n⚠️  PLATFORM_ADMIN_ADDRESS not set — deployer retains ownership.");
-    console.log("   Set PLATFORM_ADMIN_ADDRESS env var for production deployments.");
   } else {
-    console.log("\nPlatform admin is the deployer — no ownership transfer needed.");
+    console.log("\n  Platform admin = deployer — no transfer needed.");
   }
 
-  // Save all addresses
-  saveDeployment(networkName, addresses);
+  // Final save
+  saveDeployment(networkName, addr);
 
-  // Summary
-  console.log("\n=== Deployment Summary ===");
-  console.log(JSON.stringify(addresses, null, 2));
+  // ════════════════════════════════════════════════════════
+  // SUMMARY
+  // ════════════════════════════════════════════════════════
+  const finalBalance = await ethers.provider.getBalance(deployer.address);
+  const gasUsed = balance - finalBalance;
+  const deployedCount = Object.entries(addr).filter(([k, v]) => v && k !== "identityMode").length;
+
+  console.log("\n╔══════════════════════════════════════════════════════╗");
+  console.log("║         DEPLOYMENT COMPLETE                         ║");
+  console.log("╚══════════════════════════════════════════════════════╝");
+  console.log(`  Network:        ${networkName}`);
+  console.log(`  Identity Mode:  ${identityMode.toUpperCase()}`);
+  console.log(`  Gas Used:       ${ethers.formatEther(gasUsed)} ETH`);
+  console.log(`  Remaining:      ${ethers.formatEther(finalBalance)} ETH`);
+  console.log(`  Contracts:      ${deployedCount}`);
+  console.log("\n" + JSON.stringify(addr, null, 2));
 }
 
 main()

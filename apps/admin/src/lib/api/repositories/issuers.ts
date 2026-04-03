@@ -93,3 +93,19 @@ export async function activateIssuer(
     token,
   });
 }
+
+export interface OnChainRegistrationResponse {
+  issuer_id: string;
+  wallet_address: string;
+  tx_hash: string;
+  message: string;
+}
+
+export async function registerIssuerOnChain(
+  issuerId: string,
+): Promise<OnChainRegistrationResponse> {
+  return apiFetch<OnChainRegistrationResponse>(
+    `/api/v1/admin/issuers/${issuerId}/register-onchain`,
+    { method: "POST" },
+  );
+}

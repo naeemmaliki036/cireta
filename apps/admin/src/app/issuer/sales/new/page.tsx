@@ -13,6 +13,20 @@ import Link from "next/link";
 import { Button, Input, Select, FileUpload } from "@/components/atoms";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { IssuerDashboardLayout } from "@/components/templates";
+
+// Preconfigured stablecoins — update addresses per network
+// Base Sepolia (testnet)
+const PAYMENT_TOKENS = [
+  { value: "", label: "Select payment token..." },
+  { value: "0xE730be8760dcd7B1dA6EC26F027A5A4aa6c88c72", label: "cUSDC — Cireta USDC Mock (testnet faucet)" },
+  { value: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", label: "USDC — Circle (Base Sepolia)" },
+];
+// Base Mainnet — swap the above with:
+// const PAYMENT_TOKENS = [
+//   { value: "", label: "Select payment token..." },
+//   { value: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", label: "USDC — Circle (Base)" },
+//   { value: "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA", label: "USDbC — Bridged USDC (Base)" },
+// ];
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
 import {
   createSale, addSaleTeamMember, addSaleFAQ, addSaleDocument, addSaleImage, submitSaleForApproval,
@@ -40,6 +54,7 @@ export default function CreateSalePage() {
   // OTC
   const [otcEnabled, setOtcEnabled] = useState(false);
   const [otcContent, setOtcContent] = useState("");
+  const [otcTokenAddress, setOtcTokenAddress] = useState("");
   // Step 2: Content
   const [fullDescription, setFullDescription] = useState("");
   // Step 3: Gallery
@@ -56,7 +71,7 @@ export default function CreateSalePage() {
   const [vestingDays, setVestingDays] = useState("365");
   // Step 7: Token & Caps (skip if coming soon)
   const [selectedTokenId, setSelectedTokenId] = useState("");
-  const [paymentToken, setPaymentToken] = useState("0x036CbD53842c5426634e7929541eC2318f3dCF7e");
+  const [paymentToken, setPaymentToken] = useState("");
   const [softCap, setSoftCap] = useState("");
   const [hardCap, setHardCap] = useState("");
   // State
@@ -136,7 +151,7 @@ export default function CreateSalePage() {
         const sale = await createSale({
           title: title || undefined, description: description || undefined,
           full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
-          is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined,
+          is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
           sale_mode: saleMode, sale_structure: saleStructure,
           cliff_duration_days: parseInt(cliffDays) || 0, vesting_duration_days: parseInt(vestingDays) || 365,
           token_id: selectedTokenId || undefined, payment_token: paymentToken,
@@ -219,10 +234,17 @@ export default function CreateSalePage() {
                 <label htmlFor="otcEnabled" className="text-sm"><span className="font-semibold">Enable OTC & Bank Transfer</span> — Allow investors to pay via wire transfer or OTC. An &quot;OTC &amp; Bank&quot; tab will be shown on the sale page.</label>
               </div>
               {otcEnabled && (
-                <div className="mt-4 space-y-2">
-                  <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to investors)</label>
-                  <p className="text-xs text-zinc-400">Include wire details, process steps, minimum amounts, and contact info. Auto-loaded from platform template — customize for this sale.</p>
-                  <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
+                <div className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to investors)</label>
+                    <p className="text-xs text-zinc-400">Include wire details, process steps, minimum amounts, and contact info.</p>
+                    <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-zinc-600">OTC Token Contract Address (optional)</label>
+                    <p className="text-xs text-zinc-400">If the issuer has an OTC token deployed, enter the address. Investors holding OTC tokens can use them to purchase at the sale price. Can also be set after sale creation.</p>
+                    <Input value={otcTokenAddress} onChange={(e) => setOtcTokenAddress(e.target.value)} placeholder="0x... (leave empty to set later)" />
+                  </div>
                 </div>
               )}
             </div>
@@ -331,7 +353,7 @@ export default function CreateSalePage() {
             <h2 className="text-xl font-semibold text-text">Token & Funding Caps</h2>
             <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.map((t) => ({ value: t.id, label: `${t.name} (${t.symbol})` }))]}
               value={selectedTokenId} onChange={(e) => setSelectedTokenId(e.target.value)} />
-            <Input label="Payment Token Address (USDC)" value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)} />
+            <Select label="Payment Token (Stablecoin)" options={PAYMENT_TOKENS} value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Soft Cap (USDC)" type="number" placeholder="e.g., 50000" value={softCap} onChange={(e) => setSoftCap(e.target.value)} />
               <Input label="Hard Cap (USDC)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />

@@ -72,9 +72,9 @@ export default function LoginPage() {
         body: JSON.stringify({ email, purpose, login_role: loginRole }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail?.message ?? "Failed to send code");
-      // Dev mode: show OTP as notification
+      // Dev mode: show OTP even if response status is not perfect
       if (data.dev_otp) setDevOtp(data.dev_otp);
+      if (!res.ok && !data.dev_otp) throw new Error(data.detail?.message ?? "Failed to send code");
       setOtpPurpose(purpose);
       setMode("verify");
       setResendCountdown(60);

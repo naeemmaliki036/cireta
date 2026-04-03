@@ -9,6 +9,7 @@ export interface SalePhase {
   sold: string;
   start_time: string;
   end_time: string;
+  whitelist_only?: boolean;
 }
 
 export interface Sale {
@@ -25,6 +26,7 @@ export interface Sale {
   is_coming_soon: boolean;
   otc_enabled: boolean;
   otc_content: string | null;
+  otc_token_address: string | null;
   title: string | null;
   description_text: string | null;
   full_description: string | null;
@@ -36,6 +38,9 @@ export interface Sale {
   facebook_url: string | null;
   telegram_url: string | null;
   discord_url: string | null;
+  contract_address: string | null;
+  token_contract_address: string | null;
+  identity_registry_address: string | null;
   phases: SalePhase[];
   token_name: string | null;
   token_symbol: string | null;
@@ -89,6 +94,7 @@ export interface CreateSaleRequest {
   is_coming_soon?: boolean;
   otc_enabled?: boolean;
   otc_content?: string;
+  otc_token_address?: string;
   sale_mode?: string;
   sale_structure?: string;
   cliff_duration_days?: number;
@@ -125,6 +131,22 @@ export async function deploySale(
     method: "POST",
     body: {},
     token,
+  });
+}
+
+/**
+ * Record on-chain sale deployment address after the issuer deploys via wallet.
+ */
+export async function recordSaleDeployment(
+  saleId: string,
+  data: {
+    contract_address: string;
+    tx_hash: string;
+  },
+): Promise<Sale> {
+  return apiFetch<Sale>(`/api/v1/sales/${saleId}/record-deployment`, {
+    method: "POST",
+    body: data,
   });
 }
 

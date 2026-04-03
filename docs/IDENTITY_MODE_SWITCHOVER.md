@@ -137,7 +137,7 @@ This controls:
 
 | File | Purpose |
 |---|---|
-| `contracts/src/token/SimpleIdentityRegistry.sol` | Whitelist registry contract |
+| `contracts/src/identity/SimpleIdentityRegistry.sol` | Whitelist registry contract |
 | `contracts/src/token/IdentityRegistry.sol` | Full ERC-3643 registry (unchanged) |
 | `contracts/src/identity/OnchainID.sol` | ONCHAINID contract (unchanged, used in erc3643 mode) |
 | `contracts/src/identity/CiretaClaimIssuer.sol` | Claim issuer (unchanged, used in erc3643 mode) |

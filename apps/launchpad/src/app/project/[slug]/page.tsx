@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell, Play,
-  FileText, ChevronDown, ChevronUp, Download,
+  FileText, ChevronDown, ChevronUp, Download, Clock,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
@@ -29,13 +29,43 @@ function getEmbedUrl(url: string): string | null {
   return null;
 }
 
+function getPhaseStatus(phase: { start_time: string; end_time: string; is_active: boolean }): "active" | "upcoming" | "ended" {
+  if (phase.is_active) return "active";
+  const now = Date.now();
+  const start = new Date(phase.start_time).getTime();
+  const end = new Date(phase.end_time).getTime();
+  if (now < start) return "upcoming";
+  if (now > end) return "ended";
+  return "upcoming";
+}
+
+function getTimeRemaining(endTime: string): string {
+  const diff = new Date(endTime).getTime() - Date.now();
+  if (diff <= 0) return "Ended";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  if (days > 0) return `${days}d ${hours}h remaining`;
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return hours > 0 ? `${hours}h ${mins}m remaining` : `${mins}m remaining`;
+}
+
+function getTimeUntilStart(startTime: string): string {
+  const diff = new Date(startTime).getTime() - Date.now();
+  if (diff <= 0) return "";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  if (days > 0) return `Starts in ${days}d ${hours}h`;
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return hours > 0 ? `Starts in ${hours}h ${mins}m` : `Starts in ${mins}m`;
+}
+
 const SIDEBAR_LINKS = [
   { href: "/explore", label: "Sales", icon: ShoppingBag },
   { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
 ];
 
-const BASE_TABS = ["Overview", "Sale", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
-const ALL_TABS = ["Overview", "Sale", "OTC & Bank", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
+const BASE_TABS = ["Overview", "Token & Sale", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
+const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
 type Tab = (typeof ALL_TABS)[number];
 
 export default function ProjectDetailPage() {
@@ -148,12 +178,16 @@ export default function ProjectDetailPage() {
                 </div>
                 {/* Sale widget overlaid on banner */}
                 <div className="absolute top-4 right-4 w-[340px] bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 z-10">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-darkAqua/10 flex items-center justify-center"><Coins className="h-4 w-4 text-darkAqua" /></div>
                       <div>
                         <p className="font-bold text-sm">USDC</p>
-                        <p className="text-xs text-gray-500">Raised out of {formatCurrency(hardCap)} USDC</p>
+                        <p className="text-xs text-gray-500">
+                          {project.isComingSoon
+                            ? "Details announced at launch"
+                            : `Raised out of ${formatCurrency(hardCap)} USDC`}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -163,11 +197,39 @@ export default function ProjectDetailPage() {
                       </span>
                     </div>
                   </div>
+                  {/* Active phase badge */}
+                  {!project.isComingSoon && ap && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1.5 bg-darkAqua/10 text-darkAqua text-xs font-semibold px-2.5 py-1 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-darkAqua" />
+                          {ap.name}
+                        </span>
+                        {ap.is_active && endTime && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 font-medium">
+                            <Clock className="h-3 w-3" />
+                            {getTimeRemaining(ap.end_time)}
+                          </span>
+                        )}
+                      </div>
+                      {/* Between-phases messaging */}
+                      {!ap.is_active && (() => {
+                        const nextPhase = project.phases.find((ph) => new Date(ph.start_time).getTime() > Date.now());
+                        if (!nextPhase) return null;
+                        return (
+                          <p className="text-xs text-blue-600 font-medium mt-1.5 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Next phase ({nextPhase.name}) {getTimeUntilStart(nextPhase.start_time).toLowerCase()}
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  )}
                   {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
                   <div className="space-y-2.5 text-sm mb-4">
-                    {endTime && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
-                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{formatCurrency(minContrib)} USDC</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Max. Buy</span><span className="font-medium">{formatCurrency(maxContrib)} USDC</span></div>
+                    {!project.isComingSoon && endTime && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${formatCurrency(minContrib)} USDC`}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Max. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${formatCurrency(maxContrib)} USDC`}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${formatCurrency(pricePerToken)} USDC` : "TBD"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
                   </div>
@@ -230,52 +292,145 @@ export default function ProjectDetailPage() {
                   ) : (
                     <p className="text-gray-600 leading-relaxed">{project.description || "Project details coming soon."}</p>
                   )}
+                </div>
+              )}
+
+              {activeTab === "Token & Sale" && (
+                <div className="space-y-6">
+                  {/* Token Details */}
                   <div className="bg-gray-50 rounded-xl p-5">
                     <h3 className="font-bold text-text mb-3 text-sm">Token Details</h3>
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      {[["Name", project.title], ["Ticker", project.tokenSymbol], ["Asset Type", project.assetType], ["Blockchain", "Base L2"]].map(([k, v]) => (
+                      {[
+                        ["Name", project.title],
+                        ["Ticker", project.tokenSymbol || "TBD"],
+                        ["Asset Type", project.assetType],
+                        ["Blockchain", "Base L2"],
+                      ].map(([k, v]) => (
                         <div key={k}><span className="text-gray-500">{k}</span><p className="font-medium capitalize">{v}</p></div>
                       ))}
                       {token?.contract_address && <div className="col-span-2"><span className="text-gray-500">Contract</span><p className="font-medium font-mono text-xs">{token.contract_address}</p></div>}
                     </div>
                   </div>
-                </div>
-              )}
 
-              {activeTab === "Sale" && (
-                <div className="space-y-6">
+                  {/* Sale Details */}
+                  <h3 className="font-bold text-text text-sm">Sale Details</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                    {[["Soft Cap", `${formatCurrency(softCap)} USDC`], ["Hard Cap", `${formatCurrency(hardCap)} USDC`], ["Token Price", `${formatCurrency(pricePerToken)} USDC`], ["Start", startTime ? fmtDate(startTime) : "TBD"], ["End", endTime ? fmtDate(endTime) : "TBD"], ["Currency", "USDC"]].map(([k, v]) => (
+                    {[
+                      ["Soft Cap", project.isComingSoon ? "TBD" : `${formatCurrency(softCap)} USDC`],
+                      ["Hard Cap", project.isComingSoon ? "TBD" : `${formatCurrency(hardCap)} USDC`],
+                      ["Token Price", pricePerToken > 0 ? `${formatCurrency(pricePerToken)} USDC` : "TBD"],
+                      ["Start", startTime ? fmtDate(startTime) : "TBD"],
+                      ["End", endTime ? fmtDate(endTime) : "TBD"],
+                      ["Currency", "USDC"],
+                    ].map(([k, v]) => (
                       <div key={k} className="bg-gray-50 rounded-xl p-4"><p className="text-gray-500 mb-1">{k}</p><p className="font-bold">{v}</p></div>
                     ))}
                   </div>
+
                   {project.phases.length > 0 && (
                     <div>
-                      <h3 className="font-bold text-text mb-3">Sale Phases</h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead><tr className="border-b border-gray-100 text-left text-gray-500">
-                            <th className="pb-2 font-medium">Phase</th><th className="pb-2 font-medium">Price</th><th className="pb-2 font-medium">Allocation</th><th className="pb-2 font-medium">Min/Max</th><th className="pb-2 font-medium">Period</th><th className="pb-2 font-medium">Status</th>
-                          </tr></thead>
-                          <tbody>
-                            {project.phases.map((p) => (
-                              <tr key={p.id} className="border-b border-gray-50">
-                                <td className="py-3 font-medium">{p.name}</td>
-                                <td className="py-3">{formatCurrency(parseFloat(p.price_per_token))}</td>
-                                <td className="py-3">{Number(p.allocation).toLocaleString()}</td>
-                                <td className="py-3">{formatCurrency(parseFloat(p.min_contribution))} - {formatCurrency(parseFloat(p.max_contribution))}</td>
-                                <td className="py-3 text-xs">{fmtDate(new Date(p.start_time))} - {fmtDate(new Date(p.end_time))}</td>
-                                <td className="py-3">{p.is_active ? <Badge variant="active" size="sm">Active</Badge> : <span className="text-gray-400">--</span>}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <h3 className="font-bold text-text mb-4">Sale Phases</h3>
+                      <div className="space-y-4">
+                        {project.phases.map((phase) => {
+                          const status = getPhaseStatus(phase);
+                          const allocation = Number(phase.allocation);
+                          const phaseSoldPct = 0; // TODO: wire per-phase sold data when API supports it
+                          const phaseSold = Math.round(allocation * phaseSoldPct / 100);
+                          return (
+                            <div
+                              key={phase.id}
+                              className={cn(
+                                "rounded-2xl border p-5 transition-all",
+                                status === "active"
+                                  ? "border-darkAqua/30 bg-darkAqua/[0.03] shadow-sm"
+                                  : "border-gray-100 bg-gray-50/50"
+                              )}
+                            >
+                              {/* Header row */}
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2.5">
+                                  <span className={cn(
+                                    "w-3 h-3 rounded-full border-2 flex-shrink-0",
+                                    status === "active" ? "bg-darkAqua border-darkAqua" : status === "upcoming" ? "bg-white border-blue-400" : "bg-gray-300 border-gray-300"
+                                  )} />
+                                  <span className="font-semibold text-sm text-text">
+                                    Phase {phase.phase_number}: {phase.name}
+                                  </span>
+                                  {phase.whitelist_only && (
+                                    <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Whitelist</span>
+                                  )}
+                                </div>
+                                <Badge
+                                  variant={status === "active" ? "active" : status === "upcoming" ? "default" : "outline"}
+                                  size="sm"
+                                  className={cn(
+                                    status === "upcoming" && "bg-blue-50 text-blue-600 border-blue-200",
+                                    status === "ended" && "bg-gray-100 text-gray-500 border-gray-200"
+                                  )}
+                                >
+                                  {status === "active" ? "Active" : status === "upcoming" ? "Upcoming" : "Ended"}
+                                </Badge>
+                              </div>
+
+                              {/* Details grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+                                <div>
+                                  <p className="text-gray-500 text-xs mb-0.5">Price</p>
+                                  <p className="font-semibold">{formatCurrency(parseFloat(phase.price_per_token))}/token</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-500 text-xs mb-0.5">Allocation</p>
+                                  <p className="font-semibold">{allocation.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-500 text-xs mb-0.5">Min Buy</p>
+                                  <p className="font-semibold">{formatCurrency(parseFloat(phase.min_contribution))}</p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-500 text-xs mb-0.5">Max Buy</p>
+                                  <p className="font-semibold">{formatCurrency(parseFloat(phase.max_contribution))}</p>
+                                </div>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div className="mb-3">
+                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                  <span>{phaseSoldPct}% sold ({phaseSold.toLocaleString()}/{allocation.toLocaleString()})</span>
+                                </div>
+                                <ProgressBar value={phaseSoldPct} size="sm" animated={status === "active"} />
+                              </div>
+
+                              {/* Date range + countdown */}
+                              <div className="flex items-center justify-between text-xs text-gray-500">
+                                <span>
+                                  {status === "upcoming" ? "Starts" : "Started"}: {fmtDate(new Date(phase.start_time))}
+                                  {" — "}
+                                  Ends: {fmtDate(new Date(phase.end_time))}
+                                </span>
+                                {status === "active" && (
+                                  <span className="inline-flex items-center gap-1 text-darkAqua font-medium">
+                                    <Clock className="h-3 w-3" />
+                                    {getTimeRemaining(phase.end_time)}
+                                  </span>
+                                )}
+                                {status === "upcoming" && (
+                                  <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+                                    <Clock className="h-3 w-3" />
+                                    {getTimeUntilStart(phase.start_time)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
+
                   {token && (
                     <div className="bg-gray-50 rounded-xl p-4 text-sm">
-                      <h4 className="font-bold mb-2">Vault Token Info</h4>
+                      <h4 className="font-bold mb-2">On-Chain Info</h4>
                       <p><span className="text-gray-500">Total Supply:</span> <span className="font-medium">{Number(token.total_supply).toLocaleString()}</span></p>
                       <p><span className="text-gray-500">Decimals:</span> <span className="font-medium">{token.decimals}</span></p>
                       {token.is_paused && <p className="text-amber-600 font-medium mt-1">Token transfers paused</p>}

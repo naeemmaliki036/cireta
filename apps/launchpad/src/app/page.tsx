@@ -50,9 +50,6 @@ function ProjectCard({ image, title, description, investors, roi, progress, inve
         {/* Stats */}
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1 text-gray-600">
-            <Users className="h-3 w-3" /> {investors.toLocaleString()} Investors
-          </span>
-          <span className="flex items-center gap-1 text-gray-600">
             <TrendingUp className="h-3 w-3" /> {roi} ROI
           </span>
         </div>
@@ -77,6 +74,81 @@ function ProjectCard({ image, title, description, investors, roi, progress, inve
           <Link href="/projects" className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
             Invest <ArrowRight className="h-3 w-3" />
           </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".ogg"];
+function isVideoUrl(url: string): boolean {
+  try { return VIDEO_EXTENSIONS.some((ext) => new URL(url).pathname.toLowerCase().endsWith(ext)); }
+  catch { return false; }
+}
+
+function LiveProjectCard({ project: p }: { project: Project }) {
+  const [imgError, setImgError] = useState(false);
+  const progress = p.targetAmount > 0 ? Math.min(Math.round((p.currentRaised / p.targetAmount) * 100), 100) : 0;
+  const hasImage = p.imageUrl && !imgError;
+  const isVideo = p.imageUrl && isVideoUrl(p.imageUrl);
+
+  const at = p.assetType.toLowerCase();
+  const gradient = at.includes("gold")
+    ? "from-[#C9913D] via-[#A87B2F] to-[#8B6914]"
+    : at.includes("copper")
+    ? "from-[#B87333] via-[#9A5E27] to-[#7D4E1F]"
+    : "from-[#13636F] via-[#0f5460] to-[#0a3d45]";
+
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
+      <div className="relative h-48 overflow-hidden flex-shrink-0">
+        {hasImage && isVideo ? (
+          <video src={p.imageUrl} muted autoPlay loop playsInline className="w-full h-full object-cover" onError={() => setImgError(true)} />
+        ) : hasImage ? (
+          <Image src={p.imageUrl} alt={p.title} fill className="object-cover" onError={() => setImgError(true)} />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${gradient}`}>
+            <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
+          </div>
+        )}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
+            <span className={`w-1.5 h-1.5 rounded-full ${p.isComingSoon ? "bg-amber-400" : "bg-darkAqua animate-pulse"}`} />
+            {p.isComingSoon ? "coming soon" : "on going"}
+          </span>
+          {!p.isComingSoon && p.fundingRound && (
+            <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-white">
+              {p.fundingRound}
+            </span>
+          )}
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+          <h3 className="text-white font-semibold text-sm flex items-center gap-1">
+            {p.title} <CheckCircle2 className="h-3.5 w-3.5 text-white/70" />
+          </h3>
+        </div>
+      </div>
+      <div className="p-4 flex flex-col flex-1">
+        <p className="text-xs text-gray-500 line-clamp-2 mb-3">{p.description || "Invest in tokenized real-world assets."}</p>
+        <div className="mt-auto space-y-3">
+          <div>
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Funding progress</span>
+              <span>{p.isComingSoon ? "TBD" : `${progress}%`}</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${p.isComingSoon ? 0 : progress}%` }} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase">Target</p>
+              <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(p.targetAmount / 1_000_000).toFixed(1)}M USDC`}</p>
+            </div>
+            <Link href={`/project/${p.slug}`} className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
+              {p.isComingSoon ? "Details" : "Invest"} <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -176,8 +248,42 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Live Opportunities ── */}
+      {projects.length > 0 && (
+        <section className="py-20 px-4 bg-box">
+          <div className="max-w-inner mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Live Opportunities</h2>
+              <p className="text-gray-500 max-w-2xl mx-auto">
+                Real-time investment opportunities in tokenized commodities — fully regulated, transparent, and backed by verified issuers.
+              </p>
+              <Link
+                href="/projects"
+                className="inline-flex items-center gap-2 bg-darkBlack text-white font-semibold px-6 py-2.5 rounded-full mt-6 text-sm hover:bg-darkBlack/90 transition-colors"
+              >
+                View All <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {projects.slice(0, 4).map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <LiveProjectCard project={p} />
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── What Makes Us Different ── */}
-      <section className="py-20 px-4 bg-white">
+      <section className="py-20 px-4 bg-box">
         <div className="max-w-inner mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-text tracking-tight mb-4">What Makes Us Different?</h2>
@@ -194,10 +300,11 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-box rounded-2xl p-8 hover:shadow-card transition-shadow"
+                className="relative bg-white rounded-2xl p-8 border border-gray-100 hover:shadow-card hover:border-darkAqua/20 transition-all group overflow-hidden"
               >
-                <div className="w-10 h-10 rounded-lg bg-darkBlack flex items-center justify-center mb-20">
-                  <f.icon className="h-5 w-5 text-white" />
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-darkAqua to-darkAqua/40 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                <div className="w-12 h-12 rounded-xl bg-darkAqua/10 flex items-center justify-center mb-6">
+                  <f.icon className="h-6 w-6 text-darkAqua" />
                 </div>
                 <h3 className="text-lg font-bold text-text mb-3">{f.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
@@ -208,7 +315,7 @@ export default function HomePage() {
       </section>
 
       {/* ── How It Works ── */}
-      <section className="py-20 px-4 bg-white">
+      <section className="py-20 px-4 bg-white" id="how-it-works">
         <div className="max-w-inner mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Jump on board. It&apos;s simple.</h2>
@@ -224,21 +331,24 @@ export default function HomePage() {
                 title: "Sign Up",
                 desc: "Create your account in seconds with just your email. No passwords needed — we use secure one-time codes.",
                 icon: Users,
-                color: "bg-blue-50 text-blue-600",
+                iconBg: "bg-darkAqua/10",
+                iconColor: "text-darkAqua",
               },
               {
                 num: "02",
                 title: "Verify",
                 desc: "Complete a quick identity check (KYC) to comply with regulations. It usually takes under 5 minutes.",
                 icon: ShieldCheck,
-                color: "bg-emerald-50 text-emerald-600",
+                iconBg: "bg-emerald-50",
+                iconColor: "text-emerald-600",
               },
               {
                 num: "03",
                 title: "Invest",
                 desc: "Browse curated commodity-backed tokens and invest on-chain with crypto or via bank transfer.",
                 icon: TrendingUp,
-                color: "bg-amber-50 text-amber-600",
+                iconBg: "bg-amber-50",
+                iconColor: "text-amber-600",
               },
             ].map((s, i) => (
               <motion.div
@@ -247,11 +357,11 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.12 }}
-                className="relative bg-box rounded-2xl p-8 group hover:shadow-card transition-shadow"
+                className="relative bg-white rounded-2xl p-8 border border-gray-100 group hover:shadow-card hover:border-gray-200 transition-all overflow-hidden"
               >
-                <span className="absolute top-6 right-6 text-5xl font-black text-gray-100 select-none">{s.num}</span>
-                <div className={`w-12 h-12 rounded-xl ${s.color} flex items-center justify-center mb-6`}>
-                  <s.icon className="h-6 w-6" />
+                <span className="absolute top-5 right-6 text-6xl font-black text-gray-50 group-hover:text-darkAqua/5 transition-colors select-none">{s.num}</span>
+                <div className={`w-12 h-12 rounded-xl ${s.iconBg} flex items-center justify-center mb-6`}>
+                  <s.icon className={`h-6 w-6 ${s.iconColor}`} />
                 </div>
                 <h3 className="text-xl font-bold text-text mb-3">{s.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>

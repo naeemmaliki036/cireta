@@ -167,6 +167,361 @@ async def get_investor_detail(
     )
 
 
+# ==================== Admin KYC Management ====================
+
+
+class AdminKYCUpdateRequest(BaseModel):
+    """Admin request to update a user's KYC status."""
+
+    kyc_status: str  # "approved", "rejected", "none"
+    reason: str | None = None
+
+
+class AdminKYCSyncResponse(BaseModel):
+    """Response from Sumsub status check."""
+
+    sumsub_status: str | None = None
+    review_answer: str | None = None
+    db_status: str
+    db_level: int
+    out_of_sync: bool = False
+    suggested_action: str | None = None
+    message: str = ""
+
+
+@router.patch("/investors/{user_id}/kyc")
+async def admin_update_kyc(
+    user_id: UUID,
+    request: AdminKYCUpdateRequest,
+    admin_id: RequireAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Manually update a user's KYC status and trigger on-chain registration if approved.
+
+    Admin-only. Supports approve, reject, or reset to none.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.enums import KYCStatus
+
+    result = await db.execute(
+        select(User).where(User.id == user_id).options(selectinload(User.wallets))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    new_status = request.kyc_status.lower()
+    if new_status not in ("approved", "rejected", "none"):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": "Status must be approved, rejected, or none"})
+
+    old_status = user.kyc_status.value if hasattr(user.kyc_status, "value") else str(user.kyc_status)
+
+    if new_status == "approved":
+        user.kyc_status = KYCStatus.APPROVED
+        user.kyc_level = 2
+        user.kyc_provider = "admin-override"
+        user.kyc_verified_at = datetime.now(tz=__import__("datetime").timezone.utc)
+
+        # Trigger on-chain identity registration
+        onchain_result = None
+        try:
+            from apps.api.services.kyc_service import KYCService
+            kyc_svc = KYCService(db)
+            await kyc_svc._issue_onchain_claims(user)
+            onchain_result = "registered"
+        except Exception as exc:
+            onchain_result = f"failed: {exc}"
+
+        await db.commit()
+
+        # Audit log
+        try:
+            from apps.api.models.audit_log import AuditLog
+            log_entry = AuditLog()
+            log_entry.user_id = admin_id
+            log_entry.action = "admin_kyc_approve"
+            log_entry.target_type = "user"
+            log_entry.target_id = str(user_id)
+            log_entry.payload = {"old_status": old_status, "reason": request.reason, "onchain": onchain_result}
+            db.add(log_entry)
+            await db.commit()
+        except Exception:
+            pass
+
+        # Notify user
+        notification_sent = False
+        try:
+            from apps.api.services.notification_service import NotificationService
+            ns = NotificationService(db)
+            await ns.notify_kyc_approved(user.id, user.email)
+            notification_sent = True
+        except Exception:
+            pass
+
+        return {
+            "user_id": str(user_id),
+            "kyc_status": "approved",
+            "kyc_level": 2,
+            "onchain_registration": onchain_result,
+            "notification_sent": notification_sent,
+            "message": "KYC approved, on-chain identity registered, user notified",
+        }
+
+    elif new_status == "rejected":
+        user.kyc_status = KYCStatus.REJECTED
+        user.kyc_level = 0
+        await db.commit()
+
+        # Notify user
+        notification_sent = False
+        try:
+            from apps.api.services.notification_service import NotificationService
+            ns = NotificationService(db)
+            await ns.notify_kyc_rejected(user.id, user.email)
+            notification_sent = True
+        except Exception:
+            pass
+
+        return {"user_id": str(user_id), "kyc_status": "rejected", "kyc_level": 0, "notification_sent": notification_sent, "message": "KYC rejected, user notified"}
+
+    else:  # none — reset
+        user.kyc_status = KYCStatus.NONE
+        user.kyc_level = 0
+        user.kyc_provider = None
+        user.kyc_verified_at = None
+        await db.commit()
+        return {"user_id": str(user_id), "kyc_status": "none", "kyc_level": 0, "message": "KYC reset"}
+
+
+@router.post("/investors/{user_id}/kyc/check-sumsub", response_model=AdminKYCSyncResponse)
+async def admin_check_sumsub_status(
+    user_id: UUID,
+    admin_id: RequireAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> AdminKYCSyncResponse:
+    """Check the latest KYC status from Sumsub API (read-only).
+
+    Does NOT update the database. Returns whether the DB is out of sync
+    with Sumsub and what action the admin should take.
+    """
+    from apps.api.models.enums import KYCStatus
+    from packages.common.core.config import get_settings
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    db_status = user.kyc_status.value if hasattr(user.kyc_status, "value") else str(user.kyc_status)
+
+    applicant_id = user.sumsub_applicant_id
+    if not applicant_id:
+        return AdminKYCSyncResponse(
+            db_status=db_status, db_level=user.kyc_level,
+            message="No Sumsub applicant ID — user has not started KYC via Sumsub",
+        )
+
+    settings = get_settings()
+    token = getattr(settings, "sumsub_app_token", None) or ""
+    secret = getattr(settings, "sumsub_secret_key", None) or ""
+    if not token or token.lower() in ("placeholder", "test", ""):
+        return AdminKYCSyncResponse(
+            db_status=db_status, db_level=user.kyc_level,
+            message="Sumsub credentials not configured",
+        )
+
+    try:
+        from apps.api.services.kyc_service import _sumsub_request
+        applicant_data = await _sumsub_request("GET", f"/resources/applicants/{applicant_id}/one", token, secret)
+    except Exception as exc:
+        return AdminKYCSyncResponse(
+            db_status=db_status, db_level=user.kyc_level,
+            message=f"Failed to fetch from Sumsub: {exc}",
+        )
+
+    review = applicant_data.get("review", {})
+    review_status = review.get("reviewStatus", "init")
+    review_answer = review.get("reviewResult", {}).get("reviewAnswer")
+    sumsub_status = f"{review_status}" + (f" ({review_answer})" if review_answer else "")
+
+    # Determine sync status
+    out_of_sync = False
+    suggested_action = None
+
+    if review_answer == "GREEN" and db_status != "approved":
+        out_of_sync = True
+        suggested_action = "approve"
+        message = f"OUT OF SYNC: Sumsub approved (GREEN) but database shows '{db_status}'. Click 'Sync & Approve' to update."
+    elif review_answer == "RED" and db_status != "rejected":
+        out_of_sync = True
+        suggested_action = "reject"
+        message = f"OUT OF SYNC: Sumsub rejected (RED) but database shows '{db_status}'. Click 'Sync & Reject' to update."
+    elif review_answer == "GREEN" and db_status == "approved":
+        message = "In sync — Sumsub and database both show approved."
+    elif review_answer == "RED" and db_status == "rejected":
+        message = "In sync — Sumsub and database both show rejected."
+    else:
+        message = f"Sumsub: {sumsub_status} | Database: {db_status}"
+
+    return AdminKYCSyncResponse(
+        sumsub_status=sumsub_status,
+        review_answer=review_answer,
+        db_status=db_status,
+        db_level=user.kyc_level,
+        out_of_sync=out_of_sync,
+        suggested_action=suggested_action,
+        message=message,
+    )
+
+
+@router.post("/investors/{user_id}/kyc/confirm-sync")
+async def admin_confirm_sync(
+    user_id: UUID,
+    admin_id: RequireAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Apply the Sumsub status to the database, register on-chain, and notify the user.
+
+    Call this after check-sumsub confirms out-of-sync status.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.enums import KYCStatus
+    from packages.common.core.config import get_settings
+
+    result = await db.execute(
+        select(User).where(User.id == user_id).options(selectinload(User.wallets))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    applicant_id = user.sumsub_applicant_id
+    if not applicant_id:
+        raise HTTPException(status_code=400, detail={"code": "NO_SUMSUB_ID", "message": "User has no Sumsub applicant ID"})
+
+    settings = get_settings()
+    token = getattr(settings, "sumsub_app_token", None) or ""
+    secret = getattr(settings, "sumsub_secret_key", None) or ""
+
+    # Fetch fresh from Sumsub
+    try:
+        from apps.api.services.kyc_service import _sumsub_request
+        applicant_data = await _sumsub_request("GET", f"/resources/applicants/{applicant_id}/one", token, secret)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "SUMSUB_ERROR", "message": f"Failed to fetch from Sumsub: {exc}"})
+
+    review_answer = applicant_data.get("review", {}).get("reviewResult", {}).get("reviewAnswer")
+    old_status = user.kyc_status.value if hasattr(user.kyc_status, "value") else str(user.kyc_status)
+    notification_sent = False
+
+    if review_answer == "GREEN":
+        user.kyc_status = KYCStatus.APPROVED
+        user.kyc_level = 2
+        user.kyc_provider = "sumsub"
+        user.kyc_verified_at = datetime.now(tz=__import__("datetime").timezone.utc)
+
+        # On-chain registration
+        onchain_result = None
+        try:
+            from apps.api.services.kyc_service import KYCService
+            kyc_svc = KYCService(db)
+            await kyc_svc._issue_onchain_claims(user)
+            onchain_result = "registered"
+        except Exception as exc:
+            onchain_result = f"failed: {exc}"
+
+        await db.commit()
+
+        # Notify user
+        try:
+            from apps.api.services.notification_service import NotificationService
+            ns = NotificationService(db)
+            await ns.notify_kyc_approved(user.id, user.email)
+            notification_sent = True
+        except Exception:
+            pass
+
+        return {
+            "user_id": str(user_id),
+            "old_status": old_status,
+            "new_status": "approved",
+            "kyc_level": 2,
+            "onchain_registration": onchain_result,
+            "notification_sent": notification_sent,
+            "message": "Synced from Sumsub: KYC approved, on-chain registered, user notified",
+        }
+
+    elif review_answer == "RED":
+        user.kyc_status = KYCStatus.REJECTED
+        user.kyc_level = 0
+        await db.commit()
+
+        # Notify user
+        try:
+            from apps.api.services.notification_service import NotificationService
+            ns = NotificationService(db)
+            await ns.notify_kyc_rejected(user.id, user.email)
+            notification_sent = True
+        except Exception:
+            pass
+
+        return {
+            "user_id": str(user_id),
+            "old_status": old_status,
+            "new_status": "rejected",
+            "kyc_level": 0,
+            "notification_sent": notification_sent,
+            "message": "Synced from Sumsub: KYC rejected, user notified",
+        }
+
+    else:
+        return {
+            "user_id": str(user_id),
+            "old_status": old_status,
+            "new_status": old_status,
+            "message": f"Sumsub review answer is '{review_answer}' — no change applied",
+        }
+
+
+@router.post("/investors/{user_id}/kyc/register-onchain")
+async def admin_register_onchain(
+    user_id: UUID,
+    admin_id: RequireAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Manually trigger on-chain identity registration for a KYC-approved user.
+
+    Use when on-chain registration failed or was skipped.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.enums import KYCStatus
+
+    result = await db.execute(
+        select(User).where(User.id == user_id).options(selectinload(User.wallets))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found"})
+
+    if user.kyc_status != KYCStatus.APPROVED:
+        raise HTTPException(status_code=400, detail={"code": "NOT_APPROVED", "message": "User must be KYC-approved before on-chain registration"})
+
+    if not user.wallets:
+        raise HTTPException(status_code=400, detail={"code": "NO_WALLETS", "message": "User has no connected wallets"})
+
+    try:
+        from apps.api.services.kyc_service import KYCService
+        kyc_svc = KYCService(db)
+        await kyc_svc._issue_onchain_claims(user)
+        await db.commit()
+        return {"user_id": str(user_id), "status": "registered", "message": "On-chain identity registered successfully"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"code": "REGISTRATION_FAILED", "message": f"On-chain registration failed: {exc}"})
+
+
 # ==================== Admin Account Management ====================
 
 

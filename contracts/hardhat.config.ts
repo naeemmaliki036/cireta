@@ -3,7 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import * as dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ path: "../.env" });
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -32,7 +32,7 @@ const config: HardhatUserConfig = {
         : [],
     },
     baseSepolia: {
-      url: "https://sepolia.base.org",
+      url: process.env.WEB3_RPC_URL ?? (() => { throw new Error("WEB3_RPC_URL not set"); })(),
       chainId: 84532,
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]

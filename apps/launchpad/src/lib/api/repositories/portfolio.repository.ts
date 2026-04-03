@@ -8,6 +8,8 @@ export interface Holding {
   balance: string;
   value_usd: string;
   claimable: string;
+  /** On-chain token contract address (if deployed). */
+  contract_address?: string | null;
 }
 
 export interface VestingSchedule {

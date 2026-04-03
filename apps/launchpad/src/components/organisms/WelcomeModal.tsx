@@ -125,7 +125,7 @@ export function WelcomeModal() {
                 <p className="text-sm text-white/70 leading-relaxed">
                   {completedCount > 0
                     ? `You've completed ${completedCount} of ${totalSteps} steps. Keep going to unlock investing.`
-                    : "Your account is created. Complete a few quick steps to start investing in tokenized real-world assets."}
+                    : "Your account is created! Complete these steps at your own pace to unlock investing in tokenized real-world assets."}
                 </p>
 
                 {/* Progress bar */}

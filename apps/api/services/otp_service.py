@@ -79,17 +79,21 @@ class OTPService:
         otp.user_id = user_id
         otp.expires_at = datetime.now(UTC) + timedelta(minutes=OTP_EXPIRY_MINUTES)
         self.db.add(otp)
-        await self.db.flush()
-
-        # Send via email
-        email_svc = EmailService(self.db)
-        send_result = await email_svc.send(
-            "otp_code",
-            email,
-            variables={"code": code},
-        )
-
         await self.db.commit()
+
+        # Send via email — never let email failure block OTP creation
+        send_result: dict = {}
+        try:
+            email_svc = EmailService(self.db)
+            send_result = await email_svc.send(
+                "otp_code",
+                email,
+                variables={"code": code},
+            )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("Email send failed for OTP to %s — OTP still created", email)
+            send_result = {"status": "email_failed", "dev_otp": code}
 
         result: dict = {"status": "sent", "expires_in_seconds": OTP_EXPIRY_MINUTES * 60}
         # In dev mode, return OTP for UI toast notification

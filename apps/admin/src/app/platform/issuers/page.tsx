@@ -9,13 +9,15 @@ import {
   DollarSign,
   ListChecks,
   Clock,
+  Globe,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { DataTable } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
-import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
+import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, registerIssuerOnChain, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 
 function mapIssuer(i: APIIssuer): Issuer {
   return {
@@ -29,9 +31,14 @@ function mapIssuer(i: APIIssuer): Issuer {
 type Issuer = IssuerRow;
 type ModalType = "approve" | "fee" | "revoke" | null;
 
+/** On-chain status per issuer ID */
+type OnChainStatus = "unknown" | "checking" | "registered" | "not_registered";
+
 export default function IssuersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [apiIssuers, setApiIssuers] = useState<Issuer[]>([]);
+  const [onChainStatus, setOnChainStatus] = useState<Record<string, OnChainStatus>>({});
+  const [registeringId, setRegisteringId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -39,6 +46,21 @@ export default function IssuersPage() {
       catch (err) { console.error("Failed to load issuers:", err); }
     })();
   }, []);
+
+  const handleRegisterOnChain = async (issuer: Issuer) => {
+    if (registeringId) return;
+    setRegisteringId(issuer.id);
+    try {
+      const result = await registerIssuerOnChain(issuer.id);
+      setOnChainStatus(prev => ({ ...prev, [issuer.id]: "registered" }));
+      alert(`Issuer registered on-chain!\nTx: ${result.tx_hash}`);
+    } catch (err) {
+      console.error("On-chain registration failed:", err);
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      alert(`On-chain registration failed: ${msg}`);
+    }
+    setRegisteringId(null);
+  };
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -141,6 +163,60 @@ export default function IssuersPage() {
 
       {/* Table */}
       <DataTable columns={columns} data={filteredIssuers} />
+
+      {/* On-Chain Registration Panel */}
+      {apiIssuers.filter(i => i.status === "active" && i.wallet !== "—").length > 0 && (
+        <div className="mt-6 border border-zinc-200 rounded-lg bg-white">
+          <div className="px-4 py-3 border-b border-zinc-200 flex items-center gap-2">
+            <Globe className="h-4 w-4 text-zinc-600" />
+            <h3 className="text-sm font-semibold text-zinc-900">On-Chain Issuer Registry</h3>
+            <span className="text-xs text-zinc-500">Register active issuers to the IssuerRegistry contract</span>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {apiIssuers
+              .filter(i => i.status === "active" && i.wallet !== "—")
+              .map(issuer => {
+                const chainStatus = onChainStatus[issuer.id] ?? "unknown";
+                return (
+                  <div key={issuer.id} className="flex items-center justify-between px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">{issuer.name}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{issuer.wallet.slice(0, 6)}...{issuer.wallet.slice(-4)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {chainStatus === "registered" ? (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
+                          <Check className="h-3 w-3" /> On-Chain
+                        </span>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={registeringId === issuer.id}
+                          onClick={() => handleRegisterOnChain(issuer)}
+                        >
+                          {registeringId === issuer.id ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              Registering...
+                            </>
+                          ) : (
+                            <>
+                              <Globe className="h-3.5 w-3.5 mr-1.5" />
+                              Register On-Chain
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       <IssuerActionModal
         modalType={modalType}

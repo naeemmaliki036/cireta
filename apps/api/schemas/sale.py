@@ -55,6 +55,8 @@ class SaleCreateRequest(BaseModel):
     discord_url: str | None = None
     sale_mode: str = "vested"  # "vested" or "direct"
     sale_structure: str = "phase_allocated"  # "phase_allocated" or "price_tiered"
+    # OTC token (optional — can also be set after sale creation via Sale.setOTCToken())
+    otc_token_address: str | None = None
     # Vesting config (Step 6, only if vested)
     cliff_duration_days: int = Field(default=0, ge=0)
     vesting_duration_days: int = Field(default=365, ge=0)

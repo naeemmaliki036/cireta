@@ -39,6 +39,7 @@ class Web3SaleService:
         hard_cap: int,
         fee_basis_points: int,
         fee_cap_usdc: int,
+        otc_token: str | None = None,
     ) -> tuple[str, str]:
         """Deploy a Sale via CiretaSaleFactory.deploySale().
 
@@ -50,6 +51,7 @@ class Web3SaleService:
         # Encode Sale.initialize() — factory is CiretaSaleFactory, admin resolved dynamically
         sale_abi = self.registry.get_abi("Sale")
         sale_iface = self.tx_svc.w3.eth.contract(abi=sale_abi)
+        otc_addr = Web3.to_checksum_address(otc_token) if otc_token else "0x0000000000000000000000000000000000000000"
         init_data = sale_iface.encode_abi(
             "initialize",
             args=[
@@ -63,6 +65,7 @@ class Web3SaleService:
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
+                otc_addr,
             ],
         )
 
@@ -103,6 +106,7 @@ class Web3SaleService:
         cliff_duration: int = 0,
         vesting_duration: int = 365 * 86400,  # 1 year default
         excess_policy: int = 0,  # 0 = Return, 1 = Burn
+        otc_token: str | None = None,
     ) -> tuple[str, str, str, str]:
         """Deploy a Vested Sale via CiretaSaleFactory.deploySaleVested().
 
@@ -111,8 +115,8 @@ class Web3SaleService:
         """
         from packages.common.core.config import settings as _settings
         factory = self.registry.get_contract("CiretaSaleFactory")
-        # factory address = CiretaSaleFactory — admin is resolved via factory.owner()
         sale_factory_addr = _settings.sale_factory_address or self.tx_svc._account.address
+        otc_addr = Web3.to_checksum_address(otc_token) if otc_token else "0x0000000000000000000000000000000000000000"
 
         # Encode Sale.initialize() calldata
         sale_abi = self.registry.get_abi("Sale")
@@ -130,6 +134,7 @@ class Web3SaleService:
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
+                otc_addr,
             ],
         )
 

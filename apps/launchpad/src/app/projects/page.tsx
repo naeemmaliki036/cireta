@@ -97,11 +97,16 @@ function ActiveProjectCard({ project }: { project: Project }) {
     <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow">
       <div className="relative h-72 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
-        <div className="absolute top-4 left-4">
+        <div className="absolute top-4 left-4 flex items-center gap-2">
           <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
             <span className="w-2 h-2 rounded-full bg-darkAqua animate-pulse" />
             on going
           </span>
+          {project.fundingRound && (
+            <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white">
+              {project.fundingRound}
+            </span>
+          )}
         </div>
         <button className="absolute top-4 right-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors">
           <Bookmark className="h-4.5 w-4.5 text-gray-600" />
@@ -115,7 +120,6 @@ function ActiveProjectCard({ project }: { project: Project }) {
       <div className="px-5 pb-5 pt-2 space-y-4">
         <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Invest in verified tokenized real-world assets backed by institutional issuers."}</p>
         <div className="flex items-center gap-5 text-sm">
-          <span className="flex items-center gap-1.5 text-gray-600"><Users className="h-4 w-4" /> 1,000 Investors</span>
           <span className="flex items-center gap-1.5 text-gray-600"><TrendingUp className="h-4 w-4" /> 15-20% ROI</span>
         </div>
         <div>

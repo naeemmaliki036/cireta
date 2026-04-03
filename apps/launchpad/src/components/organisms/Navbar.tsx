@@ -229,7 +229,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   </div>
                   <span className="max-w-[120px] truncate">{user.display_name || user.email.split("@")[0]}</span>
                   {kycBadge?.label === "Verified" && (
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" title="Verified" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                   )}
                   <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isUserMenuOpen && "rotate-180")} />
                 </button>

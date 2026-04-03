@@ -15,6 +15,8 @@ import {
   Users,
   LayoutDashboard,
   UserCog,
+  Mail,
+  DollarSign,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button, Badge } from "@/components/atoms";
@@ -27,6 +29,7 @@ const PLATFORM_LINKS = [
   { href: "/platform/tokens", label: "Tokens", icon: Coins },
   { href: "/platform/sales", label: "Sales", icon: ShoppingCart },
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
+  { href: "/platform/fees", label: "Fees", icon: DollarSign },
 ];
 
 const MANAGE_LINKS = [
@@ -107,6 +110,7 @@ export function PlatformAdminLayout({
 
           {/* Navigation bottom */}
           <div className="mt-auto pt-4 border-t border-zinc-200 space-y-0.5">
+            <NavLink href="/platform/email-templates" label="Email Management" icon={Mail} />
             <NavLink href="/platform/admins" label="Admin Accounts" icon={UserCog} />
             <NavLink href="/platform/settings" label="Settings" icon={Settings} />
           </div>

@@ -48,3 +48,52 @@ export async function getInvestors(
 export async function getInvestor(id: string): Promise<InvestorDetail> {
   return apiFetch<InvestorDetail>(`/api/v1/admin/investors/${id}`);
 }
+
+export async function updateInvestorKYC(
+  id: string,
+  kycStatus: "approved" | "rejected" | "none",
+  reason?: string,
+): Promise<{ user_id: string; kyc_status: string; kyc_level: number; message: string; onchain_registration?: string }> {
+  return apiFetch(`/api/v1/admin/investors/${id}/kyc`, {
+    method: "PATCH",
+    body: { kyc_status: kycStatus, reason },
+  });
+}
+
+export interface SumsubCheckResponse {
+  sumsub_status: string | null;
+  review_answer: string | null;
+  db_status: string;
+  db_level: number;
+  out_of_sync: boolean;
+  suggested_action: string | null;
+  message: string;
+}
+
+export async function checkSumsubStatus(id: string): Promise<SumsubCheckResponse> {
+  return apiFetch<SumsubCheckResponse>(`/api/v1/admin/investors/${id}/kyc/check-sumsub`, {
+    method: "POST",
+  });
+}
+
+export interface ConfirmSyncResponse {
+  user_id: string;
+  old_status: string;
+  new_status: string;
+  kyc_level?: number;
+  onchain_registration?: string;
+  notification_sent?: boolean;
+  message: string;
+}
+
+export async function confirmSumsubSync(id: string): Promise<ConfirmSyncResponse> {
+  return apiFetch<ConfirmSyncResponse>(`/api/v1/admin/investors/${id}/kyc/confirm-sync`, {
+    method: "POST",
+  });
+}
+
+export async function registerInvestorOnchain(id: string): Promise<{ user_id: string; status: string; message: string }> {
+  return apiFetch(`/api/v1/admin/investors/${id}/kyc/register-onchain`, {
+    method: "POST",
+  });
+}

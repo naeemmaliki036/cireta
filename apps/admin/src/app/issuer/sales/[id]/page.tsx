@@ -3,13 +3,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  BarChart3, Clock, ArrowLeft, Wallet, Send, AlertCircle,
-  Pencil, X, Check, Upload, ImageIcon, Globe, Star,
+  BarChart3, Clock, ArrowLeft, Send, AlertCircle, Coins,
+  Pencil, X, Check, Upload, ImageIcon, Globe, Star, Rocket,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { encodeFunctionData, decodeEventLog, zeroAddress, type Abi } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
+import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { SaleContractActions } from "@/components/molecules/SaleContractActions";
+import { AddPhaseForm } from "@/components/molecules/AddPhaseForm";
 import RichTextEditor from "@/components/molecules/RichTextEditor";
 import { SaleContentReview } from "@/components/molecules/SaleContentReview";
 import { ProgressBar } from "@/components/atoms";
@@ -17,10 +23,16 @@ import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import {
   getSale, submitSaleForApproval, updateSale, setHeroImage,
-  addSaleImage, removeSaleImage,
-  type Sale, type UpdateSaleRequest, type ImageData,
+  addSaleImage, removeSaleImage, recordSaleDeployment,
+  type Sale, type UpdateSaleRequest,
 } from "@/lib/api/repositories/sales";
 import { apiFetch, apiUpload } from "@/lib/api/client";
+import { useContractAction } from "@/hooks/useContractAction";
+import { SALE_ABI } from "@/lib/contracts/abis/sale";
+import { SALE_FACTORY_ABI } from "@/lib/contracts/abis/saleFactory";
+import { requireAddress } from "@/lib/contracts/addresses";
+import { WhitelistManager } from "@/components/organisms/WhitelistManager";
+import { OTCTokenManager } from "@/components/organisms/OTCTokenManager";
 
 interface SaleImage {
   id: string;
@@ -47,6 +59,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const [images, setImages] = useState<SaleImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // On-chain deployment
+  const { isConnected, address: walletAddress } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const deployAction = useContractAction();
 
   useEffect(() => { paramsPromise.then((p) => setResolvedId(p.id)); }, [paramsPromise]);
 
@@ -90,6 +107,97 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const handleConvertToLive = () => handleAction("convert", async () => {
     await apiFetch(`/api/v1/sales/${resolvedId}/convert-to-live`, { method: "POST", body: {} });
   });
+
+  /**
+   * Deploy Sale contract on-chain via CiretaSaleFactory.deploySale().
+   * Encodes Sale.initialize() calldata with the correct parameters.
+   */
+  const handleDeployOnChain = async () => {
+    if (!sale || !walletAddress) {
+      if (!isConnected) openConnectModal?.();
+      return;
+    }
+
+    // Validate required addresses
+    if (!sale.token_contract_address) {
+      deployAction.reset();
+      return;
+    }
+    if (!sale.identity_registry_address) {
+      deployAction.reset();
+      return;
+    }
+
+    let saleFactoryAddress: `0x${string}`;
+    let feeManagerAddress: `0x${string}`;
+    let ciretaUsdcAddress: `0x${string}`;
+    try {
+      saleFactoryAddress = requireAddress("saleFactory");
+      ciretaUsdcAddress = requireAddress("ciretaUsdc");
+      // platformFeeManager from deployments — load from env or hardcode as a NEXT_PUBLIC_ env var
+      feeManagerAddress = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || zeroAddress;
+    } catch {
+      return;
+    }
+
+    const softCap = BigInt(Math.round(parseFloat(sale.soft_cap || "0") * 1e6));
+    const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
+    const otcTokenAddress = sale.otc_enabled ? (sale.otc_token_address ?? zeroAddress) : zeroAddress;
+
+    // Encode Sale.initialize() calldata
+    const initData = encodeFunctionData({
+      abi: SALE_ABI,
+      functionName: "initialize",
+      args: [
+        sale.token_contract_address as `0x${string}`,    // _token
+        ciretaUsdcAddress,                                 // _paymentToken (USDC)
+        sale.identity_registry_address as `0x${string}`,  // _identityRegistry
+        walletAddress,                                     // _issuer (connected wallet)
+        saleFactoryAddress,                                // _factory
+        feeManagerAddress,                                 // _feeManager
+        softCap,                                           // _softCap
+        hardCap,                                           // _hardCap
+        BigInt(250),                                       // _feeBasisPoints (2.5%)
+        BigInt(50_000 * 1e6),                              // _feeCapUsdc ($50k)
+        otcTokenAddress as `0x${string}`,                  // _otcToken
+      ],
+    });
+
+    const receipt = await deployAction.execute({
+      address: saleFactoryAddress,
+      abi: SALE_FACTORY_ABI as unknown as Abi,
+      functionName: "deploySale",
+      args: [sale.token_contract_address as `0x${string}`, initData],
+    });
+
+    if (receipt) {
+      // Parse SaleDeployed event to get the sale contract address
+      let saleContractAddress: string | null = null;
+      for (const log of receipt.logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: SALE_FACTORY_ABI,
+            data: log.data,
+            topics: log.topics,
+          });
+          if (decoded.eventName === "SaleDeployed") {
+            const args = decoded.args as { sale: string };
+            saleContractAddress = args.sale;
+          }
+        } catch { /* not our event */ }
+      }
+
+      if (saleContractAddress) {
+        try {
+          const updated = await recordSaleDeployment(resolvedId, {
+            contract_address: saleContractAddress,
+            tx_hash: receipt.transactionHash,
+          });
+          setSale(updated);
+        } catch { /* on-chain is source of truth */ }
+      }
+    }
+  };
 
   // Auto-populate edit form when sale loads and ?edit=1
   useEffect(() => {
@@ -207,23 +315,68 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               <Pencil className="h-4 w-4 mr-2" /> Edit Details
             </Button>
           )}
+          {sale.otc_enabled && (
+            <Link href={`/issuer/sales/${resolvedId}/otc-mint`}>
+              <Button variant="secondary">
+                <Coins className="h-4 w-4 mr-2" /> Mint OTC Tokens
+              </Button>
+            </Link>
+          )}
           {isDraft && <Button variant="primary" onClick={handleSubmitForApproval} isLoading={actionLoading === "submit"}>
             <Send className="h-4 w-4 mr-2" /> Submit for Approval
           </Button>}
           {isApprovedComingSoon && <Button variant="primary" onClick={handleConvertToLive} isLoading={actionLoading === "convert"}>
             Convert to Live Sale
           </Button>}
-          {isApproved && <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
-            <p className="font-semibold">Approved — deploy on-chain via dApp</p>
-          </div>}
-          {isFinalizedSuccess && <div className="p-3 rounded-xl bg-darkAqua/10 border border-darkAqua/20 text-sm text-darkAqua">
-            <Wallet className="h-4 w-4 inline mr-1" /> Withdraw funds via dApp — call <code className="font-mono bg-darkAqua/10 px-1 rounded">withdrawFunds()</code>
-          </div>}
+          {isApproved && !sale.contract_address && (
+            <Button
+              variant="primary"
+              onClick={handleDeployOnChain}
+              disabled={deployAction.isPending || deployAction.isConfirming || !sale.token_contract_address}
+              isLoading={deployAction.isPending || deployAction.isConfirming}
+            >
+              <Rocket className="h-4 w-4 mr-2" /> Deploy On-Chain
+            </Button>
+          )}
+          {isApproved && sale.contract_address && (
+            <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
+              <p className="font-semibold">Deployed at <code className="font-mono text-xs bg-green-100 px-1 rounded">{sale.contract_address}</code></p>
+            </div>
+          )}
+          {isFinalizedSuccess && (
+            <Badge variant="active" size="sm">Finalized</Badge>
+          )}
         </div>
       </div>
 
       {actionError && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
       {actionSuccess && <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-600">Changes saved successfully</div>}
+
+      {/* On-chain deployment status */}
+      {isApproved && !sale.contract_address && !sale.token_contract_address && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+          <AlertCircle className="h-4 w-4 inline mr-1" />
+          Token must be deployed on-chain before the sale can be deployed. Go to your token and deploy it first.
+        </div>
+      )}
+      <TransactionStatus
+        isPending={deployAction.isPending}
+        isConfirming={deployAction.isConfirming}
+        isConfirmed={deployAction.isConfirmed}
+        txHash={deployAction.txHash}
+        txUrl={deployAction.txUrl}
+        error={deployAction.error}
+        successMessage="Sale contract deployed on-chain. Address recorded."
+      />
+
+      {/* On-Chain Contract Actions (Withdraw Funds, Withdraw Tokens, Pause, Finalize) */}
+      {sale.contract_address && (
+        <SaleContractActions
+          contractAddress={sale.contract_address}
+          saleStatus={sale.status}
+          onSuccess={reload}
+        />
+      )}
 
       {/* Status Banner */}
       {isPending && <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">Pending admin approval. You&apos;ll be notified once reviewed.</div>}
@@ -416,7 +569,37 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             })}
           </div>
         )}
+
+        {/* Add Phase form — show when deployed and draft or active */}
+        {sale.contract_address && (isDraft || isActive) && (
+          <div className="mt-4">
+            <AddPhaseForm
+              contractAddress={sale.contract_address}
+              onSuccess={reload}
+            />
+          </div>
+        )}
       </motion.div>
+
+      {/* Per-Phase Whitelist Management — show when deployed and has whitelist phases */}
+      {sale.contract_address && sale.phases.some((p) => p.whitelist_only) && (
+        <div className="mt-6">
+          <WhitelistManager
+            saleContractAddress={sale.contract_address as `0x${string}`}
+            phases={sale.phases}
+          />
+        </div>
+      )}
+
+      {/* OTC Token Manager — show when deployed and draft */}
+      {sale.contract_address && isDraft && (
+        <div className="mt-6">
+          <OTCTokenManager
+            saleContractAddress={sale.contract_address as `0x${string}`}
+            currentOTCTokenAddress={sale.otc_token_address}
+          />
+        </div>
+      )}
 
       {/* Sale Content: description, gallery, team, FAQ, documents */}
       <div className="mt-6">

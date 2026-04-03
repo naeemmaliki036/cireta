@@ -1,9 +1,10 @@
 """Admin endpoints for issuer and compliance management."""
 
+import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import IssuerStatus
@@ -12,6 +13,7 @@ from apps.api.schemas.admin import (
     IssuerFeeUpdateRequest,
     IssuerListResponse,
     IssuerResponse,
+    OnChainRegistrationResponse,
     PlatformSettingsRequest,
     WhitelistAddRequest,
     WhitelistEntryResponse,
@@ -22,6 +24,8 @@ from apps.api.services.issuer_service import IssuerService
 from apps.api.services.platform_settings_service import PlatformSettingsService
 from packages.common.core.auth_deps import RequireAdmin
 from packages.common.db.session import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["admin"])
 
@@ -240,6 +244,79 @@ async def activate_issuer(
     """
     issuer = await issuer_service.activate_issuer(issuer_id)
     return _issuer_to_response(issuer)
+
+
+# ==================== On-Chain Registration ====================
+
+
+@router.post(
+    "/issuers/{issuer_id}/register-onchain",
+    response_model=OnChainRegistrationResponse,
+)
+async def register_issuer_onchain(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> OnChainRegistrationResponse:
+    """Register and activate an issuer on the IssuerRegistry contract.
+
+    The issuer must be ACTIVE in the database and have a wallet address.
+    Calls registerIssuer() + activateIssuer() on-chain using the deployer wallet.
+
+    Requires: platform_admin role.
+    """
+    from apps.api.services.web3_issuer_registry_service import Web3IssuerRegistryService
+
+    issuer = await issuer_service._get_issuer(issuer_id)
+
+    if issuer.status.value != "active":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer must be active in DB before on-chain registration"},
+        )
+
+    if not issuer.wallet_address:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "NO_WALLET", "message": "Issuer has no wallet address configured"},
+        )
+
+    registry_service = Web3IssuerRegistryService()
+
+    # Check if already registered
+    try:
+        already_active = await registry_service.is_active_issuer(issuer.wallet_address)
+        if already_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "ALREADY_REGISTERED", "message": "Issuer is already registered and active on-chain"},
+            )
+    except ValueError:
+        raise
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Could not check on-chain status, proceeding: %s", exc)
+
+    try:
+        tx_hash = await registry_service.register_and_activate_issuer(
+            wallet_address=issuer.wallet_address,
+            name=issuer.name,
+            jurisdiction=issuer.jurisdiction or "",
+        )
+    except Exception as exc:
+        logger.error("On-chain issuer registration failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "ONCHAIN_TX_FAILED", "message": f"On-chain transaction failed: {exc}"},
+        )
+
+    return OnChainRegistrationResponse(
+        issuer_id=str(issuer_id),
+        wallet_address=issuer.wallet_address,
+        tx_hash=tx_hash,
+        message="Issuer registered and activated on-chain",
+    )
 
 
 # ==================== Identity Override ====================
