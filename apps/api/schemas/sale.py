@@ -180,6 +180,7 @@ class SaleResponse(BaseModel):
     total_raised_on_platform: str = "0"
     platform_fee_collected: str = "0"
     sale_mode: str = "vested"
+    contract_address: str | None = None
     vault_address: str | None = None
     fraction_token_address: str | None = None
     phases: list[SalePhaseResponse]

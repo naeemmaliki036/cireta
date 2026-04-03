@@ -87,6 +87,7 @@ def _sale_to_response(sale) -> SaleResponse:
         soft_cap_reached=sale.soft_cap_reached,
         hard_cap_reached=sale.hard_cap_reached,
         remaining_capacity=str(sale.remaining_capacity),
+        contract_address=getattr(sale, "contract_address", None),
         phases=[_phase_to_response(p) for p in sale.phases],
         token_name=sale.token.name if sale.token else None,
         token_symbol=sale.token.symbol if sale.token else None,
@@ -140,7 +141,7 @@ async def get_sale_by_slug(
     return _sale_to_response(sale)
 
 
-@router.get("/", response_model=SaleListResponse)
+@router.get("", response_model=SaleListResponse)
 async def list_sales(
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
     page: int = Query(default=1, ge=1),
@@ -213,7 +214,7 @@ async def update_sale(
     return _sale_to_response(sale)
 
 
-@router.post("/", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
 async def create_sale(
     request: SaleCreateRequest,
     user_id: CurrentUserId,
@@ -517,6 +518,60 @@ async def submit_for_approval(
     sale.status = SaleStatus.PENDING_APPROVAL
     await sale_service.db.commit()
     return {"sale_id": str(sale_id), "status": "pending_approval", "message": "Sale submitted for admin approval"}
+
+
+@router.post("/{sale_id}/record-deployment")
+async def record_sale_deployment(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    tx_hash: str = Query(..., min_length=66, max_length=66),
+) -> dict:
+    """Record on-chain sale deployment by parsing the tx receipt.
+
+    Frontend sends the tx_hash after deploying via wallet.
+    Backend reads the receipt and extracts SaleDeployed event.
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+
+    try:
+        from apps.api.services.web3_base_service import Web3BaseService
+        from web3 import Web3
+
+        w3_svc = Web3BaseService()
+        w3 = w3_svc.w3
+        receipt = w3.eth.get_transaction_receipt(tx_hash)
+
+        # SaleDeployed(address indexed sale, address indexed token, address indexed issuer)
+        sale_deployed_topic = Web3.keccak(text="SaleDeployed(address,address,address)").hex()
+
+        sale_address = None
+        for log in receipt.logs:
+            if len(log.topics) >= 3 and log.topics[0].hex() == sale_deployed_topic:
+                sale_address = Web3.to_checksum_address("0x" + log.topics[1].hex()[-40:])
+                break
+
+        if not sale_address:
+            raise HTTPException(status_code=400, detail={"code": "EVENT_NOT_FOUND", "message": "SaleDeployed event not found in tx"})
+
+        sale.contract_address = sale_address
+        await db.commit()
+
+        return {"sale_id": str(sale_id), "contract_address": sale_address, "tx_hash": tx_hash}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "CHAIN_ERROR", "message": f"Failed to read tx receipt: {exc}"})
 
 
 @router.post("/{sale_id}/convert-to-live")
