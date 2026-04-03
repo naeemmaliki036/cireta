@@ -116,7 +116,7 @@ export async function createSale(
   data: CreateSaleRequest,
   token?: string,
 ): Promise<Sale> {
-  return apiFetch<Sale>("/api/v1/sales/", {
+  return apiFetch<Sale>("/api/v1/sales", {
     method: "POST",
     body: data,
     token,

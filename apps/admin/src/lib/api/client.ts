@@ -61,10 +61,22 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    // On 401, redirect to login (JWT expired or invalid)
+    // On 401, try silent refresh before redirecting to login
     if (response.status === 401 && typeof window !== "undefined") {
       const currentPath = window.location.pathname;
       if (currentPath !== "/login") {
+        // Attempt token refresh
+        const refreshRes = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => null);
+        if (refreshRes?.ok) {
+          // Retry the original request with fresh token
+          const retryRes = await fetch(`/api/proxy${path}`, {
+            method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: "include",
+          });
+          if (retryRes.ok) {
+            return retryRes.status === 204 ? (undefined as T) : retryRes.json();
+          }
+        }
+        // Refresh failed — redirect to login
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
         return new Promise<T>(() => {});
       }

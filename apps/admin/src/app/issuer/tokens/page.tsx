@@ -32,9 +32,23 @@ const columns: Column<Token>[] = [
   {
     key: "contract_address",
     header: "Contract",
-    render: (row) => row.contract_address
-      ? <code className="text-xs bg-box px-2 py-1 rounded">{row.contract_address.slice(0, 10)}…</code>
-      : <Badge variant="pending" size="sm">Not deployed</Badge>,
+    render: (row) => {
+      if (!row.contract_address || row.contract_address === "0x0000000000000000000000000000000000000000") {
+        return <Badge variant="pending" size="sm">Not deployed</Badge>;
+      }
+      const addr = row.contract_address;
+      const masked = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+      return (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(addr); }}
+          title={`Click to copy: ${addr}`}
+          className="inline-flex items-center gap-1.5 text-xs font-mono bg-box hover:bg-darkAqua/10 px-2.5 py-1 rounded-lg transition-colors cursor-pointer group"
+        >
+          {masked}
+          <svg className="h-3 w-3 text-zinc-400 group-hover:text-darkAqua" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+        </button>
+      );
+    },
   },
   {
     key: "is_paused",

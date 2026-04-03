@@ -2,58 +2,59 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, Coins, Shield, Rocket, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Coins, Shield, Rocket, Zap, AlertCircle, Wallet, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useAccount, useReadContract, useDisconnect } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { type Abi } from "viem";
 import { Button } from "@/components/atoms";
+import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
 import {
   StepTokenDetails, StepCompliance, StepDeploy,
   type TokenFormData,
 } from "@/lib/tokenFormSteps";
-import { createToken, deployToken } from "@/lib/api/repositories/tokens";
-import { getAccessToken } from "@/lib/api/client";
+import { createToken } from "@/lib/api/repositories/tokens";
+import { useContractAction } from "@/hooks/useContractAction";
+import { TOKEN_FACTORY_ABI } from "@/lib/contracts/abis/tokenFactory";
+import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
+import { requireAddress, getAddresses } from "@/lib/contracts/addresses";
+import { apiFetch } from "@/lib/api/client";
 
 const STEPS = [
   { id: 1, title: "Token Details", icon: Coins },
   { id: 2, title: "Compliance", icon: Shield },
-  { id: 3, title: "Deploy", icon: Rocket },
+  { id: 3, title: "Review & Deploy", icon: Rocket },
 ];
 
 export default function CreateTokenPage() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [isDeploying, setIsDeploying] = useState(false);
   const [selectedModules, setSelectedModules] = useState<string[]>(["country_allow", "max_ownership"]);
   const [formData, setFormData] = useState<TokenFormData>({
-    name: "", symbol: "", assetType: "commodity", totalSupply: "", decimals: "18", description: "",
+    name: "", symbol: "", assetType: "", totalSupply: "", decimals: "6", description: "",
+  });
+  const [createdTokenId, setCreatedTokenId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDone, setRecordingDone] = useState(false);
+
+  // Wallet
+  const { isConnected, address: walletAddress } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { disconnect } = useDisconnect();
+  const deployAction = useContractAction();
+
+  // Check if connected wallet is a registered issuer on-chain
+  const issuerRegistryAddr = getAddresses().issuerRegistry;
+  const { data: isActiveIssuer, isLoading: isCheckingIssuer } = useReadContract({
+    address: issuerRegistryAddr as `0x${string}`,
+    abi: ISSUER_REGISTRY_ABI as unknown as Abi,
+    functionName: "isActiveIssuer",
+    args: walletAddress ? [walletAddress] : undefined,
+    query: { enabled: !!walletAddress && !!issuerRegistryAddr },
   });
 
-  const [deployError, setDeployError] = useState<string | null>(null);
-  const [deploySuccess, setDeploySuccess] = useState(false);
-
-  const handleDeploy = async () => {
-    setIsDeploying(true);
-    setDeployError(null);
-    try {
-      const token = getAccessToken() ?? "";
-      const created = await createToken(
-        {
-          name: formData.name,
-          symbol: formData.symbol,
-          asset_type: formData.assetType,
-          total_supply: formData.totalSupply,
-          decimals: formData.decimals,
-          description: formData.description,
-        },
-        token,
-      );
-      await deployToken(created.id, token);
-      setDeploySuccess(true);
-    } catch (err) {
-      setDeployError(err instanceof Error ? err.message : "Deployment failed");
-    } finally {
-      setIsDeploying(false);
-    }
-  };
+  const walletIsVerifiedIssuer = isActiveIssuer === true;
 
   const toggleModule = (id: string) => {
     setSelectedModules((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -67,83 +68,233 @@ export default function CreateTokenPage() {
       symbol: "WGLD",
       assetType: "commodity",
       totalSupply: "1000000",
-      decimals: "18",
-      description: "ERC-3643 security token backed by physical gold reserves in West Africa. Each token represents fractional ownership of audited gold holdings.",
+      decimals: "6",
+      description: "ERC-3643 security token backed by physical gold reserves in West Africa.",
     });
     setSelectedModules(["country_allow", "max_ownership", "max_holders"]);
   };
 
+  const handleDeploy = async () => {
+    if (!isConnected || !walletAddress) { openConnectModal?.(); return; }
+    setSaveError(null);
+
+    let tokenId = createdTokenId;
+    if (!tokenId) {
+      try {
+        const created = await createToken({
+          name: formData.name, symbol: formData.symbol,
+          asset_type: formData.assetType, total_supply: formData.totalSupply,
+          decimals: formData.decimals, description: formData.description,
+        });
+        tokenId = created.id;
+        setCreatedTokenId(tokenId);
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : "Failed to save token");
+        return;
+      }
+    }
+
+    try {
+      const factoryAddr = requireAddress("tokenFactory");
+      const receipt = await deployAction.execute({
+        address: factoryAddr,
+        abi: TOKEN_FACTORY_ABI as unknown as Abi,
+        functionName: "deployToken",
+        args: [formData.name, formData.symbol, parseInt(formData.decimals), walletAddress],
+        gas: 5_000_000n, // 3 proxy deployments (Token + IdentityRegistry + Compliance)
+      });
+
+      if (receipt && tokenId) {
+        // Record on-chain addresses in backend
+        setIsRecording(true);
+        try {
+          await apiFetch(`/api/v1/tokens/${tokenId}/record-deployment`, {
+            method: "POST",
+            body: { tx_hash: receipt.transactionHash },
+          });
+          setRecordingDone(true);
+        } catch {
+          setSaveError("Token deployed on-chain but failed to record addresses. You can retry from the token detail page.");
+        } finally {
+          setIsRecording(false);
+        }
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Deployment failed");
+    }
+  };
+
   const totalSteps = STEPS.length;
+  const canContinue = currentStep === 1
+    ? formData.name && formData.symbol && formData.totalSupply && formData.assetType
+    : true;
+
+  // Gate: require wallet connection
+  if (!isConnected) {
+    return (
+      <IssuerDashboardLayout title="Create New Token" description="Deploy a new ERC-3643 security token">
+        <div className="max-w-lg mx-auto mt-12">
+          <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-4">
+              <Wallet className="h-8 w-8 text-darkAqua" />
+            </div>
+            <h2 className="text-lg font-bold text-zinc-900 mb-2">Connect Your Wallet</h2>
+            <p className="text-sm text-zinc-500 mb-6">
+              You need to connect your issuer wallet before creating a token. The token will be deployed from this wallet and you&apos;ll be the token owner.
+            </p>
+            <Button variant="primary" onClick={() => openConnectModal?.()}>
+              <Wallet className="h-4 w-4 mr-2" /> Connect Wallet
+            </Button>
+          </div>
+        </div>
+      </IssuerDashboardLayout>
+    );
+  }
+
+  // Gate: verify wallet is a registered issuer
+  if (!isCheckingIssuer && !walletIsVerifiedIssuer) {
+    return (
+      <IssuerDashboardLayout title="Create New Token" description="Deploy a new ERC-3643 security token">
+        <div className="max-w-lg mx-auto mt-12">
+          <div className="bg-white rounded-2xl border border-red-200 p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <XCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold text-zinc-900 mb-2">Wallet Not Registered</h2>
+            <p className="text-sm text-zinc-500 mb-3">
+              The connected wallet is not registered as an active issuer on-chain.
+            </p>
+            <div className="bg-zinc-50 rounded-xl p-3 mb-6">
+              <p className="font-mono text-xs text-zinc-600 break-all">{walletAddress}</p>
+            </div>
+            <p className="text-xs text-zinc-400 mb-6">
+              Contact the platform admin to register your wallet in the Issuer Registry, or connect a different wallet that is already registered.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Button variant="outline" onClick={() => { disconnect(); setTimeout(() => openConnectModal?.(), 300); }}>
+                Switch Wallet
+              </Button>
+              <Link href="/issuer/overview">
+                <Button variant="ghost">Back to Dashboard</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </IssuerDashboardLayout>
+    );
+  }
+
+  if (isCheckingIssuer) {
+    return (
+      <IssuerDashboardLayout title="Create New Token" description="Deploy a new ERC-3643 security token">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="h-8 w-8 border-2 border-zinc-200 border-t-darkAqua rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm text-zinc-500">Verifying issuer wallet...</p>
+          </div>
+        </div>
+      </IssuerDashboardLayout>
+    );
+  }
 
   return (
-    <IssuerDashboardLayout
-      title="Create New Token" description="Deploy a new ERC-3643 security token"
-    >
-      {/* Dev Auto-fill */}
-      {isDev && (
-        <div className="flex justify-end mb-4">
+    <IssuerDashboardLayout title="Create New Token" description="Deploy a new ERC-3643 security token">
+      {/* Verified issuer badge */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-full font-medium">
+            <CheckCircle2 className="h-3 w-3" /> Verified Issuer
+          </span>
+          <span className="font-mono text-zinc-400">{walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}</span>
+        </div>
+        {isDev && (
           <button onClick={autoFill}
-            className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 rounded-full hover:bg-amber-600 transition-colors text-xs font-semibold">
-            <Zap className="h-3 w-3" />
-            Auto-fill Fields
+            className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-200 transition-colors text-xs font-semibold">
+            <Zap className="h-3 w-3" /> Auto-fill (Dev Only)
           </button>
+        )}
+      </div>
+
+      {/* Compact progress bar */}
+      <div className="flex items-center gap-2 mb-6">
+        {STEPS.map((step, i) => (
+          <div key={step.id} className="flex items-center gap-2 flex-1">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+              currentStep > step.id ? "bg-green-500 text-white"
+              : currentStep === step.id ? "bg-darkAqua text-white"
+              : "bg-zinc-200 text-zinc-500"
+            }`}>
+              {currentStep > step.id ? <CheckCircle2 className="h-4 w-4" /> : step.id}
+            </div>
+            <span className={`text-xs font-medium hidden sm:block ${currentStep >= step.id ? "text-text" : "text-zinc-400"}`}>
+              {step.title}
+            </span>
+            {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 ${currentStep > step.id ? "bg-green-500" : "bg-zinc-200"}`} />}
+          </div>
+        ))}
+      </div>
+
+      {/* Transaction status + errors — always at top */}
+      {(saveError || deployAction.isPending || deployAction.isConfirming || deployAction.isConfirmed || deployAction.error || isRecording) && (
+        <div className="mb-4">
+          {saveError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 flex items-center gap-2 mb-3">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" /> {saveError}
+            </div>
+          )}
+          <TransactionStatus
+            isPending={deployAction.isPending} isConfirming={deployAction.isConfirming}
+            isConfirmed={deployAction.isConfirmed && !isRecording} txHash={deployAction.txHash}
+            txUrl={deployAction.txUrl} error={deployAction.error}
+            successMessage={recordingDone ? "Token deployed and registered." : "Token deployed on-chain."}
+          />
+          {isRecording && (
+            <div className="mt-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
+              <div className="h-4 w-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+              Registering contract addresses — please wait...
+            </div>
+          )}
         </div>
       )}
 
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between relative">
-          {STEPS.map((step) => (
-            <div key={step.id} className="flex flex-col items-center z-10">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                currentStep > step.id ? "bg-green-500 text-white"
-                  : currentStep === step.id ? "bg-darkAqua text-white" : "bg-gray-200 text-gray-500"
-              }`}>
-                {currentStep > step.id ? <CheckCircle2 className="h-6 w-6" /> : <step.icon className="h-6 w-6" />}
-              </div>
-              <p className={`mt-3 text-sm font-semibold ${currentStep >= step.id ? "text-text" : "text-gray-400"}`}>
-                {step.title}
-              </p>
-            </div>
-          ))}
-          <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200 -z-0">
-            <div className="h-full bg-green-500 transition-all duration-500"
-              style={{ width: `${((currentStep - 1) / (totalSteps - 1)) * 100}%` }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Step Content */}
+      {/* Step content + navigation */}
       <motion.div key={currentStep} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-        className="bg-white rounded-3xl p-8 border border-darkBlack/10">
-        {currentStep === 1 && <StepTokenDetails formData={formData} setFormData={setFormData} />}
-        {currentStep === 2 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} />}
-        {currentStep === 3 && <StepDeploy formData={formData} selectedModules={selectedModules} />}
-      </motion.div>
+        className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+        <div className="p-6">
+          {currentStep === 1 && <StepTokenDetails formData={formData} setFormData={setFormData} />}
+          {currentStep === 2 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} />}
+          {currentStep === 3 && <StepDeploy formData={formData} selectedModules={selectedModules} />}
+        </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between mt-8">
-        {currentStep === 1 ? (
-          <Link href="/issuer/tokens"><Button variant="outline">Cancel</Button></Link>
-        ) : (
-          <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>
-        )}
-        {currentStep < totalSteps ? (
-          <Button variant="primary" onClick={() => setCurrentStep(currentStep + 1)}
-            rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
-        ) : (
-          <div className="flex flex-col items-end gap-2">
-            {deployError && <p className="text-red-600 text-sm">{deployError}</p>}
-            {deploySuccess ? (
-              <Button variant="primary" disabled>Token Deployed</Button>
+        {/* Footer */}
+        <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100">
+          <div className="flex items-center justify-center gap-6">
+            {currentStep === 1 ? (
+              <Link href="/issuer/tokens"><Button variant="outline" size="sm">Cancel</Button></Link>
             ) : (
-              <Button variant="primary" onClick={handleDeploy} isLoading={isDeploying}>
-                {isDeploying ? "Deploying..." : "Deploy Token"}
+              <Button variant="outline" size="sm" onClick={() => setCurrentStep(currentStep - 1)}>
+                <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
+              </Button>
+            )}
+            {currentStep < totalSteps ? (
+              <Button variant="primary" size="sm" onClick={() => setCurrentStep(currentStep + 1)} disabled={!canContinue}>
+                Continue <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            ) : recordingDone ? (
+              <Link href={createdTokenId ? `/issuer/tokens/${createdTokenId}` : "/issuer/tokens"}>
+                <Button variant="primary" size="sm"><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> View Token</Button>
+              </Link>
+            ) : (
+              <Button variant="primary" size="sm" onClick={handleDeploy}
+                disabled={deployAction.isPending || deployAction.isConfirming || isRecording}
+                isLoading={deployAction.isPending || deployAction.isConfirming || isRecording}>
+                <Rocket className="h-3.5 w-3.5 mr-1" />
+                {isRecording ? "Registering..." : !isConnected ? "Connect Wallet" : "Deploy Token"}
               </Button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </motion.div>
     </IssuerDashboardLayout>
   );
 }

@@ -89,13 +89,9 @@ class TokenService:
                 detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer is not active"},
             )
 
-        # Check symbol uniqueness
+        # Check symbol — warn but don't block (multiple tokens can share symbols)
         existing = await self.db.execute(select(Token).where(Token.symbol == symbol.upper()))
-        if existing.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "SYMBOL_EXISTS", "message": "Token symbol already exists"},
-            )
+        symbol_warning = bool(existing.scalar_one_or_none())
 
         # Create token
         token = Token()

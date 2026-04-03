@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "../token/CiretaToken.sol";
 import "../token/IdentityRegistry.sol";
 import "../token/ModularCompliance.sol";
+import "./IssuerRegistry.sol";
 
 /**
  * @title CiretaTokenFactory
@@ -123,15 +124,23 @@ contract CiretaTokenFactory is
         string calldata symbol,
         uint8 decimals,
         address issuer
-    ) external onlyOwner returns (
+    ) external returns (
         address tokenProxy,
         address identityRegistryProxy,
         address complianceProxy
     ) {
         require(issuer != address(0), "zero issuer");
 
-        // Check issuer is registered (optional check)
-        // require(IIssuerRegistry(issuerRegistry).isActiveIssuer(issuer), "issuer not active");
+        // Allow owner (admin) or active issuers to deploy
+        // Issuers must deploy for themselves (issuer == msg.sender)
+        if (msg.sender != owner()) {
+            require(
+                issuerRegistry != address(0) &&
+                IssuerRegistry(issuerRegistry).isActiveIssuer(msg.sender),
+                "not owner or active issuer"
+            );
+            require(msg.sender == issuer, "issuer must be msg.sender");
+        }
 
         // Deploy Identity Registry (same initialize signature for both implementations)
         bytes memory irInitData = abi.encodeWithSelector(

@@ -54,6 +54,17 @@ export async function apiFetch<T>(
     if (response.status === 401 && !options.skipAuthRedirect && typeof window !== "undefined") {
       const currentPath = window.location.pathname;
       if (currentPath !== "/login" && currentPath !== "/register") {
+        // Try silent refresh before redirecting
+        const refreshRes = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => null);
+        if (refreshRes?.ok) {
+          // Retry original request with fresh token
+          const retryRes = await fetch(proxyPath, {
+            method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, signal: undefined,
+          });
+          if (retryRes.ok) {
+            return retryRes.status === 204 ? (undefined as unknown as T) : retryRes.json();
+          }
+        }
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
         return new Promise<T>(() => {});
       }

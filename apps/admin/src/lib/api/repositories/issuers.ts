@@ -55,7 +55,7 @@ export async function createIssuer(
   data: CreateIssuerRequest,
   token: string,
 ): Promise<Issuer> {
-  return apiFetch<Issuer>("/api/v1/admin/issuers/", {
+  return apiFetch<Issuer>("/api/v1/admin/issuers", {
     method: "POST",
     body: data,
     token,

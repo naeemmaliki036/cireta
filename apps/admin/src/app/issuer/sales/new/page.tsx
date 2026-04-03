@@ -327,23 +327,68 @@ export default function CreateSalePage() {
         {/* Step 6: Phases (skip if coming soon) */}
         {step === 6 && (
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-xl font-semibold text-text mb-2">Sale Phases</h2>
-            <p className="text-gray-500 mb-6">Configure one or more phases</p>
+            <h2 className="text-xl font-semibold text-text mb-1">Sale Phases</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Define one or more sale phases. Each phase has its own price, allocation, and time window.
+              Phases run sequentially — they must not overlap.
+            </p>
             <div className="space-y-6">
-              {phases.map((ph, i) => (
-                <div key={i} className="border border-darkBlack/10 rounded-2xl p-6 space-y-4">
-                  <div className="flex items-center justify-between"><h3 className="font-semibold text-text">Phase {i + 1}</h3>{rmBtn(phases, () => setPhases((p) => p.filter((_, idx) => idx !== i)))}</div>
-                  <Input label="Phase Name" placeholder="e.g., Seed Round" value={ph.name} onChange={(e) => updPhase(i, "name", e.target.value)} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="Price per Token (USDC)" type="number" value={ph.pricePerToken} onChange={(e) => updPhase(i, "pricePerToken", e.target.value)} />
-                    <Input label="Allocation (tokens)" type="number" value={ph.allocation} onChange={(e) => updPhase(i, "allocation", e.target.value)} />
+              {phases.map((ph, i) => {
+                const totalRaise = ph.pricePerToken && ph.allocation ? (parseFloat(ph.pricePerToken) * parseFloat(ph.allocation)).toLocaleString("en-US") : null;
+                return (
+                <div key={i} className="border border-zinc-200 rounded-2xl overflow-hidden">
+                  {/* Phase header */}
+                  <div className="flex items-center justify-between px-5 py-3 bg-zinc-50 border-b border-zinc-100">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-darkAqua text-white text-xs font-bold flex items-center justify-center">{i + 1}</span>
+                      <h3 className="font-semibold text-sm text-zinc-900">{ph.name || `Phase ${i + 1}`}</h3>
+                    </div>
+                    {rmBtn(phases, () => setPhases((p) => p.filter((_, idx) => idx !== i)))}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="Start Date" type="datetime-local" value={ph.startDate} onChange={(e) => updPhase(i, "startDate", e.target.value)} />
-                    <Input label="End Date" type="datetime-local" value={ph.endDate} onChange={(e) => updPhase(i, "endDate", e.target.value)} />
+
+                  <div className="p-5 space-y-4">
+                    <div>
+                      <Input label="Phase Name" placeholder="e.g., Seed Round, Private Sale, Public Sale" value={ph.name} onChange={(e) => updPhase(i, "name", e.target.value)} />
+                      <p className="text-[11px] text-zinc-400 mt-1">This name is shown to investors on the launchpad.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Input label="Price per Token (USDC)" type="number" placeholder="e.g., 1.00" value={ph.pricePerToken} onChange={(e) => updPhase(i, "pricePerToken", e.target.value)} />
+                        <p className="text-[11px] text-zinc-400 mt-1">How much 1 token costs in USDC.</p>
+                      </div>
+                      <div>
+                        <Input label="Allocation (tokens)" type="number" placeholder="e.g., 100000" value={ph.allocation} onChange={(e) => updPhase(i, "allocation", e.target.value)} />
+                        <p className="text-[11px] text-zinc-400 mt-1">Max tokens available in this phase.</p>
+                      </div>
+                    </div>
+
+                    {/* Calculated raise */}
+                    {totalRaise && (
+                      <div className="bg-darkAqua/5 rounded-lg px-4 py-2 text-sm">
+                        <span className="text-zinc-500">Phase raise: </span>
+                        <span className="font-semibold text-darkAqua">${totalRaise} USDC</span>
+                        <span className="text-zinc-400"> ({Number(ph.allocation).toLocaleString("en-US")} tokens × ${ph.pricePerToken})</span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Input label="Start Date & Time" type="datetime-local" value={ph.startDate} onChange={(e) => updPhase(i, "startDate", e.target.value)} />
+                        <p className="text-[11px] text-zinc-400 mt-1">When investors can start buying.</p>
+                      </div>
+                      <div>
+                        <Input label="End Date & Time" type="datetime-local" value={ph.endDate} onChange={(e) => updPhase(i, "endDate", e.target.value)} />
+                        <p className="text-[11px] text-zinc-400 mt-1">Phase closes at this time.</p>
+                      </div>
+                    </div>
                   </div>
-                </div>))}
-              <Button variant="outline" onClick={() => setPhases((p) => [...p, emptyPhase()])} className="w-full">+ Add Phase</Button>
+                </div>);
+              })}
+              <button onClick={() => setPhases((p) => [...p, emptyPhase()])}
+                className="w-full border-2 border-dashed border-zinc-300 hover:border-darkAqua rounded-2xl py-4 text-sm font-medium text-zinc-500 hover:text-darkAqua transition-colors">
+                + Add Another Phase
+              </button>
             </div>
           </div>
         )}
@@ -361,22 +406,117 @@ export default function CreateSalePage() {
           </div>
         )}
         {/* Step 8: Vesting (skip if direct or coming soon) */}
-        {step === 8 && (
+        {step === 8 && (() => {
+          const PRESETS = [
+            { label: "No cliff", days: 0 },
+            { label: "1 day", days: 1 },
+            { label: "1 week", days: 7 },
+            { label: "1 month", days: 30 },
+            { label: "3 months", days: 90 },
+            { label: "6 months", days: 180 },
+            { label: "9 months", days: 270 },
+            { label: "1 year", days: 365 },
+            { label: "1.5 years", days: 548 },
+            { label: "2 years", days: 730 },
+            { label: "3 years", days: 1095 },
+          ];
+          const cliffNum = parseInt(cliffDays) || 0;
+          const vestingNum = parseInt(vestingDays) || 0;
+          const cliffError = cliffNum > 0 && vestingNum > 0 && cliffNum >= vestingNum;
+          const totalDays = cliffNum + vestingNum;
+
+          const fmtDuration = (d: number) =>
+            d === 0 ? "None" : d < 30 ? `${d} day${d > 1 ? "s" : ""}` : d < 365 ? `${(d / 30).toFixed(1)} months` : `${(d / 365).toFixed(1)} years`;
+
+          return (
           <div className="max-w-2xl mx-auto space-y-6">
-            <h2 className="text-xl font-semibold text-text">Vesting Configuration</h2>
-            <p className="text-gray-500">Configure how tokens are released to investors after purchase</p>
-            <Input label="Cliff Duration (days)" type="number" placeholder="e.g., 90" value={cliffDays} onChange={(e) => setCliffDays(e.target.value)}
-              helperText="Days before any tokens can be claimed. 0 = no cliff." />
-            <Input label="Vesting Duration (days)" type="number" placeholder="e.g., 365" value={vestingDays} onChange={(e) => setVestingDays(e.target.value)}
-              helperText="Linear vesting period after cliff. Tokens unlock gradually over this period." />
-            <div className="p-4 rounded-xl bg-box text-sm space-y-1">
-              <p><strong>Preview:</strong></p>
-              <p>Cliff: {cliffDays || 0} days after sale finalization</p>
-              <p>Vesting: {vestingDays || 0} days linear after cliff ends</p>
-              <p>Total time to full unlock: {(parseInt(cliffDays) || 0) + (parseInt(vestingDays) || 0)} days</p>
+            <h2 className="text-xl font-semibold text-text mb-1">Vesting Configuration</h2>
+            <p className="text-sm text-gray-500">Configure how tokens are released to investors after the sale finalizes.</p>
+
+            {/* Cliff */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Cliff Period</label>
+              <p className="text-xs text-zinc-400 mb-3">No tokens can be claimed during the cliff. After the cliff ends, vesting begins.</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {PRESETS.filter(p => p.days < vestingNum || vestingNum === 0).map((p) => (
+                  <button key={`cliff-${p.days}`} type="button" onClick={() => setCliffDays(String(p.days))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      cliffNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                    }`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={0} placeholder="Custom days" value={cliffDays}
+                  onChange={(e) => setCliffDays(e.target.value)} />
+                <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+              </div>
+            </div>
+
+            {/* Vesting */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Vesting Duration</label>
+              <p className="text-xs text-zinc-400 mb-3">After the cliff, tokens unlock linearly over this period. At the end, 100% is claimable.</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {PRESETS.filter(p => p.days > 0 && p.days > cliffNum).map((p) => (
+                  <button key={`vest-${p.days}`} type="button" onClick={() => setVestingDays(String(p.days))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      vestingNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                    }`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={1} placeholder="Custom days" value={vestingDays}
+                  onChange={(e) => setVestingDays(e.target.value)} />
+                <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+              </div>
+            </div>
+
+            {/* Validation */}
+            {cliffError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600">
+                Cliff must be shorter than the vesting duration.
+              </div>
+            )}
+
+            {/* Preview */}
+            <div className="p-4 rounded-xl bg-darkAqua/5 border border-darkAqua/20 text-sm space-y-2">
+              <p className="font-semibold text-zinc-900">Schedule Preview</p>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-xs text-zinc-400">Cliff</p>
+                  <p className="font-bold text-zinc-900">{fmtDuration(cliffNum)}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-xs text-zinc-400">Vesting</p>
+                  <p className="font-bold text-zinc-900">{fmtDuration(vestingNum)}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-xs text-zinc-400">Full Unlock</p>
+                  <p className="font-bold text-darkAqua">{fmtDuration(totalDays)}</p>
+                </div>
+              </div>
+              {vestingNum > 0 && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-1 text-[10px] text-zinc-400 mb-1">
+                    <span>Sale finalizes</span>
+                    <span className="flex-1 border-t border-dashed border-zinc-300" />
+                    {cliffNum > 0 && <><span>Cliff ends</span><span className="flex-1 border-t border-dashed border-zinc-300" /></>}
+                    <span>Fully vested</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-zinc-200 overflow-hidden flex">
+                    {cliffNum > 0 && <div className="bg-amber-400" style={{ width: `${(cliffNum / totalDays) * 100}%` }} />}
+                    <div className="bg-darkAqua" style={{ width: `${(vestingNum / totalDays) * 100}%` }} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+          );
+        })()}
         {/* Step 9: Review */}
         {step === 9 && (
           <div className="max-w-2xl mx-auto text-center">

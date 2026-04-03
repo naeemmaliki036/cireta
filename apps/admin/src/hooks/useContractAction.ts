@@ -13,6 +13,8 @@ export interface ContractActionState {
     abi: Abi;
     functionName: string;
     args?: readonly unknown[];
+    gas?: bigint;
+    value?: bigint;
   }) => Promise<TransactionReceipt | null>;
   /** Wallet signature is pending */
   isPending: boolean;
@@ -64,6 +66,8 @@ export function useContractAction(): ContractActionState {
       abi: Abi;
       functionName: string;
       args?: readonly unknown[];
+      gas?: bigint;
+      value?: bigint;
     }): Promise<TransactionReceipt | null> => {
       setError(null);
       setTxHash(null);
@@ -78,6 +82,8 @@ export function useContractAction(): ContractActionState {
           abi: params.abi,
           functionName: params.functionName,
           args: params.args as unknown[],
+          ...(params.gas ? { gas: params.gas } : {}),
+          ...(params.value ? { value: params.value } : {}),
         });
         setTxHash(hash);
         setIsPending(false);

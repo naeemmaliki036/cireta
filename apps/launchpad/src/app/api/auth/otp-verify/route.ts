@@ -26,5 +26,15 @@ export async function POST(request: NextRequest) {
     maxAge: 60 * 15,
   });
 
+  if (data.refresh_token) {
+    cookieStore.set("launchpad_refresh", data.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days for investors
+    });
+  }
+
   return NextResponse.json({ success: true });
 }

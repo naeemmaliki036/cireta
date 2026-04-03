@@ -19,15 +19,25 @@ export async function POST(request: NextRequest) {
 
   const data = await res.json();
 
-  // Set auth cookie with the JWT token
+  // Set auth cookies — access + refresh tokens
   const cookieStore = await cookies();
   cookieStore.set("admin_token", data.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 8, // 8 hours — matches admin/issuer refresh token lifetime
+    maxAge: 60 * 15, // 15 minutes — matches access token lifetime
   });
+
+  if (data.refresh_token) {
+    cookieStore.set("admin_refresh", data.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 8, // 8 hours — admin/issuer refresh lifetime
+    });
+  }
 
   return NextResponse.json({ success: true, role: data.role ?? null });
 }

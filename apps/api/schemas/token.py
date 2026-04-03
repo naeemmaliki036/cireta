@@ -19,7 +19,7 @@ class TokenCreateRequest(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=11)
     asset_type: AssetType = AssetType.COMMODITY
     total_supply: Decimal = Field(..., gt=0, le=_MAX_SUPPLY)
-    decimals: int = Field(default=18, ge=0, le=18)
+    decimals: int = Field(default=6, ge=0, le=6)
     ipfs_docs_hash: str | None = None
     chainlink_por_feed: str | None = None
     slug: str | None = None

@@ -2057,7 +2057,7 @@
             "label": "bool",
             "numberOfBytes": "1"
           },
-          "t_struct(InitializableStorage)927_storage": {
+          "t_struct(InitializableStorage)844_storage": {
             "label": "struct Initializable.InitializableStorage",
             "members": [
               {
@@ -2423,6 +2423,193 @@
           },
           "t_mapping(t_address,t_address)": {
             "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "ff9f7053286b8a0d756564edebc90de6454bf2cc30f414219eebd1c65a18ae05": {
+      "address": "0x9210cE2424D7BBC26Fc064694A5ECCd68D14f0bf",
+      "txHash": "0x323ac4b1e4d95f32409f3ec6af65964f41d843fa1959199f8661e0069a4123b7",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "tokenImplementation",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:26"
+          },
+          {
+            "label": "identityRegistryImplementation",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:27"
+          },
+          {
+            "label": "complianceImplementation",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:28"
+          },
+          {
+            "label": "claimTopicsRegistry",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:31"
+          },
+          {
+            "label": "trustedIssuersRegistry",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:32"
+          },
+          {
+            "label": "identityRegistryStorage",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:33"
+          },
+          {
+            "label": "issuerRegistry",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_address",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:34"
+          },
+          {
+            "label": "deployedTokens",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:37"
+          },
+          {
+            "label": "isDeployedToken",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:38"
+          },
+          {
+            "label": "simpleIdentityMode",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_bool",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:42"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "CiretaTokenFactory",
+            "src": "src/platform/CiretaTokenFactory.sol:45"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)844_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)151_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
             "numberOfBytes": "32"
           },
           "t_uint256": {

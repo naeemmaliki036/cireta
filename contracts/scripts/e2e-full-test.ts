@@ -165,12 +165,12 @@ async function main() {
   // ════════════════════════════════════════════
   // STEP 3: Deploy Token
   // ════════════════════════════════════════════
-  console.log("\n=== Step 3: Deploy Token ===");
+  console.log("\n=== Step 3: Deploy Token (issuer deploys own token) ===");
   const tokenFactory = new ethers.Contract(addr.tokenFactory, [
     "function deployToken(string, string, uint8, address) external returns (address, address, address)",
     "function getDeployedTokensCount() view returns (uint256)",
     "function getDeployedTokens(uint256, uint256) view returns (address[])",
-  ], admin);
+  ], issuer);
 
   const tx3 = await tokenFactory.deployToken("E2E Test Token", "eTST", 6, issuer.address, { gasLimit: 5_000_000 });
   await tx3.wait();

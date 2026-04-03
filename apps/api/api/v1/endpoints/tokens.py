@@ -7,6 +7,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.schemas.token import (
@@ -42,6 +44,8 @@ def _token_to_response(token) -> TokenResponse:
             token.asset_type.value if hasattr(token.asset_type, "value") else token.asset_type
         ),
         contract_address=token.contract_address,
+        identity_registry_address=token.identity_registry_address,
+        compliance_address=token.compliance_address,
         chain_id=token.chain_id,
         total_supply=str(token.total_supply),
         decimals=token.decimals,
@@ -53,6 +57,52 @@ def _token_to_response(token) -> TokenResponse:
         description=token.description,
         image_url=token.image_url,
     )
+
+
+@router.get("/check-symbol")
+async def check_symbol(
+    symbol: str = Query(..., min_length=1),
+    name: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Check if a token symbol or name already exists. Returns warning, not error."""
+    from apps.api.models.token import Token
+
+    symbol_exists = False
+    symbol_used_by = None
+    name_exists = False
+    name_used_by = None
+
+    try:
+        result = await db.execute(
+            select(Token.name).where(Token.symbol == symbol.upper()).limit(1)
+        )
+        row = result.first()
+        if row:
+            symbol_exists = True
+            symbol_used_by = row[0]
+    except Exception:
+        pass
+
+    if name and len(name) >= 3:
+        try:
+            result2 = await db.execute(
+                select(Token.symbol).where(Token.name == name).limit(1)
+            )
+            row2 = result2.first()
+            if row2:
+                name_exists = True
+                name_used_by = row2[0]
+        except Exception:
+            pass
+
+    return {
+        "symbol": symbol.upper(),
+        "symbol_exists": symbol_exists,
+        "symbol_used_by": symbol_used_by,
+        "name_exists": name_exists,
+        "name_used_by": name_used_by,
+    }
 
 
 @router.get("/", response_model=TokenListResponse)
@@ -125,6 +175,77 @@ async def deploy_token(
     Requires: issuer role (must be token owner).
     """
     token = await token_service.deploy_contract(user_id, token_id)
+    return _token_to_response(token)
+
+
+class RecordDeploymentRequest(BaseModel):
+    tx_hash: str
+
+
+@router.post("/{token_id}/record-deployment", response_model=TokenResponse)
+async def record_token_deployment(
+    token_id: UUID,
+    request: RecordDeploymentRequest,
+    user_id: CurrentUserId,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Record on-chain deployment by parsing the tx receipt server-side.
+
+    Frontend sends only the tx_hash. Backend reads the receipt from the chain
+    and extracts TokenDeployed event to get contract addresses.
+    """
+    from apps.api.models.token import Token
+
+    result = await db.execute(
+        select(Token).where(Token.id == token_id)
+    )
+    token = result.scalar_one_or_none()
+    if not token:
+        raise HTTPException(status_code=404, detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"})
+
+    # Parse tx receipt from chain
+    try:
+        from apps.api.services.web3_base_service import Web3BaseService
+        from web3 import Web3
+
+        w3_svc = Web3BaseService()
+        w3 = w3_svc.w3
+        receipt = w3.eth.get_transaction_receipt(request.tx_hash)
+
+        # Find TokenDeployed event: topic0 = keccak256("TokenDeployed(address,address,address,string,string,address)")
+        token_deployed_topic = Web3.keccak(text="TokenDeployed(address,address,address,string,string,address)").hex()
+
+        token_addr = None
+        ir_addr = None
+        comp_addr = None
+
+        for log in receipt.logs:
+            if len(log.topics) >= 4 and log.topics[0].hex() == token_deployed_topic:
+                token_addr = Web3.to_checksum_address("0x" + log.topics[1].hex()[-40:])
+                ir_addr = Web3.to_checksum_address("0x" + log.topics[2].hex()[-40:])
+                comp_addr = Web3.to_checksum_address("0x" + log.topics[3].hex()[-40:])
+                break
+
+        if not token_addr:
+            raise HTTPException(status_code=400, detail={
+                "code": "EVENT_NOT_FOUND",
+                "message": "TokenDeployed event not found in tx receipt",
+            })
+
+        token.contract_address = token_addr
+        token.identity_registry_address = ir_addr
+        token.compliance_address = comp_addr
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={
+            "code": "CHAIN_ERROR",
+            "message": f"Failed to read tx receipt: {exc}",
+        })
+
+    await db.commit()
+    await db.refresh(token)
     return _token_to_response(token)
 
 

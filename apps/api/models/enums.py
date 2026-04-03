@@ -45,7 +45,15 @@ class IssuerType(str, Enum):
 
 class AssetType(str, Enum):
     COMMODITY = "commodity"
+    REAL_ESTATE = "real_estate"
+    INFRASTRUCTURE = "infrastructure"
+    ENERGY = "energy"
+    AGRICULTURE = "agriculture"
     FUTURES = "futures"
+    EQUITY = "equity"
+    DEBT = "debt"
+    FUND = "fund"
+    OTHER = "other"
 
 
 class SaleStatus(str, Enum):

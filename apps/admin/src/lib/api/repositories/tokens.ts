@@ -51,12 +51,12 @@ export async function createToken(
   },
   token?: string,
 ): Promise<Token> {
-  return apiFetch<Token>("/api/v1/tokens/", {
+  return apiFetch<Token>("/api/v1/tokens", {
     method: "POST",
     body: {
       ...data,
       total_supply: data.total_supply,
-      decimals: parseInt(data.decimals ?? "18", 10),
+      decimals: parseInt(data.decimals ?? "6", 10),
     },
     token,
   });
