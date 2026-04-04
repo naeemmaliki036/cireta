@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 OTP_LENGTH = 6
 OTP_EXPIRY_MINUTES = 10
-OTP_RATE_LIMIT_PER_HOUR = 5
+OTP_RATE_LIMIT_PER_HOUR = 20
 
 
 class OTPService:

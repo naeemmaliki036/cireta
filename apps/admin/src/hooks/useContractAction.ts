@@ -77,12 +77,14 @@ export function useContractAction(): ContractActionState {
 
       try {
         // Step 1: Send transaction (user signs in wallet)
+        // Default gas: 500k for simple calls. Deploy calls should pass explicit higher values.
+        const gas = params.gas ?? 500_000n;
         const hash = await writeContractAsync({
           address: params.address,
           abi: params.abi,
           functionName: params.functionName,
           args: params.args as unknown[],
-          ...(params.gas ? { gas: params.gas } : {}),
+          gas,
           ...(params.value ? { value: params.value } : {}),
         });
         setTxHash(hash);
@@ -140,6 +142,21 @@ function parseError(err: unknown): string {
   }
   if (msg.includes("zero address") || msg.includes("ZeroAddress")) {
     return "One of the required addresses is missing (zero address).";
+  }
+  if (msg.includes("FeeMismatch")) {
+    return "Fee mismatch — the fee basis points don't match the PlatformFeeManager. Check platform fee settings.";
+  }
+  if (msg.includes("IssuerMismatch")) {
+    return "Issuer mismatch — your connected wallet doesn't match the issuer address in the sale contract.";
+  }
+  if (msg.includes("FactoryMismatch")) {
+    return "Factory mismatch — the sale contract factory address doesn't match. Check deployment configuration.";
+  }
+  if (msg.includes("exceeds max") || msg.includes("gas limit")) {
+    return "Transaction exceeds gas limit. This is a complex contract call — please try again.";
+  }
+  if (msg.includes("reverted") && msg.includes("unknown reason")) {
+    return "Transaction reverted. Check that your wallet is an active issuer, the token is deployed, and all addresses are correct.";
   }
 
   // Truncate long messages

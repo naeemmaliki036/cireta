@@ -91,12 +91,28 @@ export interface DividendEntry {
 }
 
 export interface Transaction {
-  type: string;
+  id: string;
+  type: "investment" | "claim" | "redemption" | "refund";
   amount: string;
+  tokens_allocated: string;
+  token_symbol: string;
+  token_name: string;
+  token_id: string | null;
   tx_hash: string | null;
   status: string;
   created_at: string | null;
-  token_symbol?: string;
+}
+
+export interface TransactionFilters {
+  token_id?: string;
+  type?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TransactionListResponse {
+  transactions: Transaction[];
+  total: number;
 }
 
 export async function getDividends(): Promise<DividendEntry[]> {
@@ -104,9 +120,17 @@ export async function getDividends(): Promise<DividendEntry[]> {
   return data.dividends ?? [];
 }
 
-export async function getTransactions(): Promise<Transaction[]> {
-  const data = await apiGet<{ transactions: Transaction[] }>("/api/v1/portfolio/transactions");
-  return data.transactions ?? [];
+export async function getTransactions(
+  filters?: TransactionFilters
+): Promise<TransactionListResponse> {
+  const params = new URLSearchParams();
+  if (filters?.token_id) params.set("token_id", filters.token_id);
+  if (filters?.type) params.set("type", filters.type);
+  if (filters?.limit) params.set("limit", String(filters.limit));
+  if (filters?.offset) params.set("offset", String(filters.offset));
+  const qs = params.toString();
+  const path = `/api/v1/portfolio/transactions${qs ? `?${qs}` : ""}`;
+  return apiGet<TransactionListResponse>(path);
 }
 
 export async function getRedemptions(): Promise<RedemptionRequest[]> {

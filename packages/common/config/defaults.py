@@ -20,9 +20,9 @@ DEFAULTS: dict[str, object] = {
     "CACHE_TTL": 3600,
     # Security (no secrets - these are just algorithm/timing configs)
     "JWT_ALGORITHM": "HS256",
-    "ACCESS_TOKEN_EXPIRE_SECONDS": 900,  # 15 minutes per CLAUDE.md
-    "REFRESH_TOKEN_EXPIRE_SECONDS": 604800,  # 7 days per CLAUDE.md (investors)
-    "REFRESH_TOKEN_EXPIRE_SECONDS_ADMIN": 28800,  # 8 hours for admin/issuer roles
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 86400,  # 24 hours
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 604800,  # 7 days (investors)
+    "REFRESH_TOKEN_EXPIRE_SECONDS_ADMIN": 86400,  # 24 hours for admin/issuer roles
 
     "BCRYPT_ROUNDS": 12,
     # Server

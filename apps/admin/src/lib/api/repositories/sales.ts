@@ -24,6 +24,7 @@ export interface Sale {
   sale_mode: string;
   sale_structure: string;
   is_coming_soon: boolean;
+  is_visible: boolean;
   otc_enabled: boolean;
   otc_content: string | null;
   otc_token_address: string | null;
@@ -38,6 +39,8 @@ export interface Sale {
   facebook_url: string | null;
   telegram_url: string | null;
   discord_url: string | null;
+  cliff_duration_days: number;
+  vesting_duration_days: number;
   contract_address: string | null;
   token_contract_address: string | null;
   identity_registry_address: string | null;

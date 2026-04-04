@@ -48,6 +48,9 @@ interface DeploymentAddresses {
   maxHolderCountModule: string;
   // Testnet only
   ciretaUSDC: string;
+  // OTC
+  otcTokenImplementation: string;
+  otcTokenFactory: string;
   // Metadata
   identityMode: string;
 }
@@ -515,6 +518,42 @@ async function main() {
     console.log("  MaxHolderCountModule: (exists)", addr.maxHolderCountModule);
   }
 
+  // ════════════════════════════════════════════════════════
+  // STEP 6a: OTC Token Factory
+  // ════════════════════════════════════════════════════════
+  console.log("\n=== Step 6a: OTC Token Factory ===");
+
+  if (!addr.otcTokenImplementation) {
+    const F = await ethers.getContractFactory("IssuerOTCToken");
+    const impl = await F.deploy();
+    await impl.waitForDeployment();
+    addr.otcTokenImplementation = await impl.getAddress();
+    console.log("  IssuerOTCToken impl:", addr.otcTokenImplementation);
+  } else {
+    console.log("  IssuerOTCToken impl: (exists)", addr.otcTokenImplementation);
+  }
+
+  if (!addr.otcTokenFactory) {
+    const F = await ethers.getContractFactory("IssuerOTCTokenFactory");
+    const proxy = await upgrades.deployProxy(F, [deployer.address, addr.otcTokenImplementation], { kind: "uups" });
+    await proxy.waitForDeployment();
+    addr.otcTokenFactory = await proxy.getAddress();
+    console.log("  IssuerOTCTokenFactory:", addr.otcTokenFactory);
+  } else {
+    console.log("  IssuerOTCTokenFactory: (exists)", addr.otcTokenFactory);
+  }
+
+  // Set issuer registry on OTC factory
+  {
+    const otcFactory = (await ethers.getContractFactory("IssuerOTCTokenFactory")).attach(addr.otcTokenFactory!) as any;
+    try {
+      await (await otcFactory.setIssuerRegistry(addr.issuerRegistry!)).wait();
+      console.log("  OTCFactory.issuerRegistry →", addr.issuerRegistry);
+    } catch {
+      console.log("  OTCFactory.issuerRegistry: already set (non-fatal)");
+    }
+  }
+
   saveDeployment(networkName, addr);
 
   // ════════════════════════════════════════════════════════
@@ -570,6 +609,7 @@ async function main() {
       // because SaleFactory.deploySaleVested() calls FractionFactory.deployVaultAndFraction() which is onlyOwner
       { name: "CountryAllowModule", address: addr.countryAllowModule! },
       { name: "MaxHolderCountModule", address: addr.maxHolderCountModule! },
+      { name: "IssuerOTCTokenFactory", address: addr.otcTokenFactory! },
     ];
 
     // ERC-3643 only contracts

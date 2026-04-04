@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, Rocket } from "lucide-react";
 import { Input, Select, Textarea, Badge } from "@/components/atoms";
+import { CountrySelector } from "@/components/molecules/CountrySelector";
 
 export interface TokenFormData {
   name: string;
@@ -163,9 +164,20 @@ export function StepTokenDetails({
   );
 }
 
+export interface ComplianceConfig {
+  selectedCountries: Set<number>;
+  maxOwnership: string;
+  maxHolders: string;
+}
+
 export function StepCompliance({
-  selectedModules, toggleModule,
-}: { selectedModules: string[]; toggleModule: (id: string) => void }) {
+  selectedModules, toggleModule, complianceConfig, setComplianceConfig,
+}: {
+  selectedModules: string[];
+  toggleModule: (id: string) => void;
+  complianceConfig: ComplianceConfig;
+  setComplianceConfig: (config: ComplianceConfig) => void;
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const tagColors: Record<string, string> = {
@@ -230,6 +242,54 @@ export function StepCompliance({
                   </div>
                 </div>
               )}
+
+              {/* Inline configuration — shown when module is selected */}
+              {isSelected && m.id === "country_allow" && (
+                <div className="px-4 pb-4 ml-8 border-t border-zinc-100 pt-3">
+                  <p className="text-xs font-semibold text-zinc-700 mb-2">Configure allowed countries</p>
+                  <CountrySelector
+                    selected={complianceConfig.selectedCountries}
+                    onChange={(countries) => setComplianceConfig({ ...complianceConfig, selectedCountries: countries })}
+                    alreadyAllowed={[]}
+                  />
+                </div>
+              )}
+
+              {isSelected && m.id === "max_ownership" && (
+                <div className="px-4 pb-4 ml-8 border-t border-zinc-100 pt-3">
+                  <p className="text-xs font-semibold text-zinc-700 mb-2">Configure maximum ownership</p>
+                  <Input
+                    label="Max tokens per holder"
+                    type="number"
+                    placeholder="e.g., 100000"
+                    value={complianceConfig.maxOwnership}
+                    onChange={(e) => setComplianceConfig({ ...complianceConfig, maxOwnership: e.target.value })}
+                  />
+                  {complianceConfig.maxOwnership && Number(complianceConfig.maxOwnership) > 0 && (
+                    <p className="text-xs text-zinc-500 mt-1">
+                      No single wallet can hold more than {Number(complianceConfig.maxOwnership).toLocaleString("en-US")} tokens.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {isSelected && m.id === "max_holders" && (
+                <div className="px-4 pb-4 ml-8 border-t border-zinc-100 pt-3">
+                  <p className="text-xs font-semibold text-zinc-700 mb-2">Configure maximum holder count</p>
+                  <Input
+                    label="Maximum number of holders"
+                    type="number"
+                    placeholder="e.g., 500"
+                    value={complianceConfig.maxHolders}
+                    onChange={(e) => setComplianceConfig({ ...complianceConfig, maxHolders: e.target.value })}
+                  />
+                  {complianceConfig.maxHolders && Number(complianceConfig.maxHolders) > 0 && (
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Once {Number(complianceConfig.maxHolders).toLocaleString("en-US")} unique holders exist, new holders will be blocked.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -239,8 +299,8 @@ export function StepCompliance({
 }
 
 export function StepDeploy({
-  formData, selectedModules,
-}: { formData: TokenFormData; selectedModules: string[] }) {
+  formData, selectedModules, complianceConfig,
+}: { formData: TokenFormData; selectedModules: string[]; complianceConfig?: ComplianceConfig }) {
   return (
     <div className="max-w-2xl mx-auto text-center">
       <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
@@ -269,6 +329,24 @@ export function StepDeploy({
             <span className="text-gray-500">Compliance Modules</span>
             <span className="font-medium">{selectedModules.length} selected</span>
           </div>
+          {complianceConfig && selectedModules.includes("country_allow") && complianceConfig.selectedCountries.size > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-500 pl-4">Allowed Countries</span>
+              <span className="font-medium">{complianceConfig.selectedCountries.size} countries</span>
+            </div>
+          )}
+          {complianceConfig && selectedModules.includes("max_ownership") && complianceConfig.maxOwnership && (
+            <div className="flex justify-between">
+              <span className="text-gray-500 pl-4">Max Ownership</span>
+              <span className="font-medium">{Number(complianceConfig.maxOwnership).toLocaleString("en-US")} tokens/holder</span>
+            </div>
+          )}
+          {complianceConfig && selectedModules.includes("max_holders") && complianceConfig.maxHolders && (
+            <div className="flex justify-between">
+              <span className="text-gray-500 pl-4">Max Holders</span>
+              <span className="font-medium">{Number(complianceConfig.maxHolders).toLocaleString("en-US")} holders</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-500">Network</span>
             <span className="font-medium">{

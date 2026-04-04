@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, Clock, ArrowLeft, CheckCircle2, XCircle, Flag,
-  AlertCircle, Zap, Pause, Play, ShieldAlert,
+  AlertCircle, Zap, Pause, Play, ShieldAlert, Eye, EyeOff,
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { type Abi } from "viem";
+import { type Abi, isAddress } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
@@ -38,6 +38,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
   const activateAction = useContractAction();
+  const rejectAction = useContractAction();
   const pauseAction = useContractAction();
   const unpauseAction = useContractAction();
   const finalizeAction = useContractAction();
@@ -65,6 +66,10 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
     finally { setActionLoading(null); }
   };
 
+  const handleToggleVisibility = () => handleAction("visibility", async () => {
+    await apiFetch(`/api/v1/admin/sales/${resolvedId}/toggle-visibility`, { method: "POST", body: {}, token: getToken() });
+  });
+
   const handleApprove = () => handleAction("approve", async () => {
     await apiFetch(`/api/v1/admin/sales/${resolvedId}/approve`, { method: "POST", body: {}, token: getToken() });
   });
@@ -84,6 +89,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       address: sale.contract_address as `0x${string}`,
       abi: SALE_ABI as unknown as Abi,
       functionName: "activate",
+      gas: 1_000_000n,
     });
     if (receipt) {
       try {
@@ -91,6 +97,16 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       } catch { /* on-chain is source of truth */ }
       await reload();
     }
+  };
+
+  const handleRejectOnChain = async () => {
+    if (!sale?.contract_address || !requireWallet()) return;
+    await rejectAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "reject",
+    });
+    await reload();
   };
 
   const handlePauseOnChain = async () => {
@@ -161,11 +177,32 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       {actionError && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
       {actionSuccess && <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-600"><CheckCircle2 className="h-4 w-4 inline mr-1" />Action completed</div>}
 
-      {/* ── Pending Approval ── */}
-      {isPending && (
+      {/* Pending approval sections are below (split by hasContract) */}
+
+      {/* ── Rejected (DB) ── */}
+      {isRejected && (
+        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+          <p className="font-semibold mb-1">Sale rejected — not visible on launchpad</p>
+          <p>Issuer can edit and resubmit for approval.</p>
+        </div>
+      )}
+
+      {/* ── Pending — No contract yet ── */}
+      {isPending && !hasContract && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
-          <h2 className="text-lg font-semibold text-amber-800 mb-4">Pending Approval</h2>
-          <p className="text-sm text-amber-700 mb-4">Review this sale and approve or reject it.</p>
+          <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Not Deployed</h2>
+          <p className="text-sm text-amber-700">Issuer has submitted for approval but hasn't deployed the sale contract on-chain yet. Cannot approve until deployed.</p>
+        </motion.div>
+      )}
+
+      {/* ── Pending — Has contract → Approve or Reject ── */}
+      {isPending && hasContract && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
+          <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Deployed</h2>
+          <p className="text-sm text-amber-700 mb-1">
+            Sale deployed at <code className="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
+          </p>
+          <p className="text-sm text-amber-700 mb-4">Approve to allow the issuer to proceed. You can control launchpad visibility separately after approval.</p>
           <div className="flex items-center gap-3">
             <Button variant="primary" onClick={handleApprove} isLoading={actionLoading === "approve"}>
               <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
@@ -181,33 +218,32 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </motion.div>
       )}
 
-      {/* ── Rejected ── */}
-      {isRejected && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-          Sale was rejected. Issuer can edit and resubmit.
-        </div>
-      )}
-
-      {/* ── Approved — Waiting for Deploy ── */}
-      {isApproved && !hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-green-50 rounded-3xl p-6 border border-green-200 mb-6">
-          <h2 className="text-lg font-semibold text-green-800 mb-2">Approved</h2>
-          <p className="text-sm text-green-700">Waiting for issuer to deploy the sale contract on-chain.</p>
+      {/* ── Approved — Ready to Activate (+ Reject On-Chain option) ── */}
+      {isApproved && hasContract && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-teal-50 rounded-3xl p-6 border border-teal-200 mb-6">
+          <h2 className="text-lg font-semibold text-teal-800 mb-2">Approved — Ready to Activate</h2>
+          <p className="text-sm text-teal-700 mb-1">
+            Deployed at <code className="font-mono text-xs bg-teal-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
+          </p>
+          <p className="text-sm text-teal-700 mb-4">Activate on-chain to enable purchases. You can control launchpad visibility after activation.</p>
+          <div className="flex items-center gap-3">
+            <Button variant="primary" onClick={handleActivateOnChain} disabled={activateAction.isPending || activateAction.isConfirming} isLoading={activateAction.isPending || activateAction.isConfirming}>
+              <Zap className="h-4 w-4 mr-2" /> Activate On-Chain
+            </Button>
+            <Button variant="outline" onClick={handleRejectOnChain} disabled={rejectAction.isPending || rejectAction.isConfirming} isLoading={rejectAction.isPending || rejectAction.isConfirming} className="text-red-600 border-red-200 hover:bg-red-50">
+              <XCircle className="h-4 w-4 mr-2" /> Reject On-Chain
+            </Button>
+          </div>
+          <TransactionStatus isPending={activateAction.isPending} isConfirming={activateAction.isConfirming} isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash} txUrl={activateAction.txUrl} error={activateAction.error} successMessage="Sale activated — now live for investors." />
+          <TransactionStatus isPending={rejectAction.isPending} isConfirming={rejectAction.isConfirming} isConfirmed={rejectAction.isConfirmed} txHash={rejectAction.txHash} txUrl={rejectAction.txUrl} error={rejectAction.error} successMessage="Sale rejected on-chain — permanently blocked." />
         </motion.div>
       )}
 
-      {/* ── Approved — Ready to Activate ── */}
-      {isApproved && hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-teal-50 rounded-3xl p-6 border border-teal-200 mb-6">
-          <h2 className="text-lg font-semibold text-teal-800 mb-2">Ready for Activation</h2>
-          <p className="text-sm text-teal-700 mb-1">
-            Sale deployed at <code className="font-mono text-xs bg-teal-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
-          </p>
-          <p className="text-sm text-teal-700 mb-4">Connect your admin wallet and activate to make it live.</p>
-          <Button variant="primary" onClick={handleActivateOnChain} disabled={activateAction.isPending || activateAction.isConfirming} isLoading={activateAction.isPending || activateAction.isConfirming}>
-            <Zap className="h-4 w-4 mr-2" /> Activate On-Chain
-          </Button>
-          <TransactionStatus isPending={activateAction.isPending} isConfirming={activateAction.isConfirming} isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash} txUrl={activateAction.txUrl} error={activateAction.error} successMessage="Sale activated — now live for investors." />
+      {/* ── Approved but no contract ── */}
+      {isApproved && !hasContract && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-green-50 rounded-3xl p-6 border border-green-200 mb-6">
+          <h2 className="text-lg font-semibold text-green-800 mb-2">Approved — Waiting for Deploy</h2>
+          <p className="text-sm text-green-700">Sale is approved for visibility. Waiting for issuer to deploy the contract on-chain.</p>
         </motion.div>
       )}
 
@@ -271,18 +307,26 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           </h2>
           <p className="text-xs text-zinc-500 mb-3">Available 90 days after finalization. Withdraws any remaining funds to the specified address. Use only if issuer has not withdrawn.</p>
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={emergencyRecipient}
-              onChange={(e) => setEmergencyRecipient(e.target.value)}
-              placeholder="Recipient address (0x...)"
-              className="flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300"
-            />
+            <div className="flex-1">
+              <input
+                type="text"
+                value={emergencyRecipient}
+                onChange={(e) => setEmergencyRecipient(e.target.value)}
+                placeholder="Recipient address (0x...)"
+                maxLength={42}
+                className={`w-full rounded-xl border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                  emergencyRecipient && !isAddress(emergencyRecipient) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
+                }`}
+              />
+              {emergencyRecipient && !isAddress(emergencyRecipient) && (
+                <p className="text-xs text-red-500 mt-1">Invalid EVM address</p>
+              )}
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleEmergencyWithdraw}
-              disabled={!emergencyRecipient || emergencyAction.isPending || emergencyAction.isConfirming}
+              disabled={!emergencyRecipient || !isAddress(emergencyRecipient) || emergencyAction.isPending || emergencyAction.isConfirming}
               isLoading={emergencyAction.isPending || emergencyAction.isConfirming}
               className="text-red-600 border-red-200 hover:bg-red-50"
             >
@@ -293,9 +337,38 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </motion.div>
       )}
 
+      {/* ── Visibility Toggle ── */}
+      {(isActive || isPaused || isFinalizedSuccess || isFinalizedFailed || (isApproved && sale.is_coming_soon)) && (
+        <div className="mb-6 flex items-center justify-between bg-white rounded-xl border border-zinc-100 p-5">
+          <div className="flex items-center gap-3">
+            {sale.is_visible ? (
+              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
+                <Eye className="h-5 w-5 text-green-600" />
+              </div>
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center">
+                <EyeOff className="h-5 w-5 text-zinc-400" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-semibold text-text">{sale.is_visible ? "Visible on Launchpad" : "Hidden from Launchpad"}</p>
+              <p className="text-xs text-darkBlack/40">{sale.is_visible ? "Investors can see this sale" : "Only admin and issuer can see this sale"}</p>
+            </div>
+          </div>
+          <Button
+            variant={sale.is_visible ? "outline" : "primary"}
+            size="sm"
+            onClick={handleToggleVisibility}
+            isLoading={actionLoading === "visibility"}
+          >
+            {sale.is_visible ? "Hide from Launchpad" : "Make Visible"}
+          </Button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatCard label="Status" value={sale.status} icon={<BarChart3 className="h-5 w-5" />} />
+        <StatCard label="Status" value={({ draft: "Draft", pending_approval: "Pending Approval", approved: "Approved", approved_coming_soon: "Coming Soon", active: "Active", paused: "Paused", finalized_success: "Completed", finalized_failed: "Failed", rejected: "Rejected" } as Record<string, string>)[sale.status] || sale.status} icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Total Raised" value={raised} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Hard Cap" value={cap} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
         <StatCard label="Soft Cap" value={soft} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
@@ -305,7 +378,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text">Funding Progress</h2>
-          <Badge variant={isActive ? "active" : "default"} size="sm">{sale.status}</Badge>
+          <Badge variant={isActive ? "active" : "default"} size="sm">{({ draft: "Draft", pending_approval: "Pending Approval", approved: "Approved", approved_coming_soon: "Coming Soon", active: "Active", paused: "Paused", finalized_success: "Completed", finalized_failed: "Failed", rejected: "Rejected" } as Record<string, string>)[sale.status] || sale.status}</Badge>
         </div>
         <ProgressBar value={pct} size="md" />
         <div className="flex justify-between text-sm mt-2 text-darkBlack/50">
@@ -356,7 +429,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                   </div>
                   <ProgressBar value={phasePct} size="sm" />
                   <div className="flex justify-between text-xs mt-1 text-darkBlack/40">
-                    <span>Price: ${phase.price_per_token}</span>
+                    <span>Price: ${parseFloat(phase.price_per_token).toLocaleString()}</span>
                     <span>{formatCurrency(phaseSold)} / {formatCurrency(phaseAlloc)}</span>
                   </div>
                 </div>

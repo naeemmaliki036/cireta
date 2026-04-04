@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Coins } from "lucide-react";
-import { Badge } from "@/components/atoms";
+import { Badge, Input } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
 import { apiFetch } from "@/lib/api/client";
 
@@ -20,6 +20,7 @@ interface Token {
 export default function PlatformTokensPage() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     apiFetch<{ items: Token[] }>("/api/v1/tokens/?page=1&size=100")
@@ -28,6 +29,13 @@ export default function PlatformTokensPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
+  const filtered = tokens.filter((t) =>
+    !sanitizedSearch ||
+    t.name.toLowerCase().includes(sanitizedSearch.toLowerCase()) ||
+    t.symbol.toLowerCase().includes(sanitizedSearch.toLowerCase()) ||
+    t.contract_address?.toLowerCase().includes(sanitizedSearch.toLowerCase()),
+  );
   const deployed = tokens.filter((t) => t.contract_address);
 
   return (
@@ -54,12 +62,17 @@ export default function PlatformTokensPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="mb-4 max-w-xs">
+        <Input placeholder="Search by name, symbol, or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-zinc-400 text-sm">Loading...</div>
-        ) : tokens.length === 0 ? (
-          <div className="p-8 text-center text-zinc-400 text-sm">No tokens created yet</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-zinc-400 text-sm">No tokens found</div>
         ) : (
           <table className="w-full">
             <thead>
@@ -73,7 +86,7 @@ export default function PlatformTokensPage() {
               </tr>
             </thead>
             <tbody>
-              {tokens.map((token) => (
+              {filtered.map((token) => (
                 <tr key={token.id} className="border-b border-zinc-50 hover:bg-zinc-50">
                   <td className="px-5 py-3">
                     <p className="font-medium text-sm">{token.name}</p>

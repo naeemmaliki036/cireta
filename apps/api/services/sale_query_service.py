@@ -82,9 +82,8 @@ class SaleQueryService:
         count_query = select(func.count()).select_from(TokenSale)
 
         if public_only:
-            visible = [SaleStatus.ACTIVE, SaleStatus.APPROVED_COMING_SOON]
-            query = query.where(TokenSale.status.in_(visible))
-            count_query = count_query.where(TokenSale.status.in_(visible))
+            query = query.where(TokenSale.is_visible == True)  # noqa: E712
+            count_query = count_query.where(TokenSale.is_visible == True)  # noqa: E712
         elif status_filter:
             query = query.where(TokenSale.status == status_filter)
             count_query = count_query.where(TokenSale.status == status_filter)

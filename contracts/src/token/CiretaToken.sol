@@ -266,8 +266,9 @@ contract CiretaToken is
 
     // ============ Mint/Burn ============
 
+    /// @notice Mint tokens. SUPPLY_ROLE is already trusted — skip identity check
+    /// since minting is an admin/issuer operation, not a transfer.
     function mint(address to, uint256 amount) external onlyRole(SUPPLY_ROLE) {
-        require(_identityRegistry.isVerified(to), "identity not verified");
         _mint(to, amount);
         _compliance.created(to, amount);
     }

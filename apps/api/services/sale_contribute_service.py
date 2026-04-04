@@ -426,6 +426,7 @@ class SaleContributeService:
                 selectinload(TokenSale.issuer),
                 selectinload(TokenSale.token),
                 selectinload(TokenSale.phases),
+                selectinload(TokenSale.images),
             )
             .where(TokenSale.id == sale_id)
         )

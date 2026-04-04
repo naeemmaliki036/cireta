@@ -2,73 +2,97 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Clock } from "lucide-react";
+import { TrendingUp, BarChart3, Plus, ArrowUpRight, Rocket, Clock, FileText } from "lucide-react";
 import Link from "next/link";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
-import { DataTable, type Column } from "@/components/molecules";
 import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import { getIssuerSales, type Sale } from "@/lib/api/repositories/sales";
 
-const columns: Column<Sale>[] = [
-  {
-    key: "title",
-    header: "Sale",
-    render: (row) => (
-      <div>
-        <p className="font-semibold text-text">{row.title || row.token_name || "Untitled"}</p>
-        {row.token_symbol && <p className="text-xs text-darkBlack/40">{row.token_symbol}</p>}
-        {row.is_coming_soon && <span className="text-[10px] text-amber-600 font-medium">Coming Soon</span>}
-      </div>
-    ),
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (row) => <Badge variant={row.status === "active" ? "active" : row.status === "finalized" ? "default" : "pending"} size="sm" className="capitalize">{row.status}</Badge>,
-  },
-  {
-    key: "total_raised",
-    header: "Raised",
-    render: (row) => {
-      const raised = parseFloat(row.total_raised || "0");
-      const cap = parseFloat(row.hard_cap || "0");
-      const pct = cap > 0 ? (raised / cap) * 100 : 0;
-      return (
-        <div className="min-w-[140px]">
-          <p className="text-sm font-medium text-text mb-1">{formatCurrency(raised)}</p>
-          <ProgressBar value={pct} size="sm" />
-          <p className="text-xs text-darkBlack/40 mt-1">{pct.toFixed(0)}% of {formatCurrency(cap)}</p>
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  pending_approval: "Pending",
+  approved: "Approved",
+  approved_coming_soon: "Coming Soon",
+  active: "Active",
+  finalized_success: "Completed",
+  finalized_failed: "Failed",
+  rejected: "Rejected",
+};
+
+const STATUS_VARIANTS: Record<string, "active" | "pending" | "default"> = {
+  active: "active",
+  approved: "active",
+  approved_coming_soon: "active",
+  draft: "pending",
+  pending_approval: "pending",
+  finalized_success: "default",
+  finalized_failed: "default",
+  rejected: "default",
+};
+
+function SaleCard({ sale }: { sale: Sale }) {
+  const raised = parseFloat(sale.total_raised || "0");
+  const cap = parseFloat(sale.hard_cap || "0");
+  const pct = cap > 0 ? Math.min(Math.round((raised / cap) * 100), 100) : 0;
+  const statusLabel = STATUS_LABELS[sale.status] || sale.status;
+  const variant = STATUS_VARIANTS[sale.status] || "pending";
+
+  return (
+    <Link href={`/issuer/sales/${sale.id}`}
+      className="block bg-white rounded-xl border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group">
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-text text-sm truncate">{sale.title || sale.token_name || "Untitled Sale"}</h3>
+            <p className="text-xs text-darkBlack/40 mt-0.5">
+              {sale.token_symbol ? `${sale.token_symbol} · ` : ""}
+              {sale.is_coming_soon ? "Coming Soon" : sale.sale_mode === "vested" ? "Vested" : "Direct"}
+            </p>
+          </div>
+          <Badge variant={variant} size="sm" className="shrink-0 ml-2">{statusLabel}</Badge>
         </div>
-      );
-    },
-  },
-  {
-    key: "id",
-    header: "",
-    render: (row) => (
-      <div className="flex items-center gap-1">
-        <Link href={`/issuer/sales/${row.id}`}>
-          <Button variant="ghost" size="sm">View</Button>
-        </Link>
-        <Link href={`/issuer/sales/${row.id}?edit=1`}>
-          <Button variant="ghost" size="sm">Edit</Button>
-        </Link>
+
+        {!sale.is_coming_soon && cap > 0 && (
+          <div className="mb-3">
+            <ProgressBar value={pct} size="sm" />
+            <div className="flex justify-between text-xs text-darkBlack/40 mt-1">
+              <span>{formatCurrency(raised)}</span>
+              <span>{pct}% of {formatCurrency(cap)}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 text-xs text-darkBlack/30">
+            {sale.contract_address && (
+              <span className="flex items-center gap-1"><Rocket className="h-3 w-3" /> Deployed</span>
+            )}
+            {sale.phases.length > 0 && (
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {sale.phases.length} phase{sale.phases.length > 1 ? "s" : ""}</span>
+            )}
+            {sale.otc_enabled && (
+              <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> OTC</span>
+            )}
+          </div>
+          <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors" />
+        </div>
       </div>
-    ),
-  },
-];
+    </Link>
+  );
+}
 
 export default function SalesPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await getIssuerSales(1, 50);
+        const data = await getIssuerSales(1, 100);
         setSales(data.items);
       } catch (err) { console.error("Failed to load sales:", err); }
       finally { setLoading(false); }
@@ -76,47 +100,96 @@ export default function SalesPage() {
   }, []);
 
   const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
-  const filtered = sales.filter((s) =>
-    !sanitizedSearch || (s.title ?? s.token_name ?? "").toLowerCase().includes(sanitizedSearch.toLowerCase()),
-  );
+  const filtered = sales.filter((s) => {
+    const matchesSearch = !sanitizedSearch || (s.title ?? s.token_name ?? "").toLowerCase().includes(sanitizedSearch.toLowerCase());
+    const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalRaised = sales.reduce((acc, s) => acc + parseFloat(s.total_raised || "0"), 0);
   const active = sales.filter((s) => s.status === "active").length;
+  const comingSoon = sales.filter((s) => s.status === "approved_coming_soon").length;
+  const drafts = sales.filter((s) => s.status === "draft").length;
+
+  const statusTabs = [
+    { key: "all", label: "All", count: sales.length },
+    { key: "active", label: "Active", count: active },
+    { key: "approved_coming_soon", label: "Coming Soon", count: comingSoon },
+    { key: "draft", label: "Draft", count: drafts },
+    { key: "pending_approval", label: "Pending", count: sales.filter((s) => s.status === "pending_approval").length },
+  ].filter((t) => t.key === "all" || t.count > 0);
 
   return (
     <IssuerDashboardLayout title="Token Sales" description="Manage your active and past token sales">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total Sales", value: sales.length, icon: <BarChart3 className="h-5 w-5" /> },
-          { label: "Active", value: active, icon: <TrendingUp className="h-5 w-5" /> },
-          { label: "Total Raised", value: formatCurrency(totalRaised), icon: <Clock className="h-5 w-5" />, raw: true },
-        ].map((stat) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl p-6 border border-darkBlack/10">
-            <p className="text-sm text-darkBlack/50 mb-2">{stat.label}</p>
-            <p className="text-2xl font-bold text-text">{stat.raw ? stat.value : stat.value}</p>
+          { label: "Total Sales", value: sales.length.toString(), icon: <BarChart3 className="h-4 w-4" />, color: "text-darkAqua", bg: "bg-darkAqua/10" },
+          { label: "Active", value: active.toString(), icon: <TrendingUp className="h-4 w-4" />, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Coming Soon", value: comingSoon.toString(), icon: <Clock className="h-4 w-4" />, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Total Raised", value: formatCurrency(totalRaised), icon: <BarChart3 className="h-4 w-4" />, color: "text-blue-600", bg: "bg-blue-50" },
+        ].map((s, i) => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className="bg-white rounded-xl px-4 py-3.5 border border-zinc-100">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>{s.icon}</div>
+              <p className="text-[11px] font-medium text-darkBlack/40 uppercase tracking-wide">{s.label}</p>
+            </div>
+            <p className="text-xl font-bold text-text">{s.value}</p>
           </motion.div>
         ))}
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex-1 max-w-xs">
+      {/* Filters + Actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-1.5 bg-zinc-100 rounded-lg p-1">
+          {statusTabs.map((tab) => (
+            <button key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                statusFilter === tab.key ? "bg-white text-text shadow-sm" : "text-darkBlack/50 hover:text-text"
+              }`}>
+              {tab.label} <span className="text-darkBlack/30 ml-0.5">{tab.count}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-56">
             <Input placeholder="Search sales…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <Link href="/issuer/sales/new">
-            <Button variant="primary" >New Sale</Button>
+            <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>New Sale</Button>
           </Link>
         </div>
-        {loading ? (
-          <div className="flex justify-center py-12"><Spinner /></div>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-darkBlack/40 py-12">No sales yet</p>
-        ) : (
-          <DataTable columns={columns} data={filtered} />
-        )}
-      </motion.div>
+      </div>
+
+      {/* Sales Grid */}
+      {loading ? (
+        <div className="flex justify-center py-16"><Spinner /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-xl border border-zinc-100">
+          <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+            <TrendingUp className="h-7 w-7 text-zinc-300" />
+          </div>
+          <p className="text-darkBlack/40 text-sm mb-1">{sales.length === 0 ? "No sales yet" : "No matching sales"}</p>
+          <p className="text-darkBlack/25 text-xs mb-4">
+            {sales.length === 0 ? "Create your first token sale to get started" : "Try adjusting your search or filters"}
+          </p>
+          {sales.length === 0 && (
+            <Link href="/issuer/sales/new">
+              <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create Sale</Button>
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((sale, i) => (
+            <motion.div key={sale.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+              <SaleCard sale={sale} />
+            </motion.div>
+          ))}
+        </div>
+      )}
     </IssuerDashboardLayout>
   );
 }

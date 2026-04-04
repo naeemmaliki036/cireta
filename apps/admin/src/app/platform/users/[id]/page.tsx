@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { type Abi } from "viem";
+import { type Abi, isAddress } from "viem";
 import { Button, Badge } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { PlatformAdminLayout } from "@/components/templates";
@@ -497,8 +497,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 value={whitelistRegistryAddress}
                 onChange={(e) => setWhitelistRegistryAddress(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-300"
+                maxLength={42}
+                className={`w-full px-3 py-2 rounded-lg border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-300 ${
+                  whitelistRegistryAddress && !isAddress(whitelistRegistryAddress) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
+                }`}
               />
+              {whitelistRegistryAddress && !isAddress(whitelistRegistryAddress) && (
+                <p className="text-xs text-red-500 mt-1">Invalid EVM address</p>
+              )}
             </div>
             <div className="w-32">
               <label className="block text-xs text-zinc-500 mb-1">Country Code</label>

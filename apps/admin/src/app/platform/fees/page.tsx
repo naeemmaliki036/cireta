@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { DollarSign, Users, Settings, ExternalLink, RefreshCw } from "lucide-react";
 import { useReadContract, useChainId } from "wagmi";
-import type { Abi } from "viem";
+import { isAddress, type Abi } from "viem";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { StatCard } from "@/components/molecules";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
@@ -254,7 +254,9 @@ export default function FeesPage() {
               label="Set Fee Receiver"
               placeholder="0x..."
               value={newReceiver}
+              maxLength={42}
               onChange={(e) => setNewReceiver(e.target.value)}
+              error={newReceiver && !isAddress(newReceiver) ? "Invalid EVM address" : undefined}
               helperText="Update the address that receives platform fees"
             />
             <Button
@@ -317,7 +319,9 @@ export default function FeesPage() {
               label="Issuer Wallet Address"
               placeholder="0x..."
               value={issuerAddr}
+              maxLength={42}
               onChange={(e) => setIssuerAddr(e.target.value)}
+              error={issuerAddr && !isAddress(issuerAddr) ? "Invalid EVM address" : undefined}
             />
             <Input
               label="Fee Override (%)"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CheckCircle2, Coins, Shield, Rocket, Zap, AlertCircle, Wallet, XCircle } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +12,7 @@ import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
 import {
   StepTokenDetails, StepCompliance, StepDeploy,
-  type TokenFormData,
+  type TokenFormData, type ComplianceConfig,
 } from "@/lib/tokenFormSteps";
 import { createToken } from "@/lib/api/repositories/tokens";
 import { useContractAction } from "@/hooks/useContractAction";
@@ -32,6 +32,11 @@ export default function CreateTokenPage() {
   const [selectedModules, setSelectedModules] = useState<string[]>(["country_allow", "max_ownership"]);
   const [formData, setFormData] = useState<TokenFormData>({
     name: "", symbol: "", assetType: "", totalSupply: "", decimals: "6", description: "",
+  });
+  const [complianceConfig, setComplianceConfig] = useState<ComplianceConfig>({
+    selectedCountries: new Set<number>(),
+    maxOwnership: "",
+    maxHolders: "",
   });
   const [createdTokenId, setCreatedTokenId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,6 +77,11 @@ export default function CreateTokenPage() {
       description: "ERC-3643 security token backed by physical gold reserves in West Africa.",
     });
     setSelectedModules(["country_allow", "max_ownership", "max_holders"]);
+    setComplianceConfig({
+      selectedCountries: new Set([784, 826, 702]), // UAE, UK, Singapore
+      maxOwnership: "100000",
+      maxHolders: "500",
+    });
   };
 
   const handleDeploy = async () => {
@@ -105,24 +115,71 @@ export default function CreateTokenPage() {
       });
 
       if (receipt && tokenId) {
-        // Record on-chain addresses in backend
-        setIsRecording(true);
-        try {
-          await apiFetch(`/api/v1/tokens/${tokenId}/record-deployment`, {
-            method: "POST",
-            body: { tx_hash: receipt.transactionHash },
-          });
-          setRecordingDone(true);
-        } catch {
-          setSaveError("Token deployed on-chain but failed to record addresses. You can retry from the token detail page.");
-        } finally {
-          setIsRecording(false);
-        }
+        // Save to localStorage as backup in case recording fails or user navigates away
+        const pendingKey = `cireta_pending_token_${tokenId}`;
+        localStorage.setItem(pendingKey, JSON.stringify({
+          tokenId, txHash: receipt.transactionHash, timestamp: Date.now(),
+        }));
+
+        await recordDeployment(tokenId, receipt.transactionHash, pendingKey);
       }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Deployment failed");
     }
   };
+
+  const recordDeployment = async (tokenId: string, txHash: string, pendingKey: string) => {
+    setIsRecording(true);
+    setSaveError(null);
+    try {
+      await apiFetch(`/api/v1/tokens/${tokenId}/record-deployment`, {
+        method: "POST",
+        body: { tx_hash: txHash },
+      });
+      setRecordingDone(true);
+      localStorage.removeItem(pendingKey); // cleanup on success
+    } catch {
+      setSaveError("Token deployed on-chain but failed to sync. Click 'Retry Sync' to try again.");
+    } finally {
+      setIsRecording(false);
+    }
+  };
+
+  const handleRetrySync = async () => {
+    if (!createdTokenId) return;
+    const pendingKey = `cireta_pending_token_${createdTokenId}`;
+    const saved = localStorage.getItem(pendingKey);
+    if (!saved) { setSaveError("No pending deployment found."); return; }
+    const { txHash } = JSON.parse(saved);
+    await recordDeployment(createdTokenId, txHash, pendingKey);
+  };
+
+  // On mount: check for any pending deployments from previous sessions
+  useEffect(() => {
+    if (!createdTokenId) return;
+    const pendingKey = `cireta_pending_token_${createdTokenId}`;
+    const saved = localStorage.getItem(pendingKey);
+    if (saved && !recordingDone) {
+      const { txHash, timestamp } = JSON.parse(saved);
+      // Only auto-retry if less than 1 hour old
+      if (Date.now() - timestamp < 3600000) {
+        recordDeployment(createdTokenId, txHash, pendingKey);
+      }
+    }
+  }, [createdTokenId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Block navigation during deployment/recording
+  const isDeploying = deployAction.isPending || deployAction.isConfirming || isRecording;
+
+  useEffect(() => {
+    if (!isDeploying) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Deployment in progress. Are you sure you want to leave?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDeploying]);
 
   const totalSteps = STEPS.length;
   const canContinue = currentStep === 1
@@ -238,8 +295,16 @@ export default function CreateTokenPage() {
       {(saveError || deployAction.isPending || deployAction.isConfirming || deployAction.isConfirmed || deployAction.error || isRecording) && (
         <div className="mb-4">
           {saveError && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 flex items-center gap-2 mb-3">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" /> {saveError}
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 mb-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" /> {saveError}
+              </div>
+              {deployAction.isConfirmed && !recordingDone && (
+                <Button variant="outline" size="sm" onClick={handleRetrySync} className="mt-2"
+                  isLoading={isRecording} disabled={isRecording}>
+                  Retry Sync
+                </Button>
+              )}
             </div>
           )}
           <TransactionStatus
@@ -262,17 +327,17 @@ export default function CreateTokenPage() {
         className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
         <div className="p-6">
           {currentStep === 1 && <StepTokenDetails formData={formData} setFormData={setFormData} />}
-          {currentStep === 2 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} />}
-          {currentStep === 3 && <StepDeploy formData={formData} selectedModules={selectedModules} />}
+          {currentStep === 2 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} complianceConfig={complianceConfig} setComplianceConfig={setComplianceConfig} />}
+          {currentStep === 3 && <StepDeploy formData={formData} selectedModules={selectedModules} complianceConfig={complianceConfig} />}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100">
           <div className="flex items-center justify-center gap-6">
             {currentStep === 1 ? (
-              <Link href="/issuer/tokens"><Button variant="outline" size="sm">Cancel</Button></Link>
+              <Link href="/issuer/tokens"><Button variant="outline" size="sm" disabled={isDeploying}>Cancel</Button></Link>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => setCurrentStep(currentStep - 1)}>
+              <Button variant="outline" size="sm" onClick={() => setCurrentStep(currentStep - 1)} disabled={isDeploying}>
                 <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
               </Button>
             )}

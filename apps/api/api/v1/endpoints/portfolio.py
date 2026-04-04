@@ -282,50 +282,114 @@ async def get_transactions(
     db: Annotated[AsyncSession, Depends(get_db)],
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    token_id: UUID | None = Query(None),
+    tx_type: str | None = Query(None, alias="type"),
 ) -> dict:
-    """Get transaction history for current user."""
+    """Get transaction history for current user.
+
+    Supports filtering by token_id and type (investment/claim/redemption/refund).
+    """
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     from apps.api.models.contribution import Contribution
     from apps.api.models.redemption_request import RedemptionRequest
 
-    txs = []
+    txs: list[dict] = []
 
-    contribs = await db.execute(
-        select(Contribution)
-        .where(Contribution.user_id == user_id)
-        .order_by(Contribution.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
-    for c in contribs.scalars().all():
-        txs.append(
-            {
-                "type": "investment",
-                "amount": str(c.amount),
-                "tx_hash": c.tx_hash,
-                "status": c.status if isinstance(c.status, str) else c.status.value,
-                "created_at": c.created_at.isoformat() if c.created_at else None,
-            }
+    # --- Contributions (investment, claim, refund) ---
+    include_contribs = tx_type in (None, "investment", "claim", "refund")
+    if include_contribs:
+        from apps.api.models.token_sale import TokenSale as _TS
+
+        contrib_q = (
+            select(Contribution)
+            .options(
+                selectinload(Contribution.sale).selectinload(_TS.token)
+            )
+            .where(Contribution.user_id == user_id)
         )
-
-    redemptions = await db.execute(
-        select(RedemptionRequest)
-        .where(RedemptionRequest.user_id == user_id)
-        .order_by(RedemptionRequest.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
-    for r in redemptions.scalars().all():
-        txs.append(
-            {
-                "type": "redemption",
-                "amount": str(r.amount),
-                "tx_hash": r.tx_hash,
-                "status": r.status if isinstance(r.status, str) else r.status.value,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-            }
+        if token_id:
+            contrib_q = contrib_q.join(Contribution.sale).where(
+                _TS.token_id == token_id
+            )
+        contribs = await db.execute(
+            contrib_q.order_by(Contribution.created_at.desc())
         )
+        for c in contribs.scalars().all():
+            # Determine transaction type from status
+            c_status = c.status if isinstance(c.status, str) else c.status.value
+            if c_status == "refunded":
+                c_type = "refund"
+            elif c_status == "claimed":
+                c_type = "claim"
+            else:
+                c_type = "investment"
 
+            if tx_type and c_type != tx_type:
+                continue
+
+            token_sym = ""
+            token_name_val = ""
+            sale_token_id = None
+            if c.sale:
+                sale_token_id = str(c.sale.token_id) if c.sale.token_id else None
+                if c.sale.token:
+                    token_sym = c.sale.token.symbol or ""
+                    token_name_val = c.sale.token.name or ""
+                else:
+                    token_name_val = c.sale.title or ""
+
+            txs.append(
+                {
+                    "id": str(c.id),
+                    "type": c_type,
+                    "amount": str(c.amount),
+                    "tokens_allocated": str(c.tokens_allocated),
+                    "token_symbol": token_sym,
+                    "token_name": token_name_val,
+                    "token_id": sale_token_id,
+                    "tx_hash": c.claim_tx_hash if c_type == "claim" else c.tx_hash,
+                    "status": c_status,
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                }
+            )
+
+    # --- Redemptions ---
+    include_redemptions = tx_type in (None, "redemption")
+    if include_redemptions:
+        redemption_q = (
+            select(RedemptionRequest)
+            .options(selectinload(RedemptionRequest.token))
+            .where(RedemptionRequest.user_id == user_id)
+        )
+        if token_id:
+            redemption_q = redemption_q.where(RedemptionRequest.token_id == token_id)
+        redemptions = await db.execute(
+            redemption_q.order_by(RedemptionRequest.created_at.desc())
+        )
+        for r in redemptions.scalars().all():
+            r_status = r.status if isinstance(r.status, str) else r.status.value
+            token_sym = r.token.symbol if r.token else ""
+            token_name = r.token.name if r.token else ""
+
+            txs.append(
+                {
+                    "id": str(r.id),
+                    "type": "redemption",
+                    "amount": str(r.amount),
+                    "tokens_allocated": str(r.amount),
+                    "token_symbol": token_sym,
+                    "token_name": token_name,
+                    "token_id": str(r.token_id),
+                    "tx_hash": r.tx_hash,
+                    "status": r_status,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                }
+            )
+
+    # Sort by date descending and apply pagination
     txs.sort(key=lambda x: x["created_at"] or "", reverse=True)
-    return {"transactions": txs[:limit], "total": len(txs)}
+    total = len(txs)
+    txs = txs[offset : offset + limit]
+    return {"transactions": txs, "total": total}

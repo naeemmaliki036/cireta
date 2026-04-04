@@ -116,6 +116,13 @@ export const SALE_ABI = [
     outputs: [],
   },
   {
+    name: "reject",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
     name: "emergencyWithdraw",
     type: "function",
     stateMutability: "nonpayable",
@@ -182,4 +189,11 @@ export const SALE_ABI = [
       { name: "newStatus", type: "uint8", indexed: false },
     ],
   },
+  // View functions
+  { name: "vault", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { name: "fractionToken", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { name: "issuer", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { name: "factory", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { name: "saleMode", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint8" }] },
+  { name: "feeBasisPoints", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
 ] as const;

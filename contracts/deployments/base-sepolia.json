@@ -2,10 +2,10 @@
   "identityMode": "simple",
   "issuerRegistry": "0x48066cC2dE6A46561469cf2664b0BD9143aa448c",
   "platformFeeManager": "0x7800bc250EbB8bf7d35767F7F3Afd2dCbed114f2",
-  "tokenImplementation": "0xF6Ad50CeD5b4cf0fe459F41A6aBeAAcbF15ca9E2",
+  "tokenImplementation": "0x6634fdA6Bfc9463423d21f886C76d5332A5ADE4D",
   "simpleIdentityRegistryImplementation": "0xBe5578488Af2ea64e32a37C37B09075ED3044e20",
   "complianceImplementation": "0x8d7669Cb878796A75E62A6Ba995df97278FB9975",
-  "saleImplementation": "0x37B6De47e150d95532DB2D834eB4f32CDbD325f8",
+  "saleImplementation": "0xaA0FfB6B21898505eC286d12f3108aA067ce9544",
   "fractionTokenImplementation": "0x661f1061428E1F74353C17e188407e3019BAb966",
   "vaultImplementation": "0xCb201e07566749aC5C79a68383E8e53047AE28cD",
   "tokenFactory": "0x527985be91A82Be2903f6F62d0cf707fe5E3c8C1",
@@ -13,5 +13,7 @@
   "fractionFactory": "0x1Ec520E0c61c7C92484908f7d29a9cEa5e60Af42",
   "countryAllowModule": "0xc3a2c6B72EDFf1E60be60969d80612809887c88e",
   "maxHolderCountModule": "0x2C616041C8CEe744f238F4376cF18B81267Ec2B3",
-  "ciretaUSDC": "0xE730be8760dcd7B1dA6EC26F027A5A4aa6c88c72"
+  "ciretaUSDC": "0xE730be8760dcd7B1dA6EC26F027A5A4aa6c88c72",
+  "otcTokenImplementation": "0x417fe85E69C58EA88ce61706C4d0eeB24601fDE3",
+  "otcTokenFactory": "0x432Ce8ccAa590C895C153121d36cd8992e344022"
 }

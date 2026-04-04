@@ -170,6 +170,7 @@ class SaleCreateService:
                 selectinload(TokenSale.phases),
                 selectinload(TokenSale.token),
                 selectinload(TokenSale.issuer),
+                selectinload(TokenSale.images),
             )
             .where(TokenSale.id == sale.id)
         )

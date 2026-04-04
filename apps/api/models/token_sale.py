@@ -44,10 +44,12 @@ class TokenSale(BaseModel):
     full_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     banner_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_coming_soon: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # OTC & Bank Transfer
     otc_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     otc_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    otc_token_address: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
 
     # Social links
     website_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

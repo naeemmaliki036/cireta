@@ -82,6 +82,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
       abi: TOKEN_FACTORY_ABI as unknown as Abi,
       functionName: "deployToken",
       args: [token.name, token.symbol, token.decimals ?? 18, walletAddress],
+      gas: 5_000_000n,
     });
 
     if (receipt) {

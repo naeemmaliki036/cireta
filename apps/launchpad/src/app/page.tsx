@@ -3,17 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowRight, Star, HeartHandshake, ShieldCheck, Users, TrendingUp, Bookmark, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Star, HeartHandshake, ShieldCheck, Users, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Navbar, Footer } from "@/components/organisms";
 import { getProjects, type Project } from "@/lib/api/repositories/projects.repository";
 
-const PLACEHOLDER_PROJECTS = [
-  { image: "/images/projects/gold-ghana.png", title: "Wassa Gold Mine in Ghana", description: "Wassa Gold offers a unique chance to buy certified Ghanaian gold reserves at up to 30%...", investors: 1000, roi: "11-22%", progress: 68, investFrom: "6.5M USDC" },
-  { image: "/images/projects/copper-tanzania.png", title: "Copper Cathode from Tanzania", description: "Wassa Gold offers a unique chance to buy certified Ghanaian gold reserves at up to 30%...", investors: 1257, roi: "15-20%", progress: 74, investFrom: "2.5M USDC" },
-  { image: "/images/projects/gold-drc.png", title: "Gold From DRC", description: "Wassa Gold offers a unique chance to buy certified Ghanaian gold reserves at up to 30%...", investors: 1257, roi: "15-20%", progress: 74, investFrom: "8.5M USDC" },
-  { image: "/images/projects/copper-drc.png", title: "Copper Cathode from DRC", description: "Wassa Gold offers a unique chance to buy certified Ghanaian gold reserves at up to 30%...", investors: 1257, roi: "15-20%", progress: 74, investFrom: "2.5M USDC" },
-];
 
 const FEATURES = [
   { icon: Star, title: "Highly Curated Portfolio", description: "Browse our highly curated selection of high-value commodities\u2014each verified and backed by A&M Development Group\u2019s 189+ years of expertise." },
@@ -21,59 +15,28 @@ const FEATURES = [
   { icon: ShieldCheck, title: "Fully Verified Partnerships", description: "We work with leading banks, auditors, and legal firms to ensure every transaction is transparent, compliant, and verifiable\u2014so you can invest with complete confidence." },
 ];
 
-function ProjectCard({ image, title, description, investors, roi, progress, investFrom }: typeof PLACEHOLDER_PROJECTS[0]) {
+function ProjectCardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow">
-      {/* Image */}
-      <div className="relative h-48 overflow-hidden">
-        <Image src={image} alt={title} fill className="object-cover" />
-        <div className="absolute top-3 left-3">
-          <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-darkAqua animate-pulse" />
-            on going
-          </span>
-        </div>
-        <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors">
-          <Bookmark className="h-4 w-4 text-gray-600" />
-        </button>
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-          <h3 className="text-white font-semibold text-sm flex items-center gap-1">
-            {title} <CheckCircle2 className="h-3.5 w-3.5 text-white/70" />
-          </h3>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        <p className="text-xs text-gray-500 line-clamp-2">{description}</p>
-
-        {/* Stats */}
-        <div className="flex items-center gap-4 text-xs">
-          <span className="flex items-center gap-1 text-gray-600">
-            <TrendingUp className="h-3 w-3" /> {roi} ROI
-          </span>
-        </div>
-
-        {/* Progress */}
-        <div>
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>Funding progress</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-
-        {/* Bottom */}
-        <div className="flex items-center justify-between pt-1">
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col h-full animate-pulse">
+      <div className="h-48 bg-gray-200 flex-shrink-0" />
+      <div className="p-4 flex flex-col flex-1 space-y-3">
+        <div className="h-3 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-200 rounded w-1/2" />
+        <div className="mt-auto space-y-3">
           <div>
-            <p className="text-[10px] text-gray-400 uppercase">Invest From</p>
-            <p className="text-sm font-bold">{investFrom}</p>
+            <div className="flex justify-between mb-1">
+              <div className="h-3 bg-gray-200 rounded w-24" />
+              <div className="h-3 bg-gray-200 rounded w-10" />
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full" />
           </div>
-          <Link href="/projects" className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
-            Invest <ArrowRight className="h-3 w-3" />
-          </Link>
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <div className="h-2 bg-gray-200 rounded w-12 mb-1" />
+              <div className="h-4 bg-gray-200 rounded w-20" />
+            </div>
+            <div className="h-8 bg-gray-200 rounded-full w-20" />
+          </div>
         </div>
       </div>
     </div>
@@ -157,13 +120,15 @@ function LiveProjectCard({ project: p }: { project: Project }) {
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
         const data = await getProjects({ size: 4 });
         setProjects(data.items);
-      } catch { /* use placeholders */ }
+      } catch { /* empty */ }
+      finally { setLoadingProjects(false); }
     })();
   }, []);
 
@@ -232,28 +197,38 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            {PLACEHOLDER_PROJECTS.map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <ProjectCard {...p} />
-              </motion.div>
-            ))}
-          </div>
+          {loadingProjects ? (
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <ProjectCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : projects.length > 0 ? (
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {projects.slice(0, 4).map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <LiveProjectCard project={p} />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-400 py-12">No projects available yet. Check back soon.</p>
+          )}
         </div>
       </section>
 
-      {/* ── Live Opportunities ── */}
-      {projects.length > 0 && (
+      {/* ── More Projects (if more than 4) ── */}
+      {projects.length > 4 && (
         <section className="py-20 px-4 bg-box">
           <div className="max-w-inner mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Live Opportunities</h2>
+              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">More Opportunities</h2>
               <p className="text-gray-500 max-w-2xl mx-auto">
                 Real-time investment opportunities in tokenized commodities — fully regulated, transparent, and backed by verified issuers.
               </p>
@@ -266,7 +241,7 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {projects.slice(0, 4).map((p, i) => (
+              {projects.slice(4, 8).map((p, i) => (
                 <motion.div
                   key={p.id}
                   initial={{ opacity: 0, y: 20 }}

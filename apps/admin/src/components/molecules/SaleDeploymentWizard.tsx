@@ -123,6 +123,7 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
         abi: SALE_FACTORY_ABI as unknown as Abi,
         functionName: "deploySale",
         args: [sale.token_contract_address as `0x${string}`, initData],
+        gas: 5_000_000n,
       });
 
       if (receipt) {

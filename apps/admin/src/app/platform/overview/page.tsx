@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Building2,
   Coins,
   ShoppingCart,
   Users,
@@ -88,13 +87,13 @@ export default function PlatformOverviewPage() {
       <div className="bg-white rounded-xl border border-zinc-200 p-5">
         <h2 className="text-sm font-semibold text-zinc-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/platform/issuers" className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 hover:border-zinc-300 transition-all">
+          <Link href="/platform/sales" className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 hover:border-zinc-300 transition-all">
             <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <Building2 className="h-5 w-5 text-blue-600" />
+              <TrendingUp className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="font-semibold text-sm text-zinc-900">Manage Issuers</p>
-              <p className="text-xs text-zinc-400">Approve, activate, review</p>
+              <p className="font-semibold text-sm text-zinc-900">Manage Sales</p>
+              <p className="text-xs text-zinc-400">Approve, activate, visibility</p>
             </div>
           </Link>
           <Link href="/platform/compliance" className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 hover:border-zinc-300 transition-all">

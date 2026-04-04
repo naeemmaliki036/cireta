@@ -20,7 +20,7 @@ export default function ClientProviders({ children }: { children: ReactNode }) {
   const wagmiConfig = getWagmiConfig();
 
   return (
-    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={lightTheme({

@@ -210,7 +210,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
             <Coins className="h-5 w-5 text-darkAqua" /> Mint OTC Tokens
           </h2>
           <p className="text-xs text-darkBlack/40 mb-5">
-            Mint OTC receipt tokens to an investor wallet after receiving off-chain payment.
+            Mint OTC receipt tokens to an investor or operator wallet after receiving off-chain payment.
           </p>
 
           {formError && (
@@ -222,14 +222,23 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Investor Wallet Address</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Investor / Operator Wallet Address</label>
               <input
                 type="text"
                 value={investorWallet}
                 onChange={(e) => setInvestorWallet(e.target.value)}
                 placeholder="0x..."
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua font-mono"
+                maxLength={42}
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua font-mono ${
+                  investorWallet && !isAddress(investorWallet) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
+                }`}
               />
+              {investorWallet && !isAddress(investorWallet) && (
+                <p className="text-xs text-red-500 mt-1">Invalid EVM address — must be 42 characters starting with 0x</p>
+              )}
+              {investorWallet && isAddress(investorWallet) && (
+                <p className="text-xs text-green-600 mt-1">Valid address</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Amount ({tokenSymbol})</label>
@@ -247,7 +256,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
               variant="primary"
               className="w-full"
               onClick={handleMint}
-              disabled={!validOtcAddress || mintAction.isPending || mintAction.isConfirming}
+              disabled={!validOtcAddress || !isAddress(investorWallet) || mintAction.isPending || mintAction.isConfirming}
               isLoading={mintAction.isPending || mintAction.isConfirming}
             >
               {mintAction.isPending ? "Sign in Wallet..." : mintAction.isConfirming ? "Confirming..." : "Mint OTC Tokens"}

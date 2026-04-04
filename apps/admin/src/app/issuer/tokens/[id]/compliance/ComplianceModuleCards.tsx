@@ -38,11 +38,15 @@ function CountryAllowConfig({
     if (!isConnected) { openConnectModal?.(); return; }
     if (selectedCodes.size === 0) return;
 
+    // Always include country code 0 (System/Contracts) if not already allowed
+    const codes = new Set(selectedCodes);
+    if (!allowed.includes(0)) codes.add(0);
+
     const receipt = await batchAddAction.execute({
       address: module.address as `0x${string}`,
       abi: COUNTRY_ALLOW_ABI as unknown as Abi,
       functionName: "batchAllowCountries",
-      args: [complianceAddress as `0x${string}`, Array.from(selectedCodes)],
+      args: [complianceAddress as `0x${string}`, Array.from(codes)],
       gas: 500_000n,
     });
 
@@ -101,6 +105,9 @@ function CountryAllowConfig({
       {/* Add countries — region-grouped multi-select */}
       <div>
         <h4 className="text-xs font-semibold text-zinc-500 mb-2">Add Countries</h4>
+        <p className="text-[11px] text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5 mb-2">
+          Country code 0 (System) is automatically included to allow smart contracts (sale, vault) to hold tokens.
+        </p>
         <CountrySelector selected={selectedCodes} onChange={setSelectedCodes} alreadyAllowed={allowed} />
         {selectedCodes.size > 0 && (
           <Button variant="primary" size="sm" onClick={handleBatchAdd} className="mt-3"

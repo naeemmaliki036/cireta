@@ -22,7 +22,7 @@ import "../otc/IssuerOTCToken.sol";
 contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    enum SaleStatus { Draft, Active, Paused, FinalizedSuccess, FinalizedFailed }
+    enum SaleStatus { Draft, Active, Paused, FinalizedSuccess, FinalizedFailed, Rejected }
     enum SaleMode { Direct, Vested }
     enum SaleStructure { PhaseAllocated, PriceTiered }
 
@@ -231,8 +231,16 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit SaleStatusChanged(SaleStatus.Active);
     }
 
-    /// @notice Withdraw project tokens from a draft sale. Only issuer can reclaim before activation.
-    function withdrawTokens() external onlyIssuer onlyStatus(SaleStatus.Draft) nonReentrant {
+    /// @notice Reject the sale permanently (Draft → Rejected). Admin blocks activation forever.
+    /// Issuer can still withdraw deposited project tokens via withdrawTokens().
+    function reject() external adminOnly onlyStatus(SaleStatus.Draft) {
+        status = SaleStatus.Rejected;
+        emit SaleStatusChanged(SaleStatus.Rejected);
+    }
+
+    /// @notice Withdraw project tokens from a draft or rejected sale. Issuer reclaims tokens.
+    function withdrawTokens() external onlyIssuer nonReentrant {
+        if (status != SaleStatus.Draft && status != SaleStatus.Rejected) revert InvalidStatus();
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance == 0) revert NothingToWithdraw();
         IERC20(token).safeTransfer(issuer, balance);
@@ -283,6 +291,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @notice Manage investor whitelist per phase. Only issuer.
     function setWhitelist(uint256 phaseId, address[] calldata addresses, bool allow) external onlyIssuer {
+        if (status == SaleStatus.Rejected) revert InvalidStatus();
         for (uint256 i = 0; i < addresses.length; i++) {
             whitelisted[phaseId][addresses[i]] = allow;
         }
@@ -291,6 +300,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @notice Set per-block contribution limit. Only issuer.
     function setMaxPerBlock(uint256 _maxPerBlock) external onlyIssuer {
+        if (status == SaleStatus.Rejected) revert InvalidStatus();
         if (_maxPerBlock == 0) revert ZeroMaxPerBlock();
         maxPerBlock = _maxPerBlock;
         emit MaxPerBlockUpdated(_maxPerBlock);
@@ -298,6 +308,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @notice Set or update the OTC token address. Only issuer.
     function setOTCToken(address _otcToken) external onlyIssuer {
+        if (status == SaleStatus.Rejected) revert InvalidStatus();
         otcToken = IssuerOTCToken(_otcToken);
     }
 
@@ -324,6 +335,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @notice Deposit project tokens into the vault for vested mode. Only issuer.
     function depositProjectTokens(uint256 amount) external onlyIssuer nonReentrant {
+        if (status == SaleStatus.Rejected) revert InvalidStatus();
         if (saleMode != SaleMode.Vested) revert InvalidStatus();
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         IERC20(token).approve(address(vault), amount);
@@ -421,7 +433,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     // ── OTC Token Purchase ──────────────────────────────────────────────────
 
     function buyOTC(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
+        // ── Checks ──
         if (address(otcToken) == address(0)) revert OTCNotEnabled();
+        require(amount > 0, "amount must be > 0");
 
         if (phaseId >= phases.length) revert InvalidPhase();
         Phase storage phase = phases[phaseId];
@@ -429,21 +443,33 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (block.timestamp > phase.endTime) revert PhaseEnded();
         if (totalContributed[msg.sender] == 0 && amount < phase.minContribution) revert BelowMinContribution();
         if (phase.maxContribution > 0 && totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
+        if (totalRaised + amount > hardCap) revert ExceedsHardCap();
+        if (_blockContributions[block.number] + amount > maxPerBlock) revert ExceedsBlockLimit();
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
 
+        // Verify buyer has sufficient OTC token balance and approval
+        require(IERC20(address(otcToken)).balanceOf(msg.sender) >= amount, "insufficient OTC token balance");
+        require(IERC20(address(otcToken)).allowance(msg.sender, address(this)) >= amount, "OTC token not approved");
+
         uint256 tokensToAllocate = (amount * 1e18) / phase.pricePerToken;
+        require(tokensToAllocate > 0, "amount too small for token allocation");
         if (saleStructure == SaleStructure.PhaseAllocated) {
             if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
         }
 
+        // ── Effects ──
         phase.sold += tokensToAllocate;
+        totalRaised += amount; // OTC counts toward hard cap
         totalOtcAllocated += tokensToAllocate;
         totalContributed[msg.sender] += amount;
+        _blockContributions[block.number] += amount;
+        contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
         contributions[msg.sender].isOtc = true;
         otcAllocations[msg.sender] += tokensToAllocate;
 
+        // ── Interactions (CEI) ──
         IERC20(address(otcToken)).safeTransferFrom(msg.sender, address(this), amount);
         otcToken.burn(address(this), amount);
 

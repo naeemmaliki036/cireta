@@ -130,6 +130,11 @@
       "address": "0x2C616041C8CEe744f238F4376cF18B81267Ec2B3",
       "txHash": "0xe4d176b153fbf6653dff9ac5e2b8cf03bafef1825552464171384c7c6c73945a",
       "kind": "uups"
+    },
+    {
+      "address": "0x432Ce8ccAa590C895C153121d36cd8992e344022",
+      "txHash": "0xf680529688e8073f62c1318f929d37f35b961cc953c756b8fe05f4a88d94387c",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -2610,6 +2615,304 @@
           },
           "t_mapping(t_address,t_bool)": {
             "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "716415e139dcf19afb6497cf9e07a22c4fa3d84a64f92692f2109e1f670d48ea": {
+      "address": "0xc617bC170e49765A343f07F326afbc585279f5A7",
+      "txHash": "0xec39ae84f0d9de019e4bb99a3504231d9ea852eb95bd7e9d390d20abc57952ca",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "otcTokenImplementation",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:16"
+          },
+          {
+            "label": "issuerRegistry",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_contract(IssuerRegistry)4724",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:17"
+          },
+          {
+            "label": "issuerOTCTokens",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:20"
+          },
+          {
+            "label": "allOTCTokens",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:23"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:26"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)718_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)151_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_contract(IssuerRegistry)4724": {
+            "label": "contract IssuerRegistry",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "a593c862adacd882037e37a87dd440b0ab3d4e1a4703b8f6f4a35d2ee507bcac": {
+      "address": "0x212FC28D6429f5b16FaD4742B2d6288e62C366A5",
+      "txHash": "0x60c2cb62c83848ae87108fbedf379092d7e3eefa0618d1b1922fd5424b5fb9b5",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "otcTokenImplementation",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:15"
+          },
+          {
+            "label": "issuerRegistry",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_contract(IssuerRegistry)4748",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:16"
+          },
+          {
+            "label": "issuerOTCTokens",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:19"
+          },
+          {
+            "label": "allOTCTokens",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:22"
+          },
+          {
+            "label": "issuerOTCTokenList",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_mapping(t_address,t_array(t_address)dyn_storage)",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:25"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "IssuerOTCTokenFactory",
+            "src": "src/otc/IssuerOTCTokenFactory.sol:28"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)718_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)151_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_contract(IssuerRegistry)4748": {
+            "label": "contract IssuerRegistry",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_array(t_address)dyn_storage)": {
+            "label": "mapping(address => address[])",
             "numberOfBytes": "32"
           },
           "t_uint256": {

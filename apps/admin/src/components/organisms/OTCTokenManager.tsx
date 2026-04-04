@@ -80,8 +80,9 @@ export function OTCTokenManager({
         label="New OTC Token Address"
         placeholder="0x..."
         value={newAddress}
+        maxLength={42}
         onChange={(e) => { setNewAddress(e.target.value); setValidationError(null); }}
-        error={validationError ?? undefined}
+        error={validationError ?? (newAddress && !isAddress(newAddress) ? "Invalid EVM address" : undefined)}
         helperText="Set or update the OTC receipt token contract for this sale"
       />
 
@@ -89,7 +90,7 @@ export function OTCTokenManager({
         variant="primary"
         className="mt-4"
         onClick={handleSetOTCToken}
-        disabled={action.isPending || action.isConfirming || !newAddress.trim()}
+        disabled={action.isPending || action.isConfirming || !newAddress.trim() || !isAddress(newAddress)}
         isLoading={action.isPending || action.isConfirming}
       >
         Update OTC Token

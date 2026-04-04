@@ -3,27 +3,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  BarChart3, Clock, ArrowLeft, Send, AlertCircle, Coins,
+  Clock, ArrowLeft, AlertCircle, Coins,
   Pencil, X, Check, Upload, ImageIcon, Globe, Star, Rocket,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { encodeFunctionData, decodeEventLog, zeroAddress, type Abi } from "viem";
+import { encodeFunctionData, zeroAddress, type Abi } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
-import { StatCard } from "@/components/molecules";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { SaleContractActions } from "@/components/molecules/SaleContractActions";
 import { AddPhaseForm } from "@/components/molecules/AddPhaseForm";
 import RichTextEditor from "@/components/molecules/RichTextEditor";
 import { SaleContentReview } from "@/components/molecules/SaleContentReview";
+import { SaleSetupChecklist } from "@/components/molecules/SaleSetupChecklist";
 import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import {
   getSale, submitSaleForApproval, updateSale, setHeroImage,
-  addSaleImage, removeSaleImage, recordSaleDeployment,
+  addSaleImage, removeSaleImage,
   type Sale, type UpdateSaleRequest,
 } from "@/lib/api/repositories/sales";
 import { apiFetch, apiUpload } from "@/lib/api/client";
@@ -31,6 +31,7 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { SALE_ABI } from "@/lib/contracts/abis/sale";
 import { SALE_FACTORY_ABI } from "@/lib/contracts/abis/saleFactory";
 import { requireAddress } from "@/lib/contracts/addresses";
+import { PLATFORM_FEE_MANAGER_ABI } from "@/lib/contracts/abis/platformFeeManager";
 import { WhitelistManager } from "@/components/organisms/WhitelistManager";
 import { OTCTokenManager } from "@/components/organisms/OTCTokenManager";
 
@@ -60,10 +61,25 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // Deployment sync
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncDone, setSyncDone] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   // On-chain deployment
   const { isConnected, address: walletAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
   const deployAction = useContractAction();
+
+  // Read issuer fee from PlatformFeeManager
+  const feeManagerAddr = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || undefined;
+  const { data: issuerFeeBps } = useReadContract({
+    address: feeManagerAddr,
+    abi: PLATFORM_FEE_MANAGER_ABI as unknown as Abi,
+    functionName: "getFeeForIssuer",
+    args: walletAddress ? [walletAddress] : undefined,
+    query: { enabled: !!feeManagerAddr && !!walletAddress },
+  });
 
   useEffect(() => { paramsPromise.then((p) => setResolvedId(p.id)); }, [paramsPromise]);
 
@@ -123,7 +139,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       deployAction.reset();
       return;
     }
-    if (!sale.identity_registry_address) {
+    const identityRegistryAddr = sale.identity_registry_address
+      || process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS;
+    if (!identityRegistryAddr) {
       deployAction.reset();
       return;
     }
@@ -151,53 +169,111 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       args: [
         sale.token_contract_address as `0x${string}`,    // _token
         ciretaUsdcAddress,                                 // _paymentToken (USDC)
-        sale.identity_registry_address as `0x${string}`,  // _identityRegistry
+        identityRegistryAddr as `0x${string}`,             // _identityRegistry
         walletAddress,                                     // _issuer (connected wallet)
         saleFactoryAddress,                                // _factory
         feeManagerAddress,                                 // _feeManager
         softCap,                                           // _softCap
         hardCap,                                           // _hardCap
-        BigInt(250),                                       // _feeBasisPoints (2.5%)
+        issuerFeeBps ? BigInt(issuerFeeBps as number) : BigInt(250), // _feeBasisPoints (from PlatformFeeManager)
         BigInt(50_000 * 1e6),                              // _feeCapUsdc ($50k)
         otcTokenAddress as `0x${string}`,                  // _otcToken
       ],
     });
 
-    const receipt = await deployAction.execute({
-      address: saleFactoryAddress,
-      abi: SALE_FACTORY_ABI as unknown as Abi,
-      functionName: "deploySale",
-      args: [sale.token_contract_address as `0x${string}`, initData],
-    });
+    let receipt;
+    if (sale.sale_mode === "vested") {
+      // Vested mode: deploy with vault + fraction token
+      const cliffSeconds = BigInt((sale.cliff_duration_days || 0) * 86400);
+      const vestingSeconds = BigInt((sale.vesting_duration_days || 365) * 86400);
+      receipt = await deployAction.execute({
+        address: saleFactoryAddress,
+        abi: SALE_FACTORY_ABI as unknown as Abi,
+        functionName: "deploySaleVested",
+        args: [
+          sale.token_contract_address as `0x${string}`,
+          initData,
+          `${sale.token_name || "Token"} Fraction`,   // fractionName
+          `f${sale.token_symbol || "TKN"}`,            // fractionSymbol
+          6,                                            // fractionDecimals
+          identityRegistryAddr as `0x${string}`,
+          cliffSeconds,
+          vestingSeconds,
+          0,                                            // excessPolicy: Revert
+        ],
+        gas: 8_000_000n,
+      });
+    } else {
+      // Direct mode
+      receipt = await deployAction.execute({
+        address: saleFactoryAddress,
+        abi: SALE_FACTORY_ABI as unknown as Abi,
+        functionName: "deploySale",
+        args: [sale.token_contract_address as `0x${string}`, initData],
+        gas: 5_000_000n,
+      });
+    }
 
     if (receipt) {
-      // Parse SaleDeployed event to get the sale contract address
-      let saleContractAddress: string | null = null;
-      for (const log of receipt.logs) {
-        try {
-          const decoded = decodeEventLog({
-            abi: SALE_FACTORY_ABI,
-            data: log.data,
-            topics: log.topics,
-          });
-          if (decoded.eventName === "SaleDeployed") {
-            const args = decoded.args as { sale: string };
-            saleContractAddress = args.sale;
-          }
-        } catch { /* not our event */ }
-      }
+      // Save to localStorage as backup
+      const pendingKey = `cireta_pending_sale_${resolvedId}`;
+      localStorage.setItem(pendingKey, JSON.stringify({
+        saleId: resolvedId, txHash: receipt.transactionHash, timestamp: Date.now(),
+      }));
 
-      if (saleContractAddress) {
-        try {
-          const updated = await recordSaleDeployment(resolvedId, {
-            contract_address: saleContractAddress,
-            tx_hash: receipt.transactionHash,
-          });
-          setSale(updated);
-        } catch { /* on-chain is source of truth */ }
-      }
+      await syncSaleDeployment(resolvedId, receipt.transactionHash, pendingKey);
     }
   };
+
+  const syncSaleDeployment = async (saleId: string, txHash: string, pendingKey: string) => {
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      await apiFetch(`/api/v1/sales/${saleId}/record-deployment?tx_hash=${txHash}`, {
+        method: "POST",
+      });
+      setSyncDone(true);
+      localStorage.removeItem(pendingKey);
+      await reload();
+    } catch {
+      setSyncError("Sale deployed on-chain but failed to sync. Click 'Retry Sync' to try again.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleRetrySync = async () => {
+    const pendingKey = `cireta_pending_sale_${resolvedId}`;
+    const saved = localStorage.getItem(pendingKey);
+    if (!saved) { setSyncError("No pending deployment found."); return; }
+    const { txHash } = JSON.parse(saved);
+    await syncSaleDeployment(resolvedId, txHash, pendingKey);
+  };
+
+  // Auto-retry pending deployment on page load
+  useEffect(() => {
+    if (!resolvedId || sale?.contract_address) return;
+    const pendingKey = `cireta_pending_sale_${resolvedId}`;
+    const saved = localStorage.getItem(pendingKey);
+    if (saved && !syncDone) {
+      const { txHash, timestamp } = JSON.parse(saved);
+      if (Date.now() - timestamp < 3600000) { // within 1 hour
+        syncSaleDeployment(resolvedId, txHash, pendingKey);
+      }
+    }
+  }, [resolvedId, sale?.contract_address]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Block navigation during deployment/syncing
+  const isDeployingOrSyncing = deployAction.isPending || deployAction.isConfirming || isSyncing;
+  useEffect(() => {
+    if (!isDeployingOrSyncing) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Deployment in progress. Are you sure you want to leave?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDeployingOrSyncing]);
 
   // Auto-populate edit form when sale loads and ?edit=1
   useEffect(() => {
@@ -322,25 +398,36 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               </Button>
             </Link>
           )}
-          {isDraft && <Button variant="primary" onClick={handleSubmitForApproval} isLoading={actionLoading === "submit"}>
-            <Send className="h-4 w-4 mr-2" /> Submit for Approval
-          </Button>}
+          {isDraft && !sale.contract_address && (
+            <span className="text-xs text-zinc-400">Deploy on-chain to start setup</span>
+          )}
           {isApprovedComingSoon && <Button variant="primary" onClick={handleConvertToLive} isLoading={actionLoading === "convert"}>
             Convert to Live Sale
           </Button>}
-          {isApproved && !sale.contract_address && (
+          {!sale.contract_address && !syncDone && sale.token_contract_address && (
             <Button
               variant="primary"
               onClick={handleDeployOnChain}
-              disabled={deployAction.isPending || deployAction.isConfirming || !sale.token_contract_address}
-              isLoading={deployAction.isPending || deployAction.isConfirming}
+              disabled={isDeployingOrSyncing}
+              isLoading={isDeployingOrSyncing}
             >
-              <Rocket className="h-4 w-4 mr-2" /> Deploy On-Chain
+              <Rocket className="h-4 w-4 mr-2" />
+              {isSyncing ? "Syncing..." : "Deploy On-Chain"}
             </Button>
           )}
-          {isApproved && sale.contract_address && (
-            <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
-              <p className="font-semibold">Deployed at <code className="font-mono text-xs bg-green-100 px-1 rounded">{sale.contract_address}</code></p>
+          {(sale.contract_address || syncDone) && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
+              <p className="font-semibold">Deployed</p>
+              {sale.contract_address && (
+                <button
+                  onClick={() => navigator.clipboard.writeText(sale.contract_address!)}
+                  title="Click to copy"
+                  className="inline-flex items-center gap-1.5 font-mono text-xs bg-green-100 hover:bg-green-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  {sale.contract_address.slice(0, 6)}...{sale.contract_address.slice(-4)}
+                  <svg className="h-3 w-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+              )}
             </div>
           )}
           {isFinalizedSuccess && (
@@ -351,6 +438,20 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
       {actionError && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
       {actionSuccess && <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-600">Changes saved successfully</div>}
+      {syncError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
+          <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 flex-shrink-0" /> {syncError}</div>
+          <Button variant="outline" size="sm" onClick={handleRetrySync} className="mt-2" isLoading={isSyncing} disabled={isSyncing}>
+            Retry Sync
+          </Button>
+        </div>
+      )}
+      {isSyncing && (
+        <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
+          <div className="h-4 w-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+          Syncing sale contract address — please wait...
+        </div>
+      )}
 
       {/* On-chain deployment status */}
       {isApproved && !sale.contract_address && !sale.token_contract_address && (
@@ -367,6 +468,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         txUrl={deployAction.txUrl}
         error={deployAction.error}
         successMessage="Sale contract deployed on-chain. Address recorded."
+      />
+
+      {/* Setup Checklist — shown for draft/rejected sales with contract */}
+      <SaleSetupChecklist
+        sale={sale as Parameters<typeof SaleSetupChecklist>[0]["sale"]}
+        onReload={reload}
+        onSubmitForApproval={handleSubmitForApproval}
+        isSubmitting={actionLoading === "submit"}
       />
 
       {/* On-Chain Contract Actions (Withdraw Funds, Withdraw Tokens, Pause, Finalize) */}
@@ -461,12 +570,62 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         </motion.div>
       )}
 
+      {/* Phases — moved above gallery for visibility */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
+        <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">Phases</h2>
+        {sale.phases.length === 0 ? (
+          <p className="text-darkBlack/30 text-center py-6 text-sm">No phases configured yet</p>
+        ) : (
+          <div className="space-y-3">
+            {sale.phases.map((phase, idx) => {
+              const phaseSold = parseFloat(phase.sold || "0");
+              const phaseAlloc = parseFloat(phase.allocation || "0");
+              const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
+              return (
+                <div key={phase.id} className="p-4 rounded-xl border border-zinc-100 hover:border-zinc-200 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-md bg-darkAqua/10 text-darkAqua flex items-center justify-center text-xs font-bold">{idx + 1}</span>
+                      <p className="font-medium text-sm text-text">{phase.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-darkBlack/40">
+                      <Clock className="h-3 w-3" />
+                      <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
+                    </div>
+                  </div>
+                  <ProgressBar value={phasePct} size="sm" />
+                  <div className="flex justify-between text-xs mt-2 text-darkBlack/40">
+                    <span>Price: <span className="text-text font-medium">${parseFloat(phase.price_per_token).toLocaleString()}</span></span>
+                    <span>{formatCurrency(phaseSold)} / {formatCurrency(phaseAlloc)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {sale.contract_address && (isDraft || isActive) && (() => {
+          const totalAllocated = sale.phases.reduce((s, p) => s + parseFloat(p.allocation || "0"), 0);
+          const available = cap > 0 ? cap - totalAllocated : undefined;
+          return (
+          <div className="mt-4">
+            <AddPhaseForm
+              contractAddress={sale.contract_address}
+              saleId={sale.id}
+              availableSupply={available}
+              onSuccess={reload}
+            />
+          </div>
+          );
+        })()}
+      </motion.div>
+
       {/* Hero Image / Gallery Management */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6">
+        className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" /> Hero Image & Gallery
+          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide flex items-center gap-2">
+            <ImageIcon className="h-4 w-4" /> Media Gallery
           </h2>
           <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
             <Upload className="h-4 w-4" />
@@ -522,63 +681,34 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         )}
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard label="Total Raised" value={raised} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
-        <StatCard label="Hard Cap" value={cap} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
-        <StatCard label="Soft Cap" value={soft} prefix="$" icon={<BarChart3 className="h-5 w-5" />} />
-      </div>
-
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text">Progress</h2>
-          <Badge variant={isActive ? "active" : "default"} size="sm">{sale.status}</Badge>
+      {/* Stats + Progress */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Funding Progress</h2>
+          <Badge variant={isActive ? "active" : isDraft ? "pending" : "default"} size="sm" className="capitalize">
+            {sale.status === "approved_coming_soon" ? "Coming Soon" : sale.status === "pending_approval" ? "Pending" : sale.status.replace(/_/g, " ")}
+          </Badge>
         </div>
+
+        <div className="grid grid-cols-3 gap-4 mb-5">
+          {[
+            { label: "Total Raised", value: formatCurrency(raised), color: "text-darkAqua", bg: "bg-darkAqua/10" },
+            { label: "Hard Cap", value: formatCurrency(cap), color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "Soft Cap", value: formatCurrency(soft), color: "text-amber-600", bg: "bg-amber-50" },
+          ].map((s) => (
+            <div key={s.label} className="text-center">
+              <p className="text-[11px] font-medium text-darkBlack/40 uppercase tracking-wide mb-1">{s.label}</p>
+              <p className="text-lg font-bold text-text">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
         <ProgressBar value={pct} size="md" />
-        <div className="flex justify-between text-sm mt-2 text-darkBlack/50">
+        <div className="flex justify-between text-xs mt-2 text-darkBlack/40">
           <span>{formatCurrency(raised)} raised</span>
           <span>{pct.toFixed(1)}% of {formatCurrency(cap)}</span>
         </div>
-      </motion.div>
-
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border border-darkBlack/10">
-        <h2 className="text-lg font-semibold text-text mb-6">Phases</h2>
-        {sale.phases.length === 0 ? (
-          <p className="text-darkBlack/40 text-center py-4">No phases configured</p>
-        ) : (
-          <div className="space-y-4">
-            {sale.phases.map((phase) => {
-              const phaseSold = parseFloat(phase.sold || "0");
-              const phaseAlloc = parseFloat(phase.allocation || "0");
-              const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
-              return (
-                <div key={phase.id} className="p-4 rounded-2xl bg-box">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-text">{phase.name}</p>
-                    <div className="flex items-center gap-2 text-sm text-darkBlack/50">
-                      <Clock className="h-3 w-3" />
-                      <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
-                    </div>
-                  </div>
-                  <ProgressBar value={phasePct} size="sm" />
-                  <div className="flex justify-between text-xs mt-1 text-darkBlack/40">
-                    <span>Price: ${phase.price_per_token}</span>
-                    <span>{formatCurrency(phaseSold)} / {formatCurrency(phaseAlloc)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Add Phase form — show when deployed and draft or active */}
-        {sale.contract_address && (isDraft || isActive) && (
-          <div className="mt-4">
-            <AddPhaseForm
-              contractAddress={sale.contract_address}
-              onSuccess={reload}
-            />
-          </div>
-        )}
       </motion.div>
 
       {/* Per-Phase Whitelist Management — show when deployed and has whitelist phases */}

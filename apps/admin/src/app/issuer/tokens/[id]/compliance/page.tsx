@@ -17,6 +17,11 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { ModuleCard } from "./ComplianceModuleCards";
 
+// CountryAllowModule ABI — for auto-configuring system access after attach
+const COUNTRY_ALLOW_ABI = [
+  { name: "batchAllowCountries", type: "function", stateMutability: "nonpayable", inputs: [{ name: "compliance", type: "address" }, { name: "countries", type: "uint16[]" }], outputs: [] },
+] as const;
+
 // ModularCompliance ABI — addModule / removeModule
 const COMPLIANCE_ABI = [
   { name: "addModule", type: "function", stateMutability: "nonpayable", inputs: [{ name: "module", type: "address" }], outputs: [] },
@@ -63,6 +68,8 @@ export default function TokenCompliancePage({
   const { openConnectModal } = useConnectModal();
   const attachAction = useContractAction();
   const removeAction = useContractAction();
+  const autoConfigAction = useContractAction();
+  const [autoConfigStatus, setAutoConfigStatus] = useState("");
 
   useEffect(() => { paramsPromise.then((p) => setTokenId(p.id)); }, [paramsPromise]);
 
@@ -94,6 +101,7 @@ export default function TokenCompliancePage({
     if (!isConnected) { openConnectModal?.(); return; }
     if (!complianceAddr) { setActionMessage({ type: "error", text: "Compliance contract not found" }); return; }
     setActionMessage(null);
+    setAutoConfigStatus("");
 
     const receipt = await attachAction.execute({
       address: complianceAddr as `0x${string}`,
@@ -103,7 +111,27 @@ export default function TokenCompliancePage({
     });
 
     if (receipt) {
-      setActionMessage({ type: "success", text: `${moduleName} attached successfully.` });
+      // Auto-configure system access for CountryAllowModule
+      const countryAllowAddr = AVAILABLE_MODULES.find((m) => m.id === "country_allow")?.address;
+      if (moduleAddress.toLowerCase() === countryAllowAddr?.toLowerCase()) {
+        setAutoConfigStatus("Auto-configuring system access...");
+        const configReceipt = await autoConfigAction.execute({
+          address: moduleAddress as `0x${string}`,
+          abi: COUNTRY_ALLOW_ABI as unknown as Abi,
+          functionName: "batchAllowCountries",
+          args: [complianceAddr as `0x${string}`, [0]],
+          gas: 200_000n,
+        });
+        if (configReceipt) {
+          setAutoConfigStatus("");
+          setActionMessage({ type: "success", text: `${moduleName} attached and system access (country 0) configured.` });
+        } else {
+          setAutoConfigStatus("");
+          setActionMessage({ type: "error", text: `${moduleName} attached, but auto-config of country code 0 failed. Add it manually.` });
+        }
+      } else {
+        setActionMessage({ type: "success", text: `${moduleName} attached successfully.` });
+      }
       await loadData();
     }
   };
@@ -179,6 +207,18 @@ export default function TokenCompliancePage({
           <TransactionStatus isPending={removeAction.isPending} isConfirming={removeAction.isConfirming}
             isConfirmed={removeAction.isConfirmed} txHash={removeAction.txHash} txUrl={removeAction.txUrl}
             error={removeAction.error} successMessage="Module removed." />
+        </div>
+      )}
+      {autoConfigStatus && (
+        <div className="mb-4 p-3 rounded-xl border border-blue-200 bg-blue-50 text-sm text-blue-700 flex items-center gap-2">
+          <Spinner className="h-4 w-4" /> {autoConfigStatus}
+        </div>
+      )}
+      {(autoConfigAction.isPending || autoConfigAction.isConfirming || autoConfigAction.error) && (
+        <div className="mb-4">
+          <TransactionStatus isPending={autoConfigAction.isPending} isConfirming={autoConfigAction.isConfirming}
+            isConfirmed={autoConfigAction.isConfirmed} txHash={autoConfigAction.txHash} txUrl={autoConfigAction.txUrl}
+            error={autoConfigAction.error} successMessage="System access (country 0) configured." />
         </div>
       )}
 

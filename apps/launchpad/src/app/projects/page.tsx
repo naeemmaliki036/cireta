@@ -133,8 +133,8 @@ function ActiveProjectCard({ project }: { project: Project }) {
         </div>
         <div className="flex items-center justify-between pt-2 border-t border-gray-50">
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Invest From</p>
-            <p className="text-lg font-bold">{(raised / 1_000_000).toFixed(1)}M USDC</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Target</p>
+            <p className="text-lg font-bold">{hardCap >= 1_000_000 ? `${(hardCap / 1_000_000).toFixed(hardCap % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${hardCap.toLocaleString()} USDC`}</p>
           </div>
           <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-darkBlack/90 transition-colors">
             Invest <ArrowRight className="h-4 w-4" />

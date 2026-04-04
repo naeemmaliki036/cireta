@@ -4,31 +4,31 @@ import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import {
   Building2, User, Wallet, Shield, CheckCircle2, XCircle, Clock,
-  ArrowLeft, Loader2, AlertTriangle, TrendingUp,
+  ArrowLeft, Loader2, AlertTriangle, TrendingUp, Copy, ExternalLink,
 } from "lucide-react";
 import { Button, Badge, ProgressBar } from "@/components/atoms";
-import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { PlatformAdminLayout } from "@/components/templates";
 import { getIssuer, activateIssuer, revokeIssuer, type Issuer } from "@/lib/api/repositories/issuers";
 import { approveIssuerWallet, rejectIssuerWallet, skipIssuerIdentity } from "@/lib/api/repositories/issuer-onboarding";
 import { getSales, type Sale } from "@/lib/api/repositories/sales";
+import { formatCurrency } from "@/lib/utils";
 
 function StatusPill({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
-    approved: { bg: "bg-green-50", text: "text-green-700", icon: <CheckCircle2 className="h-4 w-4" /> },
-    active: { bg: "bg-green-50", text: "text-green-700", icon: <CheckCircle2 className="h-4 w-4" /> },
-    pending: { bg: "bg-amber-50", text: "text-amber-700", icon: <Clock className="h-4 w-4" /> },
-    verified: { bg: "bg-teal-50", text: "text-teal-700", icon: <CheckCircle2 className="h-4 w-4" /> },
-    pending_approval: { bg: "bg-amber-50", text: "text-amber-700", icon: <Clock className="h-4 w-4" /> },
-    rejected: { bg: "bg-red-50", text: "text-red-700", icon: <XCircle className="h-4 w-4" /> },
-    suspended: { bg: "bg-red-50", text: "text-red-700", icon: <XCircle className="h-4 w-4" /> },
-    none: { bg: "bg-zinc-100", text: "text-zinc-500", icon: <Clock className="h-4 w-4" /> },
+    approved: { bg: "bg-green-50 border-green-200", text: "text-green-700", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+    active: { bg: "bg-green-50 border-green-200", text: "text-green-700", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+    pending: { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", icon: <Clock className="h-3.5 w-3.5" /> },
+    verified: { bg: "bg-teal-50 border-teal-200", text: "text-teal-700", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+    pending_approval: { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", icon: <Clock className="h-3.5 w-3.5" /> },
+    rejected: { bg: "bg-red-50 border-red-200", text: "text-red-700", icon: <XCircle className="h-3.5 w-3.5" /> },
+    suspended: { bg: "bg-red-50 border-red-200", text: "text-red-700", icon: <XCircle className="h-3.5 w-3.5" /> },
+    none: { bg: "bg-zinc-50 border-zinc-200", text: "text-zinc-500", icon: <Clock className="h-3.5 w-3.5" /> },
   };
   const c = config[status] ?? config.none!;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${c!.bg} ${c!.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${c!.bg} ${c!.text}`}>
       {c!.icon}
-      {status.replace("_", " ")}
+      {({ pending_approval: "Pending Approval", approved_coming_soon: "Coming Soon", finalized_success: "Completed", finalized_failed: "Failed" } as Record<string, string>)[status] || status.replace(/_/g, " ")}
     </span>
   );
 }
@@ -56,7 +56,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
     } catch { /* ignore */ }
   };
 
-  useEffect(() => { fetchIssuer(); fetchSales(); }, [id]);
+  useEffect(() => { fetchIssuer(); fetchSales(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAction = async (action: string) => {
     setActionLoading(action);
@@ -95,10 +95,16 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
+  const totalRaised = sales.reduce((s, x) => s + parseFloat(x.total_raised || "0"), 0);
+
   return (
-    <PlatformAdminLayout
-      title={issuer.name}
-    >
+    <PlatformAdminLayout title={issuer.name}>
+      <div className="mb-6">
+        <Link href="/platform/issuers" className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to Issuers
+        </Link>
+      </div>
+
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2 text-red-700 text-sm">
           <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -106,19 +112,21 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      {/* Header Info */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6 mb-6">
+      {/* Header Card */}
+      <div className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-teal-50 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-darkAqua/20 to-darkAqua/5 flex items-center justify-center">
               {issuer.issuer_type === "corporate"
-                ? <Building2 className="h-7 w-7 text-teal-600" />
-                : <User className="h-7 w-7 text-teal-600" />
+                ? <Building2 className="h-6 w-6 text-darkAqua" />
+                : <User className="h-6 w-6 text-darkAqua" />
               }
             </div>
             <div>
-              <h2 className="text-xl font-semibold">{issuer.name}</h2>
-              <p className="text-sm text-zinc-500">{issuer.slug} &middot; {issuer.legal_entity_name ?? "No legal entity"}</p>
+              <h2 className="text-lg font-semibold text-text">{issuer.name}</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {issuer.slug} {issuer.legal_entity_name ? `· ${issuer.legal_entity_name}` : ""}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -126,139 +134,125 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
             <StatusPill status={issuer.status} />
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-sm">
-          <div><span className="text-zinc-400">Jurisdiction</span><p className="font-medium">{issuer.jurisdiction ?? "—"}</p></div>
-          <div><span className="text-zinc-400">Fee</span><p className="font-medium">{issuer.fee_bps / 100}%</p></div>
-          <div><span className="text-zinc-400">Created</span><p className="font-medium">{new Date(issuer.created_at).toLocaleDateString()}</p></div>
-          <div><span className="text-zinc-400">User ID</span><p className="font-medium font-mono text-xs">{issuer.user_id.slice(0, 8)}...</p></div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-5 pt-5 border-t border-zinc-100">
+          {[
+            { label: "Jurisdiction", value: issuer.jurisdiction ?? "—" },
+            { label: "Fee", value: `${issuer.fee_bps / 100}%` },
+            { label: "Sales", value: sales.length.toString() },
+            { label: "Total Raised", value: formatCurrency(totalRaised) },
+            { label: "Created", value: new Date(issuer.created_at).toLocaleDateString() },
+          ].map((item) => (
+            <div key={item.label}>
+              <p className="text-[11px] text-zinc-400 uppercase tracking-wide">{item.label}</p>
+              <p className="text-sm font-medium text-text mt-0.5">{item.value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Three Gate Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      {/* Three Gates */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
 
         {/* Wallet */}
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6">
+        <div className="bg-white rounded-xl border border-zinc-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-zinc-400" />
-              <h3 className="font-semibold">Wallet</h3>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Wallet className="h-4 w-4 text-blue-600" />
+              </div>
+              <h3 className="font-semibold text-sm">Wallet</h3>
             </div>
             <StatusPill status={issuer.wallet_status} />
           </div>
           {issuer.wallet_address ? (
-            <div className="text-xs bg-zinc-50 p-3 rounded-lg mb-4">
-              <CopyableAddress address={issuer.wallet_address} className="text-xs text-zinc-600" />
-            </div>
+            <button
+              onClick={() => navigator.clipboard.writeText(issuer.wallet_address!)}
+              className="w-full flex items-center gap-2 bg-zinc-50 hover:bg-zinc-100 p-3 rounded-lg mb-3 transition-colors cursor-pointer text-left"
+            >
+              <span className="text-xs font-mono text-zinc-600 truncate flex-1">{issuer.wallet_address}</span>
+              <Copy className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+            </button>
           ) : (
-            <p className="text-sm text-zinc-400 mb-4">No wallet submitted yet</p>
+            <p className="text-xs text-zinc-400 mb-3 py-2">No wallet submitted yet</p>
           )}
           {issuer.wallet_status === "verified" && (
-            <p className="text-xs text-zinc-400 mb-2">Issuer has verified ownership but not yet submitted for approval.</p>
+            <p className="text-[11px] text-zinc-400 mb-3">Ownership verified, awaiting admin approval.</p>
           )}
           {(issuer.wallet_status === "pending_approval" || issuer.wallet_status === "verified") && (
             <div className="flex gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                className="flex-1"
-                onClick={() => handleAction("approve-wallet")}
-                isLoading={actionLoading === "approve-wallet"}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+              <Button variant="primary" size="sm" className="flex-1" onClick={() => handleAction("approve-wallet")}
+                isLoading={actionLoading === "approve-wallet"}>
+                Approve
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => handleAction("reject-wallet")}
-                isLoading={actionLoading === "reject-wallet"}
-              >
-                <XCircle className="h-4 w-4 mr-1" /> Reject
+              <Button variant="outline" size="sm" className="flex-1 text-red-500 border-red-200 hover:bg-red-50"
+                onClick={() => handleAction("reject-wallet")} isLoading={actionLoading === "reject-wallet"}>
+                Reject
               </Button>
             </div>
           )}
         </div>
 
         {/* Identity */}
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6">
+        <div className="bg-white rounded-xl border border-zinc-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-zinc-400" />
-              <h3 className="font-semibold">{issuer.issuer_type === "corporate" ? "KYB" : "KYC"}</h3>
+              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                <Shield className="h-4 w-4 text-purple-600" />
+              </div>
+              <h3 className="font-semibold text-sm">{issuer.issuer_type === "corporate" ? "KYB" : "KYC"}</h3>
             </div>
             <StatusPill status={issuer.identity_status} />
           </div>
-          <div className="text-sm text-zinc-500 space-y-1">
-            <p>Type: <span className="font-medium text-zinc-700 capitalize">{issuer.issuer_type}</span></p>
+          <div className="text-xs text-zinc-500 space-y-1.5 mb-3">
+            <p>Type: <span className="font-medium text-text capitalize">{issuer.issuer_type}</span></p>
             {issuer.identity_verified_at && (
-              <p>Verified: <span className="font-medium text-zinc-700">{new Date(issuer.identity_verified_at).toLocaleString()}</span></p>
+              <p>Verified: <span className="font-medium text-text">{new Date(issuer.identity_verified_at).toLocaleDateString()}</span></p>
             )}
-            {issuer.identity_status === "none" && <p className="text-zinc-400">Issuer has not started verification</p>}
-            {issuer.identity_status === "pending" && <p className="text-amber-600">Under review by Sumsub</p>}
-            {issuer.identity_status === "rejected" && <p className="text-red-600">Verification was rejected</p>}
+            {issuer.identity_status === "none" && <p className="text-zinc-400">Not started</p>}
+            {issuer.identity_status === "pending" && <p className="text-amber-600">Under review</p>}
+            {issuer.identity_status === "rejected" && <p className="text-red-600">Rejected</p>}
           </div>
           {issuer.identity_status !== "approved" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full mt-4 text-amber-600 border-amber-200 hover:bg-amber-50"
-              onClick={() => handleAction("skip-identity")}
-              isLoading={actionLoading === "skip-identity"}
-            >
-              <Shield className="h-4 w-4 mr-1" /> Skip Verification
+            <Button variant="outline" size="sm" className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
+              onClick={() => handleAction("skip-identity")} isLoading={actionLoading === "skip-identity"}>
+              <Shield className="h-3.5 w-3.5 mr-1" /> Skip Verification
             </Button>
           )}
         </div>
 
         {/* Activation */}
-        <div className="bg-white rounded-2xl border border-zinc-200 p-6">
+        <div className="bg-white rounded-xl border border-zinc-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-zinc-400" />
-              <h3 className="font-semibold">Activation</h3>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${issuer.status === "active" ? "bg-green-50" : "bg-zinc-100"}`}>
+                <CheckCircle2 className={`h-4 w-4 ${issuer.status === "active" ? "text-green-600" : "text-zinc-400"}`} />
+              </div>
+              <h3 className="font-semibold text-sm">Activation</h3>
             </div>
             <StatusPill status={issuer.status} />
           </div>
 
           {issuer.status === "active" ? (
             <div className="space-y-3">
-              <p className="text-sm text-green-600">Issuer is fully activated and can deploy tokens.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => handleAction("revoke")}
-                isLoading={actionLoading === "revoke"}
-              >
+              <p className="text-xs text-green-600 font-medium">Fully activated. Can deploy tokens and create sales.</p>
+              <Button variant="outline" size="sm" className="w-full text-red-500 border-red-200 hover:bg-red-50"
+                onClick={() => handleAction("revoke")} isLoading={actionLoading === "revoke"}>
                 Revoke Issuer
               </Button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {!walletApproved && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Wallet not approved
-                </p>
+                <p className="text-[11px] text-amber-600 flex items-center gap-1"><Clock className="h-3 w-3" /> Wallet not approved</p>
               )}
               {!identityApproved && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> Identity not verified
-                </p>
+                <p className="text-[11px] text-amber-600 flex items-center gap-1"><Clock className="h-3 w-3" /> Identity not verified</p>
               )}
               {canActivate && (
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> All gates met — ready to activate
-                </p>
+                <p className="text-[11px] text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Ready to activate</p>
               )}
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full"
-                disabled={!canActivate}
-                onClick={() => handleAction("activate")}
-                isLoading={actionLoading === "activate"}
-              >
+              <Button variant="primary" size="sm" className="w-full" disabled={!canActivate}
+                onClick={() => handleAction("activate")} isLoading={actionLoading === "activate"}>
                 {canActivate ? "Activate Issuer" : "Cannot Activate Yet"}
               </Button>
             </div>
@@ -267,57 +261,44 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Sales */}
-      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden mb-6">
-        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+      <div className="bg-white rounded-xl border border-zinc-100 overflow-hidden">
+        <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-zinc-400" />
-            <h3 className="font-semibold">Token Sales</h3>
+            <TrendingUp className="h-4 w-4 text-zinc-400" />
+            <h3 className="font-semibold text-sm">Token Sales</h3>
           </div>
-          <span className="text-sm text-zinc-400">{sales.length} sale{sales.length !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-zinc-400">{sales.length} sale{sales.length !== 1 ? "s" : ""}</span>
         </div>
         {sales.length === 0 ? (
           <div className="p-8 text-center text-zinc-400 text-sm">No sales created yet</div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-zinc-500 uppercase border-b border-zinc-100">
-                <th className="px-6 py-3">Token</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Raised</th>
-                <th className="px-6 py-3">Hard Cap</th>
-                <th className="px-6 py-3">Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((sale) => {
-                const raised = parseFloat(sale.total_raised || "0");
-                const hardCap = parseFloat(sale.hard_cap || "0");
-                const pct = hardCap > 0 ? (raised / hardCap) * 100 : 0;
-                return (
-                  <tr key={sale.id} className="border-b border-zinc-50 hover:bg-zinc-50">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium">{sale.token_name ?? "—"}</p>
-                      <p className="text-xs text-zinc-400">{sale.token_symbol}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusPill status={sale.status} />
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">${raised.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm text-zinc-500">${hardCap.toLocaleString()}</td>
-                    <td className="px-6 py-4 w-32">
-                      <ProgressBar value={pct} size="sm" />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="divide-y divide-zinc-50">
+            {sales.map((sale) => {
+              const raised = parseFloat(sale.total_raised || "0");
+              const hardCap = parseFloat(sale.hard_cap || "0");
+              const pct = hardCap > 0 ? Math.min(Math.round((raised / hardCap) * 100), 100) : 0;
+              return (
+                <Link key={sale.id} href={`/platform/sales/${sale.id}`}
+                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-zinc-50 transition-colors group">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text truncate">{sale.title || sale.token_name || "Untitled"}</p>
+                    <p className="text-xs text-zinc-400">{sale.token_symbol || ""}</p>
+                  </div>
+                  <StatusPill status={sale.status} />
+                  <div className="text-right shrink-0 w-24">
+                    <p className="text-sm font-medium">{formatCurrency(raised)}</p>
+                    <p className="text-[10px] text-zinc-400">{hardCap > 0 ? `of ${formatCurrency(hardCap)}` : "no cap"}</p>
+                  </div>
+                  <div className="w-20 shrink-0">
+                    <ProgressBar value={pct} size="sm" />
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 text-zinc-300 group-hover:text-darkAqua transition-colors shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
         )}
       </div>
-
-      <Link href="/platform/issuers">
-        <Button variant="outline"><ArrowLeft className="h-4 w-4 mr-1" /> Back to Issuers</Button>
-      </Link>
     </PlatformAdminLayout>
   );
 }

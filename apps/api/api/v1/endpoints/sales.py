@@ -66,8 +66,10 @@ def _sale_to_response(sale) -> SaleResponse:
         full_description=sale.full_description,
         banner_image_url=sale.banner_image_url or next((img.url for img in getattr(sale, "images", []) if img.is_banner), next((img.url for img in sorted(getattr(sale, "images", []), key=lambda i: i.sort_order or 0)), None)),
         is_coming_soon=sale.is_coming_soon,
+        is_visible=getattr(sale, "is_visible", False),
         otc_enabled=sale.otc_enabled,
         otc_content=sale.otc_content,
+        otc_token_address=getattr(sale, "otc_token_address", None),
         website_url=sale.website_url,
         twitter_url=sale.twitter_url,
         linkedin_url=sale.linkedin_url,
@@ -101,6 +103,8 @@ def _sale_to_response(sale) -> SaleResponse:
         else None,
         token_description=sale.token.description if sale.token else None,
         token_image_url=sale.token.image_url if sale.token else None,
+        token_contract_address=sale.token.contract_address if sale.token else None,
+        identity_registry_address=sale.token.identity_registry_address if sale.token else None,
         issuer_name=sale.issuer.name if sale.issuer else None,
         issuer_slug=sale.issuer.slug if sale.issuer else None,
     )
@@ -272,7 +276,7 @@ async def update_otc_content(
 
     result = await db.execute(
         select(TokenSale)
-        .options(selectinload(TokenSale.phases), selectinload(TokenSale.token), selectinload(TokenSale.issuer))
+        .options(selectinload(TokenSale.phases), selectinload(TokenSale.token), selectinload(TokenSale.issuer), selectinload(TokenSale.images))
         .where(TokenSale.id == sale_id)
     )
     sale = result.scalar_one_or_none()
@@ -489,6 +493,58 @@ async def contribute(
     return _contribution_to_response(contribution)
 
 
+class PhaseCreateRequest(BaseModel):
+    """Create a sale phase (DB record to match on-chain phase)."""
+    name: str
+    price_per_token: str
+    allocation: str
+    min_contribution: str = "0"
+    max_contribution: str = "0"
+    start_time: str
+    end_time: str
+    whitelist_only: bool = False
+
+
+@router.post("/{sale_id}/phases", status_code=201)
+async def add_phase(
+    sale_id: UUID,
+    request: PhaseCreateRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Record a phase in the DB (after it's been added on-chain)."""
+    from sqlalchemy.orm import selectinload
+    from apps.api.models.sale_phase import SalePhase
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer), selectinload(TokenSale.phases))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+
+    from decimal import Decimal
+    phase = SalePhase()
+    phase.sale_id = sale_id
+    phase.phase_number = len(sale.phases) + 1
+    phase.name = request.name
+    phase.price_per_token = Decimal(request.price_per_token)
+    phase.allocation = Decimal(request.allocation)
+    phase.min_contribution = Decimal(request.min_contribution)
+    phase.max_contribution = Decimal(request.max_contribution)
+    phase.start_time = request.start_time
+    phase.end_time = request.end_time
+    phase.whitelist_only = request.whitelist_only
+
+    db.add(phase)
+    await db.commit()
+    return {"phase_id": str(phase.id), "phase_number": phase.phase_number}
+
+
 @router.post("/{sale_id}/submit-for-approval")
 async def submit_for_approval(
     sale_id: UUID,
@@ -514,6 +570,52 @@ async def submit_for_approval(
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
     if sale.status != SaleStatus.DRAFT:
         raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be DRAFT, currently: {sale.status}"})
+
+    # Prerequisites for non-coming-soon sales
+    if not sale.is_coming_soon:
+        if not sale.contract_address:
+            raise HTTPException(status_code=400, detail={
+                "code": "NOT_DEPLOYED",
+                "message": "Sale contract must be deployed on-chain before submitting for approval.",
+            })
+
+        # Verify on-chain: phases configured and tokens deposited
+        try:
+            from apps.api.services.web3_base_service import Web3BaseService
+            w3_svc = Web3BaseService()
+            w3 = w3_svc.w3
+
+            sale_abi = [
+                {"name": "status", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "uint8"}]},
+                {"name": "saleMode", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "uint8"}]},
+                {"name": "vault", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "address"}]},
+                {"name": "token", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "address"}]},
+            ]
+            erc20_abi = [{"name": "balanceOf", "type": "function", "stateMutability": "view", "inputs": [{"name": "", "type": "address"}], "outputs": [{"name": "", "type": "uint256"}]}]
+
+            sale_contract = w3.eth.contract(address=w3.to_checksum_address(sale.contract_address), abi=sale_abi)
+            token_addr = sale_contract.functions.token().call()
+            sale_mode = sale_contract.functions.saleMode().call()  # 0=Direct, 1=Vested
+
+            # Check token balance
+            token_contract = w3.eth.contract(address=token_addr, abi=erc20_abi)
+            if sale_mode == 1:  # Vested
+                vault_addr = sale_contract.functions.vault().call()
+                balance = token_contract.functions.balanceOf(vault_addr).call()
+            else:  # Direct
+                balance = token_contract.functions.balanceOf(w3.to_checksum_address(sale.contract_address)).call()
+
+            if balance == 0:
+                raise HTTPException(status_code=400, detail={
+                    "code": "TOKENS_NOT_DEPOSITED",
+                    "message": "Project tokens must be deposited before submitting for approval. Complete the 'Deposit Project Tokens' step.",
+                })
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("On-chain check failed for sale %s: %s", sale_id, e)
+            # Don't block submission if RPC check fails — admin can verify manually
 
     sale.status = SaleStatus.PENDING_APPROVAL
     await sale_service.db.commit()
@@ -551,13 +653,14 @@ async def record_sale_deployment(
         w3 = w3_svc.w3
         receipt = w3.eth.get_transaction_receipt(tx_hash)
 
-        # SaleDeployed(address indexed sale, address indexed token, address indexed issuer)
+        # SaleDeployed(address indexed token, address indexed sale, address indexed issuer)
         sale_deployed_topic = Web3.keccak(text="SaleDeployed(address,address,address)").hex()
 
         sale_address = None
         for log in receipt.logs:
             if len(log.topics) >= 3 and log.topics[0].hex() == sale_deployed_topic:
-                sale_address = Web3.to_checksum_address("0x" + log.topics[1].hex()[-40:])
+                # topics[1]=token, topics[2]=sale, topics[3]=issuer
+                sale_address = Web3.to_checksum_address("0x" + log.topics[2].hex()[-40:])
                 break
 
         if not sale_address:

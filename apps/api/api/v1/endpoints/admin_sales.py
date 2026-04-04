@@ -86,6 +86,35 @@ async def reject_sale(
     return SaleActionResponse(sale_id=str(sale_id), status=sale.status.value, message=f"Sale rejected: {request.reason or 'No reason provided'}")
 
 
+@router.post("/{sale_id}/toggle-visibility", response_model=SaleActionResponse)
+async def toggle_visibility(
+    sale_id: UUID,
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleActionResponse:
+    """Toggle sale visibility on the launchpad. Sale must be approved first."""
+    result = await sale_service.db.execute(
+        select(TokenSale).where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+
+    allowed = [SaleStatus.APPROVED, SaleStatus.APPROVED_COMING_SOON, SaleStatus.ACTIVE,
+               SaleStatus.PAUSED, SaleStatus.FINALIZED_SUCCESS, SaleStatus.FINALIZED_FAILED]
+    if sale.status not in allowed:
+        raise HTTPException(status_code=400, detail={
+            "code": "INVALID_STATUS",
+            "message": f"Sale must be approved before changing visibility. Current status: {sale.status}",
+        })
+
+    sale.is_visible = not sale.is_visible
+    await sale_service.db.commit()
+    action = "visible" if sale.is_visible else "hidden"
+    status_val = sale.status.value if hasattr(sale.status, "value") else sale.status
+    return SaleActionResponse(sale_id=str(sale_id), status=status_val, message=f"Sale is now {action} on the launchpad")
+
+
 @router.post("/{sale_id}/finalize", response_model=SaleActionResponse)
 async def admin_finalize_sale(
     sale_id: UUID,

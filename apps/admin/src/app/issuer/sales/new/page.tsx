@@ -10,6 +10,8 @@ const RichTextEditor = dynamic(
   { ssr: false }
 );
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { isAddress } from "viem";
 import { Button, Input, Select, FileUpload } from "@/components/atoms";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { IssuerDashboardLayout } from "@/components/templates";
@@ -43,6 +45,7 @@ const DOC_TYPES = [{ value: "legal", label: "Legal" }, { value: "audit", label: 
 const TA = "w-full rounded-xl border border-darkBlack/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua";
 
 export default function CreateSalePage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [tokens, setTokens] = useState<Token[]>([]);
   // Step 1: Sale Info
@@ -181,8 +184,13 @@ export default function CreateSalePage() {
     try {
       const saleId = await handleSaveDraft();
       if (!saleId) { setIsSubmitting(false); return; }
-      await submitSaleForApproval(saleId, getAccessToken() ?? "");
-      setSuccess(true);
+      if (isComingSoon) {
+        await submitSaleForApproval(saleId, getAccessToken() ?? "");
+        setSuccess(true);
+      } else {
+        // Non-coming-soon: save as draft and redirect to sale page for deploy + setup
+        router.push(`/issuer/sales/${saleId}`);
+      }
     } catch (err) { setError(err instanceof Error ? err.message : "Submission failed"); }
     finally { setIsSubmitting(false); }
   };
@@ -243,7 +251,8 @@ export default function CreateSalePage() {
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-zinc-600">OTC Token Contract Address (optional)</label>
                     <p className="text-xs text-zinc-400">If the issuer has an OTC token deployed, enter the address. Investors holding OTC tokens can use them to purchase at the sale price. Can also be set after sale creation.</p>
-                    <Input value={otcTokenAddress} onChange={(e) => setOtcTokenAddress(e.target.value)} placeholder="0x... (leave empty to set later)" />
+                    <Input value={otcTokenAddress} onChange={(e) => setOtcTokenAddress(e.target.value)} placeholder="0x... (leave empty to set later)"
+                      maxLength={42} error={otcTokenAddress && !isAddress(otcTokenAddress) ? "Invalid EVM address" : undefined} />
                   </div>
                 </div>
               )}
@@ -396,7 +405,11 @@ export default function CreateSalePage() {
         {step === 7 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Token & Funding Caps</h2>
-            <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.map((t) => ({ value: t.id, label: `${t.name} (${t.symbol})` }))]}
+            <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.map((t) => {
+              const addr = t.contract_address;
+              const masked = addr ? ` — ${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
+              return { value: t.id, label: `${t.name} (${t.symbol})${masked}` };
+            })]}
               value={selectedTokenId} onChange={(e) => setSelectedTokenId(e.target.value)} />
             <Select label="Payment Token (Stablecoin)" options={PAYMENT_TOKENS} value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
@@ -550,9 +563,9 @@ export default function CreateSalePage() {
               ))}
             </div>
             <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 text-left">
-              <p className="text-sm text-gray-600"><strong className="text-gold">Note:</strong> {isComingSoon
-                ? "This will be visible on the launchpad as Coming Soon once approved. You can convert it to a live sale later by adding token, phases, and caps."
-                : "Once approved by admin, you can deploy the sale contract on-chain via the dApp."}</p>
+              <p className="text-sm text-gray-600"><strong className="text-gold">Next steps:</strong> {isComingSoon
+                ? "Save to create the sale. Once approved by admin, it will appear on the launchpad as Coming Soon."
+                : "Save to create the sale. You'll then deploy the sale contract on-chain, complete the setup checklist, and submit for admin approval."}</p>
             </div>
           </div>
         )}
@@ -573,7 +586,7 @@ export default function CreateSalePage() {
           <div className="flex flex-col items-end gap-2">
             {success ? <Link href="/issuer/sales"><Button variant="primary">View Sales</Button></Link>
               : <Button variant="primary" onClick={handleSubmit} isLoading={isSubmitting}>
-                  {isSubmitting ? "Submitting..." : "Submit for Approval"}
+                  {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue"}
                 </Button>}
           </div>
         )}

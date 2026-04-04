@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Lock, Unlock, ArrowLeftRight, RotateCcw, X, AlertTriangle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { type Abi } from "viem";
+import { type Abi, isAddress } from "viem";
 import { Button, Input, Spinner } from "@/components/atoms";
 import { AuditLogRow } from "@/components/molecules";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
@@ -216,11 +216,13 @@ export default function CompliancePage() {
             {!action.isConfirmed && (
               <div className="space-y-3">
                 <Input label="Target Address" value={targetAddress}
-                  onChange={(e) => setTargetAddress(e.target.value)} placeholder="0x..." />
+                  onChange={(e) => setTargetAddress(e.target.value)} placeholder="0x..."
+                  error={targetAddress && !isAddress(targetAddress) ? "Invalid EVM address" : undefined} />
 
                 {(modalAction === "forced_transfer" || modalAction === "recover") && (
                   <Input label="Destination Address" value={destinationAddress}
-                    onChange={(e) => setDestinationAddress(e.target.value)} placeholder="0x..." />
+                    onChange={(e) => setDestinationAddress(e.target.value)} placeholder="0x..."
+                    error={destinationAddress && !isAddress(destinationAddress) ? "Invalid EVM address" : undefined} />
                 )}
 
                 {modalAction === "forced_transfer" && (
@@ -231,7 +233,7 @@ export default function CompliancePage() {
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" className="flex-1" onClick={resetModal}>Cancel</Button>
                   <Button variant="primary" className="flex-1" onClick={handleSubmit}
-                    disabled={action.isPending || action.isConfirming || !targetAddress}
+                    disabled={action.isPending || action.isConfirming || !targetAddress || !isAddress(targetAddress)}
                     isLoading={action.isPending || action.isConfirming}>
                     {!isConnected ? "Connect Wallet" : "Confirm"}
                   </Button>

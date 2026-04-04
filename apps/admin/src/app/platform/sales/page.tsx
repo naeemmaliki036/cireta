@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Eye } from "lucide-react";
 import { Badge, ProgressBar } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
 import Link from "next/link";
@@ -84,10 +84,10 @@ export default function PlatformSalesPage() {
                       <Badge
                         variant={sale.status === "active" ? "active" : sale.status === "draft" ? "pending" : "default"}
                         size="sm"
-                        className="capitalize"
                       >
-                        {sale.status}
+                        {({ draft: "Draft", pending_approval: "Pending Approval", approved: "Approved", approved_coming_soon: "Coming Soon", active: "Active", finalized_success: "Completed", finalized_failed: "Failed", rejected: "Rejected" } as Record<string, string>)[sale.status] || sale.status}
                       </Badge>
+                      {sale.is_visible && <span className="ml-1.5 inline-flex items-center text-[10px] text-green-600" title="Visible on launchpad"><Eye className="h-3 w-3" /></span>}
                     </td>
                     <td className="px-5 py-3 text-sm font-medium">${raised.toLocaleString()}</td>
                     <td className="px-5 py-3 text-sm text-zinc-500">${hardCap.toLocaleString()}</td>

@@ -107,6 +107,7 @@ class SaleUpdateRequest(BaseModel):
     banner_image_url: str | None = None
     otc_enabled: bool | None = None
     otc_content: str | None = None
+    otc_token_address: str | None = None
     website_url: str | None = None
     twitter_url: str | None = None
     linkedin_url: str | None = None
@@ -154,8 +155,10 @@ class SaleResponse(BaseModel):
     full_description: str | None = None
     banner_image_url: str | None = None
     is_coming_soon: bool = False
+    is_visible: bool = False
     otc_enabled: bool = False
     otc_content: str | None = None
+    otc_token_address: str | None = None
     website_url: str | None = None
     twitter_url: str | None = None
     linkedin_url: str | None = None
@@ -191,6 +194,8 @@ class SaleResponse(BaseModel):
     token_asset_type: str | None = None
     token_description: str | None = None
     token_image_url: str | None = None
+    token_contract_address: str | None = None
+    identity_registry_address: str | None = None
     issuer_name: str | None = None
     issuer_slug: str | None = None
 
