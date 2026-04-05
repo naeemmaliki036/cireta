@@ -167,7 +167,7 @@ class TokenService:
                 detail={
                     "code": "NO_WALLET",
                     "message": "Issuer has no wallet address and no deployer account is configured. "
-                    "Set the issuer wallet address or configure DEPLOYER_PRIVATE_KEY.",
+                    "Set the issuer wallet address or configure IDENTITY_SIGNER_PRIVATE_KEY.",
                 },
             )
 

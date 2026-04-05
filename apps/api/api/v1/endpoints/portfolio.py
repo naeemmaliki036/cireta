@@ -47,13 +47,18 @@ async def get_redemption_service(
 
 def _holding_to_response(holding: dict) -> HoldingResponse:
     """Convert holding dict to response."""
+    balance = holding["balance"]
+    invested = holding.get("invested_usd", balance)
     return HoldingResponse(
         token_id=holding["token_id"],
         token_symbol=holding["token_symbol"],
         token_name=holding["token_name"],
-        balance=str(holding["balance"]),
+        asset_type=holding.get("asset_type", "commodity"),
+        balance=str(balance),
+        value_usd=str(invested),
         vested_amount=str(holding["vested_amount"]),
         claimable_amount=str(holding["claimable_amount"]),
+        claimable=str(holding["claimable_amount"]),
     )
 
 
@@ -120,6 +125,8 @@ async def get_portfolio_summary(
         total_holdings=summary["total_holdings"],
         total_vesting_schedules=summary["total_vesting_schedules"],
         total_pending_redemptions=summary["total_pending_redemptions"],
+        total_value_usd=str(summary.get("total_value_usd", "0")),
+        total_invested_usd=str(summary.get("total_invested_usd", "0")),
         holdings=[_holding_to_response(h) for h in summary["holdings"]],
     )
 

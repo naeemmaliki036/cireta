@@ -11,7 +11,7 @@ dotenv.config();
  *   npx hardhat run scripts/deployIdentity.ts --network baseSepolia --wallet 0x...
  *
  * Environment variables required:
- *   DEPLOYER_PRIVATE_KEY - Private key with ETH for gas
+ *   IDENTITY_SIGNER_PRIVATE_KEY - Private key with ETH for gas
  *   IDENTITY_FACTORY_ADDRESS - Deployed IdentityFactory contract address
  */
 

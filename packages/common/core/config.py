@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     # Web3 / Blockchain (required)
     chain_id: int = Field()
     web3_rpc_url: str = Field()
-    deployer_private_key: str = Field(default="")
+    identity_signer_private_key: str = Field(default="")
     platform_fee_receiver: str = Field(default="")
 
     # ONCHAINID

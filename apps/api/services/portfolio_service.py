@@ -54,12 +54,15 @@ class PortfolioService:
                     "token_id": token_id,
                     "token_symbol": token.symbol,
                     "token_name": token.name,
+                    "asset_type": token.asset_type if hasattr(token, "asset_type") else "commodity",
                     "balance": Decimal("0"),
+                    "invested_usd": Decimal("0"),
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
                 }
 
             holdings[token_id]["balance"] += contrib.tokens_allocated
+            holdings[token_id]["invested_usd"] += contrib.amount
 
         # Get vesting schedules
         vesting_result = await self.db.execute(
@@ -112,16 +115,15 @@ class PortfolioService:
         )
         pending_redemptions = len(redemption_count_result.scalars().all())
 
-        # Calculate total value (sum of contribution amounts as placeholder until pricing)
+        # Calculate totals from holdings
         from decimal import Decimal as _D
 
-        total_value = _D("0")
+        total_invested = _D("0")
         for h in holdings:
-            if isinstance(h, dict) and "amount" in h:
-                import contextlib
-
-                with contextlib.suppress(Exception):
-                    total_value += _D(str(h["amount"]))
+            if isinstance(h, dict) and "invested_usd" in h:
+                total_invested += h["invested_usd"]
+        # total_value_usd = total_invested until real-time pricing is integrated
+        total_value = total_invested
 
         # Count claimable vesting
         from apps.api.models.vesting_schedule import VestingSchedule as _VS  # noqa: F811
@@ -135,6 +137,7 @@ class PortfolioService:
             "total_vesting_schedules": vesting_count,
             "total_pending_redemptions": pending_redemptions,
             "total_value_usd": total_value,
+            "total_invested_usd": total_invested,
             "holdings_count": len(holdings),
             "pending_claims": pending_claims,
             "pending_redemptions": pending_redemptions,

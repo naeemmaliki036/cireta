@@ -36,12 +36,12 @@ async def task_deploy_onchainid(
     logger.info("Deploying ONCHAINID for user=%s wallet=%s", user_id, wallet_address)
     from packages.common.core.config import settings
 
-    if not settings.deployer_private_key:
+    if not settings.identity_signer_private_key:
         if settings.environment in ("staging", "production"):
             raise RuntimeError(
-                "DEPLOYER_PRIVATE_KEY required for ONCHAINID deployment in production/staging"
+                "IDENTITY_SIGNER_PRIVATE_KEY required for ONCHAINID deployment in production/staging"
             )
-        logger.warning("DEPLOYER_PRIVATE_KEY not set in development — skipping ONCHAINID deploy")
+        logger.warning("IDENTITY_SIGNER_PRIVATE_KEY not set in development — skipping ONCHAINID deploy")
         return None
     if not settings.identity_factory_address:
         if settings.environment in ("staging", "production"):
@@ -76,9 +76,9 @@ async def task_register_wallet_on_chain(
     )
     from packages.common.core.config import settings
 
-    if not settings.deployer_private_key:
+    if not settings.identity_signer_private_key:
         logger.error(
-            "DEPLOYER_PRIVATE_KEY not set — cannot register wallet=%s on-chain", wallet_address
+            "IDENTITY_SIGNER_PRIVATE_KEY not set — cannot register wallet=%s on-chain", wallet_address
         )
         return
     if not settings.identity_registry_address:

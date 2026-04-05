@@ -34,7 +34,7 @@ def _make_service() -> Web3IdentityService:
     with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
         mock_settings.web3_rpc_url = "http://localhost:8545"
         mock_settings.chain_id = 84532
-        mock_settings.deployer_private_key = TEST_PRIVATE_KEY
+        mock_settings.identity_signer_private_key = TEST_PRIVATE_KEY
         mock_settings.identity_factory_address = TEST_FACTORY
         mock_settings.identity_registry_address = TEST_IDENTITY_REGISTRY
         mock_settings.identity_init_code_hash = ""
@@ -137,7 +137,7 @@ class TestClaimSigning:
     def test_sign_claim_returns_valid_signature(self) -> None:
         """Signature is 65 bytes (r + s + v), returns 3-tuple with data_with_expiry."""
         with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
-            mock_settings.deployer_private_key = TEST_PRIVATE_KEY
+            mock_settings.identity_signer_private_key = TEST_PRIVATE_KEY
 
             identity = "0x" + "aa" * 20
             sig, expiry, data_with_expiry = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, b"2")
@@ -150,7 +150,7 @@ class TestClaimSigning:
     def test_sign_claim_recovers_to_deployer(self) -> None:
         """Signature recovers to the deployer address."""
         with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
-            mock_settings.deployer_private_key = TEST_PRIVATE_KEY
+            mock_settings.identity_signer_private_key = TEST_PRIVATE_KEY
 
             identity = Web3.to_checksum_address("0x" + "aa" * 20)
             data = b"2"
@@ -170,7 +170,7 @@ class TestClaimSigning:
     def test_sign_claim_different_topics_different_sigs(self) -> None:
         """Different topics produce different signatures."""
         with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
-            mock_settings.deployer_private_key = TEST_PRIVATE_KEY
+            mock_settings.identity_signer_private_key = TEST_PRIVATE_KEY
 
             identity = "0x" + "aa" * 20
             sig_kyc, _, _ = Web3IdentityService.sign_claim(identity, CLAIM_TOPIC_KYC, b"2")
@@ -182,9 +182,9 @@ class TestClaimSigning:
     def test_sign_claim_no_private_key_raises(self) -> None:
         """ValueError raised when no deployer key is configured."""
         with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
-            mock_settings.deployer_private_key = ""
+            mock_settings.identity_signer_private_key = ""
 
-            with pytest.raises(ValueError, match="DEPLOYER_PRIVATE_KEY"):
+            with pytest.raises(ValueError, match="IDENTITY_SIGNER_PRIVATE_KEY"):
                 Web3IdentityService.sign_claim("0x" + "aa" * 20, 1, b"2")
 
 
@@ -272,7 +272,7 @@ class TestRegistrationFlow:
         svc = _make_service()
 
         with patch("apps.api.services.web3_identity_service.settings") as mock_settings:
-            mock_settings.deployer_private_key = TEST_PRIVATE_KEY
+            mock_settings.identity_signer_private_key = TEST_PRIVATE_KEY
 
             svc.execute_contract = AsyncMock(return_value={"status": 1})
 
@@ -296,7 +296,7 @@ class TestRegistrationFlow:
             mock_settings.identity_registry_address = TEST_IDENTITY_REGISTRY
             mock_settings.identity_init_code_hash = ""
             mock_settings.identity_proxy_bytecode = ""
-            mock_settings.deployer_private_key = TEST_PRIVATE_KEY
+            mock_settings.identity_signer_private_key = TEST_PRIVATE_KEY
 
             # Identity not deployed yet
             svc.w3.eth.get_code = MagicMock(return_value=b"")

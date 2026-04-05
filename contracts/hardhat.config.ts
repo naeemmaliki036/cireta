@@ -27,22 +27,22 @@ const config: HardhatUserConfig = {
     base: {
       url: process.env.WEB3_RPC_URL || "https://mainnet.base.org",
       chainId: 8453,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY
-        ? [process.env.DEPLOYER_PRIVATE_KEY]
+      accounts: process.env.IDENTITY_SIGNER_PRIVATE_KEY
+        ? [process.env.IDENTITY_SIGNER_PRIVATE_KEY]
         : [],
     },
     baseSepolia: {
       url: process.env.WEB3_RPC_URL ?? (() => { throw new Error("WEB3_RPC_URL not set"); })(),
       chainId: 84532,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY
-        ? [process.env.DEPLOYER_PRIVATE_KEY]
+      accounts: process.env.IDENTITY_SIGNER_PRIVATE_KEY
+        ? [process.env.IDENTITY_SIGNER_PRIVATE_KEY]
         : [],
     },
     sepolia: {
       url: process.env.WEB3_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/demo",
       chainId: 11155111,
-      accounts: process.env.DEPLOYER_PRIVATE_KEY
-        ? [process.env.DEPLOYER_PRIVATE_KEY]
+      accounts: process.env.IDENTITY_SIGNER_PRIVATE_KEY
+        ? [process.env.IDENTITY_SIGNER_PRIVATE_KEY]
         : [],
     },
   },

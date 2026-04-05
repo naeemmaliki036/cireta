@@ -32,8 +32,8 @@ class Web3BaseService:
             self.w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
         self.chain_id = settings.chain_id
         self._account: LocalAccount | None = None
-        if settings.deployer_private_key:
-            self._account = Account.from_key(settings.deployer_private_key)
+        if settings.identity_signer_private_key:
+            self._account = Account.from_key(settings.identity_signer_private_key)
 
     @property
     def deployer_address(self) -> str | None:

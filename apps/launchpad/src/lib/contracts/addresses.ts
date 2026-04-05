@@ -28,18 +28,22 @@ const BASE_MAINNET: ChainAddresses = {
   identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) || null,
 };
 
-// Base Sepolia (84532) / Sepolia (11155111)
-const TESTNET: ChainAddresses = {
-  usdc: requireEnv("NEXT_PUBLIC_USDC_ADDRESS") as `0x${string}`,
-  saleFactory: (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) || null,
-  tokenFactory: (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) || null,
-  identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) || null,
-};
+// Base Sepolia (84532) / Sepolia (11155111) — built lazily to avoid crashing
+// when NEXT_PUBLIC_USDC_ADDRESS isn't set and the user is on mainnet.
+function getTestnet(): ChainAddresses {
+  return {
+    usdc: (process.env.NEXT_PUBLIC_USDC_ADDRESS ??
+      "0x036CbD53842c5426634e7929541eC2318f3dCF7e") as `0x${string}`,
+    saleFactory: (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) || null,
+    tokenFactory: (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) || null,
+    identityRegistry: (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}`) || null,
+  };
+}
 
-const ADDRESSES: Record<number, ChainAddresses> = {
-  8453: BASE_MAINNET,
-  84532: TESTNET,
-  11155111: TESTNET,
+const ADDRESSES: Record<number, () => ChainAddresses> = {
+  8453: () => BASE_MAINNET,
+  84532: getTestnet,
+  11155111: getTestnet,
 };
 
 /**
@@ -58,13 +62,13 @@ export function requireAddress(
 }
 
 export function getAddresses(chainId: number): ChainAddresses {
-  const addrs = ADDRESSES[chainId];
-  if (!addrs) {
+  const factory = ADDRESSES[chainId];
+  if (!factory) {
     throw new Error(
       `Unsupported chain ID: ${chainId}. Cireta supports Base Mainnet (8453), Base Sepolia (84532), and Sepolia (11155111).`
     );
   }
-  return addrs;
+  return factory();
 }
 
 export function getUsdcAddress(chainId: number): `0x${string}` {

@@ -87,9 +87,9 @@ class SimpleIdentityBridgeService:
 
     def _get_w3_and_signer(self) -> tuple[Web3, Account]:
         """Get Web3 instance and signer account."""
-        signer_key = settings.deployer_private_key
+        signer_key = settings.identity_signer_private_key
         if not signer_key:
-            raise ValueError("DEPLOYER_PRIVATE_KEY not configured")
+            raise ValueError("IDENTITY_SIGNER_PRIVATE_KEY not configured")
         w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
         signer = Account.from_key(signer_key)
         return w3, signer

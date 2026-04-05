@@ -16,7 +16,7 @@ class TestWeb3TxService:
         with patch("apps.api.services.web3_tx_service.settings") as mock_settings:
             mock_settings.web3_rpc_url = "http://localhost:8545"
             mock_settings.chain_id = 8453
-            mock_settings.deployer_private_key = ""
+            mock_settings.identity_signer_private_key = ""
             svc = Web3TxService.__new__(Web3TxService)
             svc.w3 = MagicMock()
             svc.chain_id = 8453
