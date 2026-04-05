@@ -70,7 +70,7 @@ class TestContributionOnChain:
         contributor = "0x" + "b" * 40
 
         mock_event_data = {
-            "contributor": contributor,
+            "buyer": contributor,
             "phase_id": 0,
             "amount": event_amount,
             "tokens_allocated": event_tokens,

@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, TrendingUp, Coins } from "lucide-react";
+import { ArrowUpRight, TrendingUp, Coins, Send } from "lucide-react";
 import { Button, Badge, ProgressBar } from "@/components/atoms";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
           You haven&apos;t invested in any projects yet. Explore available
           opportunities to start building your portfolio.
         </p>
-        <Link href="/explore">
+        <Link href="/projects">
           <Button variant="primary">Explore Projects</Button>
         </Link>
       </motion.div>
@@ -141,6 +141,11 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
                       </Button>
                     </Link>
                   )}
+                  <Link href="/portfolio/transfer">
+                    <Button variant="ghost" size="sm" title="Transfer">
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </Link>
                   <Link href={`/project/${holding.projectSlug}`}>
                     <Button variant="ghost" size="sm">
                       <ArrowUpRight className="h-4 w-4" />

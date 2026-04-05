@@ -5,11 +5,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Integer, String
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from apps.api.models.enums import IssuerStatus
+from apps.api.models.enums import (
+    IdentityVerificationStatus,
+    IssuerStatus,
+    IssuerType,
+    WalletApprovalStatus,
+)
 from packages.common.models.base import BaseModel
 from packages.common.models.encrypted_types import EncryptedString
 
@@ -74,6 +81,36 @@ class Issuer(BaseModel):
 
     jurisdiction: Mapped[str | None] = mapped_column(
         String(100),
+        nullable=True,
+    )
+
+    issuer_type: Mapped[IssuerType] = mapped_column(
+        String(20),
+        default=IssuerType.INDIVIDUAL,
+    )
+
+    wallet_status: Mapped[WalletApprovalStatus] = mapped_column(
+        String(20),
+        default=WalletApprovalStatus.NONE,
+    )
+
+    identity_status: Mapped[IdentityVerificationStatus] = mapped_column(
+        String(20),
+        default=IdentityVerificationStatus.NONE,
+    )
+
+    identity_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    sumsub_applicant_id: Mapped[str | None] = mapped_column(
+        EncryptedString(),
+        nullable=True,
+    )
+
+    otc_token_address: Mapped[str | None] = mapped_column(
+        String(42),
         nullable=True,
     )
 

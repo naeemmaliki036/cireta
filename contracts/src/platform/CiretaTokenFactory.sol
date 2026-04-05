@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "../token/CiretaToken.sol";
 import "../token/IdentityRegistry.sol";
 import "../token/ModularCompliance.sol";
+import "./IssuerRegistry.sol";
 
 /**
  * @title CiretaTokenFactory
@@ -36,6 +37,10 @@ contract CiretaTokenFactory is
     address[] public deployedTokens;
     mapping(address => bool) public isDeployedToken;
 
+    /// @dev When true, uses SimpleIdentityRegistry (whitelist mode).
+    ///      When false, uses full IdentityRegistry (ERC-3643 ONCHAINID mode).
+    bool public simpleIdentityMode;
+
     /// @dev Reserved storage gap for future upgrades
     uint256[50] private __gap;
 
@@ -53,6 +58,7 @@ contract CiretaTokenFactory is
         address identityRegistry,
         address compliance
     );
+    event IdentityModeChanged(bool simpleMode);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -82,6 +88,15 @@ contract CiretaTokenFactory is
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
+    /**
+     * @dev Toggle between simple whitelist mode and full ERC-3643 ONCHAINID mode.
+     *      Only affects NEW token deployments — existing tokens keep their registry.
+     */
+    function setSimpleIdentityMode(bool _simpleMode) external onlyOwner {
+        simpleIdentityMode = _simpleMode;
+        emit IdentityModeChanged(_simpleMode);
+    }
+
     function updateImplementations(
         address _tokenImpl,
         address _identityRegistryImpl,
@@ -109,17 +124,25 @@ contract CiretaTokenFactory is
         string calldata symbol,
         uint8 decimals,
         address issuer
-    ) external onlyOwner returns (
+    ) external returns (
         address tokenProxy,
         address identityRegistryProxy,
         address complianceProxy
     ) {
         require(issuer != address(0), "zero issuer");
 
-        // Check issuer is registered (optional check)
-        // require(IIssuerRegistry(issuerRegistry).isActiveIssuer(issuer), "issuer not active");
+        // Allow owner (admin) or active issuers to deploy
+        // Issuers must deploy for themselves (issuer == msg.sender)
+        if (msg.sender != owner()) {
+            require(
+                issuerRegistry != address(0) &&
+                IssuerRegistry(issuerRegistry).isActiveIssuer(msg.sender),
+                "not owner or active issuer"
+            );
+            require(msg.sender == issuer, "issuer must be msg.sender");
+        }
 
-        // Deploy Identity Registry
+        // Deploy Identity Registry (same initialize signature for both implementations)
         bytes memory irInitData = abi.encodeWithSelector(
             IdentityRegistry.initialize.selector,
             issuer,
@@ -140,7 +163,7 @@ contract CiretaTokenFactory is
             new ERC1967Proxy(complianceImplementation, compInitData)
         );
 
-        // Deploy Token
+        // Deploy Token — issuer gets all roles, platform admin gets oversight roles (not SUPPLY_ROLE)
         bytes memory tokenInitData = abi.encodeWithSelector(
             CiretaToken.initialize.selector,
             name,
@@ -148,7 +171,8 @@ contract CiretaTokenFactory is
             decimals,
             identityRegistryProxy,
             complianceProxy,
-            issuer
+            issuer,
+            owner()
         );
         tokenProxy = address(
             new ERC1967Proxy(tokenImplementation, tokenInitData)
@@ -160,10 +184,12 @@ contract CiretaTokenFactory is
         // Transfer compliance ownership to the issuer
         ModularCompliance(complianceProxy).transferOwnership(issuer);
 
-        // Bind identity registry to storage
-        IIdentityRegistryStorage(identityRegistryStorage).bindIdentityRegistry(
-            identityRegistryProxy
-        );
+        // Bind identity registry to shared storage (only in full ERC-3643 mode)
+        if (!simpleIdentityMode) {
+            IIdentityRegistryStorage(identityRegistryStorage).bindIdentityRegistry(
+                identityRegistryProxy
+            );
+        }
 
         // Track deployment
         deployedTokens.push(tokenProxy);

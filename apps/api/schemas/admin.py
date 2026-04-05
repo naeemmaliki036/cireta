@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class IssuerCreateRequest(BaseModel):
@@ -32,8 +32,14 @@ class IssuerResponse(BaseModel):
     wallet_address: str | None
     fee_bps: int
     status: str
+    issuer_type: str
+    wallet_status: str
+    identity_status: str
+    identity_verified_at: datetime | None
     legal_entity_name: str | None
     jurisdiction: str | None
+    email: str | None = None
+    project_count: int = 0
     created_at: datetime
 
     class Config:
@@ -67,22 +73,25 @@ class UnfreezeRequest(BaseModel):
 
 
 class ForcedTransferRequest(BaseModel):
-    """Request for forced token transfer."""
+    """Request to record a forced token transfer executed via dApp."""
 
     from_address: str
     to_address: str
     token_id: str
     amount: str
     reason: str
+    tx_hash: str | None = None
 
 
 class RecoverRequest(BaseModel):
-    """Request to recover tokens."""
+    """Request to record a token recovery executed via dApp."""
 
     from_address: str
+    to_address: str | None = None
     token_id: str
     amount: str
     reason: str
+    tx_hash: str | None = None
 
 
 class ComplianceActionResponse(BaseModel):
@@ -97,6 +106,15 @@ class ComplianceActionResponse(BaseModel):
 class MessageResponse(BaseModel):
     """Simple message response."""
 
+    message: str
+
+
+class OnChainRegistrationResponse(BaseModel):
+    """Response after on-chain issuer registration."""
+
+    issuer_id: str
+    wallet_address: str
+    tx_hash: str
     message: str
 
 
@@ -172,3 +190,64 @@ class PlatformSettingsResponse(BaseModel):
     default_fee_bps: str
     blocked_countries: str
     kyc_min_level: str
+
+
+# ── Issuer Whitelist ──
+
+
+class WhitelistAddRequest(BaseModel):
+    """Request to add an email to the issuer whitelist."""
+
+    email: EmailStr
+    issuer_type: str = Field(
+        default="individual",
+        pattern=r"^(individual|corporate)$",
+    )
+    kyc_required: bool = True
+
+
+class WhitelistEntryResponse(BaseModel):
+    """Single whitelist entry."""
+
+    id: str
+    email: str
+    issuer_type: str
+    kyc_required: bool
+    invited_by: str
+    registered_at: datetime | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WhitelistListResponse(BaseModel):
+    """Paginated whitelist list."""
+
+    items: list[WhitelistEntryResponse]
+    total: int
+
+
+# ── Issuer Onboarding ──
+
+
+class IssuerOnboardingStatusResponse(BaseModel):
+    """Full onboarding status for an issuer."""
+
+    issuer_status: str
+    issuer_type: str
+    wallet_connected: bool
+    wallet_address: str | None = None
+    wallet_status: str
+    identity_status: str
+    kyc_required: bool = True
+    can_deploy: bool
+    missing_gates: list[str]
+
+
+class IssuerWalletSubmitRequest(BaseModel):
+    """Request from issuer to submit their wallet address with ownership proof."""
+
+    wallet_address: str = Field(..., min_length=42, max_length=42)
+    signature: str | None = Field(default=None, description="Signed message proving wallet ownership")
+    nonce: str | None = Field(default=None, description="Nonce used in the signed message")

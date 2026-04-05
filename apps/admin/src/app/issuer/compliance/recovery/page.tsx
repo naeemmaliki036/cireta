@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { isAddress } from "viem";
 import { recoverTokens } from "@/lib/api/repositories/compliance";
 
 export default function TokenRecoveryPage() {
@@ -64,23 +65,29 @@ export default function TokenRecoveryPage() {
       )}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-darkBlack/10 p-6 space-y-4">
         {[
-          { key: "lost_wallet", label: "Lost Wallet Address", placeholder: "0x..." },
-          { key: "new_wallet", label: "New Wallet Address", placeholder: "0x..." },
-          { key: "token_id", label: "Token ID", placeholder: "UUID of the token" },
-          { key: "onchain_id", label: "ONCHAINID Address (optional)", placeholder: "0x..." },
-          { key: "reason", label: "Reason", placeholder: "e.g. Investor lost private key, identity verified via KYC docs" },
-        ].map(({ key, label, placeholder }) => (
-          <div key={key}>
-            <label className="block text-sm text-darkBlack/60 mb-1">{label}</label>
-            <input
-              value={form[key as keyof typeof form]}
-              onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-              placeholder={placeholder}
-              className="w-full bg-box border border-darkBlack/10 rounded-lg px-3 py-2 text-text text-sm"
-              required={key !== "onchain_id"}
-            />
-          </div>
-        ))}
+          { key: "lost_wallet", label: "Lost Wallet Address", placeholder: "0x...", isAddr: true },
+          { key: "new_wallet", label: "New Wallet Address", placeholder: "0x...", isAddr: true },
+          { key: "token_id", label: "Token ID", placeholder: "UUID of the token", isAddr: false },
+          { key: "onchain_id", label: "ONCHAINID Address (optional)", placeholder: "0x...", isAddr: true },
+          { key: "reason", label: "Reason", placeholder: "e.g. Investor lost private key, identity verified via KYC docs", isAddr: false },
+        ].map(({ key, label, placeholder, isAddr }) => {
+          const val = form[key as keyof typeof form];
+          const showErr = isAddr && val && !isAddress(val);
+          return (
+            <div key={key}>
+              <label className="block text-sm text-darkBlack/60 mb-1">{label}</label>
+              <input
+                value={val}
+                onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                placeholder={placeholder}
+                maxLength={isAddr ? 42 : undefined}
+                className={`w-full bg-box border rounded-lg px-3 py-2 text-text text-sm ${showErr ? "border-red-300 bg-red-50/30" : "border-darkBlack/10"}`}
+                required={key !== "onchain_id"}
+              />
+              {showErr && <p className="text-xs text-red-500 mt-1">Invalid EVM address</p>}
+            </div>
+          );
+        })}
         {confirming && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3">
             <p className="text-red-600 text-sm font-medium">

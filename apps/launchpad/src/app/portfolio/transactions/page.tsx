@@ -1,48 +1,137 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowUpRight, RefreshCw, Receipt } from "lucide-react";
-import { Button, Spinner } from "@/components/atoms";
+import { ArrowUpRight, RefreshCw, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button, Spinner, Select } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
-import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
+import {
+  getTransactions,
+  getPortfolio,
+  type Transaction,
+  type TransactionFilters,
+  type Holding,
+} from "@/lib/api/repositories/portfolio.repository";
+import { truncateAddress } from "@/lib/utils";
+
+const PAGE_SIZE = 20;
+
+const TYPE_OPTIONS = [
+  { value: "", label: "All Types" },
+  { value: "investment", label: "Buy" },
+  { value: "claim", label: "Claim" },
+  { value: "redemption", label: "Redemption" },
+  { value: "refund", label: "Refund" },
+];
 
 const TYPE_LABELS: Record<string, string> = {
-  investment: "Investment",
-  redemption: "Redemption",
+  investment: "Buy",
   claim: "Claim",
+  redemption: "Redemption",
   refund: "Refund",
-  dividend: "Dividend",
+};
+
+const TYPE_STYLES: Record<string, string> = {
+  investment: "bg-blue-50 text-blue-700",
+  claim: "bg-green-50 text-green-700",
+  redemption: "bg-purple-50 text-purple-700",
+  refund: "bg-orange-50 text-orange-700",
 };
 
 const STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-green-100 text-green-700",
   claimed: "bg-green-100 text-green-700",
   pending: "bg-yellow-100 text-yellow-700",
+  processing: "bg-yellow-100 text-yellow-700",
+  fulfilled: "bg-green-100 text-green-700",
+  refunded: "bg-orange-100 text-orange-700",
   failed: "bg-red-100 text-red-700",
+  cancelled: "bg-red-100 text-red-700",
 };
 
 export default function TransactionsPage() {
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [filterType, setFilterType] = useState("");
+  const [filterTokenId, setFilterTokenId] = useState("");
+
+  // Token options for dropdown
+  const [tokenOptions, setTokenOptions] = useState<{ value: string; label: string }[]>([]);
+
+  // Load token options from holdings
+  useEffect(() => {
+    getPortfolio()
+      .then((data) => {
+        const opts = data.holdings.map((h: Holding) => ({
+          value: h.token_id,
+          label: `${h.token_symbol} - ${h.token_name}`,
+        }));
+        setTokenOptions([{ value: "", label: "All Tokens" }, ...opts]);
+      })
+      .catch(() => {
+        setTokenOptions([{ value: "", label: "All Tokens" }]);
+      });
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setTxs(await getTransactions());
+      const filters: TransactionFilters = {
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      };
+      if (filterType) filters.type = filterType;
+      if (filterTokenId) filters.token_id = filterTokenId;
+
+      const data = await getTransactions(filters);
+      setTxs(data.transactions);
+      setTotal(data.total);
     } catch {
       setError("Failed to load transactions. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, filterType, filterTokenId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [filterType, filterTokenId]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "\u2014";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (dateStr: string | null) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-text">Transaction History</h1>
           <Button variant="secondary" size="sm" onClick={fetchData} disabled={loading}>
@@ -51,64 +140,177 @@ export default function TransactionsPage() {
           </Button>
         </div>
 
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <div className="w-48">
+            <Select
+              options={tokenOptions}
+              value={filterTokenId}
+              onChange={(e) => setFilterTokenId(e.target.value)}
+            />
+          </div>
+          <div className="w-40">
+            <Select
+              options={TYPE_OPTIONS}
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Content */}
         {loading ? (
-          <div className="flex justify-center py-16"><Spinner size="lg" /></div>
+          <div className="flex justify-center py-16">
+            <Spinner size="lg" />
+          </div>
         ) : error ? (
           <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
             <p className="text-red-500 mb-4">{error}</p>
-            <Button variant="primary" size="sm" onClick={fetchData}>Retry</Button>
+            <Button variant="primary" size="sm" onClick={fetchData}>
+              Retry
+            </Button>
           </div>
         ) : txs.length === 0 ? (
           <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
             <Receipt className="w-10 h-10 text-darkBlack/20 mx-auto mb-3" />
             <p className="text-darkBlack/40 font-medium">No transactions yet</p>
-            <p className="text-darkBlack/20 text-sm mt-1">Your on-chain transactions will appear here after you invest.</p>
+            <p className="text-darkBlack/20 text-sm mt-1">
+              Your transactions will appear here after you invest.
+            </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-darkBlack/10 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-darkBlack/10 text-darkBlack/40 text-xs uppercase">
-                  <th className="text-left px-4 py-3">Date</th>
-                  <th className="text-left px-4 py-3">Type</th>
-                  <th className="text-right px-4 py-3">Amount</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {txs.map((tx, i) => (
-                  <tr key={i} className="border-b border-darkBlack/5 last:border-0">
-                    <td className="px-4 py-3 text-darkBlack/50">
-                      {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "\u2014"}
-                    </td>
-                    <td className="px-4 py-3 text-text">{TYPE_LABELS[tx.type] ?? tx.type}</td>
-                    <td className="px-4 py-3 text-text text-right font-medium">
-                      {Number(tx.amount).toLocaleString()} USDC
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded ${STATUS_STYLES[tx.status] ?? "bg-darkBlack/5 text-darkBlack/40"}`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {tx.tx_hash && !tx.tx_hash.startsWith("otc-") && (
-                        <a
-                          href={`https://basescan.org/tx/${tx.tx_hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-darkAqua hover:text-darkAqua/80 inline-flex items-center gap-1"
-                          title="View on BaseScan"
-                        >
-                          <ArrowUpRight className="w-4 h-4" />
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="bg-white rounded-xl border border-darkBlack/10 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-darkBlack/10 text-darkBlack/40 text-xs uppercase">
+                      <th className="text-left px-4 py-3">Date</th>
+                      <th className="text-left px-4 py-3">Type</th>
+                      <th className="text-left px-4 py-3">Token</th>
+                      <th className="text-right px-4 py-3">Amount</th>
+                      <th className="text-left px-4 py-3">Status</th>
+                      <th className="text-left px-4 py-3">Tx Hash</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txs.map((tx) => (
+                      <tr
+                        key={tx.id}
+                        className="border-b border-darkBlack/5 last:border-0 hover:bg-gray-50/50 transition-colors"
+                      >
+                        {/* Date */}
+                        <td className="px-4 py-3">
+                          <p className="text-text text-sm">{formatDate(tx.created_at)}</p>
+                          <p className="text-darkBlack/30 text-xs">{formatTime(tx.created_at)}</p>
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-4 py-3">
+                          <span
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              TYPE_STYLES[tx.type] ?? "bg-darkBlack/5 text-darkBlack/50"
+                            }`}
+                          >
+                            {TYPE_LABELS[tx.type] ?? tx.type}
+                          </span>
+                        </td>
+
+                        {/* Token */}
+                        <td className="px-4 py-3">
+                          {tx.token_symbol ? (
+                            <span className="text-text font-medium">{tx.token_symbol}</span>
+                          ) : (
+                            <span className="text-darkBlack/30">{"\u2014"}</span>
+                          )}
+                        </td>
+
+                        {/* Amount */}
+                        <td className="px-4 py-3 text-right">
+                          <p className="text-text font-semibold">
+                            {Number(tx.amount).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            <span className="text-darkBlack/40 font-normal text-xs">USDC</span>
+                          </p>
+                          {tx.tokens_allocated &&
+                            Number(tx.tokens_allocated) > 0 &&
+                            tx.type === "investment" && (
+                              <p className="text-darkBlack/30 text-xs">
+                                {Number(tx.tokens_allocated).toLocaleString()} tokens
+                              </p>
+                            )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3">
+                          <span
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+                              STATUS_STYLES[tx.status] ?? "bg-darkBlack/5 text-darkBlack/40"
+                            }`}
+                          >
+                            {tx.status}
+                          </span>
+                        </td>
+
+                        {/* Tx Hash */}
+                        <td className="px-4 py-3">
+                          {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
+                            <a
+                              href={`https://basescan.org/tx/${tx.tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-darkAqua hover:text-darkAqua/80 inline-flex items-center gap-1 text-xs font-mono"
+                            >
+                              {truncateAddress(tx.tx_hash, 6)}
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            </a>
+                          ) : tx.tx_hash?.startsWith("otc-") ? (
+                            <span className="text-darkBlack/30 text-xs">OTC</span>
+                          ) : (
+                            <span className="text-darkBlack/30 text-xs">{"\u2014"}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-darkBlack/40">
+                  Showing {page * PAGE_SIZE + 1}
+                  {"\u2013"}
+                  {Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-darkBlack/50">
+                    Page {page + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>

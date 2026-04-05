@@ -25,7 +25,7 @@ export interface WithdrawalListResponse {
 }
 
 export async function getWithdrawals(token: string): Promise<WithdrawalListResponse> {
-  return apiFetch<WithdrawalListResponse>("/api/v1/issuer/withdrawals/", { token });
+  return apiFetch<WithdrawalListResponse>("/api/v1/issuer/withdrawals", { token });
 }
 
 export async function executeWithdrawal(

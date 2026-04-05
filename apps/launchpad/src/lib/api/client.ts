@@ -1,22 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-if (!process.env.NEXT_PUBLIC_API_URL && typeof window !== "undefined") {
-  console.error(
-    "NEXT_PUBLIC_API_URL not set — API calls will default to http://localhost:8000. " +
-      "Set NEXT_PUBLIC_API_URL in your environment for production."
-  );
-}
-
-/** In-memory access token store — set by AuthContext, never persisted to disk. */
-let _accessToken: string | null = null;
-
-export function setAccessToken(token: string | null): void {
-  _accessToken = token;
-}
-
-export function getAccessToken(): string | null {
-  return _accessToken;
-}
+/**
+ * API client — all requests go through /api/proxy which attaches
+ * the httpOnly JWT cookie server-side. No token in JavaScript memory.
+ */
 
 export class APIError extends Error {
   constructor(
@@ -32,49 +17,55 @@ export class APIError extends Error {
 interface FetchOptions {
   method?: string;
   body?: unknown;
-  token?: string;
+  token?: string; // Deprecated — kept for backward compat, ignored
   headers?: Record<string, string>;
+  /** If true, don't auto-redirect to /login on 401 */
+  skipAuthRedirect?: boolean;
 }
 
 export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, token, headers: extraHeaders } = options;
-
-  const authToken = token ?? _accessToken;
+  const { method = "GET", body, headers: extraHeaders } = options;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...extraHeaders,
   };
 
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  // Route through Next.js proxy which attaches httpOnly cookie
+  const proxyPath = `/api/proxy${path}`;
+
+  const response = await fetch(proxyPath, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: controller.signal,
-    credentials: "include",
   });
 
   clearTimeout(timeoutId);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    // On 401, clear token and redirect to login (avoid infinite retry loops)
-    if (response.status === 401 && typeof window !== "undefined") {
-      _accessToken = null;
+    if (response.status === 401 && !options.skipAuthRedirect && typeof window !== "undefined") {
       const currentPath = window.location.pathname;
-      if (currentPath !== "/login") {
+      if (currentPath !== "/login" && currentPath !== "/register") {
+        // Try silent refresh before redirecting
+        const refreshRes = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => null);
+        if (refreshRes?.ok) {
+          // Retry original request with fresh token
+          const retryRes = await fetch(proxyPath, {
+            method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, signal: undefined,
+          });
+          if (retryRes.ok) {
+            return retryRes.status === 204 ? (undefined as unknown as T) : retryRes.json();
+          }
+        }
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
-        // Return a never-resolving promise to prevent further execution
         return new Promise<T>(() => {});
       }
     }
@@ -90,31 +81,23 @@ export async function apiFetch<T>(
 
 export async function apiGet<T>(
   path: string,
-  options?: { token?: string }
+  _options?: { token?: string }
 ): Promise<T> {
-  return apiFetch<T>(path, { method: "GET", token: options?.token });
+  return apiFetch<T>(path, { method: "GET" });
 }
 
 export async function apiPost<T, D = unknown>(
   path: string,
   data?: D,
-  options?: { token?: string }
+  _options?: { token?: string }
 ): Promise<T> {
-  return apiFetch<T>(path, {
-    method: "POST",
-    body: data,
-    token: options?.token,
-  });
+  return apiFetch<T>(path, { method: "POST", body: data });
 }
 
 export async function apiPatch<T, D = unknown>(
   path: string,
   data?: D,
-  options?: { token?: string }
+  _options?: { token?: string }
 ): Promise<T> {
-  return apiFetch<T>(path, {
-    method: "PATCH",
-    body: data,
-    token: options?.token,
-  });
+  return apiFetch<T>(path, { method: "PATCH", body: data });
 }

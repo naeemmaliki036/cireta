@@ -33,34 +33,39 @@ class Web3SaleService:
         payment_token: str,
         identity_registry: str,
         issuer_wallet: str,
+        sale_factory_address: str,
         fee_manager: str,
         soft_cap: int,
         hard_cap: int,
         fee_basis_points: int,
         fee_cap_usdc: int,
+        otc_token: str | None = None,
     ) -> tuple[str, str]:
         """Deploy a Sale via CiretaSaleFactory.deploySale().
 
         Returns (sale_proxy_address, tx_hash).
+        The transaction must be signed by the issuer (active in IssuerRegistry).
         """
         factory = self.registry.get_contract("CiretaSaleFactory")
 
-        # Encode Sale.initialize() calldata
+        # Encode Sale.initialize() — factory is CiretaSaleFactory, admin resolved dynamically
         sale_abi = self.registry.get_abi("Sale")
         sale_iface = self.tx_svc.w3.eth.contract(abi=sale_abi)
+        otc_addr = Web3.to_checksum_address(otc_token) if otc_token else "0x0000000000000000000000000000000000000000"
         init_data = sale_iface.encode_abi(
             "initialize",
             args=[
                 Web3.to_checksum_address(token_address),
                 Web3.to_checksum_address(payment_token),
                 Web3.to_checksum_address(identity_registry),
-                Web3.to_checksum_address(issuer_wallet),
+                Web3.to_checksum_address(issuer_wallet),         # _issuer
+                Web3.to_checksum_address(sale_factory_address),  # _factory
                 Web3.to_checksum_address(fee_manager),
                 soft_cap,
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
-                Web3.to_checksum_address(issuer_wallet),  # _initialOwner
+                otc_addr,
             ],
         )
 
@@ -68,10 +73,6 @@ class Web3SaleService:
             factory,
             "deploySale",
             Web3.to_checksum_address(token_address),
-            Web3.to_checksum_address(payment_token),
-            Web3.to_checksum_address(issuer_wallet),
-            soft_cap,
-            hard_cap,
             init_data,
             gas_limit=3_000_000,
         )
@@ -105,16 +106,17 @@ class Web3SaleService:
         cliff_duration: int = 0,
         vesting_duration: int = 365 * 86400,  # 1 year default
         excess_policy: int = 0,  # 0 = Return, 1 = Burn
+        otc_token: str | None = None,
     ) -> tuple[str, str, str, str]:
         """Deploy a Vested Sale via CiretaSaleFactory.deploySaleVested().
 
         Returns (sale_address, vault_address, fraction_address, tx_hash).
+        The transaction must be signed by the issuer (active in IssuerRegistry).
         """
         from packages.common.core.config import settings as _settings
         factory = self.registry.get_contract("CiretaSaleFactory")
-        # CRITICAL: _initialOwner in Sale.initialize must be SaleFactory,
-        # because SaleFactory calls sale.setVestedMode() before transferring to issuer.
         sale_factory_addr = _settings.sale_factory_address or self.tx_svc._account.address
+        otc_addr = Web3.to_checksum_address(otc_token) if otc_token else "0x0000000000000000000000000000000000000000"
 
         # Encode Sale.initialize() calldata
         sale_abi = self.registry.get_abi("Sale")
@@ -125,13 +127,14 @@ class Web3SaleService:
                 Web3.to_checksum_address(token_address),
                 Web3.to_checksum_address(payment_token),
                 Web3.to_checksum_address(identity_registry),
-                Web3.to_checksum_address(issuer_wallet),
+                Web3.to_checksum_address(issuer_wallet),       # _issuer
+                Web3.to_checksum_address(sale_factory_addr),   # _factory
                 Web3.to_checksum_address(fee_manager),
                 soft_cap,
                 hard_cap,
                 fee_basis_points,
                 fee_cap_usdc,
-                Web3.to_checksum_address(sale_factory_addr),  # SaleFactory as initial owner
+                otc_addr,
             ],
         )
 
@@ -139,10 +142,6 @@ class Web3SaleService:
             factory,
             "deploySaleVested",
             Web3.to_checksum_address(token_address),
-            Web3.to_checksum_address(payment_token),
-            Web3.to_checksum_address(issuer_wallet),
-            soft_cap,
-            hard_cap,
             init_data,
             fraction_name,
             fraction_symbol,
@@ -177,9 +176,9 @@ class Web3SaleService:
     async def record_on_chain_contribution(
         self, tx_hash: str
     ) -> dict[str, Any]:
-        """Read a ContributionMade event from a tx receipt.
+        """Read a Purchase event from a tx receipt.
 
-        Returns dict with: contributor, phaseId, amount, tokensAllocated.
+        Returns dict with: buyer, phaseId, amount, tokensAllocated.
         """
         receipt = await self.tx_svc.get_receipt(tx_hash)
 
@@ -193,15 +192,15 @@ class Web3SaleService:
             address=Web3.to_checksum_address(sale_address), abi=sale_abi
         )
 
-        events = self.tx_svc.parse_events(receipt, sale_contract, "ContributionMade")
+        events = self.tx_svc.parse_events(receipt, sale_contract, "Purchase")
         if not events:
             raise ValueError(
-                f"No ContributionMade event in tx {tx_hash}"
+                f"No Purchase event in tx {tx_hash}"
             )
 
         event = events[0]
         return {
-            "contributor": event["contributor"],
+            "buyer": event["buyer"],
             "phase_id": event["phaseId"],
             "amount": Decimal(str(event["amount"])) / Decimal(10**USDC_DECIMALS),
             "amount_raw": event["amount"],

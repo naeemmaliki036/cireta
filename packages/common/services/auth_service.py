@@ -101,16 +101,19 @@ class AuthService:
         self,
         user_id: UUID,
         expires_delta: timedelta | None = None,
+        role: str | None = None,
     ) -> str:
         """Create a JWT access token for a user."""
         if expires_delta is None:
             expires_delta = timedelta(seconds=settings.access_token_expire_seconds)
 
         expire = datetime.now(UTC) + expires_delta
+        aud = "admin" if role in ("admin", "issuer") else "investor"
         payload = {
             "sub": str(user_id),
             "exp": expire,
             "type": "access",
+            "aud": aud,
         }
 
         secret = settings.jwt_secret_key
@@ -126,16 +129,26 @@ class AuthService:
         self,
         user_id: UUID,
         expires_delta: timedelta | None = None,
+        role: str | None = None,
     ) -> str:
-        """Create a JWT refresh token for a user."""
+        """Create a JWT refresh token for a user.
+
+        Admin and issuer roles get a shorter session (8h) for security.
+        Investors keep the standard 7-day session.
+        """
         if expires_delta is None:
-            expires_delta = timedelta(seconds=settings.refresh_token_expire_seconds)
+            if role in ("admin", "issuer"):
+                expires_delta = timedelta(seconds=settings.refresh_token_expire_seconds_admin)
+            else:
+                expires_delta = timedelta(seconds=settings.refresh_token_expire_seconds)
 
         expire = datetime.now(UTC) + expires_delta
+        aud = "admin" if role in ("admin", "issuer") else "investor"
         payload = {
             "sub": str(user_id),
             "exp": expire,
             "type": "refresh",
+            "aud": aud,
         }
 
         secret = settings.jwt_secret_key
@@ -148,8 +161,12 @@ class AuthService:
         )
 
     @staticmethod
-    def decode_token(token: str) -> dict | None:
+    def decode_token(token: str, required_audience: str | None = None) -> dict | None:
         """Decode and validate a JWT token.
+
+        Args:
+            token: The JWT string.
+            required_audience: If set, reject tokens with a different ``aud`` claim.
 
         Returns the payload if valid, None if invalid or blacklisted.
         """
@@ -162,39 +179,41 @@ class AuthService:
             secret = settings.jwt_secret_key
             if not secret:
                 return None
+            # Decode without audience verification first (aud is optional for backward compat)
             payload = jwt.decode(
                 token,
                 secret,
                 algorithms=[settings.jwt_algorithm],
+                options={"verify_aud": False},
             )
+            # Enforce audience if required.
+            # Tokens without an "aud" claim (minted before audience scoping) are
+            # allowed through — they will still be checked by role-based deps.
+            token_aud = payload.get("aud")
+            if required_audience and token_aud is not None and token_aud != required_audience:
+                return None
             return payload
         except JWTError:
             return None
 
     @staticmethod
-    def get_user_id_from_token(token: str) -> UUID | None:
+    def get_user_id_from_token(token: str, required_audience: str | None = None) -> UUID | None:
         """Extract user ID from a JWT token.
+
+        Args:
+            token: The JWT string.
+            required_audience: If set, reject tokens with a different ``aud`` claim.
 
         Returns the user UUID if token is valid, None otherwise.
         Checks the blacklist so logged-out tokens are rejected.
         """
+        payload = AuthService.decode_token(token, required_audience=required_audience)
+        if not payload:
+            return None
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
         try:
-            # Check blacklist FIRST (logout / rotation)
-            token_hash = hashlib.sha256(token.encode()).hexdigest()
-            if token_hash in _token_blacklist:
-                return None
-
-            secret = settings.jwt_secret_key
-            if not secret:
-                return None
-            payload = jwt.decode(
-                token,
-                secret,
-                algorithms=[settings.jwt_algorithm],
-            )
-            user_id = payload.get("sub")
-            if user_id is None:
-                return None
             return UUID(user_id)
-        except (JWTError, ValueError):
+        except ValueError:
             return None

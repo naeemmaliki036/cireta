@@ -1,8 +1,9 @@
 """Wallet management endpoints."""
 
+import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.schemas.wallet import LinkWalletRequest, WalletListResponse, WalletResponse
@@ -65,6 +66,8 @@ async def unlink_wallet(
     user_id: CurrentUserId,
     service: Annotated[WalletService, Depends(get_wallet_service)],
 ) -> None:
+    if not re.match(r'^0x[0-9a-fA-F]{40}$', address):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_ADDRESS", "message": "Invalid Ethereum address format"})
     await service.unlink_wallet(user_id, address)
 
 
@@ -74,5 +77,7 @@ async def set_primary_wallet(
     user_id: CurrentUserId,
     service: Annotated[WalletService, Depends(get_wallet_service)],
 ) -> WalletResponse:
+    if not re.match(r'^0x[0-9a-fA-F]{40}$', address):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_ADDRESS", "message": "Invalid Ethereum address format"})
     wallet = await service.set_primary(user_id, address)
     return _wallet_to_response(wallet)

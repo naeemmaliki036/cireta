@@ -30,9 +30,12 @@ export interface Project {
   currentRaised: number;
   targetAmount: number;
   investorCount: number;
-  status: "active" | "upcoming" | "completed" | "paused";
+  status: "active" | "upcoming" | "completed" | "paused" | "coming_soon";
   tokenSymbol: string;
   description: string;
+  fullDescription: string | null;
+  bannerImageUrl: string | null;
+  isComingSoon: boolean;
   issuer: ProjectIssuer;
   phases: ProjectPhase[];
 }
@@ -88,6 +91,23 @@ export interface SaleRaw {
   contract_address?: string | null;
   issuer_name?: string;
   issuer_slug?: string;
+  // Content & config fields
+  title?: string;
+  description_text?: string;
+  full_description?: string;
+  banner_image_url?: string;
+  is_coming_soon?: boolean;
+  otc_enabled?: boolean;
+  otc_content?: string;
+  website_url?: string;
+  twitter_url?: string;
+  linkedin_url?: string;
+  instagram_url?: string;
+  facebook_url?: string;
+  telegram_url?: string;
+  discord_url?: string;
+  cliff_duration_days?: number;
+  vesting_duration_days?: number;
 }
 
 interface SaleListRaw {
@@ -98,12 +118,13 @@ interface SaleListRaw {
 }
 
 function mapSaleToProject(sale: SaleRaw): Project {
-  const status = sale.status as "active" | "upcoming" | "completed" | "paused";
+  const isComingSoon = sale.is_coming_soon ?? sale.status === "approved_coming_soon";
+  const status: Project["status"] = isComingSoon ? "coming_soon" : (sale.status as Project["status"]);
   return {
     id: sale.id,
-    title: sale.token_name ?? "Unnamed Project",
+    title: sale.title ?? sale.token_name ?? "Unnamed Project",
     slug: sale.token_slug ?? sale.id,
-    imageUrl: sale.token_image_url ?? "",
+    imageUrl: sale.banner_image_url ?? sale.token_image_url ?? "",
     assetType: sale.token_asset_type ?? "commodity",
     fundingRound: sale.phases?.[0]?.name ?? "Public Sale",
     currentRaised: parseFloat(sale.total_raised ?? "0"),
@@ -111,7 +132,10 @@ function mapSaleToProject(sale: SaleRaw): Project {
     investorCount: 0,
     status,
     tokenSymbol: sale.token_symbol ?? "",
-    description: sale.token_description ?? "",
+    description: sale.description_text ?? sale.token_description ?? "",
+    fullDescription: sale.full_description ?? null,
+    bannerImageUrl: sale.banner_image_url ?? null,
+    isComingSoon,
     issuer: {
       id: sale.issuer_id,
       name: sale.issuer_name ?? "Cireta Capital",

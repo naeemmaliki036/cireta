@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Cireta E2E Test Suite
 set -uo pipefail
-BASE="http://localhost:8000/api/v1"
+BASE="http://localhost:3010/api/v1"
 PASS=0; FAIL=0
 
 tc() {
@@ -37,10 +37,10 @@ echo "============================================"
 echo "CIRETA E2E — $(date '+%H:%M:%S %z')"
 echo "============================================"
 
-ADMIN_TOKEN=$(login "admin@cireta.io" "Admin123!@#")
-ISSUER_TOKEN=$(login "issuer@goldcorp.io" "Issuer123!@#")
-ALICE_TOKEN=$(login "alice@investor.io" "Alice123!@#")
-BOB_TOKEN=$(login "bob@investor.io" "Bob123!@#")
+ADMIN_TOKEN=$(login "admin@cireta.com" 'Password@123')
+ISSUER_TOKEN=$(login "issuer+test@cireta.com" 'Password@123')
+ALICE_TOKEN=$(login "investor+verified@cireta.com" 'Password@123')
+BOB_TOKEN=$(login "investor+pending@cireta.com" 'Password@123')
 
 [ -z "$ADMIN_TOKEN" ] && echo "FATAL: No admin token" && exit 1
 [ -z "$ISSUER_TOKEN" ] && echo "FATAL: No issuer token" && exit 1
@@ -56,16 +56,16 @@ echo ""
 
 # ── AUTH ──
 echo "── AUTH ──"
-tc A1 "Login valid"          200 -X POST "$BASE/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@cireta.io","password":"Admin123!@#"}'
+tc A1 "Login valid"          200 -X POST "$BASE/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@cireta.com","password":"Password@123"}'
 sleep 1
-tc A2 "Login wrong password" 401 -X POST "$BASE/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@cireta.io","password":"wrong"}'
+tc A2 "Login wrong password" 401 -X POST "$BASE/auth/login" -H "Content-Type: application/json" -d '{"email":"admin@cireta.com","password":"wrong"}'
 sleep 1
 tc A3 "Login unknown email"  401 -X POST "$BASE/auth/login" -H "Content-Type: application/json" -d '{"email":"nobody@x.io","password":"x"}'
 sleep 1
 tc A4 "Login empty body"     422 -X POST "$BASE/auth/login" -H "Content-Type: application/json" -d '{}'
-tc A5 "Register duplicate"   409 -X POST "$BASE/auth/register" -H "Content-Type: application/json" -d '{"email":"admin@cireta.io","password":"Admin123!@#"}'
+tc A5 "Register duplicate"   409 -X POST "$BASE/auth/register" -H "Content-Type: application/json" -d '{"email":"admin@cireta.com","password":"Password@123"}'
 sleep 1
-tc A6 "Forgot password"      200 -X POST "$BASE/auth/forgot-password" -H "Content-Type: application/json" -d '{"email":"admin@cireta.io"}'
+tc A6 "Forgot password"      200 -X POST "$BASE/auth/forgot-password" -H "Content-Type: application/json" -d '{"email":"admin@cireta.com"}'
 tc A7 "Forgot unknown"       200 -X POST "$BASE/auth/forgot-password" -H "Content-Type: application/json" -d '{"email":"nobody@x.io"}'
 tc A8 "GET /auth/me authed"  200 "$BASE/auth/me" -H "Authorization: Bearer $ADMIN_TOKEN"
 tc A9 "GET /auth/me no auth" 401 "$BASE/auth/me"
@@ -154,6 +154,77 @@ tc S13 "Claim no contrib → 404" 404 \
 tc S14 "Refund not finalized → 400" 400 \
   -X POST "$BASE/sales/$SALE_ID/refund" \
   -H "Authorization: Bearer $ALICE_TOKEN"
+tc S15 "List sales with filter" 200 "$BASE/sales/?status_filter=draft" -H "Authorization: Bearer $ISSUER_TOKEN"
+echo ""
+
+# ── SALE CONTENT ──
+echo "── SALE CONTENT ──"
+tc SC1 "Add team member" 201 \
+  -X POST "$BASE/sales/$SALE_ID/team" \
+  -H "Authorization: Bearer $ISSUER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John Doe","title":"CEO","bio":"Founder"}'
+TEAM_ID=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last'))['id'])" 2>/dev/null || echo "")
+tc SC2 "List team members" 200 "$BASE/sales/$SALE_ID/team"
+tc SC3 "Delete team member" 204 \
+  -X DELETE "$BASE/sales/$SALE_ID/team/$TEAM_ID" \
+  -H "Authorization: Bearer $ISSUER_TOKEN"
+tc SC4 "Add FAQ" 201 \
+  -X POST "$BASE/sales/$SALE_ID/faqs" \
+  -H "Authorization: Bearer $ISSUER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What is this?","answer":"A test sale."}'
+FAQ_ID=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last'))['id'])" 2>/dev/null || echo "")
+tc SC5 "List FAQs" 200 "$BASE/sales/$SALE_ID/faqs"
+tc SC6 "Delete FAQ" 204 \
+  -X DELETE "$BASE/sales/$SALE_ID/faqs/$FAQ_ID" \
+  -H "Authorization: Bearer $ISSUER_TOKEN"
+tc SC7 "Add image" 201 \
+  -X POST "$BASE/sales/$SALE_ID/images" \
+  -H "Authorization: Bearer $ISSUER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/img.png","caption":"Banner"}'
+IMG_ID=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last'))['id'])" 2>/dev/null || echo "")
+tc SC8 "List images" 200 "$BASE/sales/$SALE_ID/images"
+tc SC9 "Delete image" 204 \
+  -X DELETE "$BASE/sales/$SALE_ID/images/$IMG_ID" \
+  -H "Authorization: Bearer $ISSUER_TOKEN"
+tc SC10 "Add team as investor → 403" 403 \
+  -X POST "$BASE/sales/$SALE_ID/team" \
+  -H "Authorization: Bearer $ALICE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Hacker","title":"X"}'
+tc SC11 "Add FAQ as investor → 403" 403 \
+  -X POST "$BASE/sales/$SALE_ID/faqs" \
+  -H "Authorization: Bearer $ALICE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Q","answer":"A"}'
+echo ""
+
+# ── OTC & BANK TRANSFER ──
+echo "── OTC & BANK TRANSFER ──"
+tc OTC1 "Enable OTC on sale" 200 \
+  -X PUT "$BASE/sales/$SALE_ID/otc-content" \
+  -H "Authorization: Bearer $ISSUER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"otc_enabled":true,"otc_content":"<h2>Wire Transfer</h2><p>IBAN: XX1234</p>"}'
+tc OTC2 "Sale shows OTC enabled" 200 "$BASE/sales/$SALE_ID"
+_OTC_ENABLED=$(python3 -c "import json; print(json.load(open('/tmp/cireta-last')).get('otc_enabled', False))" 2>/dev/null || echo "False")
+if [ "$_OTC_ENABLED" = "True" ]; then
+  PASS=$((PASS+1)); printf "✅ %-8s %-55s [otc_enabled=true]\n" "OTC3" "OTC flag in sale response"
+else
+  FAIL=$((FAIL+1)); printf "❌ %-8s %-55s [otc_enabled=$_OTC_ENABLED]\n" "OTC3" "OTC flag in sale response"
+fi
+tc OTC4 "Disable OTC" 200 \
+  -X PUT "$BASE/sales/$SALE_ID/otc-content" \
+  -H "Authorization: Bearer $ISSUER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"otc_enabled":false}'
+tc OTC5 "OTC update as investor → 403" 403 \
+  -X PUT "$BASE/sales/$SALE_ID/otc-content" \
+  -H "Authorization: Bearer $ALICE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"otc_enabled":true}'
 echo ""
 
 # ── KYC ──
@@ -208,6 +279,31 @@ tc CO5 "Freeze as investor → 403" 403 \
   -H "Content-Type: application/json" \
   -d '{"wallet_address":"0x1","token_id":"00000000-0000-0000-0000-000000000001","reason":"test"}'
 tc CO6 "Audit as investor → 403" 403 "$BASE/admin/compliance/audit-logs" -H "Authorization: Bearer $ALICE_TOKEN"
+echo ""
+
+# ── ADMIN: SALES ──
+echo "── ADMIN: SALES ──"
+tc AS1 "List all sales (admin)" 200 "$BASE/admin/sales/" -H "Authorization: Bearer $ADMIN_TOKEN"
+tc AS2 "Approve nonexistent → 404" 404 \
+  -X POST "$BASE/admin/sales/00000000-0000-0000-0000-000000000001/approve" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+tc AS3 "Reject nonexistent → 404" 404 \
+  -X POST "$BASE/admin/sales/00000000-0000-0000-0000-000000000001/reject" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"test rejection"}'
+tc AS4 "Admin sales as investor → 403" 403 "$BASE/admin/sales/" -H "Authorization: Bearer $ALICE_TOKEN"
+echo ""
+
+# ── ISSUER ONBOARDING ──
+echo "── ISSUER ONBOARDING ──"
+tc IO1 "Onboarding status" 200 "$BASE/issuer/onboarding-status" -H "Authorization: Bearer $ISSUER_TOKEN"
+tc IO2 "Identity status" 200 "$BASE/issuer/identity/status" -H "Authorization: Bearer $ISSUER_TOKEN"
+tc IO3 "Submit wallet no data → 422" 422 \
+  -X POST "$BASE/issuer/wallet" \
+  -H "Authorization: Bearer $ISSUER_TOKEN" \
+  -H "Content-Type: application/json" -d '{}'
+tc IO4 "Onboarding as investor → 403" 403 "$BASE/issuer/onboarding-status" -H "Authorization: Bearer $ALICE_TOKEN"
 echo ""
 
 # ── ADMIN: INVESTORS ──

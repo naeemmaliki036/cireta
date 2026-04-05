@@ -1,9 +1,10 @@
 """Admin endpoints for issuer and compliance management."""
 
+import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import IssuerStatus
@@ -12,13 +13,19 @@ from apps.api.schemas.admin import (
     IssuerFeeUpdateRequest,
     IssuerListResponse,
     IssuerResponse,
+    OnChainRegistrationResponse,
     PlatformSettingsRequest,
+    WhitelistAddRequest,
+    WhitelistEntryResponse,
+    WhitelistListResponse,
 )
 from apps.api.services.compliance_service import ComplianceService
 from apps.api.services.issuer_service import IssuerService
 from apps.api.services.platform_settings_service import PlatformSettingsService
 from packages.common.core.auth_deps import RequireAdmin
 from packages.common.db.session import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["admin"])
 
@@ -44,6 +51,10 @@ def _get_client_ip(request: Request) -> str | None:
 
 def _issuer_to_response(issuer) -> IssuerResponse:
     """Convert issuer model to response."""
+    email = None
+    if hasattr(issuer, "user") and issuer.user is not None:
+        email = issuer.user.email
+    project_count = len(issuer.token_sales) if hasattr(issuer, "token_sales") and issuer.token_sales else 0
     return IssuerResponse(
         id=str(issuer.id),
         user_id=str(issuer.user_id),
@@ -52,10 +63,87 @@ def _issuer_to_response(issuer) -> IssuerResponse:
         wallet_address=issuer.wallet_address,
         fee_bps=issuer.fee_bps,
         status=(issuer.status.value if hasattr(issuer.status, "value") else issuer.status),
+        issuer_type=(issuer.issuer_type.value if hasattr(issuer.issuer_type, "value") else issuer.issuer_type),
+        wallet_status=(issuer.wallet_status.value if hasattr(issuer.wallet_status, "value") else issuer.wallet_status),
+        identity_status=(issuer.identity_status.value if hasattr(issuer.identity_status, "value") else issuer.identity_status),
+        identity_verified_at=issuer.identity_verified_at,
         legal_entity_name=issuer.legal_entity_name,
         jurisdiction=issuer.jurisdiction,
+        email=email,
+        project_count=project_count,
         created_at=issuer.created_at,
     )
+
+
+# ==================== Issuer Whitelist ====================
+# NOTE: Whitelist routes MUST be defined before /issuers/{issuer_id}
+# so FastAPI doesn't match "whitelist" as a UUID path parameter.
+
+
+def _whitelist_to_response(e) -> WhitelistEntryResponse:
+    return WhitelistEntryResponse(
+        id=str(e.id),
+        email=e.email,
+        issuer_type=e.issuer_type.value if hasattr(e.issuer_type, "value") else (e.issuer_type or "individual"),
+        kyc_required=e.kyc_required if e.kyc_required is not None else True,
+        invited_by=str(e.invited_by) if e.invited_by else "",
+        registered_at=e.registered_at,
+        created_at=e.created_at,
+    )
+
+
+@router.post("/issuers/whitelist", response_model=WhitelistEntryResponse, status_code=status.HTTP_201_CREATED)
+async def add_to_whitelist(
+    request: WhitelistAddRequest,
+    user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> WhitelistEntryResponse:
+    """Add an email to the issuer whitelist."""
+    entry = await issuer_service.add_to_whitelist(
+        email=request.email,
+        issuer_type=request.issuer_type,
+        invited_by=user_id,
+        kyc_required=request.kyc_required,
+    )
+    return _whitelist_to_response(entry)
+
+
+@router.get("/issuers/whitelist")
+async def list_whitelist(
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+):
+    """List all whitelisted issuer emails."""
+    import logging
+    log = logging.getLogger(__name__)
+    try:
+        entries = await issuer_service.list_whitelist()
+        items = []
+        for e in entries:
+            items.append({
+                "id": str(e.id),
+                "email": e.email,
+                "issuer_type": e.issuer_type.value if hasattr(e.issuer_type, "value") else (e.issuer_type or "individual"),
+                "kyc_required": e.kyc_required if e.kyc_required is not None else True,
+                "invited_by": str(e.invited_by) if e.invited_by else "",
+                "registered_at": e.registered_at.isoformat() if e.registered_at else None,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            })
+        return {"items": items, "total": len(items)}
+    except Exception as exc:
+        log.exception("Whitelist list failed: %s", exc)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"detail": {"code": "INTERNAL", "message": str(exc)}})
+
+
+@router.delete("/issuers/whitelist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_whitelist(
+    entry_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> None:
+    """Remove an email from the whitelist."""
+    await issuer_service.remove_from_whitelist(entry_id)
 
 
 # ==================== Issuer Management ====================
@@ -81,6 +169,17 @@ async def list_issuers(
         page=page,
         size=size,
     )
+
+
+@router.get("/issuers/{issuer_id}", response_model=IssuerResponse)
+async def get_issuer(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Get a single issuer by ID."""
+    issuer = await issuer_service._get_issuer(issuer_id)
+    return _issuer_to_response(issuer)
 
 
 @router.post("/issuers/", response_model=IssuerResponse, status_code=status.HTTP_201_CREATED)
@@ -144,6 +243,118 @@ async def activate_issuer(
     Requires: platform_admin role.
     """
     issuer = await issuer_service.activate_issuer(issuer_id)
+    return _issuer_to_response(issuer)
+
+
+# ==================== On-Chain Registration ====================
+
+
+@router.post(
+    "/issuers/{issuer_id}/register-onchain",
+    response_model=OnChainRegistrationResponse,
+)
+async def register_issuer_onchain(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> OnChainRegistrationResponse:
+    """Register and activate an issuer on the IssuerRegistry contract.
+
+    The issuer must be ACTIVE in the database and have a wallet address.
+    Calls registerIssuer() + activateIssuer() on-chain using the deployer wallet.
+
+    Requires: platform_admin role.
+    """
+    from apps.api.services.web3_issuer_registry_service import Web3IssuerRegistryService
+
+    issuer = await issuer_service._get_issuer(issuer_id)
+
+    if issuer.status.value != "active":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer must be active in DB before on-chain registration"},
+        )
+
+    if not issuer.wallet_address:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "NO_WALLET", "message": "Issuer has no wallet address configured"},
+        )
+
+    registry_service = Web3IssuerRegistryService()
+
+    # Check if already registered
+    try:
+        already_active = await registry_service.is_active_issuer(issuer.wallet_address)
+        if already_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "ALREADY_REGISTERED", "message": "Issuer is already registered and active on-chain"},
+            )
+    except ValueError:
+        raise
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Could not check on-chain status, proceeding: %s", exc)
+
+    try:
+        tx_hash = await registry_service.register_and_activate_issuer(
+            wallet_address=issuer.wallet_address,
+            name=issuer.name,
+            jurisdiction=issuer.jurisdiction or "",
+        )
+    except Exception as exc:
+        logger.error("On-chain issuer registration failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "ONCHAIN_TX_FAILED", "message": f"On-chain transaction failed: {exc}"},
+        )
+
+    return OnChainRegistrationResponse(
+        issuer_id=str(issuer_id),
+        wallet_address=issuer.wallet_address,
+        tx_hash=tx_hash,
+        message="Issuer registered and activated on-chain",
+    )
+
+
+# ==================== Identity Override ====================
+
+
+@router.post("/issuers/{issuer_id}/skip-identity", response_model=IssuerResponse)
+async def skip_identity_verification(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Admin override: mark issuer identity as approved without Sumsub verification."""
+    issuer = await issuer_service.set_identity_approved(issuer_id)
+    return _issuer_to_response(issuer)
+
+
+# ==================== Wallet Approval ====================
+
+
+@router.post("/issuers/{issuer_id}/approve-wallet", response_model=IssuerResponse)
+async def approve_issuer_wallet(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Approve an issuer's wallet address."""
+    issuer = await issuer_service.approve_wallet(issuer_id)
+    return _issuer_to_response(issuer)
+
+
+@router.post("/issuers/{issuer_id}/reject-wallet", response_model=IssuerResponse)
+async def reject_issuer_wallet(
+    issuer_id: UUID,
+    _user_id: RequireAdmin,
+    issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+) -> IssuerResponse:
+    """Reject an issuer's wallet address."""
+    issuer = await issuer_service.reject_wallet(issuer_id)
     return _issuer_to_response(issuer)
 
 

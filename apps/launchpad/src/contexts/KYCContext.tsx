@@ -28,7 +28,7 @@ interface KYCContextValue {
 const KYCContext = createContext<KYCContextValue | null>(null);
 
 export function KYCProvider({ children }: { children: ReactNode }) {
-  const { accessToken, user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [kycStatus, setKYCStatus] = useState<KYCStatus>({
     status: "none",
@@ -37,13 +37,13 @@ export function KYCProvider({ children }: { children: ReactNode }) {
   });
 
   const refreshStatus = useCallback(async () => {
-    if (!accessToken) return;
+    if (!isAuthenticated) return;
 
     setIsLoading(true);
     try {
       const data = await apiFetch<{ status: string; level: number; message?: string }>(
         "/api/v1/kyc/status",
-        { token: accessToken },
+        { skipAuthRedirect: true },
       );
       setKYCStatus({
         status: data.status as KYCStatus["status"],
@@ -56,7 +56,7 @@ export function KYCProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken]);
+  }, [isAuthenticated]);
 
   // Update KYC status when user changes
   useEffect(() => {
@@ -69,8 +69,15 @@ export function KYCProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const initiateKYC = async () => {
-    if (!accessToken) {
+  // Fetch fresh status on auth
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshStatus();
+    }
+  }, [isAuthenticated, refreshStatus]);
+
+  const initiateKYC = useCallback(async () => {
+    if (!isAuthenticated) {
       throw new Error("Not authenticated");
     }
 
@@ -78,13 +85,13 @@ export function KYCProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiFetch<{ verification_url: string }>(
         "/api/v1/kyc/initiate",
-        { method: "POST", token: accessToken },
+        { method: "POST" },
       );
       return data.verification_url;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   return (
     <KYCContext.Provider

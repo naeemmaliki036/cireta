@@ -7,6 +7,9 @@ export interface Token {
   asset_type: string;
   total_supply: string;
   contract_address: string | null;
+  identity_registry_address: string | null;
+  compliance_address: string | null;
+  decimals: number;
   is_paused: boolean;
   issuer_id: string;
   slug: string;
@@ -48,12 +51,12 @@ export async function createToken(
   },
   token?: string,
 ): Promise<Token> {
-  return apiFetch<Token>("/api/v1/tokens/", {
+  return apiFetch<Token>("/api/v1/tokens", {
     method: "POST",
     body: {
       ...data,
       total_supply: data.total_supply,
-      decimals: parseInt(data.decimals ?? "18", 10),
+      decimals: parseInt(data.decimals ?? "6", 10),
     },
     token,
   });
@@ -66,5 +69,23 @@ export async function deployToken(
   return apiFetch<Token>(`/api/v1/tokens/${tokenId}/deploy`, {
     method: "POST",
     token: accessToken,
+  });
+}
+
+/**
+ * Record on-chain deployment addresses after the issuer deploys via wallet.
+ */
+export async function recordTokenDeployment(
+  tokenId: string,
+  data: {
+    contract_address: string;
+    identity_registry_address: string;
+    compliance_address: string;
+    tx_hash: string;
+  },
+): Promise<Token> {
+  return apiFetch<Token>(`/api/v1/tokens/${tokenId}/record-deployment`, {
+    method: "POST",
+    body: data,
   });
 }

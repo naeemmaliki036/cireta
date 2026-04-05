@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import * as authRepo from "@/lib/api/repositories/auth.repository";
-import { setAccessToken } from "@/lib/api/client";
 
 interface User {
   id: string;
@@ -18,11 +17,12 @@ interface User {
   role: "investor" | "issuer" | "admin";
   kycStatus: "none" | "pending" | "approved" | "rejected" | "expired";
   kycLevel: number;
+  investor_type: string | null;
+  onboarding_completed: boolean;
 }
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -52,42 +52,46 @@ function mapUser(raw: authRepo.User): User {
     role: raw.role,
     kycStatus: raw.kyc_status,
     kycLevel: raw.kyc_level,
+    investor_type: raw.investor_type ?? null,
+    onboarding_completed: raw.onboarding_completed ?? false,
   };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    accessToken: null,
     isAuthenticated: false,
     isLoading: true,
   });
 
   const refreshUser = useCallback(async () => {
     try {
-      // Try refreshing via httpOnly cookie (auto-sent with credentials: "include")
-      const tokens = await authRepo.refreshToken();
-      setAccessToken(tokens.access_token);
+      // Try fetching user directly (access token cookie may still be valid)
       const rawUser = await authRepo.me();
       setAuthCookie(true);
       setState({
         user: mapUser(rawUser),
-        accessToken: tokens.access_token,
         isAuthenticated: true,
         isLoading: false,
       });
     } catch {
-      // No valid refresh cookie — but don't clear auth if we might still have a session
-      // Only clear the flag; the access token from login is still in memory
-      setAccessToken(null);
-      setState({
-        user: null,
-        accessToken: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-      // Keep cireta_auth cookie alive — middleware needs it to avoid
-      // redirect loops. The cookie is only cleared on explicit logout.
+      // Access token expired — try refreshing
+      try {
+        await authRepo.refreshToken();
+        const rawUser = await authRepo.me();
+        setAuthCookie(true);
+        setState({
+          user: mapUser(rawUser),
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } catch {
+        setState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+      }
     }
   }, []);
 
@@ -96,26 +100,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
-    const tokens = await authRepo.login({ email, password });
-    setAccessToken(tokens.access_token);
+    // Calls /api/auth/login which sets httpOnly cookie server-side
+    await authRepo.login({ email, password });
+    // Fetch user profile via proxy (cookie now set)
     const rawUser = await authRepo.me();
     setAuthCookie(true);
     setState({
       user: mapUser(rawUser),
-      accessToken: tokens.access_token,
       isAuthenticated: true,
       isLoading: false,
     });
   };
 
   const register = async (email: string, password: string) => {
-    const tokens = await authRepo.register({ email, password });
-    setAccessToken(tokens.access_token);
+    await authRepo.register({ email, password });
     const rawUser = await authRepo.me();
     setAuthCookie(true);
     setState({
       user: mapUser(rawUser),
-      accessToken: tokens.access_token,
       isAuthenticated: true,
       isLoading: false,
     });
@@ -127,15 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore logout errors
     }
-
-    setAccessToken(null);
     setAuthCookie(false);
     setState({
       user: null,
-      accessToken: null,
       isAuthenticated: false,
       isLoading: false,
     });
+    window.location.href = "/login";
   };
 
   return (

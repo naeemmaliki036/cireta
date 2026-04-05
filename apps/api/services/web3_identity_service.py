@@ -256,8 +256,8 @@ class Web3IdentityService(Web3TokenService):
         Returns:
             Tuple of (signature_bytes, expiry_timestamp, data_with_expiry).
         """
-        if not settings.deployer_private_key:
-            raise ValueError("DEPLOYER_PRIVATE_KEY required for claim signing")
+        if not settings.identity_signer_private_key:
+            raise ValueError("IDENTITY_SIGNER_PRIVATE_KEY required for claim signing")
 
         expiry = int(time.time()) + CLAIM_EXPIRY_SECONDS
 
@@ -274,7 +274,7 @@ class Web3IdentityService(Web3TokenService):
 
         # Sign using EIP-191 (eth_sign style)
         signable = encode_defunct(primitive=claim_hash)
-        signed = Account.sign_message(signable, private_key=settings.deployer_private_key)
+        signed = Account.sign_message(signable, private_key=settings.identity_signer_private_key)
 
         return bytes(signed.signature), expiry, data_with_expiry
 

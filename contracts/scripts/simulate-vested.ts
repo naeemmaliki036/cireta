@@ -48,7 +48,7 @@ async function main() {
   console.log("\nSimulating deploySaleVested...");
   try {
     await sf.deploySaleVested.staticCall(
-      tokenAddr, paymentToken, deployer.address, softCap, hardCap,
+      tokenAddr, deployer.address,
       initData, "cDTG", "cDTG", 18,
       identityReg, 0, 365*86400, 0
     );

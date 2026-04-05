@@ -3,12 +3,14 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import SaleStatus
 from apps.api.models.sale_phase import SalePhase
+from apps.api.models.token_sale import TokenSale
 from apps.api.schemas.sale import (
     ContributeRequest,
     ContributionResponse,
@@ -20,6 +22,7 @@ from apps.api.schemas.sale import (
     SaleOnChainStatusResponse,
     SalePhaseResponse,
     SaleResponse,
+    SaleUpdateRequest,
 )
 from apps.api.services.sale_service import SaleService
 from packages.common.core.auth_deps import CurrentUserId
@@ -56,8 +59,27 @@ def _sale_to_response(sale) -> SaleResponse:
     """Convert sale model to response."""
     return SaleResponse(
         id=str(sale.id),
-        token_id=str(sale.token_id),
+        token_id=str(sale.token_id) if sale.token_id else None,
         issuer_id=str(sale.issuer_id),
+        title=sale.title,
+        description_text=sale.description,
+        full_description=sale.full_description,
+        banner_image_url=sale.banner_image_url or next((img.url for img in getattr(sale, "images", []) if img.is_banner), next((img.url for img in sorted(getattr(sale, "images", []), key=lambda i: i.sort_order or 0)), None)),
+        is_coming_soon=sale.is_coming_soon,
+        is_visible=getattr(sale, "is_visible", False),
+        otc_enabled=sale.otc_enabled,
+        otc_content=sale.otc_content,
+        otc_token_address=getattr(sale, "otc_token_address", None),
+        website_url=sale.website_url,
+        twitter_url=sale.twitter_url,
+        linkedin_url=sale.linkedin_url,
+        instagram_url=sale.instagram_url,
+        facebook_url=sale.facebook_url,
+        telegram_url=sale.telegram_url,
+        discord_url=sale.discord_url,
+        sale_structure=sale.sale_structure.value if hasattr(sale.sale_structure, "value") else sale.sale_structure,
+        cliff_duration_days=sale.cliff_duration_days,
+        vesting_duration_days=sale.vesting_duration_days,
         payment_token=sale.payment_token,
         soft_cap=str(sale.soft_cap),
         hard_cap=str(sale.hard_cap),
@@ -67,6 +89,7 @@ def _sale_to_response(sale) -> SaleResponse:
         soft_cap_reached=sale.soft_cap_reached,
         hard_cap_reached=sale.hard_cap_reached,
         remaining_capacity=str(sale.remaining_capacity),
+        contract_address=getattr(sale, "contract_address", None),
         phases=[_phase_to_response(p) for p in sale.phases],
         token_name=sale.token.name if sale.token else None,
         token_symbol=sale.token.symbol if sale.token else None,
@@ -80,6 +103,8 @@ def _sale_to_response(sale) -> SaleResponse:
         else None,
         token_description=sale.token.description if sale.token else None,
         token_image_url=sale.token.image_url if sale.token else None,
+        token_contract_address=sale.token.contract_address if sale.token else None,
+        identity_registry_address=sale.token.identity_registry_address if sale.token else None,
         issuer_name=sale.issuer.name if sale.issuer else None,
         issuer_slug=sale.issuer.slug if sale.issuer else None,
     )
@@ -96,6 +121,10 @@ def _contribution_to_response(contrib) -> ContributionResponse:
         tx_hash=contrib.tx_hash,
         status=(contrib.status.value if hasattr(contrib.status, "value") else contrib.status),
         claimed_at=contrib.claimed_at,
+        claim_tx_hash=getattr(contrib, "claim_tx_hash", None),
+        is_otc=getattr(contrib, "is_otc", False),
+        otc_reference=getattr(contrib, "otc_reference", None),
+        wallet_address=getattr(contrib, "wallet_address", None),
     )
 
 
@@ -116,18 +145,18 @@ async def get_sale_by_slug(
     return _sale_to_response(sale)
 
 
-@router.get("/", response_model=SaleListResponse)
+@router.get("", response_model=SaleListResponse)
 async def list_sales(
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
     status_filter: SaleStatus | None = None,
 ) -> SaleListResponse:
-    """List all token sales with pagination.
+    """List public token sales (ACTIVE + APPROVED_COMING_SOON).
 
     Public endpoint.
     """
-    sales, total = await sale_service.list_sales(page, size, status_filter)
+    sales, total = await sale_service.list_sales(page, size, status_filter, public_only=True)
 
     return SaleListResponse(
         items=[_sale_to_response(s) for s in sales],
@@ -150,7 +179,46 @@ async def get_sale(
     return _sale_to_response(sale)
 
 
-@router.post("/", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
+@router.patch("/{sale_id}", response_model=SaleResponse)
+async def update_sale(
+    sale_id: UUID,
+    request: SaleUpdateRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SaleResponse:
+    """Update sale details. Issuer can edit anytime regardless of status.
+
+    Only content/marketing fields are editable — financial fields
+    (caps, payment token, phases) and on-chain fields are not affected.
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(
+            selectinload(TokenSale.issuer),
+            selectinload(TokenSale.token),
+            selectinload(TokenSale.phases),
+            selectinload(TokenSale.images),
+        )
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+
+    update_data = request.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(sale, field, value)
+
+    await db.commit()
+    await db.refresh(sale)
+    return _sale_to_response(sale)
+
+
+@router.post("", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
 async def create_sale(
     request: SaleCreateRequest,
     user_id: CurrentUserId,
@@ -162,12 +230,65 @@ async def create_sale(
     """
     sale = await sale_service.create_sale(
         user_id=user_id,
-        token_id=UUID(request.token_id),
+        token_id=UUID(request.token_id) if request.token_id else None,
         payment_token=request.payment_token,
         soft_cap=request.soft_cap,
         hard_cap=request.hard_cap,
         phases=[p.model_dump() for p in request.phases],
+        title=request.title,
+        description=request.description,
+        full_description=request.full_description,
+        banner_image_url=request.banner_image_url,
+        is_coming_soon=request.is_coming_soon,
+        otc_enabled=request.otc_enabled,
+        otc_content=request.otc_content,
+        website_url=request.website_url,
+        twitter_url=request.twitter_url,
+        linkedin_url=request.linkedin_url,
+        instagram_url=request.instagram_url,
+        facebook_url=request.facebook_url,
+        telegram_url=request.telegram_url,
+        discord_url=request.discord_url,
+        sale_mode=request.sale_mode,
+        sale_structure=request.sale_structure,
+        cliff_duration_days=request.cliff_duration_days,
+        vesting_duration_days=request.vesting_duration_days,
     )
+    return _sale_to_response(sale)
+
+
+class OtcContentUpdate(BaseModel):
+    """Update OTC content for a sale."""
+
+    otc_enabled: bool
+    otc_content: str | None = None
+
+
+@router.put("/{sale_id}/otc-content", response_model=SaleResponse)
+async def update_otc_content(
+    sale_id: UUID,
+    request: OtcContentUpdate,
+    user_id: CurrentUserId,
+    db: AsyncSession = Depends(get_db),
+) -> SaleResponse:
+    """Update OTC toggle and content for a sale. Issuer only."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.phases), selectinload(TokenSale.token), selectinload(TokenSale.issuer), selectinload(TokenSale.images))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not your sale"})
+
+    sale.otc_enabled = request.otc_enabled
+    sale.otc_content = request.otc_content
+    await db.commit()
+    await db.refresh(sale)
     return _sale_to_response(sale)
 
 
@@ -198,6 +319,16 @@ async def deploy_sale(
         raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
     if sale.issuer.user_id != user_id:
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if not sale.issuer.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer must be fully activated before deploying. Complete onboarding first."},
+        )
+    if sale.status not in (SaleStatus.APPROVED, SaleStatus.DRAFT):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "SALE_NOT_APPROVED", "message": f"Sale must be approved before deployment, currently: {sale.status}"},
+        )
     if not sale.token or not sale.token.contract_address:
         raise HTTPException(
             status_code=400,
@@ -208,7 +339,12 @@ async def deploy_sale(
     from packages.common.core.config import settings as _settings
 
     web3_sale = Web3SaleService()
-    identity_reg = sale.token.identity_registry_address or request.identity_registry
+    identity_reg = request.identity_registry or sale.token.identity_registry_address
+    if not identity_reg:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "MISSING_IDENTITY_REGISTRY", "message": "Identity registry address is required — set it on the token or provide it in the request"},
+        )
     issuer_addr = sale.issuer.wallet_address or web3_sale.tx_svc._account.address
     fee_mgr = _settings.platform_fee_receiver or web3_sale.tx_svc._account.address
     soft = int(sale.soft_cap * 10**6)
@@ -343,7 +479,7 @@ async def contribute(
                 contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
             )
             await _NS(sale_service.db).notify_investment_confirmed(
-                user_id, _user.email, str(request.amount), _token_symbol, request.tx_hash
+                user_id, _user.email, str(request.amount), _token_symbol,
             )
     except Exception:
         import logging
@@ -355,6 +491,223 @@ async def contribute(
             exc_info=True,
         )
     return _contribution_to_response(contribution)
+
+
+class PhaseCreateRequest(BaseModel):
+    """Create a sale phase (DB record to match on-chain phase)."""
+    name: str
+    price_per_token: str
+    allocation: str
+    min_contribution: str = "0"
+    max_contribution: str = "0"
+    start_time: str
+    end_time: str
+    whitelist_only: bool = False
+
+
+@router.post("/{sale_id}/phases", status_code=201)
+async def add_phase(
+    sale_id: UUID,
+    request: PhaseCreateRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Record a phase in the DB (after it's been added on-chain)."""
+    from sqlalchemy.orm import selectinload
+    from apps.api.models.sale_phase import SalePhase
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer), selectinload(TokenSale.phases))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+
+    from decimal import Decimal
+    phase = SalePhase()
+    phase.sale_id = sale_id
+    phase.phase_number = len(sale.phases) + 1
+    phase.name = request.name
+    phase.price_per_token = Decimal(request.price_per_token)
+    phase.allocation = Decimal(request.allocation)
+    phase.min_contribution = Decimal(request.min_contribution)
+    phase.max_contribution = Decimal(request.max_contribution)
+    phase.start_time = request.start_time
+    phase.end_time = request.end_time
+    phase.whitelist_only = request.whitelist_only
+
+    db.add(phase)
+    await db.commit()
+    return {"phase_id": str(phase.id), "phase_number": phase.phase_number}
+
+
+@router.post("/{sale_id}/submit-for-approval")
+async def submit_for_approval(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> dict:
+    """Submit a draft sale for admin approval.
+
+    Requires: issuer (must own the sale).
+    """
+    from fastapi import HTTPException
+    from sqlalchemy.orm import selectinload
+
+    result = await sale_service.db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if sale.status != SaleStatus.DRAFT:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be DRAFT, currently: {sale.status}"})
+
+    # Prerequisites for non-coming-soon sales
+    if not sale.is_coming_soon:
+        if not sale.contract_address:
+            raise HTTPException(status_code=400, detail={
+                "code": "NOT_DEPLOYED",
+                "message": "Sale contract must be deployed on-chain before submitting for approval.",
+            })
+
+        # Verify on-chain: phases configured and tokens deposited
+        try:
+            from apps.api.services.web3_base_service import Web3BaseService
+            w3_svc = Web3BaseService()
+            w3 = w3_svc.w3
+
+            sale_abi = [
+                {"name": "status", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "uint8"}]},
+                {"name": "saleMode", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "uint8"}]},
+                {"name": "vault", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "address"}]},
+                {"name": "token", "type": "function", "stateMutability": "view", "inputs": [], "outputs": [{"name": "", "type": "address"}]},
+            ]
+            erc20_abi = [{"name": "balanceOf", "type": "function", "stateMutability": "view", "inputs": [{"name": "", "type": "address"}], "outputs": [{"name": "", "type": "uint256"}]}]
+
+            sale_contract = w3.eth.contract(address=w3.to_checksum_address(sale.contract_address), abi=sale_abi)
+            token_addr = sale_contract.functions.token().call()
+            sale_mode = sale_contract.functions.saleMode().call()  # 0=Direct, 1=Vested
+
+            # Check token balance
+            token_contract = w3.eth.contract(address=token_addr, abi=erc20_abi)
+            if sale_mode == 1:  # Vested
+                vault_addr = sale_contract.functions.vault().call()
+                balance = token_contract.functions.balanceOf(vault_addr).call()
+            else:  # Direct
+                balance = token_contract.functions.balanceOf(w3.to_checksum_address(sale.contract_address)).call()
+
+            if balance == 0:
+                raise HTTPException(status_code=400, detail={
+                    "code": "TOKENS_NOT_DEPOSITED",
+                    "message": "Project tokens must be deposited before submitting for approval. Complete the 'Deposit Project Tokens' step.",
+                })
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("On-chain check failed for sale %s: %s", sale_id, e)
+            # Don't block submission if RPC check fails — admin can verify manually
+
+    sale.status = SaleStatus.PENDING_APPROVAL
+    await sale_service.db.commit()
+    return {"sale_id": str(sale_id), "status": "pending_approval", "message": "Sale submitted for admin approval"}
+
+
+@router.post("/{sale_id}/record-deployment")
+async def record_sale_deployment(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    tx_hash: str = Query(..., min_length=66, max_length=66),
+) -> dict:
+    """Record on-chain sale deployment by parsing the tx receipt.
+
+    Frontend sends the tx_hash after deploying via wallet.
+    Backend reads the receipt and extracts SaleDeployed event.
+    """
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+
+    try:
+        from apps.api.services.web3_base_service import Web3BaseService
+        from web3 import Web3
+
+        w3_svc = Web3BaseService()
+        w3 = w3_svc.w3
+        receipt = w3.eth.get_transaction_receipt(tx_hash)
+
+        # SaleDeployed(address indexed token, address indexed sale, address indexed issuer)
+        sale_deployed_topic = Web3.keccak(text="SaleDeployed(address,address,address)").hex()
+
+        sale_address = None
+        for log in receipt.logs:
+            if len(log.topics) >= 3 and log.topics[0].hex() == sale_deployed_topic:
+                # topics[1]=token, topics[2]=sale, topics[3]=issuer
+                sale_address = Web3.to_checksum_address("0x" + log.topics[2].hex()[-40:])
+                break
+
+        if not sale_address:
+            raise HTTPException(status_code=400, detail={"code": "EVENT_NOT_FOUND", "message": "SaleDeployed event not found in tx"})
+
+        sale.contract_address = sale_address
+        await db.commit()
+
+        return {"sale_id": str(sale_id), "contract_address": sale_address, "tx_hash": tx_hash}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail={"code": "CHAIN_ERROR", "message": f"Failed to read tx receipt: {exc}"})
+
+
+@router.post("/{sale_id}/convert-to-live")
+async def convert_coming_soon_to_live(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> dict:
+    """Convert a Coming Soon sale back to DRAFT for the issuer to add
+    token, phases, caps and resubmit for approval as a live sale.
+
+    Requires: issuer (must own the sale).
+    """
+    from fastapi import HTTPException
+    from sqlalchemy.orm import selectinload
+
+    result = await sale_service.db.execute(
+        select(TokenSale)
+        .options(selectinload(TokenSale.issuer))
+        .where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.issuer.user_id != user_id:
+        raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
+    if sale.status != SaleStatus.APPROVED_COMING_SOON:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be APPROVED_COMING_SOON, currently: {sale.status}"})
+
+    sale.is_coming_soon = False
+    sale.status = SaleStatus.DRAFT
+    await sale_service.db.commit()
+    return {"sale_id": str(sale_id), "status": "draft", "message": "Sale converted to draft — add token, phases, and resubmit for approval"}
 
 
 @router.post("/{sale_id}/finalize", response_model=SaleResponse)
@@ -441,11 +794,11 @@ async def otc_allocate(
         select(Wallet).where(Wallet.address == request.investor_wallet)
     )
     investor_wallet = wallet_result.scalar_one_or_none()
-    investor_user_id = investor_wallet.user_id if investor_wallet else None
+    investor_user_id = investor_wallet.user_id if investor_wallet else user_id
 
     # Create OTC contribution (is_otc=True, excluded from fee base)
     contrib = Contribution()
-    contrib.user_id = investor_user_id  # attribute to investor, not issuer
+    contrib.user_id = investor_user_id  # attribute to investor if found, else issuer
     contrib.sale_id = sale_id
     contrib.phase_id = (
         (

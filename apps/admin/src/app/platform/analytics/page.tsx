@@ -9,7 +9,6 @@ import { PlatformAdminLayout } from "@/components/templates";
 import { apiFetch } from "@/lib/api/client";
 import { getAccessToken } from "@/lib/api/client";
 
-// Dynamic imports to prevent SSR crash with recharts (uses browser SVG APIs)
 const TVLChart = dynamic(
   () => import("@/lib/analyticsCharts").then((m) => ({ default: m.TVLChart })),
   { ssr: false }
@@ -46,7 +45,7 @@ export default function AnalyticsPage() {
         const data = await apiFetch<PlatformStats>("/api/v1/admin/platform/stats", { token });
         setStats(data);
       } catch {
-        // Fallback: stats remain null, cards show 0
+        // Fallback
       }
     })();
   }, []);
@@ -66,7 +65,7 @@ export default function AnalyticsPage() {
         />
       }
     >
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard label="Total Value Locked" value={stats?.tvl_usdc ?? 0} prefix="$"
           icon={<TrendingUp className="h-5 w-5" />} />
         <StatCard label="Total Users" value={stats?.total_users ?? 0}
@@ -76,11 +75,11 @@ export default function AnalyticsPage() {
         <StatCard label="Active Sales" value={stats?.active_sales ?? 0}
           icon={<BarChart3 className="h-5 w-5" />} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <TVLChart />
         <FeeRevenueChart />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <KYCFunnelChart />
         <TokenDistributionChart />
       </div>

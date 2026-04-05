@@ -1,7 +1,8 @@
 # Development process management with Honcho
 # Usage: honcho start -f Procfile.dev
 
-api: poetry run uvicorn apps.api.main:app --reload --host 0.0.0.0 --port 8000
-worker: poetry run arq apps.api.workers.tasks.WorkerSettings
-launchpad: npm run dev --workspace=apps/launchpad
-admin: npm run dev --workspace=apps/admin
+# chain: cd contracts && pnpm exec hardhat node  # disabled — using Base Sepolia testnet
+api: poetry run uvicorn apps.api.main:app --reload --host 0.0.0.0 --port 3010
+worker: sleep 5 && while true; do poetry run arq apps.api.workers.tasks.WorkerSettings; echo "Worker exited, restarting in 5s..."; sleep 5; done
+launchpad: pnpm --filter launchpad dev
+admin: pnpm --filter admin dev

@@ -86,27 +86,16 @@ async def sumsub_webhook(
     if not signature or not app_token:
         raise HTTPException(status_code=401, detail="Missing Sumsub webhook headers")
 
-    from packages.common.core.config import settings
-    from apps.api.services.kyc_service import create_hmac_signature
+    import hmac as hmac_mod
 
-    # Validate X-App-Token field against settings.sumsub_app_token
-    if app_token != settings.sumsub_app_token:
+    from packages.common.core.config import settings
+
+    # Validate X-App-Token (constant-time comparison)
+    if not hmac_mod.compare_digest(app_token, settings.sumsub_app_token):
         raise HTTPException(status_code=401, detail="Invalid Sumsub App Token")
 
-    # Validate HMAC signature
-    expected_signature = create_hmac_signature(settings.sumsub_secret_key, body)
-    if signature != f"sha256={expected_signature}":
-        # Use a constant time comparison to avoid timing attacks
-        import hmac
-        import hashlib
-        if not hmac.compare_digest(f"sha256={expected_signature}".encode(), signature.encode()):
-            raise HTTPException(status_code=401, detail="Invalid Sumsub HMAC signature")
-
-    # Get signature from header
-    # Sumsub uses X-Payload-Digest for HMAC signature
-    sig_header = request.headers.get("X-Payload-Digest", "")
-
-    # CRITICAL: Validate HMAC BEFORE any processing
+    # CRITICAL: Validate HMAC signature BEFORE any processing (constant-time)
+    sig_header = signature or request.headers.get("X-Payload-Digest", "")
     if not validate_sumsub_signature(body, sig_header, settings.sumsub_secret_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -154,6 +143,24 @@ async def sumsub_webhook(
 
     await db.commit()
     return {"status": "ok"}
+
+
+@router.post("/dev-approve")
+async def dev_approve_kyc(
+    user_id: CurrentUserId,
+    kyc_service: Annotated[KYCService, Depends(get_kyc_service)],
+) -> dict:
+    """DEV ONLY: Bypass Sumsub and approve KYC directly.
+
+    Only available in development environment. Returns 403 in production/staging.
+    """
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_ALLOWED", "message": "KYC dev-approve only available in development"},
+        )
+    result = await kyc_service.dev_approve(user_id)
+    return result
 
 
 @router.post("/corporate/initiate", response_model=KYCInitiateResponse)

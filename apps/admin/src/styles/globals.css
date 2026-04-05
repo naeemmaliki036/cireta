@@ -290,17 +290,18 @@ a {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7) !important;
   transition: color 150ms, background-color 150ms;
 }
 .sidebar-item:hover {
-  color: #fff;
-  background-color: rgba(19, 99, 111, 0.2);
+  color: #fff !important;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-item-active {
-  background-color: rgba(19, 99, 111, 0.2);
-  color: #13636F;
+  background-color: rgba(19, 99, 111, 0.3);
+  color: #fff !important;
+  border: 1px solid rgba(19, 99, 111, 0.4);
 }
 
 /* Dashboard card */

@@ -88,9 +88,9 @@ class TestWeb3SaleService:
         }
         svc.tx_svc.get_receipt = AsyncMock(return_value=mock_receipt)
 
-        contributor = "0x" + "d" * 40
+        buyer = "0x" + "d" * 40
         svc.tx_svc.parse_events = MagicMock(return_value=[{
-            "contributor": contributor,
+            "buyer": buyer,
             "phaseId": 0,
             "amount": 5000 * 10**6,  # 5000 USDC
             "tokensAllocated": 5000 * 10**18,
@@ -98,7 +98,7 @@ class TestWeb3SaleService:
 
         result = await svc.record_on_chain_contribution("0x" + "a" * 64)
 
-        assert result["contributor"] == contributor
+        assert result["buyer"] == buyer
         assert result["amount"] == Decimal("5000")
         assert result["phase_id"] == 0
         assert result["block_number"] == 12345
@@ -122,7 +122,7 @@ class TestWeb3SaleService:
         })
         svc.tx_svc.parse_events = MagicMock(return_value=[])
 
-        with pytest.raises(ValueError, match="No ContributionMade event"):
+        with pytest.raises(ValueError, match="No Purchase event"):
             await svc.record_on_chain_contribution("0x" + "a" * 64)
 
     @pytest.mark.asyncio

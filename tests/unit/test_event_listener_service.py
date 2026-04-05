@@ -200,7 +200,7 @@ class TestHandleSaleEvent:
         tx_hash_bytes = bytes.fromhex("ab" * 32)
         log = {"transactionHash": tx_hash_bytes}
         args = {
-            "contributor": "0x" + "11" * 20,
+            "buyer": "0x" + "11" * 20,
             "amount": 1000 * 10**6,  # 1000 USDC
             "tokensAllocated": 1000 * 10**18,
             "phaseId": 0,
@@ -224,7 +224,7 @@ class TestHandleSaleEvent:
 
             svc = EventListenerService.__new__(EventListenerService)
             await svc._handle_sale_event(
-                "ContributionMade", args, "0x" + "dd" * 20, log
+                "Purchase", args, "0x" + "dd" * 20, log
             )
 
     async def test_contribution_made_dedup(
@@ -234,7 +234,7 @@ class TestHandleSaleEvent:
         """Duplicate ContributionMade event is skipped."""
         tx_hash_bytes = bytes.fromhex("cc" * 32)
         log = {"transactionHash": tx_hash_bytes}
-        args = {"contributor": "0x" + "22" * 20, "amount": 500 * 10**6}
+        args = {"buyer": "0x" + "22" * 20, "amount": 500 * 10**6}
 
         existing_contrib = MagicMock()
 
@@ -251,7 +251,7 @@ class TestHandleSaleEvent:
 
             svc = EventListenerService.__new__(EventListenerService)
             await svc._handle_sale_event(
-                "ContributionMade", args, "0x" + "dd" * 20, log
+                "Purchase", args, "0x" + "dd" * 20, log
             )
 
             # Should only execute the dedup query, then return

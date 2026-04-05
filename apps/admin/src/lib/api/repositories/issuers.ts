@@ -9,7 +9,13 @@ export interface Issuer {
   jurisdiction: string | null;
   wallet_address: string | null;
   status: "pending" | "active" | "suspended";
+  issuer_type: "individual" | "corporate";
+  wallet_status: "none" | "verified" | "pending_approval" | "approved" | "rejected";
+  identity_status: "none" | "pending" | "approved" | "rejected";
+  identity_verified_at: string | null;
   fee_bps: number;
+  email: string | null;
+  project_count: number;
   created_at: string;
 }
 
@@ -38,11 +44,18 @@ export async function getIssuers(
   );
 }
 
+export async function getIssuer(
+  id: string,
+  token?: string,
+): Promise<Issuer> {
+  return apiFetch<Issuer>(`/api/v1/admin/issuers/${id}`, { token });
+}
+
 export async function createIssuer(
   data: CreateIssuerRequest,
   token: string,
 ): Promise<Issuer> {
-  return apiFetch<Issuer>("/api/v1/admin/issuers/", {
+  return apiFetch<Issuer>("/api/v1/admin/issuers", {
     method: "POST",
     body: data,
     token,
@@ -79,4 +92,20 @@ export async function activateIssuer(
     method: "POST",
     token,
   });
+}
+
+export interface OnChainRegistrationResponse {
+  issuer_id: string;
+  wallet_address: string;
+  tx_hash: string;
+  message: string;
+}
+
+export async function registerIssuerOnChain(
+  issuerId: string,
+): Promise<OnChainRegistrationResponse> {
+  return apiFetch<OnChainRegistrationResponse>(
+    `/api/v1/admin/issuers/${issuerId}/register-onchain`,
+    { method: "POST" },
+  );
 }

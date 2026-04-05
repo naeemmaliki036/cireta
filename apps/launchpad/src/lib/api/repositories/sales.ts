@@ -73,15 +73,13 @@ export async function getSale(id: string): Promise<Sale> {
   return apiGet<Sale>(`/api/v1/sales/${id}`);
 }
 
-export async function contribute(
+export async function buy(
   saleId: string,
   data: ContributionRequest,
-  token: string
 ): Promise<ContributionResponse> {
   return apiPost<ContributionResponse, ContributionRequest>(
     `/api/v1/sales/${saleId}/contribute`,
     data,
-    { token }
   );
 }
 

@@ -2,9 +2,12 @@
 
 CRITICAL: ALL compliance actions MUST be logged to audit_logs.
 The audit_logs table is APPEND-ONLY for compliance purposes.
+
+NOTE: All on-chain actions are executed via the dApp (user's connected wallet).
+Backend only records the audit log after the on-chain tx is confirmed.
+No backend private key is used.
 """
 
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -15,7 +18,11 @@ from apps.api.services.compliance_base_service import ComplianceBaseService
 
 
 class ComplianceActionService(ComplianceBaseService):
-    """Forced transfer, recovery, and pause/unpause operations."""
+    """Forced transfer, recovery, and pause/unpause audit recording.
+
+    On-chain execution happens via the dApp. These endpoints record
+    the action in the audit log after tx confirmation.
+    """
 
     async def forced_transfer(
         self,
@@ -25,52 +32,25 @@ class ComplianceActionService(ComplianceBaseService):
         token_id: UUID,
         amount: str,
         reason: str,
+        tx_hash: str | None = None,
         ip_address: str | None = None,
     ) -> AuditLog:
-        """Execute a forced token transfer.
-
-        Only issuer of the token can perform this action.
+        """Record a forced token transfer executed via dApp.
 
         Args:
             actor_id: User performing the action.
             from_address: Source address.
             to_address: Destination address.
             token_id: Token UUID.
-            amount: Amount to transfer.
+            amount: Amount transferred.
             reason: Reason for transfer.
+            tx_hash: On-chain transaction hash from dApp.
             ip_address: Actor's IP address.
 
         Returns:
             Audit log entry.
         """
         await self._verify_authorization(actor_id, token_id, require_issuer=True)
-
-        # Execute on-chain forced transfer
-        token_result = await self.db.execute(select(Token).where(Token.id == token_id))
-        token = token_result.scalar_one_or_none()
-        if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
-            try:
-                from apps.api.services.web3_token_service import Web3TokenService
-
-                web3_svc = Web3TokenService()
-                amount_int = int(Decimal(str(amount)) * Decimal(10 ** (token.decimals or 18)))
-                await web3_svc.forced_transfer(
-                    token.contract_address,
-                    from_address,
-                    to_address,
-                    amount_int,
-                )
-            except Exception:
-                import logging
-
-                logging.getLogger(__name__).error(
-                    "On-chain forced transfer failed for token=%s from=%s to=%s",
-                    token_id,
-                    from_address,
-                    to_address,
-                    exc_info=True,
-                )
-                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -81,6 +61,7 @@ class ComplianceActionService(ComplianceBaseService):
                 "from_address": from_address,
                 "to_address": to_address,
                 "amount": amount,
+                "tx_hash": tx_hash,
             },
             ip_address=ip_address,
             reason=reason,
@@ -97,49 +78,28 @@ class ComplianceActionService(ComplianceBaseService):
         amount: str,
         reason: str,
         to_address: str | None = None,
+        tx_hash: str | None = None,
         ip_address: str | None = None,
     ) -> AuditLog:
-        """Recover tokens from an address.
+        """Record a token recovery executed via dApp.
 
-        Only issuer of the token can perform this action.
+        The contract's recoveryAddress() transfers full balance + frozen
+        status from lostWallet to newWallet. This endpoint logs the action.
 
         Args:
             actor_id: User performing the action.
-            from_address: Address to recover from.
+            from_address: Address recovered from (lost wallet).
             token_id: Token UUID.
-            amount: Amount to recover.
+            amount: Amount recovered.
             reason: Reason for recovery.
+            to_address: Recovery destination (new wallet).
+            tx_hash: On-chain transaction hash from dApp.
             ip_address: Actor's IP address.
 
         Returns:
             Audit log entry.
         """
         await self._verify_authorization(actor_id, token_id, require_issuer=True)
-
-        # Execute on-chain token recovery
-        token_result = await self.db.execute(select(Token).where(Token.id == token_id))
-        token = token_result.scalar_one_or_none()
-        if token and token.contract_address and token.contract_address != ("0x" + "0" * 40):
-            try:
-                from apps.api.services.web3_token_service import Web3TokenService
-
-                web3_svc = Web3TokenService()
-                amount_int = int(Decimal(str(amount)) * Decimal(10 ** (token.decimals or 18)))
-                await web3_svc.recover_tokens(
-                    token.contract_address,
-                    from_address,
-                    amount_int,
-                )
-            except Exception:
-                import logging
-
-                logging.getLogger(__name__).error(
-                    "On-chain recovery failed for token=%s from=%s",
-                    token_id,
-                    from_address,
-                    exc_info=True,
-                )
-                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
@@ -150,6 +110,7 @@ class ComplianceActionService(ComplianceBaseService):
                 "from_address": from_address,
                 "to_address": to_address,
                 "amount": amount,
+                "tx_hash": tx_hash,
             },
             ip_address=ip_address,
             reason=reason,
@@ -163,16 +124,16 @@ class ComplianceActionService(ComplianceBaseService):
         actor_id: UUID,
         token_id: UUID,
         reason: str,
+        tx_hash: str | None = None,
         ip_address: str | None = None,
     ) -> AuditLog:
-        """Pause all transfers for a token.
-
-        Only issuer of the token can perform this action.
+        """Record a token pause executed via dApp.
 
         Args:
             actor_id: User performing the action.
             token_id: Token UUID.
             reason: Reason for pause.
+            tx_hash: On-chain transaction hash from dApp.
             ip_address: Actor's IP address.
 
         Returns:
@@ -180,33 +141,17 @@ class ComplianceActionService(ComplianceBaseService):
         """
         await self._verify_authorization(actor_id, token_id, require_issuer=True)
 
-        # Update token state
+        # Update local state
         result = await self.db.execute(select(Token).where(Token.id == token_id))
         token = result.scalar_one()
         token.is_paused = True
-
-        # Execute on-chain pause
-        if token.contract_address and token.contract_address != ("0x" + "0" * 40):
-            try:
-                from apps.api.services.web3_token_service import Web3TokenService
-
-                web3_svc = Web3TokenService()
-                await web3_svc.pause_token(token.contract_address)
-            except Exception:
-                import logging
-
-                logging.getLogger(__name__).error(
-                    "On-chain pause failed for token=%s",
-                    token_id,
-                    exc_info=True,
-                )
-                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
             action="pause_token",
             target_type="token",
             target_id=str(token_id),
+            payload={"tx_hash": tx_hash},
             ip_address=ip_address,
             reason=reason,
         )
@@ -219,16 +164,16 @@ class ComplianceActionService(ComplianceBaseService):
         actor_id: UUID,
         token_id: UUID,
         reason: str,
+        tx_hash: str | None = None,
         ip_address: str | None = None,
     ) -> AuditLog:
-        """Unpause transfers for a token.
-
-        Only issuer of the token can perform this action.
+        """Record a token unpause executed via dApp.
 
         Args:
             actor_id: User performing the action.
             token_id: Token UUID.
             reason: Reason for unpause.
+            tx_hash: On-chain transaction hash from dApp.
             ip_address: Actor's IP address.
 
         Returns:
@@ -236,33 +181,17 @@ class ComplianceActionService(ComplianceBaseService):
         """
         await self._verify_authorization(actor_id, token_id, require_issuer=True)
 
-        # Update token state
+        # Update local state
         result = await self.db.execute(select(Token).where(Token.id == token_id))
         token = result.scalar_one()
         token.is_paused = False
-
-        # Execute on-chain unpause
-        if token.contract_address and token.contract_address != ("0x" + "0" * 40):
-            try:
-                from apps.api.services.web3_token_service import Web3TokenService
-
-                web3_svc = Web3TokenService()
-                await web3_svc.unpause_token(token.contract_address)
-            except Exception:
-                import logging
-
-                logging.getLogger(__name__).error(
-                    "On-chain unpause failed for token=%s",
-                    token_id,
-                    exc_info=True,
-                )
-                raise
 
         audit = await self._write_audit(
             actor_id=actor_id,
             action="unpause_token",
             target_type="token",
             target_id=str(token_id),
+            payload={"tx_hash": tx_hash},
             ip_address=ip_address,
             reason=reason,
         )

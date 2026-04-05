@@ -129,7 +129,7 @@ class KYCService:
                 # Create applicant
                 applicant_resp = await _sumsub_request(
                     "POST",
-                    "/resources/applicants?levelName=basic-kyc-level",
+                    f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                     json={"externalUserId": str(user_id), "email": user.email},
@@ -139,7 +139,7 @@ class KYCService:
                 # Get access token
                 token_resp = await _sumsub_request(
                     "POST",
-                    f"/resources/accessTokens?userId={applicant_id}&levelName=basic-kyc-level",
+                    f"/resources/accessTokens?userId={applicant_id}&levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                 )
@@ -168,6 +168,30 @@ class KYCService:
             "access_token": access_token,
             "expiration": datetime.now(UTC),
         }
+
+    async def dev_approve(self, user_id: UUID) -> dict[str, Any]:
+        """DEV ONLY: Directly approve KYC without Sumsub.
+
+        Sets kyc_status=approved, kyc_level=2, triggers on-chain identity registration.
+        """
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "USER_NOT_FOUND", "message": "User not found"},
+            )
+        if user.kyc_status == KYCStatus.APPROVED:
+            return {"status": "already_approved", "kyc_level": user.kyc_level}
+
+        user.kyc_status = KYCStatus.APPROVED
+        user.kyc_level = 2
+        user.kyc_provider = "dev-bypass"
+        user.kyc_verified_at = datetime.now(UTC)
+        await self._issue_onchain_claims(user)
+        await self.db.commit()
+        log.info("DEV KYC approved for user %s", user_id)
+        return {"status": "approved", "kyc_level": 2}
 
     async def get_status(self, user_id: UUID) -> dict[str, Any]:
         """Get KYC status for a user."""
@@ -242,7 +266,7 @@ class KYCService:
                 await self._issue_onchain_claims(user)
                 try:
                     notif_service = NotificationService(self.db)
-                    await notif_service.notify_kyc_approved(user.id, user.email, 2)
+                    await notif_service.notify_kyc_approved(user.id, user.email)
                 except Exception as e:
                     log.warning("KYC notification failed: %s", e)
                 try:
@@ -288,19 +312,44 @@ class KYCService:
         await self.db.commit()
 
     async def _issue_onchain_claims(self, user: User) -> None:
-        """Deploy ONCHAINID + issue claims + register in IdentityRegistry.
+        """Register user's identity on-chain after KYC approval.
 
-        Full flow for a verified user:
-        1. Deploy ONCHAINID via CREATE2 (idempotent)
-        2. Issue KYC, country, investor type claims with real ECDSA signatures
-        3. Register wallet → identity in IdentityRegistry
-        4. Store identity address on user model
+        Mode is controlled by IDENTITY_MODE config:
+        - "simple": adds wallets to SimpleIdentityRegistry whitelist
+        - "erc3643": deploys ONCHAINID + issues claims + registers in full IdentityRegistry
 
         Dev mode: logs and skips.
         """
         from packages.common.core.config import get_settings
 
         settings = get_settings()
+
+        if not settings.identity_registry_address:
+            log.warning("IDENTITY_REGISTRY_ADDRESS not configured — skipping on-chain identity")
+            return
+
+        if settings.identity_mode == "simple":
+            await self._register_simple_identity(user, settings)
+        else:
+            await self._register_erc3643_identity(user, settings)
+
+    async def _register_simple_identity(self, user: User, settings: object) -> None:
+        """Simple whitelist mode — add all wallets to SimpleIdentityRegistry."""
+        try:
+            from apps.api.services.simple_identity_bridge_service import (
+                SimpleIdentityBridgeService,
+            )
+            bridge = SimpleIdentityBridgeService(self.db)
+            result = await bridge.provision_identity(user.id)
+            log.info(
+                "Simple identity registered for user %s: %d wallet(s)",
+                user.id, len(result.get("registered_wallets", [])),
+            )
+        except Exception as exc:
+            log.error("Failed simple identity registration for user %s: %s", user.id, exc)
+
+    async def _register_erc3643_identity(self, user: User, settings: object) -> None:
+        """Full ERC-3643 mode — deploy ONCHAINID + issue claims."""
         if not _has_sumsub_credentials(settings):
             if settings.environment != "development":
                 log.error("Sumsub credentials missing in %s — cannot issue on-chain claims", settings.environment)
@@ -308,14 +357,9 @@ class KYCService:
             log.warning("Dev mode — skipping on-chain identity for user %s (no Sumsub credentials)", user.id)
             return
 
-        # Get user's primary wallet
         primary_wallet = next((w for w in user.wallets if w.is_primary), None)
         if not primary_wallet:
             log.warning("User %s has no primary wallet — cannot deploy ONCHAINID", user.id)
-            return
-
-        if not settings.identity_registry_address:
-            log.warning("IDENTITY_REGISTRY_ADDRESS not configured — skipping")
             return
 
         try:
@@ -330,7 +374,6 @@ class KYCService:
                 investor_type=user.investor_type or "individual",
             )
 
-            # Store identity address on user model
             user.onchain_id = identity_address
             log.info(
                 "Full ONCHAINID registration complete for user %s: %s",
@@ -338,7 +381,6 @@ class KYCService:
                 identity_address,
             )
         except Exception as exc:
-            # Non-fatal: log error, admin can retry via compliance dashboard
             log.error("Failed ONCHAINID registration for user %s: %s", user.id, exc)
 
     async def initiate_corporate(self, user_id: UUID, body: Any) -> dict[str, Any]:
@@ -377,7 +419,7 @@ class KYCService:
             try:
                 applicant_resp = await _sumsub_request(
                     "POST",
-                    "/resources/applicants?levelName=business-kyb-level",
+                    f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                     json={
@@ -396,7 +438,7 @@ class KYCService:
                 applicant_id = applicant_resp.get("id", applicant_id)
                 token_resp = await _sumsub_request(
                     "POST",
-                    f"/resources/accessTokens?userId={applicant_id}&levelName=business-kyb-level",
+                    f"/resources/accessTokens?userId={applicant_id}&levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
                     settings.sumsub_app_token,
                     settings.sumsub_secret_key,
                 )
@@ -510,7 +552,7 @@ class KYCService:
                 user.kyc_verified_at = datetime.now(UTC)
                 try:
                     notif_service = NotificationService(self.db)
-                    await notif_service.notify_kyc_approved(user.id, user.email, 4)
+                    await notif_service.notify_kyc_approved(user.id, user.email)
                 except Exception as e:
                     log.warning("Corporate KYC notification failed: %s", e)
             elif review_answer == "RED":

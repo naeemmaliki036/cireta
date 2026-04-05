@@ -5,7 +5,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deployer:", deployer.address);
   
-  const deployments = JSON.parse(fs.readFileSync("deployments/base-sepolia.json", "utf8"));
+  const deployments = JSON.parse(fs.readFileSync("deployments/sepolia.json", "utf8"));
   
   const fractionImplAddr = deployments.fractionTokenImplementation || "";
   
@@ -29,7 +29,7 @@ async function main() {
     await v.waitForDeployment();
     finalVaultImpl = await v.getAddress();
     deployments.vaultImplementation = finalVaultImpl;
-    fs.writeFileSync("deployments/base-sepolia.json", JSON.stringify(deployments, null, 2));
+    fs.writeFileSync("deployments/sepolia.json", JSON.stringify(deployments, null, 2));
   }
   console.log("Vault impl:", finalVaultImpl);
   
@@ -42,7 +42,7 @@ async function main() {
     await ff.waitForDeployment();
     finalFactory = await ff.getAddress();
     deployments.fractionFactory = finalFactory;
-    fs.writeFileSync("deployments/base-sepolia.json", JSON.stringify(deployments, null, 2));
+    fs.writeFileSync("deployments/sepolia.json", JSON.stringify(deployments, null, 2));
   }
   console.log("FractionFactory:", finalFactory);
   
@@ -56,7 +56,7 @@ async function main() {
   
   // Save all
   deployments.fractionTokenImplementation = finalFractionImpl;
-  fs.writeFileSync("deployments/base-sepolia.json", JSON.stringify(deployments, null, 2));
+  fs.writeFileSync("deployments/sepolia.json", JSON.stringify(deployments, null, 2));
   console.log("✅ Saved");
 }
 

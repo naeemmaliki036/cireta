@@ -89,13 +89,9 @@ class TokenService:
                 detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer is not active"},
             )
 
-        # Check symbol uniqueness
+        # Check symbol — warn but don't block (multiple tokens can share symbols)
         existing = await self.db.execute(select(Token).where(Token.symbol == symbol.upper()))
-        if existing.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "SYMBOL_EXISTS", "message": "Token symbol already exists"},
-            )
+        symbol_warning = bool(existing.scalar_one_or_none())
 
         # Create token
         token = Token()
@@ -147,6 +143,13 @@ class TokenService:
                 detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to deploy this token"},
             )
 
+        # Check issuer is fully activated
+        if not token.issuer.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "ISSUER_NOT_ACTIVE", "message": "Issuer must be fully activated before deploying. Complete onboarding first."},
+            )
+
         if token.is_deployed:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -164,7 +167,7 @@ class TokenService:
                 detail={
                     "code": "NO_WALLET",
                     "message": "Issuer has no wallet address and no deployer account is configured. "
-                    "Set the issuer wallet address or configure DEPLOYER_PRIVATE_KEY.",
+                    "Set the issuer wallet address or configure IDENTITY_SIGNER_PRIVATE_KEY.",
                 },
             )
 

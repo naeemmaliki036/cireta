@@ -4,7 +4,7 @@ Polls every ~12 seconds (one Base block) for contract events and
 synchronises DB state with on-chain truth.
 
 Events handled:
-- ContributionMade → upsert contribution in DB
+- Purchase → upsert contribution in DB
 - TokensClaimed → mark contribution as claimed
 - RefundClaimed → mark contribution as refunded
 - SaleFinalized → update sale status
@@ -32,12 +32,12 @@ SALE_EVENTS_ABI = [
     {
         "anonymous": False,
         "inputs": [
-            {"indexed": True, "name": "contributor", "type": "address"},
+            {"indexed": True, "name": "buyer", "type": "address"},
+            {"indexed": True, "name": "phaseId", "type": "uint256"},
             {"indexed": False, "name": "amount", "type": "uint256"},
             {"indexed": False, "name": "tokensAllocated", "type": "uint256"},
-            {"indexed": False, "name": "phaseId", "type": "uint256"},
         ],
-        "name": "ContributionMade",
+        "name": "Purchase",
         "type": "event",
     },
     {
@@ -117,7 +117,7 @@ class EventListenerService:
         try:
             import redis.asyncio as aioredis
 
-            r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+            r = aioredis.from_url(settings.redis_url)
             val = await r.get(REDIS_LAST_BLOCK_KEY)
             await r.aclose()
             if val:
@@ -133,7 +133,7 @@ class EventListenerService:
         try:
             import redis.asyncio as aioredis
 
-            r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+            r = aioredis.from_url(settings.redis_url)
             await r.set(REDIS_LAST_BLOCK_KEY, str(block_number))
             await r.aclose()
         except Exception:
@@ -205,17 +205,17 @@ class EventListenerService:
         return sale_addresses, token_addresses, fraction_addresses
 
     async def _poll_sale_events(self, address: str, from_block: int, to_block: int) -> int:
-        """Poll ContributionMade, TokensClaimed, RefundClaimed, SaleFinalized."""
+        """Poll Purchase, TokensClaimed, RefundClaimed, SaleFinalized."""
         contract = self.w3.eth.contract(
             address=Web3.to_checksum_address(address), abi=SALE_EVENTS_ABI
         )
         count = 0
 
-        for event_name in ("ContributionMade", "TokensClaimed", "RefundClaimed", "SaleFinalized"):
+        for event_name in ("Purchase", "TokensClaimed", "RefundClaimed", "SaleFinalized"):
             try:
                 event_filter = getattr(contract.events, event_name)
                 logs = await asyncio.to_thread(
-                    event_filter().get_logs, fromBlock=from_block, toBlock=to_block
+                    event_filter().get_logs, from_block=from_block, to_block=to_block
                 )
                 for log in logs:
                     await self._handle_sale_event(event_name, dict(log["args"]), address, log)
@@ -233,7 +233,7 @@ class EventListenerService:
         count = 0
         try:
             logs = await asyncio.to_thread(
-                contract.events.Transfer().get_logs, fromBlock=from_block, toBlock=to_block
+                contract.events.Transfer().get_logs, from_block=from_block, to_block=to_block
             )
             for log in logs:
                 await self._handle_transfer_event(dict(log["args"]), address, log)
@@ -252,7 +252,7 @@ class EventListenerService:
             try:
                 logs = await asyncio.to_thread(
                     getattr(contract.events, event_name)().get_logs,
-                    fromBlock=from_block, toBlock=to_block,
+                    from_block=from_block, to_block=to_block,
                 )
                 for log in logs:
                     logger.info(
@@ -281,7 +281,7 @@ class EventListenerService:
         tx_hash = log["transactionHash"].hex() if hasattr(log["transactionHash"], "hex") else str(log["transactionHash"])
 
         async with AsyncSessionLocal() as db:
-            if event_name == "ContributionMade":
+            if event_name == "Purchase":
                 # Dedup on tx_hash
                 existing = await db.execute(
                     select(Contribution).where(Contribution.tx_hash == tx_hash)
@@ -296,7 +296,7 @@ class EventListenerService:
                 if not sale:
                     return
                 amount = Decimal(str(args.get("amount", 0))) / Decimal(10**USDC_DECIMALS)
-                logger.info("ContributionMade: sale=%s contributor=%s amount=%s", sale.id, args.get("contributor"), amount)
+                logger.info("Purchase: sale=%s buyer=%s amount=%s", sale.id, args.get("buyer"), amount)
 
             elif event_name == "TokensClaimed":
                 claimer = args.get("claimer", "").lower()

@@ -40,6 +40,7 @@ export async function deployToken(
   owner: string,
   registry: IdentityRegistry,
   compliance: ModularCompliance,
+  admin?: string,
 ) {
   const TF = await ethers.getContractFactory("CiretaToken");
   const token = (await upgrades.deployProxy(TF, [
@@ -47,6 +48,7 @@ export async function deployToken(
     await registry.getAddress(),
     await compliance.getAddress(),
     owner,
+    admin || owner,  // admin_ defaults to owner if not provided
   ])) as unknown as CiretaToken;
 
   await compliance.bindToken(await token.getAddress());

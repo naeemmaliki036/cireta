@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /** Routes that do not require authentication. */
-const PUBLIC_PATHS = ["/login", "/api", "/_next", "/favicon.ico"];
+const PUBLIC_PATHS = ["/login", "/api", "/_next", "/favicon.ico", "/images"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
@@ -36,6 +36,6 @@ export const config = {
      * - /favicon.ico
      * - /_next/static/* (static assets)
      */
-    "/((?!login|api|_next|favicon\\.ico).*)",
+    "/((?!login|api|_next|favicon\\.ico|images).*)",
   ],
 };

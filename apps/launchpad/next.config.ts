@@ -27,7 +27,10 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../../"),
   reactStrictMode: true,
   images: {
-    domains: ["gateway.pinata.cloud", "ipfs.io"],
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "localhost" },
+    ],
   },
   webpack(config) {
     config.resolve.alias = {

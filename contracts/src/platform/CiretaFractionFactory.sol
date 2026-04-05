@@ -42,7 +42,7 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     function deployVaultAndFraction(
         string memory fractionName,
         string memory fractionSymbol,
-        uint8 decimals,
+        uint8, // decimals ignored — always 6 (matches project token)
         address projectToken,
         address identityRegistry,
         address sale,
@@ -61,7 +61,7 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         // Deploy FractionToken proxy with factory as admin (to allow grantRole)
         bytes memory fractionInitData = abi.encodeCall(
             CiretaFractionToken.initialize,
-            (fractionName, fractionSymbol, decimals, identityRegistry, projectToken, vaultProxy, address(this))
+            (fractionName, fractionSymbol, 6, identityRegistry, projectToken, vaultProxy, address(this))
         );
         fractionProxy = address(new ERC1967Proxy(fractionTokenImplementation, fractionInitData));
 

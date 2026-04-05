@@ -14,9 +14,12 @@ class HoldingResponse(BaseModel):
     token_id: str
     token_symbol: str
     token_name: str
+    asset_type: str = "commodity"
     balance: str
+    value_usd: str = "0"
     vested_amount: str
     claimable_amount: str
+    claimable: str = "0"
 
     class Config:
         from_attributes = True
@@ -87,6 +90,8 @@ class PortfolioSummaryResponse(BaseModel):
     total_holdings: int
     total_vesting_schedules: int
     total_pending_redemptions: int
+    total_value_usd: str = "0"
+    total_invested_usd: str = "0"
     holdings: list[HoldingResponse]
 
 

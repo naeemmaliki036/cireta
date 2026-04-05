@@ -7,3 +7,4 @@ export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
 export { Select, type SelectProps } from "./Select";
 export { Textarea, type TextareaProps } from "./Textarea";
 export { CiretaLogo, type CiretaLogoProps } from "./CiretaLogo";
+export { FileUpload, type FileUploadProps } from "./FileUpload";

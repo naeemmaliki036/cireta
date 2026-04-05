@@ -359,7 +359,7 @@ async function main() {
         await wait(3000);
         console.log(`  Contributing 5 USDC to phase 0 (nonce ${nonce})...`);
         try {
-          const cTx = await sale.contribute(0, ethers.parseUnits("5", 6), { gasLimit: 500_000, nonce: nonce++ });
+          const cTx = await sale.buy(0, ethers.parseUnits("5", 6), { gasLimit: 500_000, nonce: nonce++ });
           txHashes["contribute"] = cTx.hash;
           const cReceipt = await cTx.wait();
           console.log(`  Contributed! TX: ${cTx.hash} Gas: ${cReceipt?.gasUsed?.toString()}`);

@@ -4,7 +4,7 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("Sale", () => {
   let sale: any;
-  let mockUsdc: any, mockToken: any, mockIdentityRegistry: any;
+  let mockUsdc: any, mockToken: any, mockIdentityRegistry: any, mockFactory: any;
   let owner: any, issuer: any, investor: any, feeManager: any;
 
   const SOFT_CAP = ethers.parseUnits("500000", 6);
@@ -22,23 +22,27 @@ describe("Sale", () => {
     const MockIR = await ethers.getContractFactory("MockIdentityRegistry");
     mockIdentityRegistry = await MockIR.deploy();
 
+    // MockSaleFactory — Sale reads admin from factory.owner()
+    const MSF = await ethers.getContractFactory("MockSaleFactory");
+    mockFactory = await MSF.deploy(owner.address);
+
     const SaleFactory = await ethers.getContractFactory("Sale");
     sale = await upgrades.deployProxy(SaleFactory, [
       await mockToken.getAddress(),
       await mockUsdc.getAddress(),
       await mockIdentityRegistry.getAddress(),
-      issuer.address,
-      feeManager.address,
+      issuer.address,                    // _issuer
+      await mockFactory.getAddress(),    // _factory
+      feeManager.address,               // _feeManager
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
-      owner.address,
     ], { unsafeAllow: ["state-variable-immutable", "external-library-linking", "constructor"] });
 
     await mockUsdc.mint(investor.address, ethers.parseUnits("200000", 6));
     // Fund sale with project tokens for Direct mode transfers
     await mockToken.mint(await sale.getAddress(), ethers.parseUnits("30000", 18));
     const now = await time.latest();
-    await sale.addPhase("Public", PRICE, ethers.parseUnits("30000", 18), MIN_C, MAX_C, now + 10, now + 86400, false);
-    await sale.activate();
+    await sale.connect(issuer).addPhase("Public", PRICE, ethers.parseUnits("30000", 18), MIN_C, MAX_C, now + 10, now + 86400, false);
+    await sale.connect(owner).activate();
     await time.increase(15);
   });
 
@@ -50,40 +54,40 @@ describe("Sale", () => {
   it("allows valid contribution", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.not.be.reverted;
+    await expect(sale.connect(investor).buy(0, amount)).to.not.be.reverted;
     expect(await sale.totalRaised()).to.equal(amount);
   });
 
   it("reverts below minimum", async () => {
     const amount = ethers.parseUnits("100", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "BelowMinContribution");
+    await expect(sale.connect(investor).buy(0, amount)).to.be.revertedWithCustomError(sale, "BelowMinContribution");
   });
 
   it("reverts when paused", async () => {
-    await sale.pause();
+    await sale.connect(owner).pause();
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "InvalidStatus");
+    await expect(sale.connect(investor).buy(0, amount)).to.be.revertedWithCustomError(sale, "InvalidStatus");
   });
 
   it("reverts above max", async () => {
     const amount = ethers.parseUnits("150000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount)).to.be.revertedWithCustomError(sale, "ExceedsMaxContribution");
+    await expect(sale.connect(investor).buy(0, amount)).to.be.revertedWithCustomError(sale, "ExceedsMaxContribution");
   });
 
   it("emits Contributed event", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await expect(sale.connect(investor).contribute(0, amount))
-      .to.emit(sale, "ContributionMade");
+    await expect(sale.connect(investor).buy(0, amount))
+      .to.emit(sale, "Purchase");
   });
 
   it("Direct mode: transfers tokens to investor on contribute", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     // Investor should have received project tokens
     const tokensAllocated = (amount * 10n ** 18n) / PRICE;
@@ -96,7 +100,7 @@ describe("Sale", () => {
   it("Direct mode: contribution marks claimed=true", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     const contrib = await sale.getContribution(investor.address);
     expect(contrib.claimed).to.be.true;
@@ -107,7 +111,7 @@ describe("Sale — Vested Mode", () => {
   let sale: any;
   let vault: any;
   let fractionToken: any;
-  let mockUsdc: any, mockToken: any, mockIdentityRegistry: any;
+  let mockUsdc: any, mockToken: any, mockIdentityRegistry: any, mockFactory: any;
   let owner: any, issuer: any, investor: any, feeManager: any, investor2: any;
 
   const SOFT_CAP = ethers.parseUnits("500000", 6);
@@ -130,16 +134,20 @@ describe("Sale — Vested Mode", () => {
     const MockIR = await ethers.getContractFactory("MockIdentityRegistry");
     mockIdentityRegistry = await MockIR.deploy();
 
+    // MockSaleFactory — Sale reads admin from factory.owner()
+    const MSF = await ethers.getContractFactory("MockSaleFactory");
+    mockFactory = await MSF.deploy(owner.address);
+
     // Deploy Sale
     const SaleFactory = await ethers.getContractFactory("Sale");
     sale = await upgrades.deployProxy(SaleFactory, [
       await mockToken.getAddress(),
       await mockUsdc.getAddress(),
       await mockIdentityRegistry.getAddress(),
-      issuer.address,
-      feeManager.address,
+      issuer.address,                    // _issuer
+      await mockFactory.getAddress(),    // _factory
+      feeManager.address,               // _feeManager
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
-      owner.address,
     ], { unsafeAllow: ["constructor"] });
 
     // Deploy FractionToken
@@ -170,8 +178,8 @@ describe("Sale — Vested Mode", () => {
     // Sale also needs BURNER_ROLE to burn fractions on refund
     await fractionToken.grantRole(BURNER_ROLE, await sale.getAddress());
 
-    // Set vested mode on Sale
-    await sale.setVestedMode(await vault.getAddress(), await fractionToken.getAddress());
+    // Set vested mode on Sale (adminOnly)
+    await sale.connect(owner).setVestedMode(await vault.getAddress(), await fractionToken.getAddress());
 
     // Deposit project tokens into vault (via sale)
     const totalTokens = ethers.parseEther("30000");
@@ -194,15 +202,15 @@ describe("Sale — Vested Mode", () => {
     await mockUsdc.mint(investor2.address, ethers.parseUnits("200000", 6));
 
     const now = await time.latest();
-    await sale.addPhase("Seed", PRICE, ethers.parseEther("30000"), MIN_C, MAX_C, now + 10, now + 86400, false);
-    await sale.activate();
+    await sale.connect(issuer).addPhase("Seed", PRICE, ethers.parseEther("30000"), MIN_C, MAX_C, now + 10, now + 86400, false);
+    await sale.connect(owner).activate();
     await time.increase(15);
   });
 
   it("contribute mints fraction tokens (not project tokens)", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     const tokensAllocated = (amount * 10n ** 18n) / PRICE;
     // Investor has fraction tokens, NOT project tokens
@@ -223,7 +231,7 @@ describe("Sale — Vested Mode", () => {
     // Contribute enough to reach soft cap then finalize
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     await sale.connect(issuer).finalizeSale();
 
@@ -237,7 +245,7 @@ describe("Sale — Vested Mode", () => {
   it("refund burns fraction tokens in vested mode", async () => {
     const amount = ethers.parseUnits("1000", 6);
     await mockUsdc.connect(investor).approve(await sale.getAddress(), amount);
-    await sale.connect(investor).contribute(0, amount);
+    await sale.connect(investor).buy(0, amount);
 
     const tokensAllocated = (amount * 10n ** 18n) / PRICE;
     expect(await fractionToken.balanceOf(investor.address)).to.equal(tokensAllocated);
@@ -255,36 +263,35 @@ describe("Sale — Vested Mode", () => {
   });
 
   it("setVestedMode reverts after activation", async () => {
-    // Sale is already active, can't set vested mode
     const SaleFactory = await ethers.getContractFactory("Sale");
     const newSale = await upgrades.deployProxy(SaleFactory, [
       await mockToken.getAddress(),
       await mockUsdc.getAddress(),
       await mockIdentityRegistry.getAddress(),
       issuer.address,
+      await mockFactory.getAddress(),
       feeManager.address,
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
-      owner.address,
     ], { unsafeAllow: ["constructor"] });
 
-    await newSale.setVestedMode(await vault.getAddress(), await fractionToken.getAddress());
-    await newSale.activate();
+    await newSale.connect(owner).setVestedMode(await vault.getAddress(), await fractionToken.getAddress());
+    await newSale.connect(owner).activate();
 
     // Now trying to set vested mode again should fail
-    await expect(newSale.setVestedMode(await vault.getAddress(), await fractionToken.getAddress()))
+    await expect(newSale.connect(owner).setVestedMode(await vault.getAddress(), await fractionToken.getAddress()))
       .to.be.revertedWithCustomError(newSale, "InvalidStatus");
   });
 
-  it("saleMode defaults to Direct (backward compatible)", async () => {
+  it("saleMode defaults to Direct", async () => {
     const SaleFactory = await ethers.getContractFactory("Sale");
     const directSale = await upgrades.deployProxy(SaleFactory, [
       await mockToken.getAddress(),
       await mockUsdc.getAddress(),
       await mockIdentityRegistry.getAddress(),
       issuer.address,
+      await mockFactory.getAddress(),
       feeManager.address,
       SOFT_CAP, HARD_CAP, 250n, ethers.parseUnits("50000", 6),
-      owner.address,
     ], { unsafeAllow: ["constructor"] });
     expect(await directSale.saleMode()).to.equal(0); // Direct
   });

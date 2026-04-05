@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import ClientProviders from "@/components/providers/ClientProviders";
 
 export const metadata: Metadata = {
-  title: "Cireta Admin | Issuer Dashboard",
+  title: "Cireta | Issuer Admin Portal",
   description: "Manage your tokenized assets and token sales on Cireta.",
 };
 
@@ -13,7 +14,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <ErrorBoundary>
+          <ClientProviders>{children}</ClientProviders>
+        </ErrorBoundary>
       </body>
     </html>
   );

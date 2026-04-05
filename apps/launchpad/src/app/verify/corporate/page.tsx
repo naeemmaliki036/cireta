@@ -13,7 +13,7 @@ import {
   getCorporateKYBStatus,
   type KYBDocumentRequest,
 } from "@/lib/api/repositories/kyc.repository";
-import { getAccessToken } from "@/lib/api/client";
+// Auth handled by httpOnly cookie via proxy
 
 type Step = "form" | "sdk" | "processing" | "approved" | "error";
 
@@ -31,7 +31,7 @@ export default function CorporateVerifyPage() {
   });
 
   useEffect(() => {
-    const token = getAccessToken();
+    const token = "";
     if (!token) { setError("Please log in first"); setStep("error"); return; }
     (async () => {
       try {
@@ -43,7 +43,7 @@ export default function CorporateVerifyPage() {
   }, []);
 
   const handleSubmit = async () => {
-    const token = getAccessToken();
+    const token = "";
     if (!token) { setError("Please log in first"); setStep("error"); return; }
     try {
       const result = await initiateCorporateKYB(token, form);
@@ -61,13 +61,13 @@ export default function CorporateVerifyPage() {
     if (type === "idCheck.applicantReviewComplete" || type === "idCheck.onApplicantStatusChanged") {
       setStep("processing");
       setTimeout(async () => {
-        const token = getAccessToken();
+        const token = "";
         if (!token) return;
         try {
           const status = await getCorporateKYBStatus(token);
           if (status.status === "approved") {
             setStep("approved");
-            setTimeout(() => router.push("/explore"), 2000);
+            setTimeout(() => router.push("/projects"), 2000);
           }
         } catch (err) { console.error("Failed to poll KYB status:", err); }
       }, 3000);
@@ -130,7 +130,7 @@ export default function CorporateVerifyPage() {
                 <SumsubWebSdk
                   accessToken={accessToken}
                   expirationHandler={async () => {
-                    const t = getAccessToken();
+                    const t = "";
                     if (!t) throw new Error("Not authenticated");
                     return initiateCorporateKYB(t, form).then((r) => r.access_token);
                   }}
@@ -150,7 +150,7 @@ export default function CorporateVerifyPage() {
               </div>
               <h2 className="text-2xl font-semibold text-text mb-2">Under Review</h2>
               <p className="text-darkBlack/50 mb-8">Your corporate documents are being reviewed.</p>
-              <Button variant="outline" onClick={() => router.push("/explore")}>Continue Browsing</Button>
+              <Button variant="outline" onClick={() => router.push("/projects")}>Continue Browsing</Button>
             </div>
           )}
 
@@ -161,7 +161,7 @@ export default function CorporateVerifyPage() {
               </div>
               <h2 className="text-2xl font-semibold text-text mb-2">Corporate KYB Verified</h2>
               <p className="text-darkBlack/50 mb-8">Your company has been verified (Level 4)</p>
-              <Button variant="primary" onClick={() => router.push("/explore")}>Start Investing</Button>
+              <Button variant="primary" onClick={() => router.push("/projects")}>Start Investing</Button>
             </div>
           )}
 

@@ -80,7 +80,7 @@ async def worker_health_check() -> HealthResponse:
 
         from packages.common.core.config import settings
 
-        r = aioredis.from_url(settings.redis_url or "redis://localhost:6379")
+        r = aioredis.from_url(settings.redis_url)
         val = await r.get("cireta:worker:heartbeat")
         await r.aclose()
 

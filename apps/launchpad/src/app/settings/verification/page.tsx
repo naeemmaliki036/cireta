@@ -12,7 +12,7 @@ interface KYCDetails {
   tier: number;
   expiry_date: string | null;
   country_code: string | null;
-  investor_type: string;
+  investor_type: string | null;
 }
 
 const TIER_LABELS: Record<number, string> = {

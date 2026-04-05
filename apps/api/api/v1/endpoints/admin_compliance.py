@@ -97,7 +97,7 @@ async def forced_transfer(
     user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
 ) -> ComplianceActionResponse:
-    """Execute a forced token transfer.
+    """Record a forced token transfer executed via dApp.
 
     Requires: issuer role (must own the token).
     """
@@ -108,6 +108,7 @@ async def forced_transfer(
         token_id=UUID(request_data.token_id),
         amount=request_data.amount,
         reason=request_data.reason,
+        tx_hash=request_data.tx_hash,
         ip_address=_get_client_ip(http_request),
     )
 
@@ -125,7 +126,10 @@ async def recover_tokens(
     user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
 ) -> ComplianceActionResponse:
-    """Recover tokens from an address.
+    """Record a token recovery executed via dApp.
+
+    The contract's recoveryAddress() transfers full balance + frozen
+    status from lostWallet to newWallet.
 
     Requires: issuer role (must own the token).
     """
@@ -135,6 +139,8 @@ async def recover_tokens(
         token_id=UUID(request_data.token_id),
         amount=request_data.amount,
         reason=request_data.reason,
+        to_address=request_data.to_address,
+        tx_hash=request_data.tx_hash,
         ip_address=_get_client_ip(http_request),
     )
 
@@ -152,8 +158,9 @@ async def pause_token(
     user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
     reason: str = Query(..., min_length=1),
+    tx_hash: str | None = Query(None),
 ) -> ComplianceActionResponse:
-    """Pause all transfers for a token.
+    """Record a token pause executed via dApp.
 
     Requires: issuer role (must own the token).
     """
@@ -161,6 +168,7 @@ async def pause_token(
         actor_id=user_id,
         token_id=token_id,
         reason=reason,
+        tx_hash=tx_hash,
         ip_address=_get_client_ip(http_request),
     )
 
@@ -178,8 +186,9 @@ async def unpause_token(
     user_id: RequireIssuerOrAdmin,
     compliance_service: Annotated[ComplianceService, Depends(get_compliance_service)],
     reason: str = Query(..., min_length=1),
+    tx_hash: str | None = Query(None),
 ) -> ComplianceActionResponse:
-    """Unpause transfers for a token.
+    """Record a token unpause executed via dApp.
 
     Requires: issuer role (must own the token).
     """
@@ -187,6 +196,7 @@ async def unpause_token(
         actor_id=user_id,
         token_id=token_id,
         reason=reason,
+        tx_hash=tx_hash,
         ip_address=_get_client_ip(http_request),
     )
 

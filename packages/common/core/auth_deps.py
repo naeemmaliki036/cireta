@@ -24,17 +24,11 @@ async def get_auth_service(
     return AuthService(db)
 
 
-async def get_current_user_id(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+def _extract_user_id(
+    credentials: HTTPAuthorizationCredentials | None,
+    required_audience: str | None = None,
 ) -> UUID:
-    """Get the current authenticated user ID from JWT token.
-
-    Returns the user UUID from the token. Use this when you only need
-    the user ID for permission checks or queries.
-
-    Raises:
-        HTTPException: If token is missing or invalid.
-    """
+    """Shared helper: extract user ID from credentials, optionally enforcing audience."""
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -42,7 +36,9 @@ async def get_current_user_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = AuthService.get_user_id_from_token(credentials.credentials)
+    user_id = AuthService.get_user_id_from_token(
+        credentials.credentials, required_audience=required_audience
+    )
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -53,14 +49,34 @@ async def get_current_user_id(
     return user_id
 
 
+async def get_current_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+) -> UUID:
+    """Get the current authenticated user ID from JWT token (any audience)."""
+    return _extract_user_id(credentials)
+
+
 async def get_current_user_id_optional(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
 ) -> UUID | None:
     """Get the current user ID if authenticated, None otherwise."""
     if not credentials:
         return None
-
     return AuthService.get_user_id_from_token(credentials.credentials)
+
+
+async def get_investor_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+) -> UUID:
+    """Get user ID, requiring investor audience token."""
+    return _extract_user_id(credentials, required_audience="investor")
+
+
+async def get_admin_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+) -> UUID:
+    """Get user ID, requiring admin audience token."""
+    return _extract_user_id(credentials, required_audience="admin")
 
 
 # Type aliases for cleaner endpoint signatures
@@ -69,13 +85,12 @@ OptionalUserId = Annotated[UUID | None, Depends(get_current_user_id_optional)]
 
 
 async def require_admin(
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    user_id: Annotated[UUID, Depends(get_admin_user_id)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UUID:
-    """Require user to have admin role. Returns user_id if authorized."""
+    """Require user to have admin role AND admin-audience token. Returns user_id if authorized."""
     from sqlalchemy import select
 
-    # Import lazily to avoid circular imports
     from apps.api.models.enums import UserRole
     from apps.api.models.user import User
 
@@ -90,10 +105,10 @@ async def require_admin(
 
 
 async def require_issuer_or_admin(
-    user_id: Annotated[UUID, Depends(get_current_user_id)],
+    user_id: Annotated[UUID, Depends(get_admin_user_id)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UUID:
-    """Require user to have issuer or admin role. Returns user_id if authorized."""
+    """Require user to have issuer or admin role AND admin-audience token. Returns user_id if authorized."""
     from sqlalchemy import select
 
     from apps.api.models.enums import UserRole

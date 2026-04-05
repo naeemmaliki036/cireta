@@ -1,27 +1,30 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+const API_BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+
 export default async function AdminRootPage() {
-  // Attempt to determine role from JWT payload for routing
   const cookieStore = await cookies();
   const token = cookieStore.get("admin_token")?.value;
-  
-  if (token) {
-    try {
-      // Decode JWT payload (base64) to check role
-      const parts = token.split(".");
-      if (parts[1]) {
-        const payload = JSON.parse(
-          Buffer.from(parts[1], "base64").toString()
-        );
-        if (payload.role === "admin") {
-          redirect("/platform/issuers");
-        }
-      }
-    } catch {
-      // Ignore decode errors, fall through to default
-    }
+
+  if (!token) {
+    redirect("/login");
   }
-  
+
+  // Check role via API
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const user = await res.json();
+      if (user.role === "admin") {
+        redirect("/platform/overview");
+      }
+    }
+  } catch {
+    // Fall through to issuer view
+  }
+
   redirect("/issuer/overview");
 }

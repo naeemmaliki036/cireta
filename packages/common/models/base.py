@@ -40,8 +40,8 @@ class BaseModel(Base):
         insert_default=datetime.now,
     )
 
-    updated_at: Mapped[datetime | None] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=None,
+        insert_default=datetime.now,
         onupdate=lambda: datetime.now(UTC),
     )

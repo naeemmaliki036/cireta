@@ -69,6 +69,9 @@ def create_app() -> FastAPI:
             PathRateLimit(
                 "/api/v1/sales/", settings.rate_limit_contribute
             ),  # 20/min for contribute
+            PathRateLimit("/api/v1/issuer/wallet", 10),  # 10/min wallet submission
+            PathRateLimit("/api/v1/issuer/identity", 5),  # 5/min identity verification
+            PathRateLimit("/api/v1/issuer/onboarding-status", 30),  # 30/min status polling
         ],
     )
     app.add_middleware(RateLimitMiddleware, config=rate_limit_config)
@@ -81,6 +84,17 @@ def create_app() -> FastAPI:
 
     # Include API routers
     app.include_router(v1_router)
+
+    # Serve local uploads in development (GCS serves directly in production)
+    if settings.storage_backend == "local":
+        import os
+        from pathlib import Path
+
+        from fastapi.staticfiles import StaticFiles
+
+        upload_dir = Path(settings.upload_dir)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
 
     return app
 

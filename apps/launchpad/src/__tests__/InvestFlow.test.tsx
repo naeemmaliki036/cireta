@@ -22,7 +22,7 @@ describe("Sale ABI", () => {
     const { SALE_ABI } = await import("@/lib/contracts/saleAbi");
     expect(SALE_ABI).toBeDefined();
     const contributeFn = SALE_ABI.find(
-      (item) => "name" in item && item.name === "contribute"
+      (item) => "name" in item && item.name === "buy"
     );
     expect(contributeFn).toBeDefined();
   });

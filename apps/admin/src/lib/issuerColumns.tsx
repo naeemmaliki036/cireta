@@ -1,53 +1,83 @@
 "use client";
 
+import Link from "next/link";
 import type { Column } from "@/components/molecules";
 import { Badge, Button } from "@/components/atoms";
-import { WalletBadge } from "@/components/molecules";
-import { formatCurrency } from "@/lib/utils";
 
 export interface IssuerRow {
   id: string;
   name: string;
+  email: string;
   legalEntity: string;
   jurisdiction: string;
   wallet: string;
+  walletStatus: string;
+  identityStatus: string;
+  issuerType: string;
   feeBps: number;
   status: "pending" | "active" | "suspended";
   tokens: number;
+  projectCount: number;
   totalRaised: number;
   createdAt: string;
 }
 
 type Action = "approve" | "fee" | "revoke";
 
+function MiniPill({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    approved: "bg-green-100 text-green-700",
+    active: "bg-green-100 text-green-700",
+    pending: "bg-amber-100 text-amber-700",
+    pending_approval: "bg-amber-100 text-amber-700",
+    rejected: "bg-red-100 text-red-700",
+    suspended: "bg-red-100 text-red-700",
+    none: "bg-zinc-100 text-zinc-500",
+  };
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${colors[status] ?? colors.none}`}>
+      {status.replace("_", " ")}
+    </span>
+  );
+}
+
 export function buildIssuerColumns(
-  onAction: (issuer: IssuerRow, action: Action, fee?: number) => void,
+  _onAction: (issuer: IssuerRow, action: Action, fee?: number) => void,
 ): Column<IssuerRow>[] {
   return [
     {
       key: "name",
       header: "Issuer",
       render: (row) => (
-        <div>
+        <Link href={`/platform/issuers/${row.id}`} className="hover:underline">
           <p className="font-semibold text-text">{row.name}</p>
-          <p className="text-sm text-gray-500">{row.legalEntity}</p>
-        </div>
+          <p className="text-xs text-gray-500">{row.email}</p>
+        </Link>
       ),
     },
     {
-      key: "jurisdiction",
-      header: "Jurisdiction",
-      render: (row) => <span className="text-gray-600">{row.jurisdiction}</span>,
+      key: "issuerType",
+      header: "Type",
+      render: (row) => (
+        <span className="text-xs font-medium capitalize">{row.issuerType}</span>
+      ),
     },
     {
-      key: "wallet",
+      key: "projectCount",
+      header: "Projects",
+      render: (row) => (
+        <span className="font-mono text-sm">{row.projectCount}</span>
+      ),
+    },
+    {
+      key: "walletStatus",
       header: "Wallet",
-      render: (row) => <WalletBadge address={row.wallet} />,
+      render: (row) => <MiniPill status={row.walletStatus} />,
     },
     {
-      key: "feeBps",
-      header: "Fee",
-      render: (row) => <span className="font-mono text-sm">{row.feeBps} bps</span>,
+      key: "identityStatus",
+      header: "Identity",
+      render: (row) => <MiniPill status={row.identityStatus} />,
     },
     {
       key: "status",
@@ -59,31 +89,17 @@ export function buildIssuerColumns(
       ),
     },
     {
-      key: "totalRaised",
-      header: "Raised",
-      render: (row) => <span>{formatCurrency(row.totalRaised)}</span>,
+      key: "feeBps",
+      header: "Fee",
+      render: (row) => <span className="font-mono text-sm">{row.feeBps} bps</span>,
     },
     {
       key: "id",
-      header: "Actions",
+      header: "",
       render: (row) => (
-        <div className="flex gap-2">
-          {row.status === "pending" && (
-            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onAction(row, "approve"); }}>
-              Approve
-            </Button>
-          )}
-          {row.status === "active" && (
-            <>
-              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onAction(row, "fee", row.feeBps); }}>
-                Fee
-              </Button>
-              <Button variant="ghost" size="sm" className="text-red-500" onClick={(e) => { e.stopPropagation(); onAction(row, "revoke"); }}>
-                Revoke
-              </Button>
-            </>
-          )}
-        </div>
+        <Link href={`/platform/issuers/${row.id}`}>
+          <Button variant="ghost" size="sm">View</Button>
+        </Link>
       ),
     },
   ];

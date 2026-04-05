@@ -61,10 +61,22 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    // On 401, redirect to login (JWT expired or invalid)
+    // On 401, try silent refresh before redirecting to login
     if (response.status === 401 && typeof window !== "undefined") {
       const currentPath = window.location.pathname;
       if (currentPath !== "/login") {
+        // Attempt token refresh
+        const refreshRes = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => null);
+        if (refreshRes?.ok) {
+          // Retry the original request with fresh token
+          const retryRes = await fetch(`/api/proxy${path}`, {
+            method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, credentials: "include",
+          });
+          if (retryRes.ok) {
+            return retryRes.status === 204 ? (undefined as T) : retryRes.json();
+          }
+        }
+        // Refresh failed — redirect to login
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
         return new Promise<T>(() => {});
       }
@@ -74,6 +86,11 @@ export async function apiFetch<T>(
       error.detail?.code ?? "UNKNOWN_ERROR",
       error.detail?.message ?? response.statusText
     );
+  }
+
+  // Handle 204 No Content (e.g. DELETE responses)
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json();
@@ -107,5 +124,60 @@ export async function apiPatch<T, D = unknown>(
     method: "PATCH",
     body: data,
     token: options?.token,
+  });
+}
+
+export async function apiDelete(
+  path: string,
+): Promise<void> {
+  await apiFetch<void>(path, { method: "DELETE" });
+}
+
+// --- File Upload ---
+
+export interface UploadResult {
+  url: string;
+  path: string;
+  content_type: string;
+  size: number;
+  private: boolean;
+}
+
+export function apiUpload(
+  file: File,
+  prefix = "general",
+  visibility: "auto" | "public" | "private" = "auto",
+  onProgress?: (pct: number) => void,
+): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open(
+      "POST",
+      `/api/proxy/api/v1/uploads?prefix=${encodeURIComponent(prefix)}&visibility=${visibility}`,
+    );
+    xhr.withCredentials = true;
+
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText) as UploadResult);
+      } else {
+        const err = JSON.parse(xhr.responseText).detail;
+        reject(new APIError(xhr.status, err?.code ?? "UPLOAD_ERROR", err?.message ?? "Upload failed"));
+      }
+    };
+
+    xhr.onerror = () => reject(new APIError(0, "NETWORK_ERROR", "Upload failed"));
+    xhr.send(formData);
   });
 }
