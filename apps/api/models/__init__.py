@@ -30,6 +30,7 @@ from apps.api.models.sale_document import SaleDocument
 from apps.api.models.sale_faq import SaleFAQ
 from apps.api.models.sale_image import SaleImage
 from apps.api.models.sale_phase import SalePhase
+from apps.api.models.sale_subscription import SaleSubscription
 from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist
 from apps.api.models.sale_team_member import SaleTeamMember
 from apps.api.models.token import Token
@@ -71,6 +72,7 @@ __all__ = [
     "NotificationPreferences",
     "RecoveryLog",
     "SalePhaseWhitelist",
+    "SaleSubscription",
     "SaleTeamMember",
     "SaleFAQ",
     "SaleImage",

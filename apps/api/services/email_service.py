@@ -285,6 +285,20 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
         ),
         "description": "Sent to issuer when their sale is rejected",
     },
+    "sale_launched": {
+        "subject": "{{sale_name}} is now live on Cireta!",
+        "html_body": (
+            f'{_STYLE_WRAP}'
+            '<h2 style="color:#111">Sale is Live!</h2>'
+            '<p style="color:#555">Hi {{display_name}}, great news — <strong>{{sale_name}}</strong> '
+            'is now open for investment on the Cireta Launchpad.</p>'
+            '<p style="color:#555">You signed up to be notified when this sale launched. '
+            'Don\'t miss your chance to participate.</p>'
+            f'<a href="{{{{frontend_url}}}}/projects" style="{_STYLE_BTN};margin-top:16px">View Sale</a>'
+            f'{_STYLE_FOOTER}'
+        ),
+        "description": "Sent to subscribers when a coming-soon sale goes live",
+    },
     "issuer_wallet_approved": {
         "subject": "Your issuer wallet has been approved",
         "html_body": (

@@ -5,7 +5,7 @@
  */
 export const SALE_ABI = [
   {
-    name: "contribute",
+    name: "buy",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [

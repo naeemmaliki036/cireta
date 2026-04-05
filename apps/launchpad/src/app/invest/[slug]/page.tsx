@@ -298,11 +298,12 @@ export default function InvestPage() {
       writeContribute({
         address: saleContractAddress,
         abi: SALE_ABI,
-        functionName: "contribute",
+        functionName: "buy",
         args: [
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
           parseUnits(amount, 6), // USDC = 6 decimals
         ],
+        gas: BigInt(500_000),
       });
     } catch (err) {
       setError(parseRevertReason(err));
@@ -343,6 +344,7 @@ export default function InvestPage() {
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
           parseUnits(amount, otcTokenDecimals),
         ],
+        gas: BigInt(500_000),
       });
     } catch (err) {
       setError(parseRevertReason(err));

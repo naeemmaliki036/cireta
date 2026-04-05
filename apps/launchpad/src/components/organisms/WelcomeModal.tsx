@@ -27,21 +27,21 @@ const STEPS = [
     doneColor: "bg-green-50 text-green-600",
   },
   {
-    key: "kyc",
-    icon: ShieldCheck,
-    title: "Identity Verification",
-    desc: "Quick KYC (individuals) or KYB (corporates) — usually under 5 min",
-    color: "bg-emerald-50 text-emerald-600",
-    doneColor: "bg-green-50 text-green-600",
-  },
-  {
     key: "wallet",
     icon: Wallet,
     title: "Connect Wallet",
-    desc: "Link an EVM wallet for on-chain investments (optional)",
+    desc: "Link an EVM wallet for on-chain investments — you can connect later",
     color: "bg-purple-50 text-purple-600",
     doneColor: "bg-green-50 text-green-600",
     optional: true,
+  },
+  {
+    key: "kyc",
+    icon: ShieldCheck,
+    title: "Identity Verification",
+    desc: "Quick KYC (individuals) or KYB (corporates)",
+    color: "bg-emerald-50 text-emerald-600",
+    doneColor: "bg-green-50 text-green-600",
   },
 ];
 

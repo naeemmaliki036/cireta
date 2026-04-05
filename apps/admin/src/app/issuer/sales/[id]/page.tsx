@@ -45,6 +45,70 @@ interface SaleImage {
   video_url?: string;
 }
 
+function SubscribersSection({ saleId }: { saleId: string }) {
+  const [subscribers, setSubscribers] = useState<{ email: string; display_name: string | null; subscribed_at: string; notified_at: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notifying, setNotifying] = useState(false);
+  const [notifyResult, setNotifyResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await apiFetch<{ items: typeof subscribers; total: number }>(`/api/v1/sales/${saleId}/subscribers`);
+        setSubscribers(data.items);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    })();
+  }, [saleId]);
+
+  const handleNotify = async () => {
+    setNotifying(true);
+    setNotifyResult(null);
+    try {
+      const result = await apiFetch<{ notified: number; message: string }>(`/api/v1/sales/${saleId}/notify-subscribers`, { method: "POST", body: {} });
+      setNotifyResult(result.message);
+    } catch { setNotifyResult("Failed to send notifications"); }
+    finally { setNotifying(false); }
+  };
+
+  if (loading) return null;
+  if (subscribers.length === 0) return null;
+
+  const unnotified = subscribers.filter((s) => !s.notified_at).length;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl border border-zinc-100 p-6 mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Interested Investors</h2>
+          <p className="text-xs text-darkBlack/30 mt-0.5">{subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}{unnotified > 0 ? ` · ${unnotified} not yet notified` : ""}</p>
+        </div>
+        {unnotified > 0 && (
+          <Button variant="primary" size="sm" onClick={handleNotify} isLoading={notifying}>
+            Notify {unnotified} Subscriber{unnotified !== 1 ? "s" : ""}
+          </Button>
+        )}
+      </div>
+      {notifyResult && <p className="text-xs text-green-600 mb-3">{notifyResult}</p>}
+      <div className="space-y-2">
+        {subscribers.map((s) => (
+          <div key={s.email} className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-50 text-sm">
+            <div>
+              <p className="font-medium text-text">{s.display_name || s.email}</p>
+              {s.display_name && <p className="text-xs text-darkBlack/40">{s.email}</p>}
+            </div>
+            <div className="text-xs text-darkBlack/30 text-right">
+              <p>{new Date(s.subscribed_at).toLocaleDateString()}</p>
+              {s.notified_at && <p className="text-green-600">Notified</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function SaleDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const searchParams = useSearchParams();
   const [sale, setSale] = useState<Sale | null>(null);
@@ -730,6 +794,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           />
         </div>
       )}
+
+      {/* Subscribers / Waitlist */}
+      <SubscribersSection saleId={sale.id} />
 
       {/* Sale Content: description, gallery, team, FAQ, documents */}
       <div className="mt-6">

@@ -17,6 +17,7 @@ from apps.api.api.v1.endpoints.kyc import router as kyc_router
 from apps.api.api.v1.endpoints.notifications import router as notifications_router
 from apps.api.api.v1.endpoints.portfolio import router as portfolio_router
 from apps.api.api.v1.endpoints.sale_content import router as sale_content_router
+from apps.api.api.v1.endpoints.sale_subscriptions import router as sale_subscriptions_router
 from apps.api.api.v1.endpoints.sales import router as sales_router
 from apps.api.api.v1.endpoints.token_compliance import router as token_compliance_router
 from apps.api.api.v1.endpoints.tokens import router as tokens_router
@@ -34,6 +35,7 @@ router.include_router(tokens_router)
 router.include_router(token_compliance_router)
 router.include_router(sales_router)
 router.include_router(sale_content_router)
+router.include_router(sale_subscriptions_router)
 router.include_router(portfolio_router)
 router.include_router(admin_issuers_router, prefix="/admin")
 router.include_router(admin_compliance_router, prefix="/admin")

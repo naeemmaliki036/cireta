@@ -8,12 +8,13 @@ import {
   ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell, Play,
   FileText, ChevronDown, ChevronUp, Download, Clock,
 } from "lucide-react";
-import { Badge, Spinner, ProgressBar } from "@/components/atoms";
+import { Badge, Spinner, ProgressBar, Button } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
-import { apiGet } from "@/lib/api/client";
+import { apiGet, apiPost, apiFetch } from "@/lib/api/client";
 
 /* ---------- types for sale content endpoints ---------- */
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: "image" | "video"; video_url?: string }
@@ -84,6 +85,13 @@ export default function ProjectDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeEmail, setSubscribeEmail] = useState("");
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(0);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     async function load() {
@@ -97,11 +105,37 @@ export default function ProjectDetailPage() {
         apiGet<SaleDocument[]>(`/api/v1/sales/${sid}/documents`).then(setDocuments).catch(() => {});
         apiGet<TeamMember[]>(`/api/v1/sales/${sid}/team`).then(setTeam).catch(() => {});
         apiGet<FAQ[]>(`/api/v1/sales/${sid}/faqs`).then(setFaqs).catch(() => {});
+        // Subscriber count
+        apiGet<{ count: number }>(`/api/v1/sales/${sid}/subscriber-count`).then((r) => setSubscriberCount(r.count)).catch(() => {});
+        // Check if current user is subscribed
+        apiGet<{ subscribed: boolean }>(`/api/v1/sales/${sid}/is-subscribed`).then((r) => setSubscribed(r.subscribed)).catch(() => {});
       } catch { setError(true); }
       finally { setIsLoading(false); }
     }
     if (slug) load();
   }, [slug]);
+
+  const handleSubscribe = async () => {
+    if (!saleRaw) return;
+    setSubscribing(true);
+    try {
+      const email = isAuthenticated ? undefined : subscribeEmail || undefined;
+      await apiPost(`/api/v1/sales/${saleRaw.id}/subscribe`, { email });
+      setSubscribed(true);
+      setSubscriberCount((c) => c + 1);
+      setShowEmailInput(false);
+    } catch { /* already subscribed or error */ }
+    finally { setSubscribing(false); }
+  };
+
+  const handleUnsubscribe = async () => {
+    if (!saleRaw) return;
+    try {
+      await apiFetch(`/api/v1/sales/${saleRaw.id}/unsubscribe`, { method: "DELETE" });
+      setSubscribed(false);
+      setSubscriberCount((c) => Math.max(0, c - 1));
+    } catch { /* ignore */ }
+  };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Spinner size="xl" /></div>;
   if (error || !project) return (
@@ -123,6 +157,7 @@ export default function ProjectDetailPage() {
   const bannerImg = images.find((i) => i.is_banner)?.url ?? (project.imageUrl || "/images/projects/gold-ghana.png");
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const fmtUsdc = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M` : n.toLocaleString();
   const statusColor: Record<string, string> = { active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500", paused: "text-amber-600" };
 
   return (
@@ -186,7 +221,9 @@ export default function ProjectDetailPage() {
                         <p className="text-xs text-gray-500">
                           {project.isComingSoon
                             ? "Details announced at launch"
-                            : `Raised out of ${formatCurrency(hardCap)} USDC`}
+                            : raised > 0
+                              ? `${fmtUsdc(raised)} raised out of ${fmtUsdc(hardCap)} USDC`
+                              : `Target: ${fmtUsdc(hardCap)} USDC`}
                         </p>
                       </div>
                     </div>
@@ -228,17 +265,50 @@ export default function ProjectDetailPage() {
                   {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
                   <div className="space-y-2.5 text-sm mb-4">
                     {!project.isComingSoon && endTime && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
-                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${formatCurrency(minContrib)} USDC`}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Max. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${formatCurrency(maxContrib)} USDC`}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${formatCurrency(pricePerToken)} USDC` : "TBD"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minContrib.toLocaleString()} USDC`}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Max. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : maxContrib > 0 ? `${maxContrib.toLocaleString()} USDC` : "Unlimited"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
                   </div>
                   {project.isComingSoon ? (
-                    <button className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors flex items-center justify-center gap-2">
-                      <Bell className="h-4 w-4" /> Notify Me
-                    </button>
+                    <div className="space-y-2">
+                      {subscribed ? (
+                        <div>
+                          <button className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 cursor-default">
+                            <Bell className="h-4 w-4" /> Subscribed
+                          </button>
+                          <button onClick={handleUnsubscribe} className="w-full text-xs text-gray-400 hover:text-gray-600 mt-1.5 transition-colors">
+                            Unsubscribe
+                          </button>
+                        </div>
+                      ) : isAuthenticated ? (
+                        <button onClick={handleSubscribe} disabled={subscribing}
+                          className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                          <Bell className="h-4 w-4" /> {subscribing ? "Subscribing..." : "Notify Me"}
+                        </button>
+                      ) : !showEmailInput ? (
+                        <button onClick={() => setShowEmailInput(true)}
+                          className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors flex items-center justify-center gap-2">
+                          <Bell className="h-4 w-4" /> Notify Me
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
+                            placeholder="Enter your email" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30" />
+                          <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
+                            className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors disabled:opacity-60">
+                            {subscribing ? "Subscribing..." : "Subscribe"}
+                          </button>
+                        </div>
+                      )}
+                      {subscriberCount > 0 && (
+                        <p className="text-center text-xs text-gray-400">{subscriberCount} investor{subscriberCount !== 1 ? "s" : ""} interested</p>
+                      )}
+                    </div>
+                  ) : isAuthenticated ? (
+                    <Link href={`/invest/${project.slug}`} className="block w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors text-center">Buy Now</Link>
                   ) : (
-                    <button className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors">Buy Now</button>
+                    <button onClick={() => setShowLoginDialog(true)} className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors">Buy Now</button>
                   )}
                 </div>
               </div>
@@ -317,9 +387,9 @@ export default function ProjectDetailPage() {
                   <h3 className="font-bold text-text text-sm">Sale Details</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     {[
-                      ["Soft Cap", project.isComingSoon ? "TBD" : `${formatCurrency(softCap)} USDC`],
-                      ["Hard Cap", project.isComingSoon ? "TBD" : `${formatCurrency(hardCap)} USDC`],
-                      ["Token Price", pricePerToken > 0 ? `${formatCurrency(pricePerToken)} USDC` : "TBD"],
+                      ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
+                      ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
+                      ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"],
                       ["Start", startTime ? fmtDate(startTime) : "TBD"],
                       ["End", endTime ? fmtDate(endTime) : "TBD"],
                       ["Currency", "USDC"],
@@ -503,6 +573,29 @@ export default function ProjectDetailPage() {
         </div>
       </div>
       <Footer />
+
+      {/* Login/Register Dialog */}
+      {showLoginDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowLoginDialog(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-text mb-2">Sign in to invest</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              You need to be signed in and KYC-verified to purchase tokens. Create an account or sign in to continue.
+            </p>
+            <div className="space-y-3">
+              <Link href={`/login?redirect=/invest/${project.slug}`} className="block w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors text-center">
+                Sign In
+              </Link>
+              <Link href={`/register?redirect=/invest/${project.slug}`} className="block w-full bg-white text-darkBlack font-semibold py-3 rounded-xl border border-darkBlack/20 hover:bg-gray-50 transition-colors text-center">
+                Create Account
+              </Link>
+              <button onClick={() => setShowLoginDialog(false)} className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-2">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

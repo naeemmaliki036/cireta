@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Radio, Sparkles, Bookmark, CheckCircle2, Users, TrendingUp,
+  Radio, Sparkles, CheckCircle2, TrendingUp,
   ArrowRight, Bell, ShoppingBag, FolderOpen,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
@@ -108,9 +108,6 @@ function ActiveProjectCard({ project }: { project: Project }) {
             </span>
           )}
         </div>
-        <button className="absolute top-4 right-4 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors">
-          <Bookmark className="h-4.5 w-4.5 text-gray-600" />
-        </button>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
           <h3 className="text-white font-semibold text-base flex items-center gap-1.5">
             {project.title} <CheckCircle2 className="h-4 w-4 text-white/70" />
@@ -119,10 +116,17 @@ function ActiveProjectCard({ project }: { project: Project }) {
       </div>
       <div className="px-5 pb-5 pt-2 space-y-4">
         <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Invest in verified tokenized real-world assets backed by institutional issuers."}</p>
-        <div className="flex items-center gap-5 text-sm">
-          <span className="flex items-center gap-1.5 text-gray-600"><TrendingUp className="h-4 w-4" /> 15-20% ROI</span>
-        </div>
-        <div>
+        {project.phases.length > 0 && (() => {
+          const ap = project.phases.find((p) => p.is_active) ?? project.phases[0]!;
+          const minBuy = parseFloat(ap.min_contribution);
+          return (
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span>{ap.name}</span>
+              {minBuy > 0 && <><span>·</span><span>Min. {minBuy.toLocaleString()} USDC</span></>}
+            </div>
+          );
+        })()}
+        {raised > 0 && <div>
           <div className="flex justify-between text-sm text-gray-500 mb-1.5">
             <span>Funding progress</span>
             <span>{progress}%</span>
@@ -130,7 +134,7 @@ function ActiveProjectCard({ project }: { project: Project }) {
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-darkAqua rounded-full" style={{ width: `${Math.min(progress, 100)}%` }} />
           </div>
-        </div>
+        </div>}
         <div className="flex items-center justify-between pt-2 border-t border-gray-50">
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wide">Target</p>
@@ -152,7 +156,6 @@ function ComingSoonCard({ project }: { project: Project }) {
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4">
           <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-            <Sparkles className="h-3.5 w-3.5" />
             Coming soon
           </span>
         </div>
@@ -162,10 +165,9 @@ function ComingSoonCard({ project }: { project: Project }) {
       </div>
       <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
         <p className="text-sm text-gray-500 line-clamp-2 flex-1">{project.description || "Upcoming investment opportunity — details coming soon."}</p>
-        <button className="w-full inline-flex items-center justify-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-3 rounded-full hover:bg-darkBlack/90 transition-colors mt-4">
-          <Bell className="h-4 w-4" />
-          Notify me
-        </button>
+        <span className="w-full inline-flex items-center justify-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-3 rounded-full hover:bg-darkBlack/90 transition-colors mt-4">
+          View Details <ArrowRight className="h-4 w-4" />
+        </span>
       </div>
     </Link>
   );
@@ -187,8 +189,9 @@ export default function ExplorePage() {
     })();
   }, []);
 
-  const activeProjects = projects.filter((p) => !p.isComingSoon);
+  const activeProjects = projects.filter((p) => !p.isComingSoon && p.status !== "completed");
   const comingSoonProjects = projects.filter((p) => p.isComingSoon);
+  const completedProjects = projects.filter((p) => p.status === "completed");
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -235,7 +238,18 @@ export default function ExplorePage() {
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-[520px] bg-gray-50 rounded-2xl animate-pulse" />
+                  <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                    <div className="h-56 bg-gray-100" />
+                    <div className="p-5 space-y-3">
+                      <div className="h-4 bg-gray-100 rounded w-3/4" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                      <div className="h-2 bg-gray-100 rounded-full w-full mt-4" />
+                      <div className="flex justify-between pt-2">
+                        <div className="h-8 bg-gray-100 rounded w-24" />
+                        <div className="h-8 bg-gray-100 rounded-full w-20" />
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : activeProjects.length === 0 ? (
@@ -260,7 +274,20 @@ export default function ExplorePage() {
             </div>
             <p className="text-sm text-gray-500 ml-9 mb-8">Upcoming opportunities - be the first to know when to launch</p>
 
-            {comingSoonProjects.length === 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                    <div className="h-44 bg-gray-100" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-4 bg-gray-100 rounded w-2/3" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                      <div className="h-8 bg-gray-100 rounded-xl w-full mt-3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : comingSoonProjects.length === 0 ? (
               <p className="text-gray-400 text-sm ml-9">No upcoming projects at the moment.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -270,6 +297,25 @@ export default function ExplorePage() {
               </div>
             )}
           </section>
+
+          {/* Completed Sales */}
+          {!loading && completedProjects.length > 0 && (
+            <section className="mt-14">
+              <div className="flex items-center gap-3 mb-1">
+                <CheckCircle2 className="h-6 w-6 text-gray-400" />
+                <h2 className="text-2xl font-bold text-text">Completed</h2>
+                <span className="text-sm font-medium bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+                  {completedProjects.length} Sale{completedProjects.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 ml-9 mb-8">Previously funded projects</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {completedProjects.map((p) => (
+                  <ComingSoonCard key={p.id} project={p} />
+                ))}
+              </div>
+            </section>
+          )}
           </main>
         </div>
       </div>
