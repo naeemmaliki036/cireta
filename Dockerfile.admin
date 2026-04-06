@@ -19,6 +19,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_ vars must be present at build time for Next.js static optimization
+ARG NEXT_PUBLIC_API_URL=https://api.up.railway.app
+ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=placeholder
+ARG NEXT_PUBLIC_CHAIN_ID=84532
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+ENV NEXT_PUBLIC_CHAIN_ID=$NEXT_PUBLIC_CHAIN_ID
 RUN npm run build --workspace=apps/admin
 
 # Stage 3: lean runner
@@ -31,6 +38,7 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
+COPY --from=builder /app/apps/admin/public ./apps/admin/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
 
