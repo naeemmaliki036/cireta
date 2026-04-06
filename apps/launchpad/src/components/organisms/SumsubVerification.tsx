@@ -137,7 +137,8 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Under Review</h2>
         <p className="text-darkBlack/50 mb-8">
-          Your documents are being reviewed. This usually takes a few minutes.
+          Your documents are being reviewed. This usually takes a few minutes but can take up to 24 hours.
+          <br />In case of delay, contact <a href="https://cireta.com" target="_blank" rel="noopener noreferrer" className="text-darkAqua underline hover:text-darkAqua/80">compliance@cireta.com</a>.
         </p>
         <Button variant="outline" onClick={() => router.push("/projects")}>
           Continue Browsing

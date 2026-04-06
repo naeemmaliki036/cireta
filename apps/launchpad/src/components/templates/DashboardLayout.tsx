@@ -11,6 +11,10 @@ import {
   ShoppingBag,
   FolderOpen,
   Send,
+  Wallet,
+  Shield,
+  Bell,
+  Settings,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -28,6 +32,13 @@ const ACCOUNT_LINKS = [
   { href: "/portfolio/transactions", label: "Transactions", icon: FileText },
 ];
 
+const SETTINGS_LINKS = [
+  { href: "/settings/profile", label: "Profile", icon: User },
+  { href: "/settings/wallets", label: "Wallets", icon: Wallet },
+  { href: "/settings/verification", label: "Verification", icon: Shield },
+  { href: "/settings/notifications", label: "Notifications", icon: Bell },
+];
+
 export interface DashboardLayoutProps {
   children: React.ReactNode;
   title?: string;
@@ -40,6 +51,7 @@ export function DashboardLayout({
   description,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const isSettingsPage = pathname.startsWith("/settings");
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -72,10 +84,32 @@ export function DashboardLayout({
             <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Account</p>
             <nav className="space-y-1">
               {ACCOUNT_LINKS.map((link) => {
-                const isActive = pathname === link.href;
+                const isActive = pathname === link.href && !isSettingsPage;
                 return (
                   <Link
                     key={link.href + link.label}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
+                    )}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="mt-6">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Settings</p>
+            <nav className="space-y-1">
+              {SETTINGS_LINKS.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
                     href={link.href}
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",

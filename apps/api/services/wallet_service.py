@@ -23,7 +23,7 @@ MAX_WALLETS_PER_INVESTOR = settings.max_wallets_per_investor
 def verify_wallet_signature(address: str, signature: str, nonce: str) -> bool:
     """Verify SIWE-style wallet signature."""
     try:
-        message = encode_defunct(text=f"Link wallet to Cireta account: {nonce}")
+        message = encode_defunct(text=f"I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: {nonce}")
         recovered = Account.recover_message(message, signature=signature)
         return recovered.lower() == address.lower()
     except Exception as e:
@@ -99,10 +99,31 @@ class WalletService:
         from datetime import UTC
         from datetime import datetime as dt_cls
 
+        wallet.link_signature = signature
+        wallet.link_nonce = nonce
         wallet.risk_score = screen_result["risk_score"]
         wallet.last_screened_at = dt_cls.now(UTC)
 
         self.db.add(wallet)
+
+        # Audit trail — record link event
+        from apps.api.models.wallet_audit import WalletAuditLog
+
+        audit = WalletAuditLog()
+        audit.user_id = user_id
+        audit.action = "linked"
+        audit.address = address
+        audit.address_checksum = checksum
+        audit.chain_id = wallet.chain_id
+        audit.was_primary = is_primary
+        audit.was_safe = is_safe
+        audit.label = label
+        audit.link_signature = signature
+        audit.link_nonce = nonce
+        audit.risk_score = screen_result["risk_score"]
+        audit.linked_at = dt_cls.now(UTC)
+        self.db.add(audit)
+
         await self.db.commit()
         await self.db.refresh(wallet)
 
@@ -167,6 +188,28 @@ class WalletService:
                     "message": "Cannot remove primary wallet. Set another as primary first.",
                 },
             )
+        # Audit trail — record unlink event
+        from apps.api.models.wallet_audit import WalletAuditLog
+        from datetime import UTC
+        from datetime import datetime as dt_cls
+
+        audit = WalletAuditLog()
+        audit.user_id = user_id
+        audit.action = "unlinked"
+        audit.address = wallet.address_checksum  # use checksum (plaintext) to avoid double-encryption
+        audit.address_checksum = wallet.address_checksum
+        audit.chain_id = wallet.chain_id
+        audit.was_primary = wallet.is_primary
+        audit.was_safe = wallet.is_safe
+        audit.was_registered_on_chain = wallet.registered_on_chain or False
+        audit.label = wallet.label
+        audit.link_signature = None  # don't copy encrypted values
+        audit.link_nonce = wallet.link_nonce
+        audit.risk_score = wallet.risk_score
+        audit.linked_at = wallet.linked_at
+        audit.unlinked_at = dt_cls.now(UTC)
+        self.db.add(audit)
+
         await self.db.delete(wallet)
         await self.db.commit()
 

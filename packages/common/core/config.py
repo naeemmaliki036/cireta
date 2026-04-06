@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     identity_init_code_hash: str = Field(default="")
     claim_signer_private_key: str = Field(default="")
     claim_issuer_address: str = Field(default="")
-    max_wallets_per_investor: int = Field(default=10)
+    max_wallets_per_investor: int = Field(default=5)
 
     # Identity mode: "simple" (whitelist) or "erc3643" (full ONCHAINID + claims)
     identity_mode: Literal["simple", "erc3643"] = Field(default="simple")

@@ -29,7 +29,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
       case "approved":
         return { icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-50", label: "Verified", tooltip: "Identity verified" };
       case "pending":
-        return { icon: Clock, color: "text-amber-500", bg: "bg-amber-50", label: "Pending", tooltip: "Verification in progress" };
+        return { icon: Clock, color: "text-amber-500", bg: "bg-amber-50", label: "Pending Review", tooltip: "Verification in progress" };
       case "rejected":
         return { icon: ShieldAlert, color: "text-red-500", bg: "bg-red-50", label: "Rejected", tooltip: "Verification rejected" };
       case "expired":

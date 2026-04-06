@@ -36,6 +36,7 @@ uvicorn = {version = "^0.32.0", extras = ["standard"]}
 pyotp = "^2.9.0"
 qrcode = "^8.2"
 google-cloud-storage = "^3.10.1"
+google-auth = "^2.38.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

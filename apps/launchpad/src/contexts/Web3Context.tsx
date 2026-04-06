@@ -127,7 +127,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       }
 
       const nonce = crypto.randomUUID();
-      const message = `Link wallet to Cireta account: ${nonce}`;
+      const message = `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}`;
       const signature = await signMessageAsync({ message });
       await linkWallet({ address, signature, nonce });
       verifiedAddresses.current.add(address.toLowerCase());

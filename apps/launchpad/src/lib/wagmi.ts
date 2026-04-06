@@ -1,5 +1,6 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import {
+  injectedWallet,
   metaMaskWallet,
   walletConnectWallet,
   coinbaseWallet,
@@ -32,7 +33,7 @@ export function getWagmiConfig(): Config {
       wallets: [
         {
           groupName: "Recommended",
-          wallets: [metaMaskWallet, coinbaseWallet, walletConnectWallet, rainbowWallet],
+          wallets: [injectedWallet, metaMaskWallet, coinbaseWallet, walletConnectWallet, rainbowWallet],
         },
         {
           groupName: "More",

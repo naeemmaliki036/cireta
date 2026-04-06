@@ -39,6 +39,7 @@ from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
 from apps.api.models.vesting_schedule import VestingSchedule
 from apps.api.models.wallet import Wallet
+from apps.api.models.wallet_audit import WalletAuditLog
 from apps.api.models.webhook_event import WebhookEvent
 
 __all__ = [
@@ -79,5 +80,6 @@ __all__ = [
     "SaleDocument",
     "TokenDocument",
     "PlatformSetting",
+    "WalletAuditLog",
     "WebhookEvent",
 ]

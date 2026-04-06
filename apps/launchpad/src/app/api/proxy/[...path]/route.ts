@@ -33,6 +33,12 @@ async function handler(request: NextRequest) {
   }
 
   const res = await fetch(url, fetchInit);
+
+  // 204 No Content — return empty response (no body allowed)
+  if (res.status === 204) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   const contentType = res.headers.get("content-type") ?? "application/json";
   const responseBody = await res.arrayBuffer();
 

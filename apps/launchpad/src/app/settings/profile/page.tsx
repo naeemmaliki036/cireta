@@ -51,7 +51,7 @@ export default function ProfilePage() {
   if (error && !user) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-400 text-sm mb-4">{error}</p>
+        <p className="text-red-500 text-sm mb-4">{error}</p>
         <Button variant="primary" size="sm" onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
@@ -62,20 +62,20 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-white mb-1">Profile</h2>
-        <p className="text-white/40 text-sm">Manage your account details.</p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Profile</h2>
+        <p className="text-gray-500 text-sm">Manage your account details.</p>
       </div>
 
-      {error && <p className="text-red-400 text-sm p-3 bg-red-500/10 rounded-lg">{error}</p>}
+      {error && <p className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
 
-      <div className="bg-white/5 rounded-xl p-6 space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
         <div>
-          <label className="block text-sm text-white/60 mb-1">Email</label>
-          <p className="text-white font-medium">{user.email}</p>
-          <p className="text-xs text-white/30 mt-0.5">Email cannot be changed after verification.</p>
+          <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
+          <p className="text-gray-900 font-medium">{user.email}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Email cannot be changed after verification.</p>
         </div>
         <div>
-          <label className="block text-sm text-white/60 mb-1">Display Name</label>
+          <label className="block text-sm font-medium text-gray-500 mb-1">Display Name</label>
           <Input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -84,13 +84,13 @@ export default function ProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-white/60 mb-1">KYC Status</label>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-            user.kyc_status === "approved" ? "bg-green-500/20 text-green-400" :
-            user.kyc_status === "pending" ? "bg-yellow-500/20 text-yellow-400" :
-            "bg-white/10 text-white/40"
+          <label className="block text-sm font-medium text-gray-500 mb-1">KYC Status</label>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
+            user.kyc_status === "approved" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+            user.kyc_status === "pending" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+            "bg-gray-100 text-gray-600 border border-gray-200"
           }`}>
-            Level {user.kyc_level} — {user.kyc_status}
+            {user.kyc_status === "approved" ? "Verified" : user.kyc_status === "pending" ? "Pending review" : user.kyc_status}
           </span>
         </div>
         <Button onClick={handleSave} disabled={saving} variant="primary" size="sm">
@@ -99,15 +99,15 @@ export default function ProfilePage() {
       </div>
 
       {/* Linked Wallets */}
-      <div className="bg-white/5 rounded-xl p-6">
-        <h3 className="text-sm font-medium text-white mb-3">Linked Wallets</h3>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Linked Wallets</h3>
         {wallets.length === 0 ? (
-          <p className="text-white/30 text-sm">No wallets linked. Go to Settings &gt; Wallets to link one.</p>
+          <p className="text-gray-400 text-sm">No wallets linked. Go to Settings &gt; Wallets to link one.</p>
         ) : (
           <div className="space-y-2">
             {wallets.map((w) => (
-              <div key={w.id} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
-                <span className="text-white font-mono text-sm">
+              <div key={w.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
+                <span className="text-gray-900 font-mono text-sm">
                   {w.address.slice(0, 6)}...{w.address.slice(-4)}
                 </span>
                 {w.is_primary && <Badge variant="active" size="sm">Primary</Badge>}
