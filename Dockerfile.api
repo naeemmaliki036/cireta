@@ -28,4 +28,4 @@ RUN python -c "import uvicorn; print('uvicorn OK')"
 EXPOSE 8000
 ENV PORT=8000
 
-CMD sh -c "echo 'Starting Cireta API on port $PORT' && exec python -m uvicorn apps.api.main:app --host 0.0.0.0 --port $PORT"
+CMD ["python", "scripts/start_api.py"]
