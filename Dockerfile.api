@@ -21,6 +21,7 @@ COPY pyproject.toml /app/pyproject.toml
 COPY apps /app/apps
 COPY packages /app/packages
 COPY infra /app/infra
+COPY scripts /app/scripts
 
 # Verify import works at build time
 RUN python -c "import uvicorn; print('uvicorn OK')"
