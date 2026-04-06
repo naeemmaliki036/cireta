@@ -2,14 +2,11 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat python3 make g++
 
 # Stage 1: install deps
-# We copy all app package.json files so npm workspaces resolves correctly.
-# contracts/ and subgraph/ are excluded by .dockerignore so we create empty stubs.
 FROM base AS deps
 WORKDIR /app
 COPY package.json ./
 COPY apps/launchpad/package.json ./apps/launchpad/
 COPY apps/admin/package.json ./apps/admin/
-# Create stub package.json for contracts + subgraph (excluded by .dockerignore)
 RUN mkdir -p contracts subgraph && \
     echo '{"name":"contracts","version":"1.0.0"}' > contracts/package.json && \
     echo '{"name":"cireta-subgraph","version":"1.0.0"}' > subgraph/package.json
@@ -22,7 +19,6 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# NEXT_PUBLIC_ vars must be present at build time for Next.js static optimization
 ARG NEXT_PUBLIC_API_URL=https://api.up.railway.app
 ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=placeholder
 ARG NEXT_PUBLIC_CHAIN_ID=84532
@@ -39,12 +35,14 @@ ENV NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS=$NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS
 ENV NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS=$NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS
 RUN npm run build --workspace=apps/launchpad
 
-# Stage 3: lean runner — only standalone output, no source
+# Stage 3: lean runner
 FROM node:20-alpine AS runner
+RUN apk add --no-cache python3
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -53,9 +51,9 @@ COPY --from=builder /app/apps/launchpad/public ./apps/launchpad/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/launchpad/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/launchpad/.next/static ./apps/launchpad/.next/static
 
-# Railway workaround: create start.py shim that launches Node
-RUN apk add --no-cache python3 && \
-    echo 'import os; os.execvp("node", ["node", "apps/launchpad/server.js"])' > /app/start.py
+# Create start.py shim for Railway (it always runs "python start.py")
+RUN echo 'import os,sys; print("Launchpad starting on port " + os.environ.get("PORT","3000"), flush=True); os.execvp("node", ["node", "apps/launchpad/server.js"])' > /app/start.py
 
 USER nextjs
-ENTRYPOINT ["node", "apps/launchpad/server.js"]
+EXPOSE 3000
+CMD ["node", "apps/launchpad/server.js"]
