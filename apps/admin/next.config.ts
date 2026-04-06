@@ -3,7 +3,7 @@ import path from "path";
 
 // Build-time env validation
 if (!process.env.NEXT_PUBLIC_API_URL) {
-  throw new Error("[cireta-admin] NEXT_PUBLIC_API_URL is required. Set it in .env.local");
+  console.warn("[cireta-admin] WARNING: NEXT_PUBLIC_API_URL is not set. This may cause runtime errors.");
 }
 
 const nextConfig: NextConfig = {

@@ -22,14 +22,11 @@ COPY infra /app/infra
 COPY scripts /app/scripts
 COPY .env.example /app/.env.example
 
-# Run Alembic migrations as root during build
-RUN poetry run alembic --script-location /app/infra/alembic -c infra/alembic/alembic.ini upgrade head
-
 # Verify alembic config and migrations are present
 RUN test -f infra/alembic/alembic.ini && test -d infra/alembic/versions
 
 USER appuser
 EXPOSE 8000
-ENTRYPOINT ["poetry", "run", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-# CMD is now unused because ENTRYPOINT is a full command
-CMD ["api"]
+
+# Run migrations at startup, then start the API server
+CMD ["sh", "-c", "poetry run alembic --script-location /app/infra/alembic -c infra/alembic/alembic.ini upgrade head && poetry run uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
