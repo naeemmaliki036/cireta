@@ -3,6 +3,9 @@ import os
 import sys
 import traceback
 
+# Ensure /app is on Python path (needed when running from /app/scripts/)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 print("=== Cireta API startup ===", flush=True)
 print(f"Python: {sys.version}", flush=True)
 print(f"PORT: {os.environ.get('PORT', '8000')}", flush=True)
