@@ -11,8 +11,10 @@ FROM python:3.11-slim AS runner
 RUN useradd -m -r appuser
 WORKDIR /app
 COPY --from=deps /app/.venv /app/.venv
-COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Ensure venv is on PATH
+ENV PATH="/app/.venv/bin:$PATH"
+ENV VIRTUAL_ENV="/app/.venv"
 
 # Explicitly copy application directories
 COPY pyproject.toml /app/pyproject.toml
@@ -29,4 +31,4 @@ USER appuser
 EXPOSE 8000
 
 # Run migrations at startup, then start the API server
-CMD ["sh", "-c", "poetry run alembic --script-location /app/infra/alembic -c infra/alembic/alembic.ini upgrade head && poetry run uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "alembic --script-location /app/infra/alembic -c infra/alembic/alembic.ini upgrade head && uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
