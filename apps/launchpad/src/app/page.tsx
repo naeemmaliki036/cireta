@@ -152,11 +152,9 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-darkBlack/40 via-darkAqua/10 to-darkBlack/70" />
         </div>
 
-        {/* Star watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-          <svg width="400" height="400" viewBox="0 0 40 40" fill="none">
-            <path d="M20 2L22.5 17.5L38 20L22.5 22.5L20 38L17.5 22.5L2 20L17.5 17.5L20 2Z" fill="#13636F" />
-          </svg>
+        {/* Cireta logo with text watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06]">
+          <img src="/images/logo/cireta-logo-white.svg" alt="" width={700} height={200} className="select-none" draggable={false} />
         </div>
 
         {/* Content */}
