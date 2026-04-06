@@ -42,5 +42,10 @@ COPY --from=builder /app/apps/admin/public ./apps/admin/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
 
+# Railway workaround: create start.py shim that launches Node
+# Railway's cached project config runs "python start.py" regardless of Custom Start Command
+RUN apk add --no-cache python3 && \
+    echo 'import os; os.execvp("node", ["node", "apps/admin/server.js"])' > /app/start.py
+
 USER nextjs
 ENTRYPOINT ["node", "apps/admin/server.js"]
