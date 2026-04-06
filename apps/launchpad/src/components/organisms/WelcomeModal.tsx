@@ -186,7 +186,7 @@ export function WelcomeModal() {
                           {!done && (
                             <p className="text-xs text-gray-500 mt-0.5">
                               {isKycPending
-                                ? "Your documents are being reviewed. This usually takes a few minutes."
+                                ? <>Your documents are being reviewed. This usually takes a few minutes but can take up to 24 hours.<br />In case of delay, contact <a href="https://cireta.com" target="_blank" rel="noopener noreferrer" className="text-darkAqua underline hover:text-darkAqua/80">compliance@cireta.com</a>.</>
                                 : step.desc}
                             </p>
                           )}

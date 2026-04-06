@@ -21,7 +21,7 @@ const STATUS_CONFIG = {
   },
   pending: {
     icon: Clock,
-    label: "Pending Review",
+    label: "Pending review",
     colors: "bg-gold/10 text-gold border-gold/30",
   },
   approved: {

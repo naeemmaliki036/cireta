@@ -21,7 +21,7 @@ export interface LinkWalletRequest {
 }
 
 export async function listWallets(): Promise<Wallet[]> {
-  const res = await apiFetch<{ wallets: Wallet[]; total: number }>("/api/v1/wallets", { skipAuthRedirect: true });
+  const res = await apiFetch<{ wallets: Wallet[]; total: number }>("/api/v1/wallets");
   return res.wallets;
 }
 

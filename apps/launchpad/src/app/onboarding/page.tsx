@@ -384,8 +384,9 @@ export default function OnboardingPage() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of Birth</label>
-                  <input type="date" value={dob} onChange={(e) => setDob(e.target.value)}
+                  <input type="date" value={dob || "2000-01-01"} onChange={(e) => setDob(e.target.value)}
                     disabled={isDetailsCompleted}
+                    max={new Date().toISOString().split("T")[0]}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed" />
                 </div>
                 <div>
@@ -524,6 +525,7 @@ export default function OnboardingPage() {
                 </div>
                 <p className="text-xs text-amber-600">
                   Your documents have been submitted and are being reviewed. This usually takes a few minutes but can take up to 24 hours.
+                  <br />In case of delay, contact <a href="https://cireta.com" target="_blank" rel="noopener noreferrer" className="text-darkAqua underline hover:text-darkAqua/80">compliance@cireta.com</a>.
                 </p>
               </div>
             )}

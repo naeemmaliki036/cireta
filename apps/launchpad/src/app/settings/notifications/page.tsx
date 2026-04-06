@@ -34,7 +34,6 @@ export default function NotificationsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  // Load saved preferences from API on mount
   useEffect(() => {
     async function load() {
       try {
@@ -73,44 +72,48 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-white mb-1">Notifications</h2>
-        <p className="text-white/40 text-sm">Choose how you want to be notified.</p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Notifications</h2>
+        <p className="text-gray-500 text-sm">Choose how you want to be notified.</p>
       </div>
-      {error && <p className="text-red-400 text-sm p-3 bg-red-500/10 rounded-lg">{error}</p>}
-      <div className="bg-white/5 rounded-xl p-6">
-        <div className="grid grid-cols-3 gap-4 mb-4 text-xs text-white/40 font-medium uppercase">
+      {error && <p className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="grid grid-cols-3 gap-4 mb-4 text-xs text-gray-400 font-medium uppercase tracking-wider">
           <div>Category</div>
           <div className="text-center">Email</div>
           <div className="text-center">In-App</div>
         </div>
-        {CATEGORIES.map(({ key, label }) => (
-          <div key={key} className="grid grid-cols-3 gap-4 py-3 border-b border-white/5 last:border-0 items-center">
-            <span className="text-sm text-white">{label}</span>
-            <div className="flex justify-center">
-              <button
-                onClick={() => toggle(`email_${key}` as keyof Prefs)}
-                className={`w-10 h-5 rounded-full transition-colors relative ${prefs[`email_${key}` as keyof Prefs] ? "bg-blue-500" : "bg-white/20"}`}
-                role="switch"
-                aria-checked={prefs[`email_${key}` as keyof Prefs]}
-                aria-label={`Email ${label}`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${prefs[`email_${key}` as keyof Prefs] ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
+        {CATEGORIES.map(({ key, label }) => {
+          const emailOn = prefs[`email_${key}` as keyof Prefs];
+          const inappOn = prefs[`inapp_${key}` as keyof Prefs];
+          return (
+            <div key={key} className="grid grid-cols-3 gap-4 py-3.5 border-b border-gray-100 last:border-0 items-center">
+              <span className="text-sm text-gray-700">{label}</span>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => toggle(`email_${key}` as keyof Prefs)}
+                  className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${emailOn ? "bg-emerald-500" : "bg-gray-300"}`}
+                  role="switch"
+                  aria-checked={emailOn}
+                  aria-label={`Email ${label}`}
+                >
+                  <span className={`absolute top-[2px] left-[2px] w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${emailOn ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => toggle(`inapp_${key}` as keyof Prefs)}
+                  className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${inappOn ? "bg-emerald-500" : "bg-gray-300"}`}
+                  role="switch"
+                  aria-checked={inappOn}
+                  aria-label={`In-app ${label}`}
+                >
+                  <span className={`absolute top-[2px] left-[2px] w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${inappOn ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
             </div>
-            <div className="flex justify-center">
-              <button
-                onClick={() => toggle(`inapp_${key}` as keyof Prefs)}
-                className={`w-10 h-5 rounded-full transition-colors relative ${prefs[`inapp_${key}` as keyof Prefs] ? "bg-blue-500" : "bg-white/20"}`}
-                role="switch"
-                aria-checked={prefs[`inapp_${key}` as keyof Prefs]}
-                aria-label={`In-app ${label}`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${prefs[`inapp_${key}` as keyof Prefs] ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
-            </div>
-          </div>
-        ))}
-        <p className="text-xs text-white/30 mt-4">Security alerts are always enabled and cannot be disabled.</p>
+          );
+        })}
+        <p className="text-xs text-gray-400 mt-4">Security alerts are always enabled and cannot be disabled.</p>
       </div>
       <Button onClick={handleSave} disabled={saving} variant="primary" size="sm">
         {saving ? "Saving..." : saved ? "Saved \u2713" : "Save Preferences"}

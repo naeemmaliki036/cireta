@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
         redoc_url="/api/redoc" if settings.is_development else None,
         openapi_url="/api/openapi.json" if settings.is_development else None,
         lifespan=lifespan,
+        redirect_slashes=False,
     )
 
     # Configure middleware stack (bottom to top order per CLAUDE.md)

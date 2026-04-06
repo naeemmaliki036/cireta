@@ -63,6 +63,18 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """Run migrations with the given connection."""
+    # Pre-create / widen alembic_version to handle long revision IDs
+    from sqlalchemy import text
+    connection.execute(text(
+        "CREATE TABLE IF NOT EXISTS alembic_version "
+        "(version_num VARCHAR(128) NOT NULL)"
+    ))
+    connection.execute(text(
+        "ALTER TABLE alembic_version "
+        "ALTER COLUMN version_num TYPE VARCHAR(128)"
+    ))
+    connection.commit()
+
     context.configure(
         connection=connection,
         target_metadata=target_metadata,

@@ -26,13 +26,17 @@ class Wallet(BaseModel):
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     address: Mapped[str] = mapped_column(EncryptedString())
-    address_checksum: Mapped[str] = mapped_column(String(42), index=True)
+    address_checksum: Mapped[str] = mapped_column(String(42), unique=True, index=True)
     chain_id: Mapped[int] = mapped_column(Integer, default=8453)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     is_safe: Mapped[bool] = mapped_column(Boolean, default=False)
     registered_on_chain: Mapped[bool] = mapped_column(Boolean, default=False)
     label: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
     linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    # Ownership proof (stored for audit/compliance)
+    link_signature: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True, default=None)
+    link_nonce: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
 
     # Screening
     risk_score: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)

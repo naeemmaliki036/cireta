@@ -145,6 +145,7 @@ export default function HomePage() {
             muted
             loop
             playsInline
+            preload="none"
             className="absolute inset-0 w-full h-full object-cover opacity-50"
           >
             <source src="/images/hero-bg.mp4" type="video/mp4" />
@@ -154,7 +155,7 @@ export default function HomePage() {
 
         {/* Cireta logo with text watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06]">
-          <img src="/images/logo/cireta-logo-white.svg" alt="" width={700} height={200} className="select-none" draggable={false} />
+          <img src="/images/logo/cireta-logo-white.svg" alt="" width={1200} height={340} className="select-none" draggable={false} />
         </div>
 
         {/* Content */}
