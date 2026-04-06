@@ -1,6 +1,9 @@
 # Stage 1: Dependencies
 FROM python:3.11-slim AS deps
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 RUN pip install poetry && poetry config virtualenvs.in-project true
 COPY pyproject.toml poetry.lock* ./
 RUN poetry install --no-root --no-interaction --no-ansi
@@ -9,6 +12,12 @@ RUN poetry install --no-root --no-interaction --no-ansi
 # Stage 2: Runner
 FROM python:3.11-slim AS runner
 WORKDIR /app
+
+# Runtime system deps (libpq for asyncpg, libffi for cryptography)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 libffi8 && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=deps /app/.venv /app/.venv
 
 # Ensure venv is on PATH
@@ -23,8 +32,8 @@ COPY packages /app/packages
 COPY infra /app/infra
 COPY scripts /app/scripts
 
-# Verify import works at build time
-RUN python -c "import uvicorn; print('uvicorn OK')"
+# Verify critical imports at build time
+RUN python -c "import uvicorn, asyncpg, sqlalchemy; print('imports OK')"
 
 EXPOSE 8000
 ENV PORT=8000
