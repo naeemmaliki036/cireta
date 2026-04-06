@@ -30,5 +30,6 @@ RUN test -f infra/alembic/alembic.ini && test -d infra/alembic/versions
 USER appuser
 EXPOSE 8000
 
-# Run migrations at startup (log errors but don't block), then start the API
-CMD ["sh", "-c", "alembic --script-location /app/infra/alembic -c infra/alembic/alembic.ini upgrade head 2>&1 || echo 'WARN: migration failed, continuing...'; exec uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start the API server
+ENV PORT=8000
+CMD sh -c "echo 'Starting Cireta API on port $PORT' && exec uvicorn apps.api.main:app --host 0.0.0.0 --port $PORT"
