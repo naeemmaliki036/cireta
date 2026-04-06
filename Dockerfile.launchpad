@@ -54,4 +54,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/launchpad/.next/standalone .
 COPY --from=builder --chown=nextjs:nodejs /app/apps/launchpad/.next/static ./apps/launchpad/.next/static
 
 USER nextjs
-CMD ["node", "apps/launchpad/server.js"]
+ENTRYPOINT ["node", "apps/launchpad/server.js"]
