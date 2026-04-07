@@ -126,7 +126,9 @@ export default function HomePage() {
     (async () => {
       try {
         const data = await getProjects({ size: 4 });
-        setProjects(data.items);
+        // Live sales first, coming soon last
+        const sorted = [...data.items].sort((a, b) => (a.isComingSoon ? 1 : 0) - (b.isComingSoon ? 1 : 0));
+        setProjects(sorted);
       } catch { /* empty */ }
       finally { setLoadingProjects(false); }
     })();
