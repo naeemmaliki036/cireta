@@ -13,6 +13,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { encodeFunctionData, zeroAddress, type Abi } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { resolveMediaUrl } from "@/lib/utils/mediaUrl";
 import { SaleContractActions } from "@/components/molecules/SaleContractActions";
 import { AddPhaseForm } from "@/components/molecules/AddPhaseForm";
 import RichTextEditor from "@/components/molecules/RichTextEditor";
@@ -705,10 +706,10 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                 <div className="relative h-32">
                   {img.media_type === "video" ? (
                     <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                      <video src={img.url} className="w-full h-full object-cover" muted />
+                      <video src={resolveMediaUrl(img.url)} className="w-full h-full object-cover" muted />
                     </div>
                   ) : (
-                    <img src={img.url} alt={img.caption || ""} className="w-full h-full object-cover" />
+                    <img src={resolveMediaUrl(img.url)} alt={img.caption || ""} className="w-full h-full object-cover" />
                   )}
                   {img.is_banner && (
                     <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">HERO</span>

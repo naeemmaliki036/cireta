@@ -36,34 +36,42 @@ async function handler(request: NextRequest) {
     }
   }
 
-  let res = await fetch(url, fetchInit);
+  try {
+    let res = await fetch(url, fetchInit);
 
-  // Follow 307/308 redirects manually, preserving method and body
-  if (res.status === 307 || res.status === 308) {
-    const location = res.headers.get("location");
-    if (location) {
-      const redirectUrl = location.startsWith("http") ? location : `${API_BASE}${location}`;
-      res = await fetch(redirectUrl, {
-        method: request.method,
-        headers,
-        body: rawBody,
-        redirect: "manual",
-      });
+    // Follow 307/308 redirects manually, preserving method and body
+    if (res.status === 307 || res.status === 308) {
+      const location = res.headers.get("location");
+      if (location) {
+        const redirectUrl = location.startsWith("http") ? location : `${API_BASE}${location}`;
+        res = await fetch(redirectUrl, {
+          method: request.method,
+          headers,
+          body: rawBody,
+          redirect: "manual",
+        });
+      }
     }
+
+    // 204 No Content — return empty response (no body allowed)
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    const contentType = res.headers.get("content-type") ?? "application/json";
+    const responseBody = await res.arrayBuffer();
+
+    return new NextResponse(responseBody, {
+      status: res.status,
+      headers: { "Content-Type": contentType },
+    });
+  } catch (err) {
+    console.error("[proxy] fetch error:", url, err);
+    return NextResponse.json(
+      { detail: { code: "PROXY_ERROR", message: String(err) } },
+      { status: 502 }
+    );
   }
-
-  // 204 No Content — return empty response (no body allowed)
-  if (res.status === 204) {
-    return new NextResponse(null, { status: 204 });
-  }
-
-  const contentType = res.headers.get("content-type") ?? "application/json";
-  const responseBody = await res.arrayBuffer();
-
-  return new NextResponse(responseBody, {
-    status: res.status,
-    headers: { "Content-Type": contentType },
-  });
 }
 
 export const GET = handler;

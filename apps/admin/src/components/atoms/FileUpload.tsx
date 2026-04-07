@@ -87,7 +87,7 @@ export function FileUpload({
         {label && <label className="input-label">{label}</label>}
         <div className="relative rounded-xl border border-darkBlack/10 overflow-hidden">
           {previewType === "image" ? (
-            <img src={value} alt="Preview" className="w-full h-40 object-cover" />
+            <img src={value.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL || ""}${value}` : value} alt="Preview" className="w-full h-40 object-cover" />
           ) : (
             <div className="flex items-center gap-3 p-4 bg-zinc-50">
               <FileText className="h-8 w-8 text-darkAqua shrink-0" />

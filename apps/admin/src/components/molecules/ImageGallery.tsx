@@ -6,6 +6,7 @@ import { FileUpload } from "@/components/atoms";
 import { Input, Button } from "@/components/atoms";
 import { type UploadResult } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/utils/mediaUrl";
 
 export interface GalleryItem {
   id: string;
@@ -129,7 +130,7 @@ export function ImageGallery({
               )}
             >
               <div className="relative h-36">
-                <img src={item.url} alt={item.caption || "Gallery"} className="w-full h-full object-cover" />
+                <img src={resolveMediaUrl(item.url)} alt={item.caption || "Gallery"} className="w-full h-full object-cover" />
                 {item.media_type === "video" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                     <Play className="h-8 w-8 text-white fill-white" />

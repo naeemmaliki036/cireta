@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
-import { ArrowRight, CheckCircle2, Coins, FileText, Calendar, Rocket, Users, HelpCircle, Clock, Settings, ImageIcon } from "lucide-react";
+import { ArrowRight, CheckCircle2, Coins, FileText, Calendar, Rocket, Users, HelpCircle, Clock, Settings, ImageIcon, ChevronDown, ChevronRight } from "lucide-react";
 
 const RichTextEditor = dynamic(
   () => import("@/components/molecules/RichTextEditor"),
@@ -66,6 +66,7 @@ export default function CreateSalePage() {
   const [teamMembers, setTeamMembers] = useState<TeamMemberData[]>([emptyTeam()]);
   // Step 4: FAQ & Docs
   const [faqs, setFaqs] = useState<FAQData[]>([emptyFAQ()]);
+  const [expandedFAQ, setExpandedFAQ] = useState<number | null>(0);
   const [documents, setDocuments] = useState<DocumentData[]>([emptyDoc()]);
   // Step 5: Phases (skip if coming soon)
   const [phases, setPhases] = useState<PhaseData[]>([{ ...emptyPhase(), name: "Seed Round" }]);
@@ -304,14 +305,28 @@ export default function CreateSalePage() {
           <div className="max-w-2xl mx-auto space-y-8">
             <div>
               <h2 className="text-xl font-semibold text-text mb-2">FAQs</h2>
-              <div className="space-y-4">
-                {faqs.map((f, i) => (
-                  <div key={i} className="border border-darkBlack/10 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center justify-between"><span className="font-semibold text-text text-sm">FAQ {i + 1}</span>{rmBtn(faqs, () => setFaqs((fq) => fq.filter((_, idx) => idx !== i)))}</div>
-                    <Input label="Question" value={f.question} onChange={(e) => updFAQ(i, "question", e.target.value)} />
-                    <div><label className="input-label">Answer</label><textarea className={TA} rows={2} value={f.answer} onChange={(e) => updFAQ(i, "answer", e.target.value)} /></div>
-                  </div>))}
-                <Button variant="outline" onClick={() => setFaqs((f) => [...f, emptyFAQ()])} className="w-full">+ Add FAQ</Button>
+              <div className="space-y-3">
+                {faqs.map((f, i) => {
+                  const isOpen = expandedFAQ === i;
+                  const preview = f.question || `FAQ ${i + 1} (empty)`;
+                  return (
+                    <div key={i} className="border border-darkBlack/10 rounded-2xl overflow-hidden">
+                      <button type="button" onClick={() => setExpandedFAQ(isOpen ? null : i)}
+                        className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-zinc-50 transition-colors">
+                        {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />}
+                        <span className="font-semibold text-text text-sm flex-1 truncate">{preview}</span>
+                        {rmBtn(faqs, () => { setFaqs((fq) => fq.filter((_, idx) => idx !== i)); if (isOpen) setExpandedFAQ(null); })}
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-5 space-y-3 border-t border-darkBlack/5 pt-4">
+                          <div><label className="input-label">Question</label><textarea className={TA} rows={3} placeholder="Enter the question..." value={f.question} onChange={(e) => updFAQ(i, "question", e.target.value)} /></div>
+                          <div><label className="input-label">Answer</label><textarea className={TA} rows={7} placeholder="Enter a detailed answer..." value={f.answer} onChange={(e) => updFAQ(i, "answer", e.target.value)} /></div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <Button variant="outline" onClick={() => { setFaqs((f) => [...f, emptyFAQ()]); setExpandedFAQ(faqs.length); }} className="w-full">+ Add FAQ</Button>
               </div>
             </div>
             <div>

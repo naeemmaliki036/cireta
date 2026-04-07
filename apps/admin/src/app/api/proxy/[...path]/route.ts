@@ -39,10 +39,10 @@ async function handler(request: NextRequest) {
     redirect: "manual",
   };
 
-  let rawBody: Buffer | string | undefined;
+  let rawBody: BodyInit | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
     if (isMultipart) {
-      rawBody = Buffer.from(await request.arrayBuffer());
+      rawBody = new Uint8Array(await request.arrayBuffer());
     } else {
       const body = await request.text();
       if (body) rawBody = body;
