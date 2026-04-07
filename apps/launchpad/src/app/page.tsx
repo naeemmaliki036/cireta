@@ -109,7 +109,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(p.targetAmount / 1_000_000).toFixed(1)}M USDC`}</p>
             </div>
             <span className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
-              {p.isComingSoon ? "Details" : "Invest"} <ArrowRight className="h-3 w-3" />
+              View Details <ArrowRight className="h-3 w-3" />
             </span>
           </div>
         </div>
