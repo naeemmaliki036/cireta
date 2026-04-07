@@ -214,22 +214,30 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </div>
       )}
 
-      {/* ── Pending — No contract yet ── */}
-      {isPending && !hasContract && (
+      {/* ── Pending — No contract and NOT coming soon ── */}
+      {isPending && !hasContract && !sale.is_coming_soon && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
           <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Not Deployed</h2>
           <p className="text-sm text-amber-700">Issuer has submitted for approval but hasn't deployed the sale contract on-chain yet. Cannot approve until deployed.</p>
         </motion.div>
       )}
 
-      {/* ── Pending — Has contract → Approve or Reject ── */}
-      {isPending && hasContract && (
+      {/* ── Pending — Has contract OR is coming soon → Approve or Reject ── */}
+      {isPending && (hasContract || sale.is_coming_soon) && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
-          <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Deployed</h2>
-          <p className="text-sm text-amber-700 mb-1">
-            Sale deployed at <code className="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
+          <h2 className="text-lg font-semibold text-amber-800 mb-2">
+            {sale.is_coming_soon ? "Pending Approval — Coming Soon" : "Pending Approval — Deployed"}
+          </h2>
+          {hasContract && (
+            <p className="text-sm text-amber-700 mb-1">
+              Sale deployed at <code className="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
+            </p>
+          )}
+          <p className="text-sm text-amber-700 mb-4">
+            {sale.is_coming_soon
+              ? "Approve to list as Coming Soon on the launchpad. No contract deployment needed."
+              : "Approve to allow the issuer to proceed. You can control launchpad visibility separately after approval."}
           </p>
-          <p className="text-sm text-amber-700 mb-4">Approve to allow the issuer to proceed. You can control launchpad visibility separately after approval.</p>
           <div className="flex items-center gap-3">
             <Button variant="primary" onClick={handleApprove} isLoading={actionLoading === "approve"}>
               <CheckCircle2 className="h-4 w-4 mr-2" /> Approve

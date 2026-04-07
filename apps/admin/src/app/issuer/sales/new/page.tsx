@@ -294,7 +294,7 @@ export default function CreateSalePage() {
                     <Input label="Name" placeholder="John Doe" value={m.name} onChange={(e) => updTeam(i, "name", e.target.value)} />
                     <Input label="Title" placeholder="CEO" value={m.title} onChange={(e) => updTeam(i, "title", e.target.value)} />
                   </div>
-                  <div><label className="input-label">Bio</label><textarea className={TA} rows={2} value={m.bio} onChange={(e) => updTeam(i, "bio", e.target.value)} /></div>
+                  <div><label className="input-label">Bio</label><textarea className={`${TA} resize-y`} rows={7} placeholder="Brief biography, expertise, and role in the project..." value={m.bio} onChange={(e) => updTeam(i, "bio", e.target.value)} /></div>
                   <FileUpload label="Photo" accept="image/*" prefix="team" value={m.photo_url || null} previewType="image"
                     onUpload={(r) => updTeam(i, "photo_url", r.url)} onRemove={() => updTeam(i, "photo_url", "")} />
                 </div>))}
