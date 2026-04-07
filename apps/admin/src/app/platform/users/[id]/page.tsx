@@ -17,13 +17,12 @@ import {
   Copy,
   Flag,
   RefreshCw,
-  Link2,
   AlertCircle,
   Shield,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { type Abi, isAddress } from "viem";
+import { type Abi } from "viem";
 import { Button, Badge } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { PlatformAdminLayout } from "@/components/templates";
@@ -32,7 +31,6 @@ import {
   updateInvestorKYC,
   checkSumsubStatus,
   confirmSumsubSync,
-  registerInvestorOnchain,
   type InvestorDetail,
   type SumsubCheckResponse,
 } from "@/lib/api/repositories/investors";
@@ -156,11 +154,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       type: "success",
       text: `${result.message}${result.notification_sent ? " — user notified" : ""}`,
     });
-  });
-
-  const handleRegisterOnchain = () => handleKYCAction("onchain", async () => {
-    const result = await registerInvestorOnchain(id);
-    setActionMessage({ type: "success", text: result.message });
   });
 
   const handleWhitelistOnChain = async (walletAddr: string) => {
