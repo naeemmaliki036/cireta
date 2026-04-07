@@ -734,9 +734,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             {chainPhases} of {sale.phases.length} phase{sale.phases.length !== 1 ? "s" : ""} deployed on-chain
           </div>
         )}
-        {phaseDeployAction.error && (
-          <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">{phaseDeployAction.error}</div>
-        )}
+        <TransactionStatus
+          isPending={phaseDeployAction.isPending} isConfirming={phaseDeployAction.isConfirming}
+          isConfirmed={phaseDeployAction.isConfirmed} txHash={phaseDeployAction.txHash}
+          txUrl={phaseDeployAction.txUrl} error={phaseDeployAction.error}
+          successMessage="Phase deployed on-chain."
+        />
         {sale.phases.length === 0 ? (
           <p className="text-darkBlack/30 text-center py-6 text-sm">No phases configured yet</p>
         ) : (
