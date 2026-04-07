@@ -153,11 +153,6 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-darkBlack/40 via-darkAqua/10 to-darkBlack/70" />
         </div>
 
-        {/* Cireta logo with text watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06]">
-          <img src="/images/logo/cireta-logo-white.svg" alt="" width={1200} height={340} className="select-none" draggable={false} />
-        </div>
-
         {/* Content */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}

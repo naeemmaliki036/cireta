@@ -164,11 +164,6 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="text-center mb-8">
-        <Shield className="w-12 h-12 text-darkAqua mx-auto mb-4" />
-        <h2 className="text-2xl font-semibold text-text mb-2">Verify Your Identity</h2>
-        <p className="text-darkBlack/50">Complete KYC verification to start investing</p>
-      </div>
       <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[500px]">
         <SumsubWebSdk
           accessToken={accessToken}

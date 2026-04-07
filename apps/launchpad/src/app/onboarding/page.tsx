@@ -147,6 +147,20 @@ export default function OnboardingPage() {
   const handleSaveDetails = async () => {
     setSaving(true);
     setError(null);
+    // Required field validation
+    if (investorType === "individual") {
+      if (!dob || !nationality || !countryOfResidence) {
+        setError("Please fill in all required fields: Date of Birth, Nationality, and Country of Residence.");
+        setSaving(false);
+        return;
+      }
+    } else {
+      if (!companyName || !regNumber || !jurisdiction) {
+        setError("Please fill in all required fields: Company Name, Registration Number, and Jurisdiction.");
+        setSaving(false);
+        return;
+      }
+    }
     // DOB 18+ validation for individuals
     if (investorType === "individual" && dob) {
       const birthDate = new Date(dob);
@@ -384,7 +398,7 @@ export default function OnboardingPage() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of Birth</label>
-                  <input type="date" value={dob || "2000-01-01"} onChange={(e) => setDob(e.target.value)}
+                  <input type="date" value={dob} onChange={(e) => setDob(e.target.value)}
                     disabled={isDetailsCompleted}
                     max={new Date().toISOString().split("T")[0]}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed" />
