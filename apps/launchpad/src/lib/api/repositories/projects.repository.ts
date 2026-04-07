@@ -142,6 +142,7 @@ function mapSaleToProject(sale: SaleRaw): Project {
       slug: sale.issuer_slug ?? "cireta-capital",
     },
     phases: sale.phases ?? [],
+    contract_address: sale.contract_address ?? null,
   };
 }
 

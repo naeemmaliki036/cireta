@@ -172,28 +172,15 @@ export function InvestApproveStep({ amount, isLoading, error, onApprove }: Inves
 
       {/* Compliance acknowledgment */}
       <div className="bg-box rounded-xl p-5 mb-6 space-y-4">
-        <p className="text-sm text-darkBlack/70 font-medium">
-          This investment involves regulated securities. You acknowledge that security tokens are subject to
-          transfer restrictions, lock-up periods, and regulatory requirements. Returns are not guaranteed and
-          you may lose your entire investment.
+        <p className="text-sm text-darkBlack/60">
+          This investment involves tokenized securities which may be subject to transfer restrictions and lock-up periods.
+          Please ensure you are eligible to participate.
         </p>
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
-            checked={riskAcknowledged}
-            onChange={(e) => setRiskAcknowledged(e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded border-darkBlack/20 text-darkAqua focus:ring-darkAqua"
-            data-testid="risk-checkbox"
-          />
-          <span className="text-sm text-text">
-            I understand and accept the risks associated with this investment
-          </span>
-        </label>
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
             checked={jurisdictionConfirmed}
-            onChange={(e) => setJurisdictionConfirmed(e.target.checked)}
+            onChange={(e) => { setJurisdictionConfirmed(e.target.checked); setRiskAcknowledged(e.target.checked); }}
             className="mt-0.5 w-4 h-4 rounded border-darkBlack/20 text-darkAqua focus:ring-darkAqua"
             data-testid="jurisdiction-checkbox"
           />
