@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAccount, useReadContract, useConfig } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { encodeFunctionData, zeroAddress, type Abi } from "viem";
+import { encodeFunctionData, zeroAddress, parseUnits, type Abi } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { resolveMediaUrl } from "@/lib/utils/mediaUrl";
@@ -160,6 +160,16 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const deployAction = useContractAction();
   const [configError, setConfigError] = useState<string | null>(null);
 
+  // Read on-chain phase count for deployed sales
+  const phaseDeployAction = useContractAction();
+  const { data: onChainPhaseCount, refetch: refetchPhaseCount } = useReadContract({
+    address: (sale?.contract_address as `0x${string}`) || undefined,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "getPhaseCount",
+    query: { enabled: !!sale?.contract_address },
+  });
+  const chainPhases = Number(onChainPhaseCount ?? 0);
+
   // Read issuer fee from PlatformFeeManager
   const feeManagerAddr = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || undefined;
   const { data: issuerFeeBps } = useReadContract({
@@ -217,6 +227,31 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
    * Deploy Sale contract on-chain via CiretaSaleFactory.deploySale().
    * Encodes Sale.initialize() calldata with the correct parameters.
    */
+  const handleDeployPhaseOnChain = async (phase: typeof sale.phases[0], tokenDecimals = 6) => {
+    if (!sale?.contract_address) return;
+    const pricePerToken = parseUnits(phase.price_per_token, 18);
+    const allocation = parseUnits(phase.allocation, tokenDecimals);
+    const startTimestamp = BigInt(Math.floor(new Date(phase.start_time).getTime() / 1000));
+    const endTimestamp = BigInt(Math.floor(new Date(phase.end_time).getTime() / 1000));
+    const receipt = await phaseDeployAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "addPhase",
+      args: [phase.name, pricePerToken, allocation, BigInt(0), BigInt(0), startTimestamp, endTimestamp, phase.whitelist_only ?? false],
+    });
+    if (receipt) {
+      refetchPhaseCount();
+      reload();
+    }
+  };
+
+  const handleDeployAllPhases = async () => {
+    if (!sale?.contract_address) return;
+    for (let i = chainPhases; i < sale.phases.length; i++) {
+      await handleDeployPhaseOnChain(sale.phases[i]!);
+    }
+  };
+
   const handleDeployOnChain = async () => {
     if (!sale || !walletAddress) {
       if (!isConnected) openConnectModal?.();
@@ -684,7 +719,24 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       {/* Phases — moved above gallery for visibility */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
-        <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">Phases</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Phases</h2>
+          {sale.contract_address && sale.phases.length > chainPhases && (
+            <Button variant="outline" size="sm" onClick={handleDeployAllPhases}
+              disabled={phaseDeployAction.isPending || phaseDeployAction.isConfirming}
+              isLoading={phaseDeployAction.isPending || phaseDeployAction.isConfirming}>
+              Deploy All On-Chain ({sale.phases.length - chainPhases} pending)
+            </Button>
+          )}
+        </div>
+        {sale.contract_address && (
+          <div className="mb-3 text-xs text-darkBlack/40">
+            {chainPhases} of {sale.phases.length} phase{sale.phases.length !== 1 ? "s" : ""} deployed on-chain
+          </div>
+        )}
+        {phaseDeployAction.error && (
+          <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">{phaseDeployAction.error}</div>
+        )}
         {sale.phases.length === 0 ? (
           <p className="text-darkBlack/30 text-center py-6 text-sm">No phases configured yet</p>
         ) : (
@@ -693,16 +745,30 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               const phaseSold = parseFloat(phase.sold || "0");
               const phaseAlloc = parseFloat(phase.allocation || "0");
               const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
+              const isOnChain = sale.contract_address ? idx < chainPhases : false;
               return (
-                <div key={phase.id} className="p-4 rounded-xl border border-zinc-100 hover:border-zinc-200 transition-colors">
+                <div key={phase.id} className={`p-4 rounded-xl border transition-colors ${isOnChain ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="w-6 h-6 rounded-md bg-darkAqua/10 text-darkAqua flex items-center justify-center text-xs font-bold">{idx + 1}</span>
                       <p className="font-medium text-sm text-text">{phase.name}</p>
+                      {sale.contract_address && (
+                        isOnChain
+                          ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">On-Chain</span>
+                          : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Not Deployed</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-darkBlack/40">
-                      <Clock className="h-3 w-3" />
-                      <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
+                    <div className="flex items-center gap-2">
+                      {sale.contract_address && !isOnChain && (
+                        <Button variant="outline" size="sm" onClick={() => handleDeployPhaseOnChain(phase)}
+                          disabled={phaseDeployAction.isPending || phaseDeployAction.isConfirming}>
+                          Deploy On-Chain
+                        </Button>
+                      )}
+                      <div className="flex items-center gap-1.5 text-xs text-darkBlack/40">
+                        <Clock className="h-3 w-3" />
+                        <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
+                      </div>
                     </div>
                   </div>
                   <ProgressBar value={phasePct} size="sm" />
