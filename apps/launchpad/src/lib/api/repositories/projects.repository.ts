@@ -162,7 +162,7 @@ export async function getProjects(
   params.set("size", String(filters?.size ?? 20));
 
   const query = params.toString();
-  const raw = await apiGet<SaleListRaw>(`/api/v1/sales/?${query}`);
+  const raw = await apiGet<SaleListRaw>(`/api/v1/sales?${query}`);
   return {
     items: raw.items.map(mapSaleToProject),
     total: raw.total,

@@ -40,7 +40,7 @@ export async function getInvestors(
   size = 20,
   kycStatus?: string,
 ): Promise<InvestorListResponse> {
-  let url = `/api/v1/admin/investors/?page=${page}&size=${size}`;
+  let url = `/api/v1/admin/investors?page=${page}&size=${size}`;
   if (kycStatus) url += `&kyc_status=${encodeURIComponent(kycStatus)}`;
   return apiFetch<InvestorListResponse>(url);
 }

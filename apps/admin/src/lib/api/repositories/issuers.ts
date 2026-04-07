@@ -39,7 +39,7 @@ export async function getIssuers(
   token?: string,
 ): Promise<IssuerListResponse> {
   return apiFetch<IssuerListResponse>(
-    `/api/v1/admin/issuers/?page=${page}&size=${size}`,
+    `/api/v1/admin/issuers?page=${page}&size=${size}`,
     { token },
   );
 }

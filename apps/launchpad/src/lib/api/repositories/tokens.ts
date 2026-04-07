@@ -31,7 +31,7 @@ export async function getTokens(
   size = 20
 ): Promise<TokenListResponse> {
   return apiGet<TokenListResponse>(
-    `/api/v1/tokens/?page=${page}&size=${size}`
+    `/api/v1/tokens?page=${page}&size=${size}`
   );
 }
 

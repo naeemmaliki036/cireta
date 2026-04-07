@@ -62,7 +62,7 @@ export async function getSales(
   size = 20,
   status?: string
 ): Promise<SaleListResponse> {
-  let url = `/api/v1/sales/?page=${page}&size=${size}`;
+  let url = `/api/v1/sales?page=${page}&size=${size}`;
   if (status) {
     url += `&status=${status}`;
   }

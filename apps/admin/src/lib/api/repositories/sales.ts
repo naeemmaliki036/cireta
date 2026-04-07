@@ -62,7 +62,7 @@ export async function getSales(
   token?: string,
 ): Promise<SaleListResponse> {
   return apiFetch<SaleListResponse>(
-    `/api/v1/sales/?page=${page}&size=${size}`,
+    `/api/v1/sales?page=${page}&size=${size}`,
     { token },
   );
 }
@@ -72,7 +72,7 @@ export async function getAdminSales(
   size = 20,
 ): Promise<SaleListResponse> {
   return apiFetch<SaleListResponse>(
-    `/api/v1/admin/sales/?page=${page}&size=${size}`,
+    `/api/v1/admin/sales?page=${page}&size=${size}`,
   );
 }
 
