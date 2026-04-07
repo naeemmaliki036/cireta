@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useReadContract, useConfig } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { encodeFunctionData, zeroAddress, type Abi } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
@@ -33,8 +33,30 @@ import { SALE_ABI } from "@/lib/contracts/abis/sale";
 import { SALE_FACTORY_ABI } from "@/lib/contracts/abis/saleFactory";
 import { requireAddress } from "@/lib/contracts/addresses";
 import { PLATFORM_FEE_MANAGER_ABI } from "@/lib/contracts/abis/platformFeeManager";
+import { readContract } from "wagmi/actions";
 import { WhitelistManager } from "@/components/organisms/WhitelistManager";
 import { OTCTokenManager } from "@/components/organisms/OTCTokenManager";
+
+/** Read fee from PlatformFeeManager on-chain (fallback when useReadContract hook didn't fire) */
+async function readFeeFromChain(
+  config: ReturnType<typeof import("wagmi").useConfig>,
+  feeManager: `0x${string}`,
+  issuer: `0x${string}`,
+): Promise<bigint> {
+  try {
+    const fee = await readContract(config, {
+      address: feeManager,
+      abi: PLATFORM_FEE_MANAGER_ABI as unknown as Abi,
+      functionName: "getFeeForIssuer",
+      args: [issuer],
+    });
+    console.log("[deploySale] Fee read on-chain:", fee);
+    return BigInt(fee as number);
+  } catch (e) {
+    console.error("[deploySale] Failed to read fee on-chain:", e);
+    throw new Error("Could not read issuer fee from PlatformFeeManager. Check the contract address.");
+  }
+}
 
 interface SaleImage {
   id: string;
@@ -133,6 +155,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
   // On-chain deployment
   const { isConnected, address: walletAddress } = useAccount();
+  const wagmiConfig = useConfig();
   const { openConnectModal } = useConnectModal();
   const deployAction = useContractAction();
   const [configError, setConfigError] = useState<string | null>(null);
@@ -257,7 +280,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         feeManagerAddress,                                 // _feeManager
         softCap,                                           // _softCap
         hardCap,                                           // _hardCap
-        issuerFeeBps ? BigInt(issuerFeeBps as number) : BigInt(250), // _feeBasisPoints (from PlatformFeeManager)
+        issuerFeeBps != null ? BigInt(issuerFeeBps as number) : await readFeeFromChain(wagmiConfig, feeManagerAddress, walletAddress), // _feeBasisPoints
         BigInt(50_000 * 1e6),                              // _feeCapUsdc ($50k)
         otcTokenAddress as `0x${string}`,                  // _otcToken
       ],
