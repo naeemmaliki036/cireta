@@ -123,7 +123,9 @@ export function useContractAction(): ContractActionState {
 
 /** Extract a user-friendly message from wallet/contract errors. */
 function parseError(err: unknown): string {
+  console.error("[useContractAction] Raw error:", err);
   const msg = err instanceof Error ? err.message : String(err);
+  console.error("[useContractAction] Error message:", msg);
 
   if (msg.includes("User rejected") || msg.includes("user rejected")) {
     return "Transaction was rejected in your wallet.";

@@ -44,4 +44,10 @@ export const SALE_FACTORY_ABI = [
       { name: "issuer", type: "address", indexed: true },
     ],
   },
+  // Custom errors — needed for viem to decode revert reasons
+  { name: "NotActiveIssuer", type: "error", inputs: [] },
+  { name: "ZeroAddress", type: "error", inputs: [] },
+  { name: "FeeMismatch", type: "error", inputs: [] },
+  { name: "IssuerMismatch", type: "error", inputs: [] },
+  { name: "FactoryMismatch", type: "error", inputs: [] },
 ] as const;

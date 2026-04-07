@@ -229,6 +229,21 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
     const otcTokenAddress = sale.otc_enabled ? (sale.otc_token_address ?? zeroAddress) : zeroAddress;
 
+    // Debug: log all deployment arguments
+    console.log("[deploySale] Resolved addresses:", {
+      token: sale.token_contract_address,
+      paymentToken: ciretaUsdcAddress,
+      identityRegistry: identityRegistryAddr,
+      issuer: walletAddress,
+      factory: saleFactoryAddress,
+      feeManager: feeManagerAddress,
+      issuerFeeBps: issuerFeeBps ?? "FALLBACK→250",
+      softCap: softCap.toString(),
+      hardCap: hardCap.toString(),
+      otcToken: otcTokenAddress,
+      saleMode: sale.sale_mode,
+    });
+
     // Encode Sale.initialize() calldata
     const initData = encodeFunctionData({
       abi: SALE_ABI,
