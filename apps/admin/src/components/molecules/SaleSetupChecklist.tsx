@@ -179,7 +179,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
   const [showReview, setShowReview] = useState(false);
 
   // Read on-chain phase count
-  const { data: onChainPhaseCount, refetch: refetchPhaseCount } = useReadContract({
+  const { data: onChainPhaseCount } = useReadContract({
     address: sale.contract_address as `0x${string}`,
     abi: SALE_ABI as unknown as Abi,
     functionName: "getPhaseCount",

@@ -227,7 +227,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
    * Deploy Sale contract on-chain via CiretaSaleFactory.deploySale().
    * Encodes Sale.initialize() calldata with the correct parameters.
    */
-  const handleDeployPhaseOnChain = async (phase: typeof sale.phases[0], tokenDecimals = 6) => {
+  const handleDeployPhaseOnChain = async (phase: NonNullable<typeof sale>["phases"][0], tokenDecimals = 6) => {
     if (!sale?.contract_address) return;
     const pricePerToken = parseUnits(phase.price_per_token, 18);
     const allocation = parseUnits(phase.allocation, tokenDecimals);
