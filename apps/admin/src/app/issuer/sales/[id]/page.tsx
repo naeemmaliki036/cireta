@@ -715,7 +715,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             })}
           </div>
         )}
-        {sale.contract_address && (isDraft || isActive) && (() => {
+        {sale.contract_address && (isDraft || isApproved || isApprovedComingSoon || isActive) && (() => {
           const totalAllocated = sale.phases.reduce((s, p) => s + parseFloat(p.allocation || "0"), 0);
           const available = cap > 0 ? cap - totalAllocated : undefined;
           return (
