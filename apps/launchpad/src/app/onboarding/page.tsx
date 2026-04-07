@@ -11,6 +11,7 @@ import { useKYC } from "@/contexts/KYCContext";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { apiFetch } from "@/lib/api/client";
+import { linkWallet } from "@/lib/api/repositories/wallets.repository";
 import {
   getOnboardingStatus,
   setOnboardingType,
@@ -520,8 +521,20 @@ export default function OnboardingPage() {
               <Button onClick={() => setStep("details")} variant="outline" className="rounded-xl">
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back
               </Button>
-              <Button onClick={() => setStep("kyc")} className="bg-gray-900 text-white rounded-xl hover:bg-gray-800" size="lg">
-                {isConnected ? "Continue" : "Skip for now"} <ArrowRight className="h-4 w-4 ml-2" />
+              <Button onClick={async () => {
+                if (isConnected && address) {
+                  try {
+                    setSaving(true);
+                    await linkWallet({ address, label: "Primary" });
+                  } catch {
+                    // Wallet may already be linked — continue anyway
+                  } finally {
+                    setSaving(false);
+                  }
+                }
+                setStep("kyc");
+              }} className="bg-gray-900 text-white rounded-xl hover:bg-gray-800" size="lg" disabled={saving}>
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : <>{isConnected ? "Continue" : "Skip for now"} <ArrowRight className="h-4 w-4 ml-2" /></>}
               </Button>
             </div>
             <ExitLink />
