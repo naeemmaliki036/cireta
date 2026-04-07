@@ -210,6 +210,7 @@ interface InvestConfirmStepProps {
   error: string | null;
   isSafe?: boolean;
   onConfirm: () => void;
+  onBack?: () => void;
 }
 
 export function InvestConfirmStep({
@@ -220,6 +221,7 @@ export function InvestConfirmStep({
   error,
   isSafe = false,
   onConfirm,
+  onBack,
 }: InvestConfirmStepProps) {
   return (
     <>
@@ -234,9 +236,16 @@ export function InvestConfirmStep({
         </div>
       </div>
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-      <Button variant="primary" className="w-full" size="lg" onClick={onConfirm} isLoading={isLoading}>
-        {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming...") : (isSafe ? "Propose to Safe" : "Confirm Investment")}
-      </Button>
+      <div className="flex gap-3">
+        {onBack && (
+          <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
+            Back
+          </Button>
+        )}
+        <Button variant="primary" className="flex-1" size="lg" onClick={onConfirm} isLoading={isLoading}>
+          {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming...") : (isSafe ? "Propose to Safe" : "Confirm Investment")}
+        </Button>
+      </div>
     </>
   );
 }

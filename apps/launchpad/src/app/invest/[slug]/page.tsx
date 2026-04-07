@@ -661,6 +661,7 @@ export default function InvestPage() {
                 project={project} amount={numericAmount}
                 tokensToReceive={tokensToReceive} isLoading={confirmLoading}
                 error={error} onConfirm={handleConfirm}
+                onBack={() => setStep("amount")}
               />
             )}
             {step === "success" && (
