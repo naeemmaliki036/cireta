@@ -197,7 +197,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             )}
 
             {/* Complete Profile CTA — shown when logged in but onboarding not done */}
-            {isAuthenticated && user && !user.onboarding_completed && (
+            {isAuthenticated && user && !user.onboarding_completed && user.kycStatus !== "approved" && (
               <Link
                 href="/onboarding"
                 className="hidden sm:inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white transition-all duration-300 animate-pulse"
@@ -351,7 +351,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     </div>
                     <p className="text-xs text-white/50">{user.email}</p>
                   </div>
-                  {!user.onboarding_completed && (
+                  {!user.onboarding_completed && user.kycStatus !== "approved" && (
                     <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors animate-pulse"
                       style={{ color: "#13636F" }}
