@@ -174,7 +174,7 @@ export function InvestApproveStep({ amount, isLoading, error, onApprove }: Inves
       <div className="bg-box rounded-xl p-5 mb-6 space-y-4">
         <p className="text-sm text-darkBlack/60">
           This investment involves tokenized securities which may be subject to transfer restrictions and lock-up periods.
-          Please ensure you are eligible to participate.
+          Please ensure you are eligible to participate and that your local laws permit such investments.
         </p>
         <label className="flex items-start gap-3 cursor-pointer">
           <input
