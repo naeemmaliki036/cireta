@@ -104,7 +104,7 @@ export default function InvestPage() {
     isPending: isApproving,
   } = useWriteContract();
 
-  const { isSuccess: approveConfirmed } = useWaitForTransactionReceipt({
+  const { isSuccess: approveConfirmed, isLoading: isApproveConfirming } = useWaitForTransactionReceipt({
     hash: approveTxHash,
   });
 
@@ -216,9 +216,21 @@ export default function InvestPage() {
     })();
   }, [params.slug]);
 
+  // Log approval lifecycle
+  useEffect(() => {
+    if (approveTxHash) console.log("[invest] Approve tx submitted:", approveTxHash);
+  }, [approveTxHash]);
+  useEffect(() => {
+    if (isApproveConfirming) console.log("[invest] Approve tx confirming...");
+  }, [isApproveConfirming]);
+
   // When approve tx confirms, advance to confirm step
   useEffect(() => {
-    if (approveConfirmed) { refetchAllowance(); setStep("confirm"); }
+    if (approveConfirmed) {
+      console.log("[invest] Approve confirmed — advancing to confirm step");
+      refetchAllowance();
+      setStep("confirm");
+    }
   }, [approveConfirmed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When on-chain contribute confirms, record in backend then show success
@@ -637,7 +649,7 @@ export default function InvestPage() {
             )}
             {paymentMethod === "crypto" && step === "approve" && (
               <InvestApproveStep
-                amount={numericAmount} isLoading={isApproving}
+                amount={numericAmount} isLoading={isApproving || isApproveConfirming}
                 error={error} onApprove={handleApprove}
               />
             )}
