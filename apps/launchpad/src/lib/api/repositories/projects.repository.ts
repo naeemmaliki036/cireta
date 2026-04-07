@@ -1,4 +1,4 @@
-import { apiGet } from "../client";
+import { apiGet, apiFetch } from "../client";
 
 export interface ProjectIssuer {
   id: string;
@@ -172,11 +172,11 @@ export async function getProjects(
 }
 
 export async function getProject(slug: string): Promise<Project> {
-  const raw = await apiGet<SaleRaw>(`/api/v1/sales/by-slug/${slug}`);
+  const raw = await apiFetch<SaleRaw>(`/api/v1/sales/by-slug/${slug}`, { skipAuthRedirect: true });
   return mapSaleToProject(raw);
 }
 
 
 export async function getSaleRawBySlug(slug: string): Promise<SaleRaw> {
-  return apiGet<SaleRaw>(`/api/v1/sales/by-slug/${slug}`);
+  return apiFetch<SaleRaw>(`/api/v1/sales/by-slug/${slug}`, { skipAuthRedirect: true });
 }

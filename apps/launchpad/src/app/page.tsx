@@ -63,7 +63,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
     : "from-[#13636F] via-[#0f5460] to-[#0a3d45]";
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
+    <Link href={`/project/${p.slug}`} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full cursor-pointer">
       <div className="relative h-48 overflow-hidden flex-shrink-0">
         {hasImage && isVideo ? (
           <video src={p.imageUrl} muted autoPlay loop playsInline className="w-full h-full object-cover" onError={() => setImgError(true)} />
@@ -108,13 +108,13 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               <p className="text-[10px] text-gray-400 uppercase">Target</p>
               <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(p.targetAmount / 1_000_000).toFixed(1)}M USDC`}</p>
             </div>
-            <Link href={`/project/${p.slug}`} className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
+            <span className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
               {p.isComingSoon ? "Details" : "Invest"} <ArrowRight className="h-3 w-3" />
-            </Link>
+            </span>
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

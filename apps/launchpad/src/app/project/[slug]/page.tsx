@@ -101,14 +101,14 @@ export default function ProjectDetailPage() {
         setProject(proj); setSaleRaw(raw);
         if (raw.token_id) getToken(raw.token_id).then(setToken).catch(() => {});
         const sid = raw.id;
-        apiGet<SaleImage[]>(`/api/v1/sales/${sid}/images`).then(setImages).catch(() => {});
-        apiGet<SaleDocument[]>(`/api/v1/sales/${sid}/documents`).then(setDocuments).catch(() => {});
-        apiGet<TeamMember[]>(`/api/v1/sales/${sid}/team`).then(setTeam).catch(() => {});
-        apiGet<FAQ[]>(`/api/v1/sales/${sid}/faqs`).then(setFaqs).catch(() => {});
-        // Subscriber count
-        apiGet<{ count: number }>(`/api/v1/sales/${sid}/subscriber-count`).then((r) => setSubscriberCount(r.count)).catch(() => {});
-        // Check if current user is subscribed
-        apiGet<{ subscribed: boolean }>(`/api/v1/sales/${sid}/is-subscribed`).then((r) => setSubscribed(r.subscribed)).catch(() => {});
+        apiFetch<SaleImage[]>(`/api/v1/sales/${sid}/images`, { skipAuthRedirect: true }).then(setImages).catch(() => {});
+        apiFetch<SaleDocument[]>(`/api/v1/sales/${sid}/documents`, { skipAuthRedirect: true }).then(setDocuments).catch(() => {});
+        apiFetch<TeamMember[]>(`/api/v1/sales/${sid}/team`, { skipAuthRedirect: true }).then(setTeam).catch(() => {});
+        apiFetch<FAQ[]>(`/api/v1/sales/${sid}/faqs`, { skipAuthRedirect: true }).then(setFaqs).catch(() => {});
+        // Subscriber count (public)
+        apiFetch<{ count: number }>(`/api/v1/sales/${sid}/subscriber-count`, { skipAuthRedirect: true }).then((r) => setSubscriberCount(r.count)).catch(() => {});
+        // Check if current user is subscribed (may 401 if not logged in — that's fine)
+        apiFetch<{ subscribed: boolean }>(`/api/v1/sales/${sid}/is-subscribed`, { skipAuthRedirect: true }).then((r) => setSubscribed(r.subscribed)).catch(() => {});
       } catch { setError(true); }
       finally { setIsLoading(false); }
     }
