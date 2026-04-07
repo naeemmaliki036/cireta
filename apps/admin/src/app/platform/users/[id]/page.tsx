@@ -80,7 +80,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [sumsubCheck, setSumsubCheck] = useState<SumsubCheckResponse | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
-  const [whitelistRegistryAddress, setWhitelistRegistryAddress] = useState("");
+  const whitelistRegistryAddress = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS || "";
   const [whitelistCountryCode, setWhitelistCountryCode] = useState("840"); // US default
 
   // On-chain whitelisting
@@ -166,7 +166,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const handleWhitelistOnChain = async (walletAddr: string) => {
     if (!isConnected) { openConnectModal?.(); return; }
     if (!whitelistRegistryAddress) {
-      setActionMessage({ type: "error", text: "Enter the identity registry address for the token." });
+      setActionMessage({ type: "error", text: "Identity registry address not configured." });
       return;
     }
     const countryCode = parseInt(whitelistCountryCode, 10) || 840;
@@ -486,25 +486,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             <Shield className="h-4 w-4 text-zinc-400" /> On-Chain Whitelisting
           </h3>
           <p className="text-xs text-zinc-500 mb-3">
-            Add this investor&apos;s wallet(s) to a token&apos;s SimpleIdentityRegistry on-chain.
-            Enter the registry address for the specific token, then click the shield icon next to a wallet.
+            Whitelist this investor&apos;s wallet(s) on the platform&apos;s SimpleIdentityRegistry. Click the shield icon next to a wallet to whitelist it.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-4">
             <div className="flex-1 w-full">
-              <label className="block text-xs text-zinc-500 mb-1">Identity Registry Address</label>
-              <input
-                type="text"
-                value={whitelistRegistryAddress}
-                onChange={(e) => setWhitelistRegistryAddress(e.target.value)}
-                placeholder="0x..."
-                maxLength={42}
-                className={`w-full px-3 py-2 rounded-lg border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-300 ${
-                  whitelistRegistryAddress && !isAddress(whitelistRegistryAddress) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
-                }`}
-              />
-              {whitelistRegistryAddress && !isAddress(whitelistRegistryAddress) && (
-                <p className="text-xs text-red-500 mt-1">Invalid EVM address</p>
-              )}
+              <label className="block text-xs text-zinc-500 mb-1">Identity Registry</label>
+              <div className="w-full px-3 py-2 rounded-lg border border-zinc-100 bg-zinc-50 text-sm font-mono text-zinc-600">
+                {whitelistRegistryAddress}
+              </div>
             </div>
             <div className="w-32">
               <label className="block text-xs text-zinc-500 mb-1">Country Code</label>
