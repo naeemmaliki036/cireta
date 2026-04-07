@@ -51,7 +51,7 @@ export async function createToken(
   },
   token?: string,
 ): Promise<Token> {
-  return apiFetch<Token>("/api/v1/tokens", {
+  return apiFetch<Token>("/api/v1/tokens/", {
     method: "POST",
     body: {
       ...data,

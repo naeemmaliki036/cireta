@@ -31,26 +31,41 @@ async function handler(request: NextRequest) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Use manual redirects to prevent body loss on 307/308 redirects
+  // (fetch "follow" mode can drop the POST body when following redirects)
   const fetchInit: RequestInit = {
     method: request.method,
     headers,
-    redirect: "follow",
+    redirect: "manual",
   };
 
+  let rawBody: Buffer | string | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
     if (isMultipart) {
-      // Forward raw multipart body (preserves file boundaries)
-      fetchInit.body = Buffer.from(await request.arrayBuffer());
+      rawBody = Buffer.from(await request.arrayBuffer());
     } else {
       const body = await request.text();
-      if (body) {
-        fetchInit.body = body;
-      }
+      if (body) rawBody = body;
     }
+    if (rawBody) fetchInit.body = rawBody;
   }
 
   try {
-    const res = await fetch(url, fetchInit);
+    let res = await fetch(url, fetchInit);
+
+    // Follow 307/308 redirects manually, preserving method and body
+    if (res.status === 307 || res.status === 308) {
+      const location = res.headers.get("location");
+      if (location) {
+        const redirectUrl = location.startsWith("http") ? location : `${API_BASE}${location}`;
+        res = await fetch(redirectUrl, {
+          method: request.method,
+          headers,
+          body: rawBody,
+          redirect: "manual",
+        });
+      }
+    }
 
     // 204 No Content must have null body
     if (res.status === 204) {

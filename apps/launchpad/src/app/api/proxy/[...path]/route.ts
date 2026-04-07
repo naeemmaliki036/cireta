@@ -20,20 +20,37 @@ async function handler(request: NextRequest) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Use manual redirects to prevent body loss on 307/308 redirects
   const fetchInit: RequestInit = {
     method: request.method,
     headers,
-    redirect: "follow",
+    redirect: "manual",
   };
 
+  let rawBody: string | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
     const body = await request.text();
     if (body) {
+      rawBody = body;
       fetchInit.body = body;
     }
   }
 
-  const res = await fetch(url, fetchInit);
+  let res = await fetch(url, fetchInit);
+
+  // Follow 307/308 redirects manually, preserving method and body
+  if (res.status === 307 || res.status === 308) {
+    const location = res.headers.get("location");
+    if (location) {
+      const redirectUrl = location.startsWith("http") ? location : `${API_BASE}${location}`;
+      res = await fetch(redirectUrl, {
+        method: request.method,
+        headers,
+        body: rawBody,
+        redirect: "manual",
+      });
+    }
+  }
 
   // 204 No Content — return empty response (no body allowed)
   if (res.status === 204) {
