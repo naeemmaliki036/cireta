@@ -61,7 +61,7 @@ def _token_to_response(token) -> TokenResponse:
 
 @router.get("/check-symbol")
 async def check_symbol(
-    symbol: str = Query(..., min_length=1),
+    symbol: str | None = Query(None),
     name: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -73,16 +73,17 @@ async def check_symbol(
     name_exists = False
     name_used_by = None
 
-    try:
-        result = await db.execute(
-            select(Token.name).where(Token.symbol == symbol.upper()).limit(1)
-        )
-        row = result.first()
-        if row:
-            symbol_exists = True
-            symbol_used_by = row[0]
-    except Exception:
-        pass
+    if symbol and len(symbol) >= 1:
+        try:
+            result = await db.execute(
+                select(Token.name).where(Token.symbol == symbol.upper()).limit(1)
+            )
+            row = result.first()
+            if row:
+                symbol_exists = True
+                symbol_used_by = row[0]
+        except Exception:
+            pass
 
     if name and len(name) >= 3:
         try:
@@ -97,7 +98,7 @@ async def check_symbol(
             pass
 
     return {
-        "symbol": symbol.upper(),
+        "symbol": symbol.upper() if symbol else None,
         "symbol_exists": symbol_exists,
         "symbol_used_by": symbol_used_by,
         "name_exists": name_exists,
@@ -160,6 +161,8 @@ async def create_token(
         decimals=request.decimals,
         ipfs_docs_hash=request.ipfs_docs_hash,
         chainlink_por_feed=request.chainlink_por_feed,
+        description=request.description,
+        image_url=request.image_url,
     )
     return _token_to_response(token)
 
@@ -194,6 +197,8 @@ async def record_token_deployment(
     Frontend sends only the tx_hash. Backend reads the receipt from the chain
     and extracts TokenDeployed event to get contract addresses.
     """
+    import asyncio
+
     from apps.api.models.token import Token
 
     result = await db.execute(
@@ -210,23 +215,38 @@ async def record_token_deployment(
 
         w3_svc = Web3BaseService()
         w3 = w3_svc.w3
-        receipt = w3.eth.get_transaction_receipt(request.tx_hash)
 
-        # Find TokenDeployed event: topic0 = keccak256("TokenDeployed(address,address,address,string,string,address)")
-        token_deployed_topic = Web3.keccak(text="TokenDeployed(address,address,address,string,string,address)").hex()
+        # Use asyncio.to_thread to avoid blocking the event loop on remote RPC calls
+        receipt = await asyncio.to_thread(w3.eth.get_transaction_receipt, request.tx_hash)
+
+        if receipt is None:
+            raise HTTPException(status_code=400, detail={
+                "code": "TX_PENDING",
+                "message": "Transaction not yet confirmed. Try again shortly.",
+            })
+
+        # Find TokenDeployed event by comparing topic0 bytes directly
+        token_deployed_topic = Web3.keccak(text="TokenDeployed(address,address,address,string,string,address)")
 
         token_addr = None
         ir_addr = None
         comp_addr = None
 
-        for log in receipt.logs:
-            if len(log.topics) >= 4 and log.topics[0].hex() == token_deployed_topic:
-                token_addr = Web3.to_checksum_address("0x" + log.topics[1].hex()[-40:])
-                ir_addr = Web3.to_checksum_address("0x" + log.topics[2].hex()[-40:])
-                comp_addr = Web3.to_checksum_address("0x" + log.topics[3].hex()[-40:])
+        for log_entry in receipt.logs:
+            if len(log_entry.topics) >= 4 and log_entry.topics[0] == token_deployed_topic:
+                token_addr = Web3.to_checksum_address("0x" + log_entry.topics[1].hex()[-40:])
+                ir_addr = Web3.to_checksum_address("0x" + log_entry.topics[2].hex()[-40:])
+                comp_addr = Web3.to_checksum_address("0x" + log_entry.topics[3].hex()[-40:])
                 break
 
         if not token_addr:
+            # Log receipt details for debugging
+            logger.error(
+                "TokenDeployed event not found in tx %s — %d logs, topics: %s",
+                request.tx_hash,
+                len(receipt.logs),
+                [log_entry.topics[0].hex() if log_entry.topics else "no-topics" for log_entry in receipt.logs],
+            )
             raise HTTPException(status_code=400, detail={
                 "code": "EVENT_NOT_FOUND",
                 "message": "TokenDeployed event not found in tx receipt",
@@ -239,6 +259,7 @@ async def record_token_deployment(
     except HTTPException:
         raise
     except Exception as exc:
+        logger.error("record-deployment failed for tx %s: %s", request.tx_hash, exc, exc_info=True)
         raise HTTPException(status_code=502, detail={
             "code": "CHAIN_ERROR",
             "message": f"Failed to read tx receipt: {exc}",

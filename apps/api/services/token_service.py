@@ -54,6 +54,8 @@ class TokenService:
         decimals: int = 18,
         ipfs_docs_hash: str | None = None,
         chainlink_por_feed: str | None = None,
+        description: str | None = None,
+        image_url: str | None = None,
     ) -> Token:
         """Create a new token.
 
@@ -104,6 +106,8 @@ class TokenService:
         token.decimals = decimals
         token.ipfs_docs_hash = ipfs_docs_hash
         token.chainlink_por_feed = chainlink_por_feed
+        token.description = description
+        token.image_url = image_url
 
         self.db.add(token)
         await self.db.commit()
