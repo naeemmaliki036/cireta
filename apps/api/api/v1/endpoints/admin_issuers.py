@@ -149,7 +149,7 @@ async def remove_from_whitelist(
 # ==================== Issuer Management ====================
 
 
-@router.get("/issuers/", response_model=IssuerListResponse)
+@router.get("/issuers", response_model=IssuerListResponse)
 async def list_issuers(
     _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
@@ -182,7 +182,7 @@ async def get_issuer(
     return _issuer_to_response(issuer)
 
 
-@router.post("/issuers/", response_model=IssuerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/issuers", response_model=IssuerResponse, status_code=status.HTTP_201_CREATED)
 async def create_issuer(
     request: IssuerCreateRequest,
     _user_id: RequireAdmin,

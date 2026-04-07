@@ -31,7 +31,7 @@ export async function getTokens(
   issuerId?: string,
   token?: string,
 ): Promise<TokenListResponse> {
-  let url = `/api/v1/tokens/?page=${page}&size=${size}`;
+  let url = `/api/v1/tokens?page=${page}&size=${size}`;
   if (issuerId) url += `&issuer_id=${issuerId}`;
   return apiFetch<TokenListResponse>(url, { token });
 }

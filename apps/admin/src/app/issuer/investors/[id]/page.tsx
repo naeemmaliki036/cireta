@@ -25,7 +25,7 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    apiFetch<{ investors: InvestorDetail[] }>("/api/v1/admin/investors/", {
+    apiFetch<{ investors: InvestorDetail[] }>("/api/v1/admin/investors", {
       token: getAccessToken() ?? undefined,
     })
       .then((data) => {

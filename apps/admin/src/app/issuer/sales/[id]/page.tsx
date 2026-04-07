@@ -670,7 +670,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                   <ProgressBar value={phasePct} size="sm" />
                   <div className="flex justify-between text-xs mt-2 text-darkBlack/40">
                     <span>Price: <span className="text-text font-medium">${parseFloat(phase.price_per_token).toLocaleString()}</span></span>
-                    <span>{formatCurrency(phaseSold)} / {formatCurrency(phaseAlloc)}</span>
+                    <span>{phaseSold.toLocaleString()} / {phaseAlloc.toLocaleString()}</span>
                   </div>
                 </div>
               );

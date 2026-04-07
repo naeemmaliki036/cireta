@@ -57,7 +57,7 @@ class InvestorListResponse(BaseModel):
     size: int
 
 
-@router.get("/investors/", response_model=InvestorListResponse)
+@router.get("/investors", response_model=InvestorListResponse)
 async def list_investors(
     _user_id: RequireIssuerOrAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
@@ -544,7 +544,7 @@ class CreateAdminRequest(BaseModel):
     display_name: str | None = None
 
 
-@router.get("/admins/", response_model=AdminListResponse)
+@router.get("/admins", response_model=AdminListResponse)
 async def list_admins(
     user_id: RequireAdmin,
     db: AsyncSession = Depends(get_db),
@@ -567,7 +567,7 @@ async def list_admins(
     )
 
 
-@router.post("/admins/", response_model=AdminAccountResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/admins", response_model=AdminAccountResponse, status_code=status.HTTP_201_CREATED)
 async def create_admin(
     request: CreateAdminRequest,
     user_id: RequireAdmin,

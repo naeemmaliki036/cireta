@@ -23,7 +23,7 @@ export default function PlatformTokensPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    apiFetch<{ items: Token[] }>("/api/v1/tokens/?page=1&size=100")
+    apiFetch<{ items: Token[] }>("/api/v1/tokens?page=1&size=100")
       .then((data) => setTokens(data.items))
       .catch(() => {})
       .finally(() => setLoading(false));

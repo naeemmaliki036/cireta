@@ -26,7 +26,7 @@ export default function AdminAccountsPage() {
 
   const fetchAdmins = async () => {
     try {
-      const data = await apiFetch<{ items: AdminAccount[] }>("/api/v1/admin/admins/");
+      const data = await apiFetch<{ items: AdminAccount[] }>("/api/v1/admin/admins");
       setAdmins(data.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load. You may not have super admin access.");
@@ -43,7 +43,7 @@ export default function AdminAccountsPage() {
     setError("");
     setSuccess("");
     try {
-      await apiFetch("/api/v1/admin/admins/", {
+      await apiFetch("/api/v1/admin/admins", {
         method: "POST",
         body: { email, display_name: displayName || undefined },
       });
