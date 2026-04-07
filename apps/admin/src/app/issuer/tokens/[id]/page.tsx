@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Shield, Pause, Play, Rocket, Coins } from "lucide-react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { decodeEventLog, type Abi } from "viem";
 import { Button, Badge, Spinner } from "@/components/atoms";
@@ -16,6 +16,7 @@ import { pauseToken, unpauseToken } from "@/lib/api/repositories/compliance";
 import { getAccessToken } from "@/lib/api/client";
 import { useContractAction } from "@/hooks/useContractAction";
 import { TOKEN_FACTORY_ABI } from "@/lib/contracts/abis/tokenFactory";
+import { CIRETA_TOKEN_ABI } from "@/lib/contracts/abis/ciretaToken";
 import { requireAddress } from "@/lib/contracts/addresses";
 
 function getAuthToken() {
@@ -32,6 +33,15 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
   const { isConnected, address: walletAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
   const deployAction = useContractAction();
+
+  // Read on-chain total supply to show mint guidance
+  const { data: onChainSupply } = useReadContract({
+    address: token?.contract_address as `0x${string}`,
+    abi: CIRETA_TOKEN_ABI as unknown as Abi,
+    functionName: "totalSupply",
+    query: { enabled: !!token?.contract_address },
+  });
+  const supplyMinted = Number(onChainSupply ?? 0) > 0;
 
   useEffect(() => {
     paramsPromise.then((p) => setResolvedId(p.id));
@@ -208,6 +218,16 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
                 error={deployAction.error}
                 successMessage="Token deployed on-chain. Contract addresses recorded."
               />
+            </div>
+          )}
+
+          {token.contract_address && !supplyMinted && (
+            <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+              <Coins className="h-4 w-4 inline mr-1.5" />
+              <strong>Next step:</strong> Mint tokens to your wallet before creating a sale.
+              <Link href={`/issuer/tokens/${resolvedId}/mint`} className="ml-2 underline font-medium">
+                Go to Mint
+              </Link>
             </div>
           )}
 

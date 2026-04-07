@@ -7,7 +7,7 @@ import {
   AlertCircle, Zap, Pause, Play, ShieldAlert, Eye, EyeOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi, isAddress } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
@@ -39,6 +39,33 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const { openConnectModal } = useConnectModal();
   const activateAction = useContractAction();
   const rejectAction = useContractAction();
+
+  // Pre-activation on-chain checks
+  const { data: onChainPhaseCount } = useReadContract({
+    address: sale?.contract_address as `0x${string}`,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "getPhaseCount",
+    query: { enabled: !!sale?.contract_address },
+  });
+  const { data: vaultAddr } = useReadContract({
+    address: sale?.contract_address as `0x${string}`,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "vault",
+    query: { enabled: !!sale?.contract_address && sale?.sale_mode === "vested" },
+  });
+  // Read token balance in sale (direct) or vault (vested)
+  const tokenBalanceTarget = sale?.sale_mode === "vested" && vaultAddr
+    ? (vaultAddr as string) : sale?.contract_address;
+  const ERC20_BALANCE_ABI = [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const;
+  const { data: tokenDepositBalance } = useReadContract({
+    address: sale?.token_contract_address as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: tokenBalanceTarget ? [tokenBalanceTarget as `0x${string}`] : undefined,
+    query: { enabled: !!sale?.token_contract_address && !!tokenBalanceTarget },
+  });
+  const chainPhases = Number(onChainPhaseCount ?? 0);
+  const tokensDeposited = Number(tokenDepositBalance ?? 0) > 0;
   const pauseAction = useContractAction();
   const unpauseAction = useContractAction();
   const finalizeAction = useContractAction();
@@ -225,9 +252,25 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           <p className="text-sm text-teal-700 mb-1">
             Deployed at <code className="font-mono text-xs bg-teal-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
           </p>
-          <p className="text-sm text-teal-700 mb-4">Activate on-chain to enable purchases. You can control launchpad visibility after activation.</p>
+          <p className="text-sm text-teal-700 mb-3">Activate on-chain to enable purchases. You can control launchpad visibility after activation.</p>
+          {(chainPhases === 0 || !tokensDeposited) && (
+            <div className="mb-4 space-y-2">
+              {chainPhases === 0 && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No phases configured on-chain. Issuer must deploy phases before activation.
+                </div>
+              )}
+              {!tokensDeposited && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No tokens deposited in {sale.sale_mode === "vested" ? "vault" : "sale contract"}. Issuer must deposit project tokens first.
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-3">
-            <Button variant="primary" onClick={handleActivateOnChain} disabled={activateAction.isPending || activateAction.isConfirming} isLoading={activateAction.isPending || activateAction.isConfirming}>
+            <Button variant="primary" onClick={handleActivateOnChain}
+              disabled={activateAction.isPending || activateAction.isConfirming || chainPhases === 0 || !tokensDeposited}
+              isLoading={activateAction.isPending || activateAction.isConfirming}>
               <Zap className="h-4 w-4 mr-2" /> Activate On-Chain
             </Button>
             <Button variant="outline" onClick={handleRejectOnChain} disabled={rejectAction.isPending || rejectAction.isConfirming} isLoading={rejectAction.isPending || rejectAction.isConfirming} className="text-red-600 border-red-200 hover:bg-red-50">
