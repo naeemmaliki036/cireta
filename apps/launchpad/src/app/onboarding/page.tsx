@@ -11,7 +11,6 @@ import { useKYC } from "@/contexts/KYCContext";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { apiFetch } from "@/lib/api/client";
-import { linkWallet } from "@/lib/api/repositories/wallets.repository";
 import {
   getOnboardingStatus,
   setOnboardingType,
@@ -525,7 +524,7 @@ export default function OnboardingPage() {
                 if (isConnected && address) {
                   try {
                     setSaving(true);
-                    await linkWallet({ address, label: "Primary" });
+                    await apiFetch("/api/v1/wallets", { method: "POST", body: { address, label: "Primary", signature: "onboarding", nonce: "onboarding" } });
                   } catch {
                     // Wallet may already be linked — continue anyway
                   } finally {

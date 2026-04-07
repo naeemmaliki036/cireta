@@ -38,6 +38,7 @@ export interface Project {
   isComingSoon: boolean;
   issuer: ProjectIssuer;
   phases: ProjectPhase[];
+  contract_address?: string | null;
 }
 
 export interface ProjectFilters {
