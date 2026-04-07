@@ -130,7 +130,7 @@ async def admin_finalize_sale(
     )
 
 
-@router.get("/", response_model=dict)
+@router.get("", response_model=dict)
 async def list_all_sales(
     user_id: RequireAdmin,
     sale_service: Annotated[SaleService, Depends(get_sale_service)],

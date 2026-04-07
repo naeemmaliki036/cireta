@@ -106,7 +106,7 @@ async def check_symbol(
     }
 
 
-@router.get("/", response_model=TokenListResponse)
+@router.get("", response_model=TokenListResponse)
 async def list_tokens(
     token_service: Annotated[TokenService, Depends(get_token_service)],
     page: int = Query(default=1, ge=1),
@@ -140,7 +140,7 @@ async def get_token(
     return _token_to_response(token)
 
 
-@router.post("/", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def create_token(
     request: TokenCreateRequest,
     user_id: CurrentUserId,

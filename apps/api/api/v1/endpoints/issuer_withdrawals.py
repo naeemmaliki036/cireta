@@ -54,7 +54,7 @@ async def _get_issuer(user_id: str | UUID, db: AsyncSession) -> Issuer:
     return row
 
 
-@router.get("/", response_model=WithdrawalListResponse)
+@router.get("", response_model=WithdrawalListResponse)
 async def list_withdrawals(
     user_id: CurrentUserId,
     db: AsyncSession = Depends(get_db),
