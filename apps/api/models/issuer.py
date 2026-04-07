@@ -60,7 +60,7 @@ class Issuer(BaseModel):
     )
 
     wallet_address: Mapped[str | None] = mapped_column(
-        EncryptedString(),
+        String(42),
         nullable=True,
     )
 

@@ -22,7 +22,7 @@ class WalletAuditLog(BaseModel):
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     action: Mapped[str] = mapped_column(String(20), index=True)  # "linked" | "unlinked"
-    address: Mapped[str] = mapped_column(EncryptedString())
+    address: Mapped[str] = mapped_column(String(42))
     address_checksum: Mapped[str] = mapped_column(String(42), index=True)
     chain_id: Mapped[int] = mapped_column(Integer, default=8453)
     was_primary: Mapped[bool] = mapped_column(Boolean, default=False)
