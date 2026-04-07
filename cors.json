@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://keeta.up.railway.app", "https://keeta-admin.up.railway.app", "http://localhost:4010", "http://localhost:4020"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]
