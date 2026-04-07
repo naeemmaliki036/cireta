@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { User, Building2, Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2, X, Home, Scale, Lock, Clock, Search } from "lucide-react";
+import { User, Building2, Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2, X, Home, Scale, Lock, Clock, Search, Copy } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { useAuth } from "@/contexts/AuthContext";
 import { useKYC } from "@/contexts/KYCContext";
@@ -54,7 +54,8 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { kycStatus } = useKYC();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const [walletCopied, setWalletCopied] = useState(false);
   const [step, setStep] = useState<Step>("type");
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -493,9 +494,22 @@ export default function OnboardingPage() {
             </p>
 
             <div className="flex flex-col items-center gap-4 mb-8">
-              {isConnected ? (
-                <div className="flex items-center gap-2 text-green-600 font-medium">
-                  <CheckCircle2 className="h-5 w-5" /> Wallet connected
+              {isConnected && address ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-2 text-green-600 font-medium">
+                    <CheckCircle2 className="h-5 w-5" /> Wallet connected
+                  </div>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                    <Wallet className="h-4 w-4 text-gray-400" />
+                    <span className="font-mono text-sm text-gray-700">{address.slice(0, 6)}...{address.slice(-4)}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(address); setWalletCopied(true); setTimeout(() => setWalletCopied(false), 2000); }}
+                      className="text-gray-400 hover:text-darkAqua transition-colors ml-1"
+                      title="Copy address"
+                    >
+                      {walletCopied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <ConnectButton />

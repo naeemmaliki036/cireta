@@ -23,6 +23,7 @@ async function handler(request: NextRequest) {
   const fetchInit: RequestInit = {
     method: request.method,
     headers,
+    redirect: "follow",
   };
 
   if (request.method !== "GET" && request.method !== "HEAD") {

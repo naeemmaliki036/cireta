@@ -164,11 +164,21 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[500px]">
+      <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[600px]">
         <SumsubWebSdk
           accessToken={accessToken}
           expirationHandler={() => initiateKYC("").then((r) => r.access_token)}
-          config={{ lang: "en" }}
+          config={{
+            lang: "en",
+            uiConf: {
+              customCssStr: `
+                .sumsub-logo, .powered-by { display: none !important; }
+                #sumsub-websdk-reuse-account-container { display: none !important; }
+                .reuse-account, .reuse-account-container { display: none !important; }
+                [class*="reuse"], [class*="ReuseAccount"] { display: none !important; }
+              `,
+            },
+          }}
           options={{ addViewportTag: false, adaptIframeHeight: true }}
           onMessage={handleMessage}
           onError={handleError}
