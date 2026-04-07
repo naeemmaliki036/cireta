@@ -262,12 +262,14 @@ export default function CreateSalePage() {
         )}
         {/* Step 2: Content */}
         {step === 2 && (
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="space-y-4">
             <h2 className="text-xl font-semibold text-text">Content</h2>
             <div>
               <label className="input-label">Full Description</label>
               <p className="text-xs text-zinc-400 mb-2">Detailed project description, investment thesis, background. Supports rich formatting.</p>
-              <RichTextEditor content={fullDescription} onChange={setFullDescription} placeholder="Enter full project description..." />
+              <div className="min-h-[60vh]">
+                <RichTextEditor content={fullDescription} onChange={setFullDescription} placeholder="Enter full project description..." />
+              </div>
             </div>
           </div>
         )}
