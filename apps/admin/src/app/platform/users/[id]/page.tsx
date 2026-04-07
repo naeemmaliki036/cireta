@@ -331,18 +331,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             Check Sumsub Status
           </Button>
 
-          {isApproved && hasWallets && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRegisterOnchain}
-              isLoading={actionLoading === "onchain"}
-              disabled={!!actionLoading}
-            >
-              <Link2 className="h-3.5 w-3.5 mr-1.5" />
-              Register On-Chain
-            </Button>
-          )}
         </div>
 
         {/* Reject reason form */}
