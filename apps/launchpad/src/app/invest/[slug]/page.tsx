@@ -289,22 +289,37 @@ export default function InvestPage() {
       return;
     }
     setError(null);
+    const approveAmount = parseUnits(amount, 6);
+    console.log("[invest] Approve USDC:", {
+      usdc: usdcAddress,
+      spender: saleContractAddress,
+      amount: approveAmount.toString(),
+      existingAllowance: existingAllowance?.toString(),
+    });
     try {
       writeApprove({
         address: usdcAddress,
         abi: ERC20_APPROVE_ABI,
         functionName: "approve",
-        args: [saleContractAddress, parseUnits(amount, 6)], // USDC = 6 decimals
+        args: [saleContractAddress, approveAmount],
       });
     } catch (err) {
+      console.error("[invest] Approve error:", err);
       setError(err instanceof Error ? err.message : "Approval failed");
     }
-  }, [writeApprove, saleContractAddress, usdcAddress, amount]);
+  }, [writeApprove, saleContractAddress, usdcAddress, amount, existingAllowance]);
 
   const handleConfirm = useCallback(() => {
     if (!saleContractAddress || !activePhase) return;
     setError(null);
     setIsContributing(true);
+    const buyAmount = parseUnits(amount, 6);
+    console.log("[invest] Buy:", {
+      sale: saleContractAddress,
+      phaseIndex: activePhaseIndex >= 0 ? activePhaseIndex : 0,
+      amount: buyAmount.toString(),
+      tokensToReceive,
+    });
     try {
       writeContribute({
         address: saleContractAddress,
@@ -312,15 +327,16 @@ export default function InvestPage() {
         functionName: "buy",
         args: [
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
-          parseUnits(amount, 6), // USDC = 6 decimals
+          buyAmount,
         ],
         gas: BigInt(500_000),
       });
     } catch (err) {
+      console.error("[invest] Buy error:", err);
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, amount]);
+  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, amount, tokensToReceive]);
 
   // OTC Token: Approve OTC tokens for spending by sale contract
   const handleOtcApprove = useCallback(() => {
