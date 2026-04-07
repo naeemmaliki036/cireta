@@ -115,6 +115,30 @@ async def toggle_visibility(
     return SaleActionResponse(sale_id=str(sale_id), status=status_val, message=f"Sale is now {action} on the launchpad")
 
 
+@router.post("/{sale_id}/activate", response_model=SaleActionResponse)
+async def activate_sale(
+    sale_id: UUID,
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+) -> SaleActionResponse:
+    """Record on-chain activation — update DB status to active.
+
+    Called after admin successfully calls Sale.activate() on-chain.
+    """
+    result = await sale_service.db.execute(
+        select(TokenSale).where(TokenSale.id == sale_id)
+    )
+    sale = result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+    if sale.status not in (SaleStatus.APPROVED, SaleStatus.APPROVED_COMING_SOON):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be APPROVED to activate, currently: {sale.status}"})
+
+    sale.status = SaleStatus.ACTIVE
+    await sale_service.db.commit()
+    return SaleActionResponse(sale_id=str(sale_id), status="active", message="Sale activated — now live for investors")
+
+
 @router.post("/{sale_id}/finalize", response_model=SaleActionResponse)
 async def admin_finalize_sale(
     sale_id: UUID,
