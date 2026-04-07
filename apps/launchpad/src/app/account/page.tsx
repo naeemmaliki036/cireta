@@ -49,7 +49,7 @@ export default function AccountPage() {
   if (loading) return <DashboardLayout title="Account"><div className="flex justify-center py-24"><Spinner /></div></DashboardLayout>;
   if (!user) return <DashboardLayout title="Account"><p className="text-center text-white/40 py-24">Please log in</p></DashboardLayout>;
 
-  const kycConfig = KYC_STATUS_CONFIG[user.kyc_status] || KYC_STATUS_CONFIG.none;
+  const kycConfig = (KYC_STATUS_CONFIG[user.kyc_status] ?? KYC_STATUS_CONFIG.none) as { icon: typeof CheckCircle2; color: string; bg: string; label: string };
   const KycIcon = kycConfig.icon;
 
   return (
@@ -61,7 +61,7 @@ export default function AccountPage() {
       <div className="bg-gradient-to-r from-darkAqua to-darkAqua/80 rounded-2xl p-6 mb-8 text-white">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-xl font-bold">
-            {(user.display_name || user.email)[0].toUpperCase()}
+            {(user.display_name || user.email).charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-semibold">{user.display_name || "Investor"}</h2>
