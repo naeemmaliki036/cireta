@@ -17,7 +17,11 @@ import { DataTable } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
-import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, registerIssuerOnChain, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
+import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
+import { getAddresses } from "@/lib/contracts/addresses";
 
 function mapIssuer(i: APIIssuer): Issuer {
   return {
@@ -39,6 +43,15 @@ export default function IssuersPage() {
   const [apiIssuers, setApiIssuers] = useState<Issuer[]>([]);
   const [onChainStatus, setOnChainStatus] = useState<Record<string, OnChainStatus>>({});
   const [registeringId, setRegisteringId] = useState<string | null>(null);
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const issuerRegistryAddr = getAddresses().issuerRegistry;
+
+  const { writeContract: registerIssuer, data: registerHash } = useWriteContract();
+  const { writeContract: activateIssuerOnChain, data: activateHash } = useWriteContract();
+
+  const { isSuccess: registerConfirmed } = useWaitForTransactionReceipt({ hash: registerHash });
+  const { isSuccess: activateConfirmed } = useWaitForTransactionReceipt({ hash: activateHash });
 
   useEffect(() => {
     (async () => {
@@ -47,19 +60,57 @@ export default function IssuersPage() {
     })();
   }, []);
 
-  const handleRegisterOnChain = async (issuer: Issuer) => {
-    if (registeringId) return;
-    setRegisteringId(issuer.id);
-    try {
-      const result = await registerIssuerOnChain(issuer.id);
-      setOnChainStatus(prev => ({ ...prev, [issuer.id]: "registered" }));
-      alert(`Issuer registered on-chain!\nTx: ${result.tx_hash}`);
-    } catch (err) {
-      console.error("On-chain registration failed:", err);
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      alert(`On-chain registration failed: ${msg}`);
+  // After register tx confirms, send activate tx
+  useEffect(() => {
+    if (registerConfirmed && registeringId) {
+      const issuer = apiIssuers.find(i => i.id === registeringId);
+      if (issuer && issuer.wallet !== "—" && issuerRegistryAddr) {
+        activateIssuerOnChain({
+          address: issuerRegistryAddr,
+          abi: ISSUER_REGISTRY_ABI,
+          functionName: "activateIssuer",
+          args: [issuer.wallet as `0x${string}`],
+        });
+      }
     }
-    setRegisteringId(null);
+  }, [registerConfirmed]);
+
+  // After activate tx confirms, mark as registered
+  useEffect(() => {
+    if (activateConfirmed && registeringId) {
+      setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
+      setRegisteringId(null);
+    }
+  }, [activateConfirmed]);
+
+  const handleRegisterOnChain = (issuer: Issuer) => {
+    if (registeringId) return;
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+    if (!issuerRegistryAddr) {
+      alert("Issuer Registry contract address not configured");
+      return;
+    }
+    if (issuer.wallet === "—") {
+      alert("Issuer has no wallet address");
+      return;
+    }
+    setRegisteringId(issuer.id);
+    registerIssuer({
+      address: issuerRegistryAddr,
+      abi: ISSUER_REGISTRY_ABI,
+      functionName: "registerIssuer",
+      args: [issuer.wallet as `0x${string}`, issuer.name, issuer.jurisdiction || ""],
+    }, {
+      onError: (err) => {
+        console.error("On-chain registration failed:", err);
+        const msg = err.message.includes("user rejected") ? "Transaction rejected" : err.message;
+        alert(`Registration failed: ${msg}`);
+        setRegisteringId(null);
+      },
+    });
   };
 
   const [statusFilter, setStatusFilter] = useState("all");
