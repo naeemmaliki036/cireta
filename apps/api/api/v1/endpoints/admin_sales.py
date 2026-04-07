@@ -55,6 +55,7 @@ async def approve_sale(
 
     if sale.is_coming_soon:
         sale.status = SaleStatus.APPROVED_COMING_SOON
+        sale.is_visible = True  # Auto-visible on launchpad
         msg = "Sale approved as Coming Soon — now visible on launchpad"
     else:
         sale.status = SaleStatus.APPROVED
@@ -135,6 +136,7 @@ async def activate_sale(
         raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be APPROVED to activate, currently: {sale.status}"})
 
     sale.status = SaleStatus.ACTIVE
+    sale.is_visible = True  # Auto-visible on activation
     await sale_service.db.commit()
     return SaleActionResponse(sale_id=str(sale_id), status="active", message="Sale activated — now live for investors")
 
