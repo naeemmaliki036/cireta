@@ -135,6 +135,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const { isConnected, address: walletAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
   const deployAction = useContractAction();
+  const [configError, setConfigError] = useState<string | null>(null);
 
   // Read issuer fee from PlatformFeeManager
   const feeManagerAddr = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || undefined;
@@ -217,11 +218,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     try {
       saleFactoryAddress = requireAddress("saleFactory");
       ciretaUsdcAddress = requireAddress("ciretaUsdc");
-      // platformFeeManager from deployments — load from env or hardcode as a NEXT_PUBLIC_ env var
-      feeManagerAddress = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || zeroAddress;
-    } catch {
+      feeManagerAddress = requireAddress("platformFeeManager");
+    } catch (e) {
+      setConfigError(e instanceof Error ? e.message : "Missing contract address — check environment variables.");
       return;
     }
+    setConfigError(null);
 
     const softCap = BigInt(Math.round(parseFloat(sale.soft_cap || "0") * 1e6));
     const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
@@ -523,6 +525,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
           <AlertCircle className="h-4 w-4 inline mr-1" />
           Token must be deployed on-chain before the sale can be deployed. Go to your token and deploy it first.
+        </div>
+      )}
+      {configError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4 inline mr-1" />
+          {configError}
         </div>
       )}
       <TransactionStatus
