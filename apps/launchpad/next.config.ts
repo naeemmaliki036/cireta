@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   reactStrictMode: true,
+  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

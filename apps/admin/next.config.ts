@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.join(__dirname, "../../"),
   output: "standalone",
+  skipTrailingSlashRedirect: true,
 };
 
 export default nextConfig;
