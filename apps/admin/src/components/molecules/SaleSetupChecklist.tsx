@@ -178,8 +178,29 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [showReview, setShowReview] = useState(false);
 
+  // Read on-chain phase count
+  const { data: onChainPhaseCount, refetch: refetchPhaseCount } = useReadContract({
+    address: sale.contract_address as `0x${string}`,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "getPhaseCount",
+    query: { enabled: !!sale.contract_address },
+  });
+  const chainPhases = Number(onChainPhaseCount ?? 0);
+
+  // Read issuer token balance for deposit check
+  const { data: issuerTokenBalance } = useReadContract({
+    address: sale.token_contract_address as `0x${string}`,
+    abi: CIRETA_TOKEN_ABI as unknown as Abi,
+    functionName: "balanceOf",
+    args: walletAddress ? [walletAddress] : undefined,
+    query: { enabled: !!sale.token_contract_address && !!walletAddress },
+  });
+  const issuerBalance = Number(issuerTokenBalance ?? 0);
+  const tokenDecimals = 6; // Cireta tokens use 6 decimals
+  const issuerBalanceFormatted = (issuerBalance / 10 ** tokenDecimals).toLocaleString();
+
   const hasContract = !!sale.contract_address;
-  const hasPhases = sale.phases.length > 0;
+  const hasPhases = sale.phases.length > 0 && chainPhases >= sale.phases.length;
   const hasDescription = !!(sale.description_text || sale.full_description);
   const isVested = sale.sale_mode === "vested";
 
@@ -463,7 +484,16 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
 
                     {step.id === "phases" && (
                       <div>
-                        <p className="text-xs text-zinc-500 mb-2">Add phases from the sale detail section below, or use the on-chain "Add Phase" form.</p>
+                        <p className="text-xs text-zinc-500 mb-2">
+                          <span className="font-semibold">{chainPhases}</span> of <span className="font-semibold">{sale.phases.length}</span> phase{sale.phases.length !== 1 ? "s" : ""} deployed on-chain.
+                          {sale.phases.length === 0 && " Add phases in the sale detail section below."}
+                        </p>
+                        {sale.phases.length > chainPhases && (
+                          <p className="text-xs text-amber-600">Use the "Deploy On-Chain" buttons in the Phases section below to sync.</p>
+                        )}
+                        {chainPhases >= sale.phases.length && sale.phases.length > 0 && (
+                          <p className="text-xs text-green-600 font-medium">All phases deployed on-chain.</p>
+                        )}
                       </div>
                     )}
 
@@ -474,6 +504,12 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
                             Required: <span className="font-bold">{totalAllocation.toLocaleString()} {sale.token_symbol || "tokens"}</span> (total allocation across {sale.phases.length} phase{sale.phases.length > 1 ? "s" : ""})
                           </div>
                         )}
+                        <div className="mb-3 text-xs">
+                          Your balance: <span className="font-semibold">{issuerBalanceFormatted} {sale.token_symbol || "tokens"}</span>
+                          {totalAllocation > 0 && issuerBalance / 10 ** tokenDecimals < totalAllocation && (
+                            <span className="text-red-500 ml-2">Insufficient — mint more tokens first.</span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mb-2">
                           <input type="number" value={depositAmount || (totalAllocation > 0 ? totalAllocation.toString() : "")}
                             onChange={(e) => setDepositAmount(e.target.value)}
