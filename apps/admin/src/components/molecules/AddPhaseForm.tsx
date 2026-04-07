@@ -166,7 +166,7 @@ export function AddPhaseForm({
   };
 
   return (
-    <div className="rounded-2xl bg-box border border-darkBlack/5">
+    <div className="rounded-lg bg-box border border-darkBlack/5">
       <button onClick={() => setExpanded(!expanded)}
         className="w-full p-4 flex items-center justify-between text-left">
         <h3 className="font-medium text-text flex items-center gap-2">

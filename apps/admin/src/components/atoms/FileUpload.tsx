@@ -85,7 +85,7 @@ export function FileUpload({
     return (
       <div>
         {label && <label className="input-label">{label}</label>}
-        <div className="relative rounded-xl border border-darkBlack/10 overflow-hidden">
+        <div className="relative rounded-lg border border-darkBlack/10 overflow-hidden">
           {previewType === "image" ? (
             <img src={value.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL || ""}${value}` : value} alt="Preview" className="w-full h-40 object-cover" />
           ) : (
@@ -98,7 +98,7 @@ export function FileUpload({
             <button
               type="button"
               onClick={onRemove}
-              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+              className="absolute top-2 right-2 w-7 h-7 rounded-md bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -120,7 +120,7 @@ export function FileUpload({
         onDragLeave={() => setDragOver(false)}
         onClick={() => !disabled && inputRef.current?.click()}
         className={cn(
-          "relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 cursor-pointer transition-colors",
+          "relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors",
           dragOver
             ? "border-darkAqua bg-darkAqua/5"
             : "border-darkBlack/15 hover:border-darkAqua/50",

@@ -198,18 +198,17 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
     <IssuerDashboardLayout
       title={`Mint ${token.symbol}`}
       description={`Mint new ${token.name} tokens to any address`}
-    >
-      <div className="mb-6">
-        <Link
-          href={`/issuer/tokens/${resolvedId}`}
-          className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Token
+      actions={
+        <Link href={`/issuer/tokens/${resolvedId}`}>
+          <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Back to Token
+          </Button>
         </Link>
-      </div>
+      }
+    >
 
       {!token.contract_address && (
-        <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+        <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
           This token has not been deployed on-chain yet. Deploy it first from the token detail page.
         </div>
       )}
@@ -218,7 +217,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
+          className="bg-white rounded-lg p-6 border border-darkBlack/10"
         >
           <div className="flex items-center gap-2 mb-2">
             <Coins className="h-5 w-5 text-darkAqua" />
@@ -236,7 +235,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
+          className="bg-white rounded-lg p-6 border border-darkBlack/10"
         >
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="h-5 w-5 text-darkAqua" />
@@ -254,7 +253,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10"
+          className="bg-white rounded-lg p-6 border border-darkBlack/10"
         >
           <div className="flex items-center gap-2 mb-2">
             <Coins className="h-5 w-5 text-darkAqua" />
@@ -272,7 +271,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="bg-white rounded-3xl p-6 border border-darkBlack/10"
+        className="bg-white rounded-lg p-6 border border-darkBlack/10"
       >
         <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
           <Coins className="h-5 w-5" /> Mint Tokens
@@ -291,7 +290,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
                 setValidationError(null);
               }}
               maxLength={42}
-              className={`w-full px-4 py-2.5 rounded-xl border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua ${
+              className={`w-full px-4 py-2.5 rounded-lg border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua ${
                 recipient && !isAddress(recipient) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
               }`}
               placeholder="0x..."
@@ -343,7 +342,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
                 setAmount(val);
                 setValidationError(null);
               }}
-              className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+              className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
               placeholder="1000"
             />
             {amount && Number(amount) > 0 && (() => {

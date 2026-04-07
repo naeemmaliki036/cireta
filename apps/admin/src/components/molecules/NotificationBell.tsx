@@ -80,14 +80,14 @@ export function NotificationBell() {
       >
         <Bell className="h-4 w-4 text-zinc-500" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-md flex items-center justify-center">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-zinc-200 shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-zinc-200 shadow-lg z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
             <h3 className="text-sm font-semibold text-zinc-900">Notifications</h3>
@@ -129,7 +129,7 @@ export function NotificationBell() {
                   }}
                 >
                   <div className="flex items-start gap-2">
-                    {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />}
+                    {!n.read && <div className="w-1.5 h-1.5 rounded-md bg-blue-500 mt-1.5 shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-zinc-900 truncate">{n.title}</p>
                       <p className="text-[11px] text-zinc-500 line-clamp-2 mt-0.5">{n.message}</p>

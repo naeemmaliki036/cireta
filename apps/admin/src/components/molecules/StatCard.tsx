@@ -55,7 +55,7 @@ export function StatCard({
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "rounded-3xl p-7 border",
+        "rounded-lg p-7 border",
         variants[variant],
         className
       )}

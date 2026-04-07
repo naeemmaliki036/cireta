@@ -50,9 +50,9 @@ export function AuditLogRow({
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="flex items-start gap-4 p-4 rounded-xl bg-box/50 hover:bg-box transition-colors"
+      className="flex items-start gap-4 p-4 rounded-lg bg-box/50 hover:bg-box transition-colors"
     >
-      <div className={cn("p-2 rounded-xl bg-white", config.color)}>
+      <div className={cn("p-2 rounded-lg bg-white", config.color)}>
         <Icon className="h-5 w-5" />
       </div>
 

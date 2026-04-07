@@ -207,14 +207,14 @@ export default function FeesPage() {
       </div>
 
       {!feeManagerAddress && (
-        <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+        <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
           PlatformFeeManager contract address not configured. Set <code className="font-mono bg-amber-100 px-1 rounded">NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS</code> in your environment.
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* On-Chain Config */}
-        <div className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+        <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
           <h2 className="text-lg font-semibold text-text mb-4">On-Chain Configuration</h2>
 
           {/* Current fee receiver */}
@@ -295,13 +295,13 @@ export default function FeesPage() {
         </div>
 
         {/* Per-Issuer Fee Override */}
-        <div className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+        <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
           <h2 className="text-lg font-semibold text-text mb-4">Per-Issuer Fee Override</h2>
 
           {issuerOverrides.length > 0 ? (
             <div className="space-y-3 mb-5">
               {issuerOverrides.map((o) => (
-                <div key={o.issuer_address} className="flex items-center justify-between p-3 rounded-xl bg-box">
+                <div key={o.issuer_address} className="flex items-center justify-between p-3 rounded-lg bg-box">
                   <div>
                     <p className="text-sm font-medium text-text">{o.issuer_name || "Unknown Issuer"}</p>
                     <p className="text-xs text-zinc-400 font-mono">{o.issuer_address.slice(0, 10)}...{o.issuer_address.slice(-6)}</p>
@@ -346,7 +346,7 @@ export default function FeesPage() {
       </div>
 
       {/* Recent Fee Events / Audit Logs */}
-      <div className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+      <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
         <h2 className="text-lg font-semibold text-text mb-4">Recent Fee Activity</h2>
         {loading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
@@ -355,7 +355,7 @@ export default function FeesPage() {
         ) : (
           <div className="space-y-3">
             {auditLogs.map((log) => (
-              <div key={log.id} className="flex items-start justify-between p-3 rounded-xl bg-box">
+              <div key={log.id} className="flex items-start justify-between p-3 rounded-lg bg-box">
                 <div>
                   <p className="text-sm font-medium text-text">{log.action}</p>
                   <p className="text-xs text-zinc-500 mt-0.5">{log.details}</p>

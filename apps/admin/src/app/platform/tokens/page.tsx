@@ -68,7 +68,7 @@ export default function PlatformTokensPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-zinc-400 text-sm">Loading...</div>
         ) : filtered.length === 0 ? (

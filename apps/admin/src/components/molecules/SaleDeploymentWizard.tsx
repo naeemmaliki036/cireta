@@ -228,14 +228,14 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
   const allDone = steps.every(s => completedSteps.has(s.id));
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-5">
+    <div className="bg-white rounded-lg border border-zinc-100 p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-zinc-900">On-Chain Deployment</h3>
-        {allDone && <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">Ready for activation</span>}
+        {allDone && <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1 rounded-md">Ready for activation</span>}
       </div>
 
       {error && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 flex items-center gap-2">
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 flex items-center gap-2">
           <AlertCircle className="h-4 w-4 flex-shrink-0" /> {error}
         </div>
       )}
@@ -245,13 +245,13 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
           const status = getStepStatus(step.id);
 
           return (
-            <div key={step.id} className={`p-4 rounded-xl border transition-colors ${
+            <div key={step.id} className={`p-4 rounded-lg border transition-colors ${
               status === "done" ? "bg-green-50 border-green-200" :
               status === "active" ? "bg-white border-darkAqua/30" :
               "bg-zinc-50 border-zinc-100 opacity-60"
             }`}>
               <div className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${
                   status === "done" ? "bg-green-100 text-green-600" :
                   status === "active" ? "bg-darkAqua/10 text-darkAqua" :
                   "bg-zinc-100 text-zinc-400"
@@ -317,7 +317,7 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
       </div>
 
       {allDone && (
-        <div className="p-4 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
+        <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
           <p className="font-semibold">All steps complete</p>
           <p className="text-xs mt-1">The sale is deployed, whitelisted, and funded. Waiting for admin to activate on-chain.</p>
         </div>

@@ -61,8 +61,8 @@ export default function IdentityOnboardingPage() {
         )}
 
         {state === "ready" && (
-          <div className="bg-white rounded-2xl p-8 border border-zinc-200 text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-lg p-8 border border-zinc-200 text-center space-y-6">
+            <div className="w-16 h-16 rounded-md bg-teal-50 flex items-center justify-center mx-auto">
               <Shield className="h-8 w-8 text-teal-600" />
             </div>
             <h2 className="text-xl font-semibold">{label} Verification</h2>
@@ -82,7 +82,7 @@ export default function IdentityOnboardingPage() {
         )}
 
         {state === "sdk" && accessToken && (
-          <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
             <SumsubWebSdk
               accessToken={accessToken}
               expirationHandler={async () => {
@@ -103,7 +103,7 @@ export default function IdentityOnboardingPage() {
         )}
 
         {state === "processing" && (
-          <div className="bg-white rounded-2xl p-8 border border-zinc-200 text-center space-y-4">
+          <div className="bg-white rounded-lg p-8 border border-zinc-200 text-center space-y-4">
             <Loader2 className="h-10 w-10 text-amber-500 animate-spin mx-auto" />
             <h2 className="text-xl font-semibold">Under Review</h2>
             <p className="text-zinc-500 text-sm">
@@ -116,7 +116,7 @@ export default function IdentityOnboardingPage() {
         )}
 
         {state === "approved" && (
-          <div className="bg-white rounded-2xl p-8 border border-zinc-200 text-center space-y-4">
+          <div className="bg-white rounded-lg p-8 border border-zinc-200 text-center space-y-4">
             <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
             <h2 className="text-xl font-semibold">Identity Verified</h2>
             <p className="text-zinc-500 text-sm">Your {label.toLowerCase()} verification is complete.</p>
@@ -127,8 +127,8 @@ export default function IdentityOnboardingPage() {
         )}
 
         {state === "rejected" && (
-          <div className="bg-white rounded-2xl p-8 border border-zinc-200 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-lg p-8 border border-zinc-200 text-center space-y-4">
+            <div className="w-16 h-16 rounded-md bg-red-50 flex items-center justify-center mx-auto">
               <Shield className="h-8 w-8 text-red-500" />
             </div>
             <h2 className="text-xl font-semibold">Verification Rejected</h2>
@@ -140,7 +140,7 @@ export default function IdentityOnboardingPage() {
         )}
 
         {state === "error" && (
-          <div className="bg-white rounded-2xl p-8 border border-zinc-200 text-center space-y-4">
+          <div className="bg-white rounded-lg p-8 border border-zinc-200 text-center space-y-4">
             <p className="text-red-500 text-sm">{error}</p>
             <Button variant="primary" onClick={() => setState("ready")}>Retry</Button>
           </div>

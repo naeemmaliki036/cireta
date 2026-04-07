@@ -18,7 +18,7 @@ function StatusIcon({ status }: { status: string }) {
   if (status === "approved" || status === "active") return <CheckCircle2 className="h-5 w-5 text-green-500" />;
   if (status === "pending" || status === "pending_approval") return <Loader2 className="h-5 w-5 text-amber-500 animate-spin" />;
   if (status === "rejected") return <AlertCircle className="h-5 w-5 text-red-500" />;
-  return <div className="h-5 w-5 rounded-full border-2 border-zinc-300" />;
+  return <div className="h-5 w-5 rounded-md border-2 border-zinc-300" />;
 }
 
 function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: OnboardingStatus }) {
@@ -71,7 +71,7 @@ function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: On
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Notification banner */}
         <div className={cn(
-          "flex items-start gap-3 p-4 rounded-xl border",
+          "flex items-start gap-3 p-4 rounded-lg border",
           bannerType === "ready" ? "bg-teal-50 border-teal-200"
             : bannerType === "awaiting" ? "bg-blue-50 border-blue-200"
             : "bg-amber-50 border-amber-200"
@@ -115,7 +115,7 @@ function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: On
 
         {/* Step 1: Wallet */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-6 border border-zinc-200">
+          className="bg-white rounded-lg p-6 border border-zinc-200">
           <div className="flex items-start gap-4">
             {(onboarding.wallet_status === "verified" || onboarding.wallet_status === "pending_approval")
               ? <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -170,7 +170,7 @@ function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: On
 
         {/* Step 2: Identity Verification */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-6 border border-zinc-200">
+          className="bg-white rounded-lg p-6 border border-zinc-200">
           <div className="flex items-start gap-4">
             {kycExempted ? (
               <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -222,7 +222,7 @@ function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: On
         {/* Submit for Approval CTA — only when wallet verified + identity done, before submission */}
         {readyToSubmit && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-            className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl p-6 text-white">
+            className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-lg p-6 text-white">
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <h3 className="font-semibold text-lg">Ready to submit</h3>
@@ -246,7 +246,7 @@ function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: On
         {/* Awaiting Approval — after submission, before admin activates */}
         {awaitingApproval && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-            className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+            className="bg-blue-50 rounded-lg p-6 border border-blue-200">
             <div className="flex items-start gap-4">
               <Loader2 className="h-5 w-5 text-blue-500 animate-spin mt-0.5" />
               <div>
@@ -263,7 +263,7 @@ function OnboardingChecklist({ onboarding: initialOnboarding }: { onboarding: On
         {/* Step 3: Admin Activation — only show when already approved or active */}
         {(onboarding.issuer_status === "active") && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-            className="bg-white rounded-2xl p-6 border border-zinc-200">
+            className="bg-white rounded-lg p-6 border border-zinc-200">
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
               <div className="flex-1">
@@ -345,7 +345,7 @@ export default function IssuerOverviewPage() {
           { label: "Active Now", value: activeSales.length.toString(), icon: <CheckCircle2 className="h-5 w-5" />, color: "text-green-600", bg: "bg-green-50" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-xl p-5 border border-zinc-100 hover:shadow-sm transition-shadow">
+            className="bg-white rounded-lg p-5 border border-zinc-100 hover:shadow-sm transition-shadow">
             <div className="flex items-center gap-3 mb-3">
               <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center ${s.color}`}>{s.icon}</div>
               <p className="text-xs font-medium text-darkBlack/50 uppercase tracking-wide">{s.label}</p>
@@ -359,7 +359,7 @@ export default function IssuerOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status Breakdown */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-6 border border-darkBlack/10">
+          className="bg-white rounded-lg p-6 border border-darkBlack/10">
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">Sale Pipeline</h2>
           {sales.length === 0 ? (
             <div className="text-center py-6">
@@ -373,7 +373,7 @@ export default function IssuerOverviewPage() {
               {statusBreakdown.map((s) => (
                 <div key={s.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
+                    <div className={`w-2.5 h-2.5 rounded-md ${s.color}`} />
                     <span className="text-sm text-text">{s.label}</span>
                   </div>
                   <span className="text-sm font-semibold text-text">{s.count}</span>
@@ -389,7 +389,7 @@ export default function IssuerOverviewPage() {
 
         {/* Quick Actions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="bg-white rounded-2xl p-6 border border-darkBlack/10">
+          className="bg-white rounded-lg p-6 border border-darkBlack/10">
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">Quick Actions</h2>
           <div className="space-y-3">
             {[
@@ -399,7 +399,7 @@ export default function IssuerOverviewPage() {
               { href: "/issuer/tokens", icon: <Wallet className="h-5 w-5 text-blue-600" />, bg: "bg-blue-50", label: "Manage Tokens", sub: "View tokens, mint, manage compliance" },
             ].map((a) => (
               <Link key={a.href} href={a.href}
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-zinc-100 hover:border-darkAqua/30 hover:bg-darkAqua/5 transition-all group">
+                className="flex items-center gap-4 px-4 py-3.5 rounded-lg border border-zinc-100 hover:border-darkAqua/30 hover:bg-darkAqua/5 transition-all group">
                 <div className={`w-10 h-10 rounded-lg ${a.bg} flex items-center justify-center shrink-0`}>{a.icon}</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-text">{a.label}</p>
@@ -414,7 +414,7 @@ export default function IssuerOverviewPage() {
 
       {/* Recent Sales */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="bg-white rounded-2xl p-6 border border-darkBlack/10">
+        className="bg-white rounded-lg p-6 border border-darkBlack/10">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Recent Sales</h2>
           <Link href="/issuer/sales">
@@ -423,7 +423,7 @@ export default function IssuerOverviewPage() {
         </div>
         {sales.length === 0 ? (
           <div className="text-center py-10">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+            <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-7 w-7 text-zinc-300" />
             </div>
             <p className="text-darkBlack/40 text-sm mb-1">No sales yet</p>
@@ -450,7 +450,7 @@ export default function IssuerOverviewPage() {
                 : sale.status.charAt(0).toUpperCase() + sale.status.slice(1);
               return (
                 <Link key={sale.id} href={`/issuer/sales/${sale.id}`}
-                  className="flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-box transition-colors group">
+                  className="flex items-center gap-4 px-4 py-3.5 rounded-lg hover:bg-box transition-colors group">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-text truncate">{sale.title || sale.token_name || "Untitled Sale"}</p>
                     <p className="text-xs text-darkBlack/40">

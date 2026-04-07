@@ -160,6 +160,14 @@ export default function IssuersPage() {
     <PlatformAdminLayout
       title="Issuer Management"
       description="Manage platform issuers, fees, and approvals"
+      actions={
+        <Link href="/platform/issuers/whitelist">
+          <Button variant="outline" size="sm">
+            <ListChecks className="h-4 w-4 mr-2" />
+            Manage Issuer Whitelist
+          </Button>
+        </Link>
+      }
     >
       {/* Inline stats + Whitelist button */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -202,14 +210,6 @@ export default function IssuersPage() {
           <option value="pending">Pending</option>
           <option value="suspended">Suspended</option>
         </select>
-        <div className="ml-auto">
-          <Link href="/platform/issuers/whitelist">
-            <Button variant="outline" size="sm">
-              <ListChecks className="h-4 w-4 mr-2" />
-              Manage Issuer Whitelist
-            </Button>
-          </Link>
-        </div>
       </div>
 
       {/* Table */}

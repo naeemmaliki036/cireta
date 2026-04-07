@@ -409,7 +409,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
   if (!hasContract) return null; // Deploy button is handled elsewhere
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden mb-6">
+    <div className="bg-white rounded-lg border border-zinc-100 overflow-hidden mb-6">
       {/* Header with progress */}
       <div className="px-6 py-4 border-b border-zinc-100">
         <div className="flex items-center justify-between mb-3">
@@ -419,8 +419,8 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
           </div>
           <span className="text-xs font-medium text-zinc-500">{completedCount}/{steps.length} complete</span>
         </div>
-        <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
-          <div className="h-full bg-darkAqua rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+        <div className="h-2 bg-zinc-100 rounded-md overflow-hidden">
+          <div className="h-full bg-darkAqua rounded-md transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -435,7 +435,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
             const StepIcon = step.icon;
 
             return (
-              <div key={step.id} className={`rounded-xl mb-2 transition-all ${
+              <div key={step.id} className={`rounded-lg mb-2 transition-all ${
                 step.completed ? "bg-green-50/50" : isNext ? "bg-darkAqua/5 border border-darkAqua/20" : "bg-zinc-50"
               }`}>
                 <button onClick={() => setExpandedStep(isExpanded ? null : step.id)}
@@ -542,7 +542,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
             const StepIcon = step.icon;
             const isExpanded = expandedStep === step.id;
             return (
-              <div key={step.id} className={`rounded-xl mb-2 transition-all ${
+              <div key={step.id} className={`rounded-lg mb-2 transition-all ${
                 step.completed ? "bg-green-50/50" : "bg-zinc-50"
               }`}>
                 <button onClick={() => setExpandedStep(isExpanded ? null : step.id)}
@@ -593,7 +593,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
                 <h4 className="font-semibold text-sm text-zinc-900">Review Before Submitting</h4>
 
                 {/* Summary */}
-                <div className="bg-white rounded-xl border border-zinc-200 p-4 text-sm space-y-2">
+                <div className="bg-white rounded-lg border border-zinc-200 p-4 text-sm space-y-2">
                   <div className="flex justify-between"><span className="text-zinc-500">Title</span><span className="font-medium">{sale.title || "Untitled"}</span></div>
                   <div className="flex justify-between"><span className="text-zinc-500">Token</span><span className="font-medium">{sale.token_name} ({sale.token_symbol})</span></div>
                   <div className="flex justify-between"><span className="text-zinc-500">Mode</span><span className="font-medium capitalize">{sale.sale_mode}</span></div>
@@ -610,7 +610,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
                 </div>
 
                 {/* Checklist recap */}
-                <div className="bg-white rounded-xl border border-zinc-200 p-4">
+                <div className="bg-white rounded-lg border border-zinc-200 p-4">
                   <p className="text-xs font-semibold text-zinc-700 mb-2">Checklist Status</p>
                   <div className="space-y-1">
                     {steps.map((s) => (
@@ -623,7 +623,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
                   <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
                   Once submitted, the admin will review and approve to make this sale visible on the launchpad. The admin will then activate it on-chain to allow purchases.
                 </div>

@@ -10,8 +10,8 @@ function BrandPanel() {
   return (
     <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#13636F] to-[#0a1a1e] relative overflow-hidden flex-col">
       <div className="absolute inset-0">
-        <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-white/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-1/4 right-1/3 w-60 h-60 bg-[#13636F]/20 rounded-full blur-[80px]" />
+        <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-white/5 rounded-md blur-[100px]" />
+        <div className="absolute bottom-1/4 right-1/3 w-60 h-60 bg-[#13636F]/20 rounded-md blur-[80px]" />
       </div>
       <div className="relative z-10 flex flex-col h-full px-14 xl:px-20 py-12">
         <img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto self-start" />
@@ -26,7 +26,7 @@ function BrandPanel() {
           <div className="mt-8 space-y-3">
             {["Regulated RWA security tokens", "Institutional-grade compliance (KYC/AML)", "On-chain ownership & transparent redemption"].map((f, i) => (
               <div key={i} className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <div className="w-1.5 h-1.5 rounded-md bg-white/40" />
                 <span className="text-sm text-white/60">{f}</span>
               </div>
             ))}
@@ -183,7 +183,7 @@ export default function LoginPage() {
             <div className="space-y-4">
               <button
                 onClick={() => { reset(); setLoginRole("admin"); setMode("admin-otp"); }}
-                className="w-full flex items-center gap-4 p-5 rounded-2xl border border-zinc-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all text-left"
+                className="w-full flex items-center gap-4 p-5 rounded-lg border border-zinc-200 bg-white hover:border-blue-400 hover:shadow-sm transition-all text-left"
               >
                 <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
                   <Shield className="h-6 w-6 text-blue-600" />
@@ -195,7 +195,7 @@ export default function LoginPage() {
               </button>
               <button
                 onClick={() => { reset(); setLoginRole("issuer"); setMode("issuer-otp"); }}
-                className="w-full flex items-center gap-4 p-5 rounded-2xl border border-zinc-200 bg-white hover:border-teal-400 hover:shadow-sm transition-all text-left"
+                className="w-full flex items-center gap-4 p-5 rounded-lg border border-zinc-200 bg-white hover:border-teal-400 hover:shadow-sm transition-all text-left"
               >
                 <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center">
                   <Building2 className="h-6 w-6 text-teal-600" />

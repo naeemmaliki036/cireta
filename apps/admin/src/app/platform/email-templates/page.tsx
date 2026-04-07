@@ -186,7 +186,7 @@ export default function EmailTemplatesPage() {
     <PlatformAdminLayout title="Email Management" description="Manage transactional email content">
       <div className="flex gap-6 min-h-[calc(100vh-12rem)]">
         {/* Sidebar — template list */}
-        <div className="w-60 flex-shrink-0 bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+        <div className="w-60 flex-shrink-0 bg-white rounded-lg border border-zinc-100 overflow-hidden">
           <div className="p-3 space-y-3 max-h-[calc(100vh-14rem)] overflow-y-auto">
             {Object.entries(grouped).map(([category, tmpls]) => (
               <div key={category}>
@@ -203,7 +203,7 @@ export default function EmailTemplatesPage() {
                   >
                     <span className="truncate">{DISPLAY_NAMES[t.key] ?? t.key.replace(/_/g, " ")}</span>
                     <span className="flex items-center gap-1 flex-shrink-0">
-                      {t.is_custom && <span className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Customized" />}
+                      {t.is_custom && <span className="w-1.5 h-1.5 rounded-md bg-blue-400" title="Customized" />}
                       {!t.is_active && <EyeOff className="h-3 w-3 text-zinc-300" />}
                     </span>
                   </button>
@@ -223,7 +223,7 @@ export default function EmailTemplatesPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+            <div className="bg-white rounded-lg border border-zinc-100 overflow-hidden">
               {/* Header */}
               <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
                 <div>
@@ -235,7 +235,7 @@ export default function EmailTemplatesPage() {
                   <button
                     onClick={() => handleToggle(selected.key)}
                     disabled={actionLoading === `toggle-${selected.key}`}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       selected.is_active
                         ? "bg-green-100 text-green-700 hover:bg-green-200"
                         : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
@@ -248,7 +248,7 @@ export default function EmailTemplatesPage() {
 
               {/* Message */}
               {message && (
-                <div className={`mx-6 mt-4 p-3 rounded-xl border text-sm flex items-center gap-2 ${
+                <div className={`mx-6 mt-4 p-3 rounded-lg border text-sm flex items-center gap-2 ${
                   message.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-600"
                 }`}>
                   {message.type === "error" ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -265,7 +265,7 @@ export default function EmailTemplatesPage() {
                     type="text"
                     value={editSubject}
                     onChange={(e) => setEditSubject(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+                    className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
                   />
                 </div>
 
@@ -311,7 +311,7 @@ export default function EmailTemplatesPage() {
                   </div>
 
                   {showPreview ? (
-                    <div className="border border-zinc-200 rounded-xl overflow-hidden">
+                    <div className="border border-zinc-200 rounded-lg overflow-hidden">
                       <iframe
                         srcDoc={editBody.replace(/\{\{(\w+)\}\}/g, (_, v) => `<span style="background:#e0f2fe;padding:1px 4px;border-radius:3px;font-size:12px">${v}</span>`)}
                         className="w-full h-[400px] bg-white"
@@ -323,7 +323,7 @@ export default function EmailTemplatesPage() {
                     <textarea
                       value={editBody}
                       onChange={(e) => setEditBody(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-zinc-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua leading-relaxed"
+                      className="w-full px-4 py-3 rounded-lg border border-zinc-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua leading-relaxed"
                       rows={16}
                     />
                   ) : (

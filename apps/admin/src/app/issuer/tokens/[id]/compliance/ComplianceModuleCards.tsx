@@ -89,7 +89,7 @@ function CountryAllowConfig({
         {allowed.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {allowed.map((code) => (
-              <span key={code} className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2.5 py-1 text-xs font-medium text-green-700">
+              <span key={code} className="inline-flex items-center gap-1 rounded-md bg-green-50 border border-green-200 px-2.5 py-1 text-xs font-medium text-green-700">
                 {countryName(code)}
                 <button onClick={() => handleRemove(code)} className="ml-0.5 hover:text-red-600" title="Remove">
                   <Trash2 className="h-3 w-3" />
@@ -187,7 +187,7 @@ export function ModuleCard({
   const compAddr = complianceAddress || "";
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+    <div className="bg-white rounded-lg border border-zinc-100 p-5">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-darkAqua/10">{icon}</div>

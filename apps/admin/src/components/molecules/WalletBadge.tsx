@@ -32,7 +32,7 @@ export function WalletBadge({
   return (
     <div className={cn("flex items-center gap-3", className)}>
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-darkAqua to-gold flex items-center justify-center">
+        <div className="w-8 h-8 rounded-md bg-gradient-to-br from-darkAqua to-gold flex items-center justify-center">
           <span className="text-white text-xs font-bold">
             {address.slice(2, 4).toUpperCase()}
           </span>
@@ -43,7 +43,7 @@ export function WalletBadge({
               {truncateAddress(address, 6)}
             </code>
             {isPrimary && (
-              <span className="text-xs bg-darkAqua/10 text-darkAqua px-2 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-darkAqua/10 text-darkAqua px-2 py-0.5 rounded-md font-medium">
                 Primary
               </span>
             )}

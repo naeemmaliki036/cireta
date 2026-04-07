@@ -278,7 +278,7 @@ export function CountrySelector({ selected, onChange, alreadyAllowed }: CountryS
       </div>
 
       {/* Region groups */}
-      <div className="max-h-72 overflow-y-auto border border-zinc-200 rounded-xl divide-y divide-zinc-100">
+      <div className="max-h-72 overflow-y-auto border border-zinc-200 rounded-lg divide-y divide-zinc-100">
         {REGION_ORDER.filter((r) => grouped[r]?.length).map((region) => {
           const countries = grouped[region] ?? [];
           const isSanctionedRegion = region === "Sanctioned";

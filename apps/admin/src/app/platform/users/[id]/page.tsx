@@ -48,7 +48,7 @@ function StatusPill({ status }: { status: string }) {
   const c = config[status] ?? config.none!;
   const Icon = c!.icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${c!.color}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold ${c!.color}`}>
       <Icon className="h-3.5 w-3.5" />
       {status}
     </span>
@@ -184,7 +184,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   if (error || !user) {
     return (
       <PlatformAdminLayout title="User Details" description="">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
           <p className="text-red-600">{error ?? "User not found"}</p>
           <Link href="/platform/users">
             <Button variant="outline" className="mt-4"><ArrowLeft className="h-4 w-4 mr-2" /> Back to Users</Button>
@@ -212,17 +212,17 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Action messages */}
       {actionMessage && (
-        <div className={`mb-4 p-3 rounded-xl border text-sm flex items-start gap-2 ${actionMessage.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-600"}`}>
+        <div className={`mb-4 p-3 rounded-lg border text-sm flex items-start gap-2 ${actionMessage.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-600"}`}>
           {actionMessage.type === "error" ? <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" /> : <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />}
           <span>{actionMessage.text}</span>
         </div>
       )}
 
       {/* Header card */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-6">
+      <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-darkAqua/10 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-lg bg-darkAqua/10 flex items-center justify-center">
               {isIndividual
                 ? <User className="h-7 w-7 text-darkAqua" />
                 : <Building2 className="h-7 w-7 text-darkAqua" />}
@@ -246,7 +246,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* KYC Admin Actions */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-6">
+      <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-zinc-400" /> KYC Management
@@ -256,19 +256,19 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* KYC Info Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5 text-sm">
-          <div className="bg-zinc-50 rounded-xl p-3">
+          <div className="bg-zinc-50 rounded-lg p-3">
             <p className="text-zinc-400 text-xs">Level</p>
             <p className="font-bold">{user.kyc_level}</p>
           </div>
-          <div className="bg-zinc-50 rounded-xl p-3">
+          <div className="bg-zinc-50 rounded-lg p-3">
             <p className="text-zinc-400 text-xs">Provider</p>
             <p className="font-bold">{user.kyc_provider ?? "—"}</p>
           </div>
-          <div className="bg-zinc-50 rounded-xl p-3">
+          <div className="bg-zinc-50 rounded-lg p-3">
             <p className="text-zinc-400 text-xs">Verified at</p>
             <p className="font-bold">{user.kyc_verified_at ? user.kyc_verified_at.slice(0, 10) : "—"}</p>
           </div>
-          <div className="bg-zinc-50 rounded-xl p-3">
+          <div className="bg-zinc-50 rounded-lg p-3">
             <p className="text-zinc-400 text-xs">On-chain ID</p>
             <p className="font-mono text-xs font-bold truncate">{user.onchain_id ? `${user.onchain_id.slice(0, 10)}...` : "—"}</p>
           </div>
@@ -328,7 +328,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* Reject reason form */}
         {showRejectForm && (
-          <div className="flex items-center gap-2 mb-4 p-3 bg-red-50 rounded-xl border border-red-100">
+          <div className="flex items-center gap-2 mb-4 p-3 bg-red-50 rounded-lg border border-red-100">
             <input
               type="text"
               value={rejectReason}
@@ -347,7 +347,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* Sumsub check result */}
         {sumsubCheck && (
-          <div className={`p-4 rounded-xl border text-sm ${sumsubCheck.out_of_sync ? "bg-amber-50 border-amber-300" : "bg-green-50 border-green-200"}`}>
+          <div className={`p-4 rounded-lg border text-sm ${sumsubCheck.out_of_sync ? "bg-amber-50 border-amber-300" : "bg-green-50 border-green-200"}`}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
               <div>
                 <p className="text-xs text-zinc-400">Sumsub Status</p>
@@ -398,7 +398,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       {/* Status grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Email & Onboarding */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-6">
+        <div className="bg-white rounded-lg border border-zinc-100 p-6">
           <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2 mb-4">
             <Mail className="h-4 w-4 text-zinc-400" /> Account Status
           </h3>
@@ -423,7 +423,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Wallets */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-6">
+        <div className="bg-white rounded-lg border border-zinc-100 p-6">
           <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2 mb-4">
             <Wallet className="h-4 w-4 text-zinc-400" /> Wallets ({user.wallet_count})
           </h3>
@@ -462,7 +462,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* On-Chain Whitelisting */}
       {isApproved && hasWallets && (
-        <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-6">
+        <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
           <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2 mb-4">
             <Shield className="h-4 w-4 text-zinc-400" /> On-Chain Whitelisting
           </h3>
@@ -500,7 +500,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       )}
 
       {/* Personal / Corporate Details */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-6">
+      <div className="bg-white rounded-lg border border-zinc-100 p-6">
         <h3 className="text-sm font-semibold text-zinc-900 mb-4">
           {isIndividual ? "Personal Details" : "Company Details"}
         </h3>

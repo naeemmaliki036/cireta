@@ -199,7 +199,7 @@ export function StepCompliance({
           const isExpanded = expandedId === m.id;
 
           return (
-            <div key={m.id} className={`rounded-xl border-2 transition-all overflow-hidden ${
+            <div key={m.id} className={`rounded-lg border-2 transition-all overflow-hidden ${
               isSelected ? "border-darkAqua bg-darkAqua/5" : "border-zinc-200 hover:border-zinc-300"
             }`}>
               {/* Header — click to toggle selection */}
@@ -213,11 +213,11 @@ export function StepCompliance({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-sm text-text">{m.name}</p>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${tagColors[m.tag] ?? "bg-zinc-100 text-zinc-600"}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${tagColors[m.tag] ?? "bg-zinc-100 text-zinc-600"}`}>
                       {m.tag}
                     </span>
                     {m.recommended && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Recommended</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-green-100 text-green-700">Recommended</span>
                     )}
                   </div>
                   <p className="text-xs text-zinc-500 mt-0.5">{m.description}</p>
@@ -303,12 +303,12 @@ export function StepDeploy({
 }: { formData: TokenFormData; selectedModules: string[]; complianceConfig?: ComplianceConfig }) {
   return (
     <div className="max-w-2xl mx-auto text-center">
-      <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
+      <div className="w-20 h-20 rounded-md bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
         <Rocket className="h-10 w-10 text-darkAqua" />
       </div>
       <h2 className="text-xl font-semibold text-text mb-2">Ready to Deploy</h2>
       <p className="text-gray-500 mb-8">Review your token configuration before deployment</p>
-      <div className="bg-box rounded-2xl p-6 text-left mb-8">
+      <div className="bg-box rounded-lg p-6 text-left mb-8">
         <h3 className="font-semibold text-text mb-4">Token Summary</h3>
         <div className="space-y-3 text-sm">
           {[
@@ -357,7 +357,7 @@ export function StepDeploy({
           </div>
         </div>
       </div>
-      <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 text-left">
+      <div className="p-4 rounded-lg bg-gold/10 border border-gold/30 text-left">
         <p className="text-sm text-gray-600">
           <strong className="text-gold">Note:</strong>{" "}
           Deploying will create the token contract on-chain.

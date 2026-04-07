@@ -77,7 +77,7 @@ export default function AdminAccountsPage() {
     >
       <div className="max-w-3xl">
         {/* Add Admin Form */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-8 mb-8">
+        <div className="bg-white rounded-lg border border-zinc-100 p-8 mb-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
               <UserCog className="h-5 w-5 text-blue-600" />
@@ -121,7 +121,7 @@ export default function AdminAccountsPage() {
         </div>
 
         {/* Admin List */}
-        <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+        <div className="bg-white rounded-lg border border-zinc-100 overflow-hidden">
           <div className="px-8 py-5 border-b border-zinc-100">
             <h2 className="text-lg font-semibold text-zinc-900">Current Admins</h2>
             <p className="text-sm text-zinc-400 mt-0.5">{admins.length} {admins.length === 1 ? "account" : "accounts"}</p>
@@ -148,7 +148,7 @@ export default function AdminAccountsPage() {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-zinc-900">{admin.display_name || admin.email}</p>
                         {admin.is_super_admin && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                             Super Admin
                           </span>
                         )}

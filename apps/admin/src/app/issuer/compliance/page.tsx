@@ -117,7 +117,7 @@ export default function CompliancePage() {
   return (
     <IssuerDashboardLayout title="Compliance Actions" description="Freeze addresses, force transfers, recover tokens">
       {/* Token Selector */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-6">
+      <div className="bg-white rounded-lg border border-zinc-100 p-5 mb-6">
         <label className="block text-sm font-semibold text-zinc-900 mb-2">Select Token</label>
         <p className="text-xs text-zinc-400 mb-3">Choose which deployed token to perform compliance actions on.</p>
         {tokens.length === 0 ? (
@@ -126,7 +126,7 @@ export default function CompliancePage() {
           <select
             value={selectedTokenAddr}
             onChange={(e) => setSelectedTokenAddr(e.target.value)}
-            className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+            className="w-full border border-zinc-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
           >
             <option value="">Select a token...</option>
             {tokens.map((t) => (
@@ -144,8 +144,8 @@ export default function CompliancePage() {
           {ACTION_CARDS.map((card) => (
             <motion.button key={card.action} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
               onClick={() => { action.reset(); setModalAction(card.action); }}
-              className="bg-white rounded-2xl p-5 border border-zinc-100 text-left hover:border-darkAqua transition-colors">
-              <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center mb-3`}>
+              className="bg-white rounded-lg p-5 border border-zinc-100 text-left hover:border-darkAqua transition-colors">
+              <div className={`w-10 h-10 rounded-lg ${card.bg} flex items-center justify-center mb-3`}>
                 <card.icon className={`h-5 w-5 ${card.color}`} />
               </div>
               <h3 className="font-semibold text-sm text-text mb-0.5">{card.title}</h3>
@@ -163,7 +163,7 @@ export default function CompliancePage() {
       )}
 
       {/* Audit Log */}
-      <div className="bg-white rounded-2xl p-6 border border-zinc-100">
+      <div className="bg-white rounded-lg p-6 border border-zinc-100">
         <h2 className="text-sm font-semibold text-zinc-900 mb-4">Audit Log</h2>
         {logsLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
@@ -188,10 +188,10 @@ export default function CompliancePage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
           onClick={resetModal}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            className="bg-white rounded-lg p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-xl ${activeCard.bg} flex items-center justify-center`}>
+                <div className={`w-9 h-9 rounded-lg ${activeCard.bg} flex items-center justify-center`}>
                   <activeCard.icon className={`h-4 w-4 ${activeCard.color}`} />
                 </div>
                 <div>

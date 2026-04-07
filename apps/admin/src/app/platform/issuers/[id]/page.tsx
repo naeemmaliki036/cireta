@@ -26,7 +26,7 @@ function StatusPill({ status }: { status: string }) {
   };
   const c = config[status] ?? config.none!;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${c!.bg} ${c!.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${c!.bg} ${c!.text}`}>
       {c!.icon}
       {({ pending_approval: "Pending Approval", approved_coming_soon: "Coming Soon", finalized_success: "Completed", finalized_failed: "Failed" } as Record<string, string>)[status] || status.replace(/_/g, " ")}
     </span>
@@ -106,17 +106,17 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-2 text-red-700 text-sm">
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2 text-red-700 text-sm">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {/* Header Card */}
-      <div className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
+      <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-darkAqua/20 to-darkAqua/5 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-darkAqua/20 to-darkAqua/5 flex items-center justify-center">
               {issuer.issuer_type === "corporate"
                 ? <Building2 className="h-6 w-6 text-darkAqua" />
                 : <User className="h-6 w-6 text-darkAqua" />
@@ -154,7 +154,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
 
         {/* Wallet */}
-        <div className="bg-white rounded-xl border border-zinc-100 p-5">
+        <div className="bg-white rounded-lg border border-zinc-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -193,7 +193,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Identity */}
-        <div className="bg-white rounded-xl border border-zinc-100 p-5">
+        <div className="bg-white rounded-lg border border-zinc-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
@@ -221,7 +221,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Activation */}
-        <div className="bg-white rounded-xl border border-zinc-100 p-5">
+        <div className="bg-white rounded-lg border border-zinc-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${issuer.status === "active" ? "bg-green-50" : "bg-zinc-100"}`}>
@@ -261,7 +261,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Sales */}
-      <div className="bg-white rounded-xl border border-zinc-100 overflow-hidden">
+      <div className="bg-white rounded-lg border border-zinc-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-zinc-400" />

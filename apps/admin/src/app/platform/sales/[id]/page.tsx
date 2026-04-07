@@ -201,14 +201,14 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </Link>
       </div>
 
-      {actionError && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
-      {actionSuccess && <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-600"><CheckCircle2 className="h-4 w-4 inline mr-1" />Action completed</div>}
+      {actionError && <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
+      {actionSuccess && <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-600"><CheckCircle2 className="h-4 w-4 inline mr-1" />Action completed</div>}
 
       {/* Pending approval sections are below (split by hasContract) */}
 
       {/* ── Rejected (DB) ── */}
       {isRejected && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
           <p className="font-semibold mb-1">Sale rejected — not visible on launchpad</p>
           <p>Issuer can edit and resubmit for approval.</p>
         </div>
@@ -216,7 +216,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Pending — No contract and NOT coming soon ── */}
       {isPending && !hasContract && !sale.is_coming_soon && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
           <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Not Deployed</h2>
           <p className="text-sm text-amber-700">Issuer has submitted for approval but hasn't deployed the sale contract on-chain yet. Cannot approve until deployed.</p>
         </motion.div>
@@ -224,7 +224,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Pending — Has contract OR is coming soon → Approve or Reject ── */}
       {isPending && (hasContract || sale.is_coming_soon) && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
           <h2 className="text-lg font-semibold text-amber-800 mb-2">
             {sale.is_coming_soon ? "Pending Approval — Coming Soon" : "Pending Approval — Deployed"}
           </h2>
@@ -244,7 +244,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
             </Button>
             <div className="flex items-center gap-2">
               <input type="text" placeholder="Rejection reason (optional)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
-                className="rounded-xl border border-darkBlack/10 px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-red-300" />
+                className="rounded-lg border border-darkBlack/10 px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-red-300" />
               <Button variant="outline" onClick={handleReject} isLoading={actionLoading === "reject"} className="text-red-600 border-red-200 hover:bg-red-50">
                 <XCircle className="h-4 w-4 mr-2" /> Reject
               </Button>
@@ -255,7 +255,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Approved — Ready to Activate (+ Reject On-Chain option) ── */}
       {isApproved && hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-teal-50 rounded-3xl p-6 border border-teal-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-teal-50 rounded-lg p-6 border border-teal-200 mb-6">
           <h2 className="text-lg font-semibold text-teal-800 mb-2">Approved — Ready to Activate</h2>
           <p className="text-sm text-teal-700 mb-1">
             Deployed at <code className="font-mono text-xs bg-teal-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
@@ -292,7 +292,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Approved but no contract ── */}
       {isApproved && !hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-green-50 rounded-3xl p-6 border border-green-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-green-50 rounded-lg p-6 border border-green-200 mb-6">
           <h2 className="text-lg font-semibold text-green-800 mb-2">Approved — Waiting for Deploy</h2>
           <p className="text-sm text-green-700">Sale is approved for visibility. Waiting for issuer to deploy the contract on-chain.</p>
         </motion.div>
@@ -300,7 +300,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Active — Pause / Finalize ── */}
       {isActive && hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 rounded-3xl p-6 border border-blue-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-6">
           <h2 className="text-lg font-semibold text-blue-800 mb-2">Sale is Live</h2>
           <p className="text-sm text-blue-700 mb-4">Investors can buy. You can pause or finalize from your admin wallet.</p>
           <div className="flex items-center gap-3">
@@ -318,7 +318,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Paused — Unpause ── */}
       {isPaused && hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-3xl p-6 border border-amber-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
           <h2 className="text-lg font-semibold text-amber-800 mb-2">Sale Paused</h2>
           <p className="text-sm text-amber-700 mb-4">This sale is paused. Only admin can unpause (regulatory control).</p>
           <div className="flex items-center gap-3">
@@ -336,7 +336,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Finalized Success ── */}
       {isFinalizedSuccess && (
-        <div className="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
+        <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
           <p className="font-semibold mb-1">Sale finalized successfully</p>
           <p>Issuer can withdraw funds. Investors can claim tokens.</p>
         </div>
@@ -344,7 +344,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Finalized Failed ── */}
       {isFinalizedFailed && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
           <p className="font-semibold mb-1">Sale failed — soft cap not reached</p>
           <p>Investors can claim refunds.</p>
         </div>
@@ -352,7 +352,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Emergency Withdraw (90 days after finalization) ── */}
       {(isFinalizedSuccess || isFinalizedFailed) && hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-50 rounded-3xl p-6 border border-zinc-200 mb-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-zinc-50 rounded-lg p-6 border border-zinc-200 mb-6">
           <h2 className="text-sm font-semibold text-zinc-700 mb-2 flex items-center gap-2">
             <ShieldAlert className="h-4 w-4" /> Emergency Withdrawal
           </h2>
@@ -365,7 +365,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                 onChange={(e) => setEmergencyRecipient(e.target.value)}
                 placeholder="Recipient address (0x...)"
                 maxLength={42}
-                className={`w-full rounded-xl border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300 ${
                   emergencyRecipient && !isAddress(emergencyRecipient) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
                 }`}
               />
@@ -390,7 +390,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {/* ── Visibility Toggle ── */}
       {(isActive || isPaused || isFinalizedSuccess || isFinalizedFailed || (isApproved && sale.is_coming_soon)) && (
-        <div className="mb-6 flex items-center justify-between bg-white rounded-xl border border-zinc-100 p-5">
+        <div className="mb-6 flex items-center justify-between bg-white rounded-lg border border-zinc-100 p-5">
           <div className="flex items-center gap-3">
             {sale.is_visible ? (
               <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
@@ -426,7 +426,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       </div>
 
       {/* Progress */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg p-6 border border-darkBlack/10 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text">Funding Progress</h2>
           <Badge variant={isActive ? "active" : "default"} size="sm">{({ draft: "Draft", pending_approval: "Pending Approval", approved: "Approved", approved_coming_soon: "Coming Soon", active: "Active", paused: "Paused", finalized_success: "Completed", finalized_failed: "Failed", rejected: "Rejected" } as Record<string, string>)[sale.status] || sale.status}</Badge>
@@ -439,7 +439,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       </motion.div>
 
       {/* Sale Info */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border border-darkBlack/10 mb-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg p-6 border border-darkBlack/10 mb-6">
         <h2 className="text-lg font-semibold text-text mb-4">Sale Details</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
           {[
@@ -459,7 +459,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       </motion.div>
 
       {/* Phases */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg p-6 border border-darkBlack/10">
         <h2 className="text-lg font-semibold text-text mb-6">Phases</h2>
         {sale.phases.length === 0 ? (
           <p className="text-darkBlack/40 text-center py-4">No phases configured</p>
@@ -470,7 +470,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
               const phaseAlloc = parseFloat(phase.allocation || "0");
               const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
               return (
-                <div key={phase.id} className="p-4 rounded-2xl bg-box">
+                <div key={phase.id} className="p-4 rounded-lg bg-box">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-medium text-text">{phase.name}</p>
                     <div className="flex items-center gap-2 text-sm text-darkBlack/50">

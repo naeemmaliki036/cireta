@@ -46,13 +46,13 @@ export function TokenCard({
       <Link
         href={`/issuer/tokens/${id}`}
         className={cn(
-          "block bg-white rounded-3xl p-6 border border-darkBlack/10 hover:shadow-card transition-shadow duration-300",
+          "block bg-white rounded-lg p-6 border border-darkBlack/10 hover:shadow-card transition-shadow duration-300",
           className
         )}
       >
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-darkAqua/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-md bg-darkAqua/10 flex items-center justify-center">
               <Coins className="h-6 w-6 text-darkAqua" />
             </div>
             <div>

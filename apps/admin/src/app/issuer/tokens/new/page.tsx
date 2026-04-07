@@ -191,7 +191,7 @@ export default function CreateTokenPage() {
     return (
       <IssuerDashboardLayout title="Create New Token" description="Deploy a new ERC-3643 security token">
         <div className="max-w-lg mx-auto mt-12">
-          <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center">
+          <div className="bg-white rounded-lg border border-zinc-100 p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-4">
               <Wallet className="h-8 w-8 text-darkAqua" />
             </div>
@@ -213,7 +213,7 @@ export default function CreateTokenPage() {
     return (
       <IssuerDashboardLayout title="Create New Token" description="Deploy a new ERC-3643 security token">
         <div className="max-w-lg mx-auto mt-12">
-          <div className="bg-white rounded-2xl border border-red-200 p-8 text-center">
+          <div className="bg-white rounded-lg border border-red-200 p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
               <XCircle className="h-8 w-8 text-red-500" />
             </div>
@@ -221,7 +221,7 @@ export default function CreateTokenPage() {
             <p className="text-sm text-zinc-500 mb-3">
               The connected wallet is not registered as an active issuer on-chain.
             </p>
-            <div className="bg-zinc-50 rounded-xl p-3 mb-6">
+            <div className="bg-zinc-50 rounded-lg p-3 mb-6">
               <p className="font-mono text-xs text-zinc-600 break-all">{walletAddress}</p>
             </div>
             <p className="text-xs text-zinc-400 mb-6">
@@ -259,14 +259,14 @@ export default function CreateTokenPage() {
       {/* Verified issuer badge */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-full font-medium">
+          <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-md font-medium">
             <CheckCircle2 className="h-3 w-3" /> Verified Issuer
           </span>
           <span className="font-mono text-zinc-400">{walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}</span>
         </div>
         {isDev && (
           <button onClick={autoFill}
-            className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-200 transition-colors text-xs font-semibold">
+            className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-md hover:bg-amber-200 transition-colors text-xs font-semibold">
             <Zap className="h-3 w-3" /> Auto-fill (Dev Only)
           </button>
         )}
@@ -295,7 +295,7 @@ export default function CreateTokenPage() {
       {(saveError || deployAction.isPending || deployAction.isConfirming || deployAction.isConfirmed || deployAction.error || isRecording) && (
         <div className="mb-4">
           {saveError && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 mb-3">
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 mb-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0" /> {saveError}
               </div>
@@ -314,7 +314,7 @@ export default function CreateTokenPage() {
             successMessage={recordingDone ? "Token deployed and registered." : "Token deployed on-chain."}
           />
           {isRecording && (
-            <div className="mt-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
+            <div className="mt-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
               <div className="h-4 w-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
               Registering contract addresses — please wait...
             </div>
@@ -324,7 +324,7 @@ export default function CreateTokenPage() {
 
       {/* Step content + navigation */}
       <motion.div key={currentStep} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-        className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+        className="bg-white rounded-lg border border-zinc-100 overflow-hidden">
         <div className="p-6">
           {currentStep === 1 && <StepTokenDetails formData={formData} setFormData={setFormData} />}
           {currentStep === 2 && <StepCompliance selectedModules={selectedModules} toggleModule={toggleModule} complianceConfig={complianceConfig} setComplianceConfig={setComplianceConfig} />}

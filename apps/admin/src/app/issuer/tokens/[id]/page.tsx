@@ -152,7 +152,23 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
   }
 
   return (
-    <IssuerDashboardLayout title={`${token.name} (${token.symbol})`} description={`Token ID: ${token.id}`}>
+    <IssuerDashboardLayout title={`${token.name} (${token.symbol})`} description={`Token ID: ${token.id}`}
+      actions={
+        <div className="flex items-center gap-2">
+          <Link href={`/issuer/tokens/${resolvedId}/mint`}>
+            <Button variant="outline" size="sm" leftIcon={<Coins className="h-4 w-4" />}
+              disabled={!token.contract_address}>
+              Mint Tokens
+            </Button>
+          </Link>
+          <Link href={`/issuer/tokens/${resolvedId}/compliance`}>
+            <Button variant="outline" size="sm" leftIcon={<Shield className="h-4 w-4" />}>
+              Compliance
+            </Button>
+          </Link>
+        </div>
+      }
+    >
       <div className="mb-6">
         <Link href="/issuer/tokens" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text">
           <ArrowLeft className="h-4 w-4" /> Back to Tokens
@@ -161,7 +177,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+          className="bg-white rounded-lg p-6 border border-darkBlack/10">
           <h2 className="text-lg font-semibold text-text mb-4">Token Info</h2>
           <div className="space-y-3">
             {[
@@ -180,7 +196,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+          className="bg-white rounded-lg p-6 border border-darkBlack/10">
           <h2 className="text-lg font-semibold text-text mb-4">Contract</h2>
           {token.contract_address ? (
             <div className="space-y-2">
@@ -222,7 +238,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
           )}
 
           {token.contract_address && !supplyMinted && (
-            <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+            <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
               <Coins className="h-4 w-4 inline mr-1.5" />
               <strong>Next step:</strong> Mint tokens to your wallet before creating a sale.
               <Link href={`/issuer/tokens/${resolvedId}/mint`} className="ml-2 underline font-medium">
@@ -239,17 +255,6 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
                 onClick={handlePauseToggle} disabled={toggling || !token.contract_address}>
                 {token.is_paused ? "Unpause" : "Pause"} Token
               </Button>
-              <Link href={`/issuer/tokens/${resolvedId}/mint`}>
-                <Button variant="outline" size="sm" leftIcon={<Coins className="h-4 w-4" />}
-                  disabled={!token.contract_address}>
-                  Mint Tokens
-                </Button>
-              </Link>
-              <Link href={`/issuer/tokens/${resolvedId}/compliance`}>
-                <Button variant="outline" size="sm" leftIcon={<Shield className="h-4 w-4" />}>
-                  Compliance Modules
-                </Button>
-              </Link>
             </div>
           </div>
         </motion.div>

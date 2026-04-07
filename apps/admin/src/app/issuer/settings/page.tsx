@@ -107,7 +107,7 @@ export default function IssuerSettingsPage() {
         {/* ── Profile Tab ── */}
         {activeTab === "profile" && (
           <>
-            <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-5">
+            <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-5">
               <h2 className="text-sm font-semibold text-zinc-800">Account Information</h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -142,7 +142,7 @@ export default function IssuerSettingsPage() {
 
             {/* Onboarding Status Summary */}
             {onboarding && (
-              <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+              <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
                 <h2 className="text-sm font-semibold text-zinc-800">Onboarding Status</h2>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between py-2 border-b border-zinc-100">
@@ -181,7 +181,7 @@ export default function IssuerSettingsPage() {
         {activeTab === "wallet" && (
           <div className="space-y-6">
             {/* Connected Wallet */}
-            <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+            <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
               <h2 className="text-sm font-semibold text-zinc-800">Connected Wallet</h2>
               {isConnected && address ? (
                 <div className="flex items-center gap-3 bg-green-50 rounded-lg p-4 border border-green-100">
@@ -227,7 +227,7 @@ export default function IssuerSettingsPage() {
 
             {/* Issuer Wallet Status */}
             {onboarding && (
-              <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-3">
+              <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-3">
                 <h2 className="text-sm font-semibold text-zinc-800">Issuer Wallet Status</h2>
                 <p className="text-xs text-zinc-500">
                   This is the wallet registered with Cireta for on-chain token operations.
@@ -249,7 +249,7 @@ export default function IssuerSettingsPage() {
         {/* ── Security Tab ── */}
         {activeTab === "security" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+            <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
               <h2 className="text-sm font-semibold text-zinc-800">Authentication</h2>
               <div className="flex items-center justify-between py-3 border-b border-zinc-100">
                 <div>
@@ -274,7 +274,7 @@ export default function IssuerSettingsPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+            <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
               <h2 className="text-sm font-semibold text-zinc-800">Identity Verification</h2>
               {onboarding && (
                 <div className="flex items-center justify-between py-3">
@@ -303,7 +303,7 @@ export default function IssuerSettingsPage() {
 
         {/* ── Notifications Tab ── */}
         {activeTab === "notifications" && (
-          <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
+          <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800">Email Notifications</h2>
             <div className="space-y-3">
               {[

@@ -42,7 +42,7 @@ const emptyTeam = (): TeamMemberData => ({ name: "", title: "", bio: "", photo_u
 const emptyFAQ = (): FAQData => ({ question: "", answer: "" });
 const emptyDoc = (): DocumentData => ({ name: "", type: "legal", url: "" });
 const DOC_TYPES = [{ value: "legal", label: "Legal" }, { value: "audit", label: "Audit" }, { value: "whitepaper", label: "Whitepaper" }, { value: "other", label: "Other" }];
-const TA = "w-full rounded-xl border border-darkBlack/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua";
+const TA = "w-full rounded-lg border border-darkBlack/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua";
 
 export default function CreateSalePage() {
   const router = useRouter();
@@ -217,7 +217,7 @@ export default function CreateSalePage() {
         </div>
       </div>
 
-      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-darkBlack/10">
         {/* Step 1: Sale Info */}
         {step === 1 && (
           <div className="max-w-2xl mx-auto space-y-6">
@@ -225,7 +225,7 @@ export default function CreateSalePage() {
             <Input label="Sale Title" placeholder="e.g., Gold Reserve Token Sale" value={title} onChange={(e) => setTitle(e.target.value)} />
             <div><label className="input-label">Short Description</label>
               <textarea className={TA} rows={2} placeholder="Brief summary" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-            <div className="flex items-center gap-3 p-4 rounded-xl border border-darkBlack/10">
+            <div className="flex items-center gap-3 p-4 rounded-lg border border-darkBlack/10">
               <input type="checkbox" id="comingSoon" checked={isComingSoon} onChange={(e) => setIsComingSoon(e.target.checked)} className="h-5 w-5 rounded" />
               <label htmlFor="comingSoon" className="text-sm"><span className="font-semibold">Prelisting (coming soon)</span> — Publish as a preview without token or sale contract. You can convert to a live sale later.</label>
             </div>
@@ -238,7 +238,7 @@ export default function CreateSalePage() {
             ]} value={saleStructure} onChange={(e) => setSaleStructure(e.target.value)} />
             {/* OTC & Bank Transfer */}
             <div className="border-t border-darkBlack/10 pt-6 mt-2">
-              <div className="flex items-center gap-3 p-4 rounded-xl border border-darkBlack/10">
+              <div className="flex items-center gap-3 p-4 rounded-lg border border-darkBlack/10">
                 <input type="checkbox" id="otcEnabled" checked={otcEnabled} onChange={(e) => handleOtcToggle(e.target.checked)} className="h-5 w-5 rounded" />
                 <label htmlFor="otcEnabled" className="text-sm"><span className="font-semibold">Enable OTC & Bank Transfer</span> — Allow investors to pay via wire transfer or OTC. An &quot;OTC &amp; Bank&quot; tab will be shown on the sale page.</label>
               </div>
@@ -288,7 +288,7 @@ export default function CreateSalePage() {
             <p className="text-gray-500 mb-6">Add key team members to display on the sale page</p>
             <div className="space-y-6">
               {teamMembers.map((m, i) => (
-                <div key={i} className="border border-darkBlack/10 rounded-2xl p-6 space-y-4">
+                <div key={i} className="border border-darkBlack/10 rounded-lg p-6 space-y-4">
                   <div className="flex items-center justify-between"><h3 className="font-semibold text-text">Member {i + 1}</h3>{rmBtn(teamMembers, () => setTeamMembers((t) => t.filter((_, idx) => idx !== i)))}</div>
                   <div className="grid grid-cols-2 gap-4">
                     <Input label="Name" placeholder="John Doe" value={m.name} onChange={(e) => updTeam(i, "name", e.target.value)} />
@@ -312,7 +312,7 @@ export default function CreateSalePage() {
                   const isOpen = expandedFAQ === i;
                   const preview = f.question || `FAQ ${i + 1} (empty)`;
                   return (
-                    <div key={i} className="border border-darkBlack/10 rounded-2xl overflow-hidden">
+                    <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
                       <button type="button" onClick={() => setExpandedFAQ(isOpen ? null : i)}
                         className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-zinc-50 transition-colors">
                         {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />}
@@ -335,7 +335,7 @@ export default function CreateSalePage() {
               <h2 className="text-xl font-semibold text-text mb-2">Documents</h2>
               <div className="space-y-4">
                 {documents.map((d, i) => (
-                  <div key={i} className="border border-darkBlack/10 rounded-2xl p-5 space-y-3">
+                  <div key={i} className="border border-darkBlack/10 rounded-lg p-5 space-y-3">
                     <div className="flex items-center justify-between"><span className="font-semibold text-text text-sm">Doc {i + 1}</span>{rmBtn(documents, () => setDocuments((ds) => ds.filter((_, idx) => idx !== i)))}</div>
                     <div className="grid grid-cols-2 gap-4">
                       <Input label="Name" value={d.name} onChange={(e) => updDoc(i, "name", e.target.value)} />
@@ -362,7 +362,7 @@ export default function CreateSalePage() {
               {phases.map((ph, i) => {
                 const totalRaise = ph.pricePerToken && ph.allocation ? (parseFloat(ph.pricePerToken) * parseFloat(ph.allocation)).toLocaleString("en-US") : null;
                 return (
-                <div key={i} className="border border-zinc-200 rounded-2xl overflow-hidden">
+                <div key={i} className="border border-zinc-200 rounded-lg overflow-hidden">
                   {/* Phase header */}
                   <div className="flex items-center justify-between px-5 py-3 bg-zinc-50 border-b border-zinc-100">
                     <div className="flex items-center gap-2">
@@ -412,7 +412,7 @@ export default function CreateSalePage() {
                 </div>);
               })}
               <button onClick={() => setPhases((p) => [...p, emptyPhase()])}
-                className="w-full border-2 border-dashed border-zinc-300 hover:border-darkAqua rounded-2xl py-4 text-sm font-medium text-zinc-500 hover:text-darkAqua transition-colors">
+                className="w-full border-2 border-dashed border-zinc-300 hover:border-darkAqua rounded-lg py-4 text-sm font-medium text-zinc-500 hover:text-darkAqua transition-colors">
                 + Add Another Phase
               </button>
             </div>
@@ -507,13 +507,13 @@ export default function CreateSalePage() {
 
             {/* Validation */}
             {cliffError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
                 Cliff must be shorter than the vesting duration.
               </div>
             )}
 
             {/* Preview */}
-            <div className="p-4 rounded-xl bg-darkAqua/5 border border-darkAqua/20 text-sm space-y-2">
+            <div className="p-4 rounded-lg bg-darkAqua/5 border border-darkAqua/20 text-sm space-y-2">
               <p className="font-semibold text-zinc-900">Schedule Preview</p>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-white rounded-lg p-3">
@@ -537,7 +537,7 @@ export default function CreateSalePage() {
                     {cliffNum > 0 && <><span>Cliff ends</span><span className="flex-1 border-t border-dashed border-zinc-300" /></>}
                     <span>Fully vested</span>
                   </div>
-                  <div className="h-2 rounded-full bg-zinc-200 overflow-hidden flex">
+                  <div className="h-2 rounded-md bg-zinc-200 overflow-hidden flex">
                     {cliffNum > 0 && <div className="bg-amber-400" style={{ width: `${(cliffNum / totalDays) * 100}%` }} />}
                     <div className="bg-darkAqua" style={{ width: `${(vestingNum / totalDays) * 100}%` }} />
                   </div>
@@ -550,10 +550,10 @@ export default function CreateSalePage() {
         {/* Step 9: Review */}
         {step === 9 && (
           <div className="max-w-2xl mx-auto text-center">
-            <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6"><Rocket className="h-10 w-10 text-darkAqua" /></div>
+            <div className="w-20 h-20 rounded-md bg-darkAqua/10 flex items-center justify-center mx-auto mb-6"><Rocket className="h-10 w-10 text-darkAqua" /></div>
             <h2 className="text-xl font-semibold text-text mb-2">{isComingSoon ? "Ready to Publish as Coming Soon" : "Ready to Submit"}</h2>
             <p className="text-gray-500 mb-8">{isComingSoon ? "This will be submitted for admin approval as a Coming Soon listing" : "This will be submitted for admin approval"}</p>
-            <div className="bg-box rounded-2xl p-6 text-left mb-8 space-y-3 text-sm">
+            <div className="bg-box rounded-lg p-6 text-left mb-8 space-y-3 text-sm">
               <h3 className="font-semibold text-text mb-2">Sale Summary</h3>
               {[
                 ["Title", title || "Untitled"],
@@ -579,7 +579,7 @@ export default function CreateSalePage() {
                 <div key={String(label)} className="flex justify-between"><span className="text-gray-500">{label}</span><span className="font-medium">{value}</span></div>
               ))}
             </div>
-            <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 text-left">
+            <div className="p-4 rounded-lg bg-gold/10 border border-gold/30 text-left">
               <p className="text-sm text-gray-600"><strong className="text-gold">Next steps:</strong> {isComingSoon
                 ? "Save to create the sale. Once approved by admin, it will appear on the launchpad as Coming Soon."
                 : "Save to create the sale. You'll then deploy the sale contract on-chain, complete the setup checklist, and submit for admin approval."}</p>

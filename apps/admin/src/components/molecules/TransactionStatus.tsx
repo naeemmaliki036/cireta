@@ -30,14 +30,14 @@ export function TransactionStatus({
   return (
     <div className="space-y-2 mt-3">
       {isPending && (
-        <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
           <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
           <span>Waiting for wallet signature...</span>
         </div>
       )}
 
       {isConfirming && (
-        <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
           <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
           <div className="flex-1">
             <span>Transaction submitted. Waiting for confirmation...</span>
@@ -57,7 +57,7 @@ export function TransactionStatus({
       )}
 
       {isConfirmed && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
           <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
           <div className="flex-1">
             <span>{successMessage}</span>
@@ -77,7 +77,7 @@ export function TransactionStatus({
       )}
 
       {error && (
-        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           <XCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>

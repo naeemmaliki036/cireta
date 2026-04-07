@@ -83,7 +83,7 @@ export default function WhitelistPage() {
 
       <div className="max-w-4xl">
         {/* Add Form */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-6">
+        <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
           <h2 className="text-base font-semibold text-zinc-900 mb-4">Add to Whitelist</h2>
           {error && <p className="text-red-600 text-sm mb-3 p-2.5 bg-red-50 rounded-lg border border-red-100">{error}</p>}
           <form onSubmit={handleAdd} className="space-y-4">
@@ -183,7 +183,7 @@ export default function WhitelistPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+        <div className="bg-white rounded-lg border border-zinc-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-zinc-900">Whitelisted Emails</h2>
@@ -211,7 +211,7 @@ export default function WhitelistPage() {
                     <div>
                       <p className="text-sm font-medium text-zinc-900">{entry.email}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md ${
                           entry.issuer_type === "corporate"
                             ? "bg-purple-50 text-purple-600"
                             : "bg-blue-50 text-blue-600"
@@ -219,7 +219,7 @@ export default function WhitelistPage() {
                           {entry.issuer_type === "corporate" ? <Building2 className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
                           {entry.issuer_type === "corporate" ? "Corporate" : "Individual"}
                         </span>
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md ${
                           entry.kyc_required
                             ? "bg-green-50 text-green-600"
                             : "bg-amber-50 text-amber-600"
@@ -232,11 +232,11 @@ export default function WhitelistPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     {entry.registered_at ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded-md">
                         <CheckCircle2 className="h-2.5 w-2.5" /> Registered
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
                         <Clock className="h-2.5 w-2.5" /> Pending
                       </span>
                     )}

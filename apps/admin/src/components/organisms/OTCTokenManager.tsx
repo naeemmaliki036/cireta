@@ -58,7 +58,7 @@ export function OTCTokenManager({
     currentOTCTokenAddress === "0x0000000000000000000000000000000000000000";
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+    <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
       <h2 className="text-lg font-semibold text-text flex items-center gap-2 mb-4">
         <Coins className="h-5 w-5" /> OTC Token
       </h2>

@@ -101,7 +101,7 @@ function SubscribersSection({ saleId }: { saleId: string }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl border border-zinc-100 p-6 mt-6">
+      className="bg-white rounded-lg border border-zinc-100 p-6 mt-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Interested Investors</h2>
@@ -520,11 +520,10 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const isRejected = sale.status === "rejected";
 
   return (
-    <IssuerDashboardLayout title={sale.title || sale.token_name || "Sale Details"} description={`Sale ID: ${sale.id}`}>
-      <div className="mb-6 flex items-center justify-between">
-        <Link href="/issuer/sales" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Sales
-        </Link>
+    <IssuerDashboardLayout
+      title={sale.title || sale.token_name || "Sale Details"}
+      description={`Sale ID: ${sale.id}`}
+      actions={
         <div className="flex items-center gap-3">
           {!editing && (
             <Button variant="secondary" onClick={startEditing}>
@@ -538,6 +537,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               </Button>
             </Link>
           )}
+        </div>
+      }
+    >
+      <div className="mb-6 flex items-center justify-between">
+        <Link href="/issuer/sales" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to Sales
+        </Link>
+        <div className="flex items-center gap-3">
           {isDraft && !sale.contract_address && (
             <span className="text-xs text-zinc-400">Deploy on-chain to start setup</span>
           )}
@@ -556,7 +563,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             </Button>
           )}
           {(sale.contract_address || syncDone) && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
               <p className="font-semibold">Deployed</p>
               {sale.contract_address && (
                 <button
@@ -576,10 +583,10 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         </div>
       </div>
 
-      {actionError && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
-      {actionSuccess && <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-600">Changes saved successfully</div>}
+      {actionError && <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
+      {actionSuccess && <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-600">Changes saved successfully</div>}
       {syncError && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
+        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
           <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 flex-shrink-0" /> {syncError}</div>
           <Button variant="outline" size="sm" onClick={handleRetrySync} className="mt-2" isLoading={isSyncing} disabled={isSyncing}>
             Retry Sync
@@ -587,7 +594,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         </div>
       )}
       {isSyncing && (
-        <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
+        <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
           <div className="h-4 w-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
           Syncing sale contract address — please wait...
         </div>
@@ -595,13 +602,13 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
       {/* On-chain deployment status */}
       {isApproved && !sale.contract_address && !sale.token_contract_address && (
-        <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+        <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
           <AlertCircle className="h-4 w-4 inline mr-1" />
           Token must be deployed on-chain before the sale can be deployed. Go to your token and deploy it first.
         </div>
       )}
       {configError && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600">
+        <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
           <AlertCircle className="h-4 w-4 inline mr-1" />
           {configError}
         </div>
@@ -634,14 +641,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       )}
 
       {/* Status Banner */}
-      {isPending && <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">Pending admin approval. You&apos;ll be notified once reviewed.</div>}
-      {isRejected && <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">Sale was rejected. Edit and resubmit.</div>}
-      {isFailed && <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">Sale failed to reach soft cap. Investors can claim refunds.</div>}
+      {isPending && <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">Pending admin approval. You&apos;ll be notified once reviewed.</div>}
+      {isRejected && <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">Sale was rejected. Edit and resubmit.</div>}
+      {isFailed && <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">Sale failed to reach soft cap. Investors can claim refunds.</div>}
 
       {/* Edit Form */}
       {editing && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-6 border border-darkAqua/30 mb-6 space-y-5">
+          className="bg-white rounded-lg p-6 border border-darkAqua/30 mb-6 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-text">Edit Sale Details</h2>
             <div className="flex items-center gap-2">
@@ -661,7 +668,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                 type="text"
                 value={editForm.title ?? ""}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+                className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
                 placeholder="Sale title"
               />
             </div>
@@ -670,7 +677,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               <textarea
                 value={editForm.description ?? ""}
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+                className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
                 rows={3}
                 placeholder="Brief description of the sale"
               />
@@ -718,7 +725,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
       {/* Phases — moved above gallery for visibility */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
+        className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Phases</h2>
           {sale.contract_address && sale.phases.length > chainPhases && (
@@ -750,15 +757,15 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
               const isOnChain = sale.contract_address ? idx < chainPhases : false;
               return (
-                <div key={phase.id} className={`p-4 rounded-xl border transition-colors ${isOnChain ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}`}>
+                <div key={phase.id} className={`p-4 rounded-lg border transition-colors ${isOnChain ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="w-6 h-6 rounded-md bg-darkAqua/10 text-darkAqua flex items-center justify-center text-xs font-bold">{idx + 1}</span>
                       <p className="font-medium text-sm text-text">{phase.name}</p>
                       {sale.contract_address && (
                         isOnChain
-                          ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">On-Chain</span>
-                          : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Not Deployed</span>
+                          ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-green-100 text-green-700">On-Chain</span>
+                          : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700">Not Deployed</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -802,12 +809,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
       {/* Hero Image / Gallery Management */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
+        className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide flex items-center gap-2">
             <ImageIcon className="h-4 w-4" /> Media Gallery
           </h2>
-          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
             <Upload className="h-4 w-4" />
             {uploading ? `Uploading ${uploadProgress}%` : "Upload Media"}
             <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
@@ -817,7 +824,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         {images.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((img) => (
-              <div key={img.id} className={`relative rounded-xl overflow-hidden border-2 group ${img.is_banner ? "border-darkAqua ring-2 ring-darkAqua/20" : "border-zinc-100"}`}>
+              <div key={img.id} className={`relative rounded-lg overflow-hidden border-2 group ${img.is_banner ? "border-darkAqua ring-2 ring-darkAqua/20" : "border-zinc-100"}`}>
                 <div className="relative h-32">
                   {img.media_type === "video" ? (
                     <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
@@ -827,14 +834,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                     <img src={resolveMediaUrl(img.url)} alt={img.caption || ""} className="w-full h-full object-cover" />
                   )}
                   {img.is_banner && (
-                    <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">HERO</span>
+                    <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">HERO</span>
                   )}
                   {/* Hover actions */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                     {!img.is_banner && (
                       <button
                         onClick={() => handleSetHero(img.id)}
-                        className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-darkAqua hover:bg-white"
+                        className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center text-darkAqua hover:bg-white"
                         title="Set as hero"
                       >
                         <Star className="h-4 w-4" />
@@ -842,7 +849,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                     )}
                     <button
                       onClick={() => handleRemoveImage(img.id)}
-                      className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-red-500 hover:bg-white"
+                      className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center text-red-500 hover:bg-white"
                       title="Remove"
                     >
                       <X className="h-4 w-4" />
@@ -863,7 +870,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
       {/* Stats + Progress */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl border border-zinc-100 p-6 mb-6">
+        className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Funding Progress</h2>
           <Badge variant={isActive ? "active" : isDraft ? "pending" : "default"} size="sm" className="capitalize">

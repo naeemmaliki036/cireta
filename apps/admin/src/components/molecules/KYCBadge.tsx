@@ -71,7 +71,7 @@ export function KYCBadge({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full font-medium",
+        "inline-flex items-center rounded-md font-medium",
         config.bgColor,
         config.color,
         sizes[size],
@@ -81,7 +81,7 @@ export function KYCBadge({
       <Icon className={iconSizes[size]} />
       <span>{config.label}</span>
       {showLevel && status === "approved" && level !== undefined && (
-        <span className="ml-1 px-1.5 py-0.5 bg-white/50 rounded-full text-xs">
+        <span className="ml-1 px-1.5 py-0.5 bg-white/50 rounded-md text-xs">
           {level === 4 ? "Corporate" : level === 1 ? "Basic" : `L${level}`}
         </span>
       )}

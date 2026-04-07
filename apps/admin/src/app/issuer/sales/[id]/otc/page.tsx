@@ -58,7 +58,7 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
       </Link>
       <h1 className="text-2xl font-bold text-text mb-8">OTC Allocation</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl border border-darkBlack/10 p-6">
+        <div className="bg-white rounded-lg border border-darkBlack/10 p-6">
           <h2 className="text-text font-semibold mb-4">New OTC Allocation</h2>
           {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
           {success && <p className="text-green-600 text-sm mb-4">{success}</p>}
@@ -89,7 +89,7 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
             </button>
           </form>
         </div>
-        <div className="bg-white rounded-xl border border-darkBlack/10 p-6">
+        <div className="bg-white rounded-lg border border-darkBlack/10 p-6">
           <h2 className="text-text font-semibold mb-4">OTC History</h2>
           {records.length === 0 ? (
             <p className="text-darkBlack/30 text-sm">No OTC allocations for this sale yet.</p>

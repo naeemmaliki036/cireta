@@ -29,14 +29,14 @@ export function IssuerActionModal({
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-3xl p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            className="bg-white rounded-lg p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-text">
                 {modalType === "approve" && "Approve Issuer"}
                 {modalType === "fee" && "Update Fee"}
                 {modalType === "revoke" && "Revoke Issuer"}
               </h2>
-              <button onClick={onClose} className="p-2 hover:bg-box rounded-xl"><X className="h-5 w-5" /></button>
+              <button onClick={onClose} className="p-2 hover:bg-box rounded-lg"><X className="h-5 w-5" /></button>
             </div>
 
             {modalType === "approve" && (

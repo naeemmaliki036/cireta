@@ -52,7 +52,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-darkBlack/10 overflow-hidden">
+    <div className="bg-white rounded-lg border border-darkBlack/10 overflow-hidden">
       {/* Tab bar */}
       <div className="border-b border-zinc-100 px-6">
         <div className="flex gap-1 overflow-x-auto py-2">
@@ -61,7 +61,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+                "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors",
                 activeTab === tab.key
                   ? "text-white"
                   : "text-zinc-500 hover:bg-zinc-100 hover:text-text"
@@ -72,7 +72,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
               {tab.label}
               {counts[tab.key] > 0 && (
                 <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-full",
+                  "text-[10px] px-1.5 py-0.5 rounded-md",
                   activeTab === tab.key ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500"
                 )}>
                   {counts[tab.key]}
@@ -107,9 +107,9 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
             <div className="space-y-4">
               {/* Player / preview */}
               {selectedMedia && (
-                <div className="relative rounded-xl overflow-hidden bg-black">
+                <div className="relative rounded-lg overflow-hidden bg-black">
                   <button onClick={() => setSelectedMedia(null)}
-                    className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                    className="absolute top-3 right-3 z-10 w-8 h-8 rounded-md bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
                     <X className="h-4 w-4" />
                   </button>
                   {selectedMedia.media_type === "video" && selectedMedia.video_url ? (
@@ -130,7 +130,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((img) => (
                   <button key={img.id} onClick={() => setSelectedMedia(img)}
-                    className={cn("relative rounded-xl overflow-hidden border-2 text-left transition-all", selectedMedia?.id === img.id ? "border-darkAqua ring-2 ring-darkAqua/30" : "border-zinc-100 hover:border-zinc-300")}>
+                    className={cn("relative rounded-lg overflow-hidden border-2 text-left transition-all", selectedMedia?.id === img.id ? "border-darkAqua ring-2 ring-darkAqua/30" : "border-zinc-100 hover:border-zinc-300")}>
                     <div className="relative h-32">
                       <img src={img.url} alt={img.caption || ""} className="w-full h-full object-cover" />
                       {img.media_type === "video" && (
@@ -139,7 +139,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
                         </div>
                       )}
                       {img.is_banner && (
-                        <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">HERO</span>
+                        <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">HERO</span>
                       )}
                     </div>
                     {img.caption && <p className="text-[11px] text-zinc-500 px-2 py-1.5 truncate">{img.caption}</p>}
@@ -157,8 +157,8 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
           team.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {team.map((m) => (
-                <div key={m.id} className="flex gap-3 p-4 rounded-xl bg-zinc-50">
-                  <div className="w-12 h-12 rounded-full bg-zinc-200 overflow-hidden shrink-0">
+                <div key={m.id} className="flex gap-3 p-4 rounded-lg bg-zinc-50">
+                  <div className="w-12 h-12 rounded-md bg-zinc-200 overflow-hidden shrink-0">
                     {m.photo_url ? (
                       <img src={m.photo_url} alt={m.name} className="w-full h-full object-cover" />
                     ) : (
@@ -183,7 +183,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
           faqs.length > 0 ? (
             <div className="space-y-2">
               {faqs.map((f) => (
-                <div key={f.id} className="border border-zinc-100 rounded-xl overflow-hidden">
+                <div key={f.id} className="border border-zinc-100 rounded-lg overflow-hidden">
                   <button onClick={() => setOpenFaq(openFaq === f.id ? null : f.id)} className="w-full flex items-center justify-between px-4 py-3 text-left">
                     <span className="font-medium text-sm text-text">{f.question}</span>
                     {openFaq === f.id ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
@@ -203,7 +203,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
             <div className="space-y-2">
               {docs.map((d) => (
                 <a key={d.id} href={d.url || "#"} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-colors">
+                  className="flex items-center justify-between p-4 rounded-lg bg-zinc-50 hover:bg-zinc-100 transition-colors">
                   <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-darkAqua shrink-0" />
                     <div>

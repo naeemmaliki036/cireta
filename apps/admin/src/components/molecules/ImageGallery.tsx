@@ -125,7 +125,7 @@ export function ImageGallery({
             <div
               key={item.id}
               className={cn(
-                "relative rounded-xl overflow-hidden border-2 group",
+                "relative rounded-lg overflow-hidden border-2 group",
                 item.is_banner ? "border-darkAqua" : "border-transparent",
               )}
             >
@@ -137,7 +137,7 @@ export function ImageGallery({
                   </div>
                 )}
                 {item.is_banner && (
-                  <span className="absolute top-2 left-2 bg-darkAqua text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="absolute top-2 left-2 bg-darkAqua text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
                     HERO
                   </span>
                 )}
@@ -146,20 +146,20 @@ export function ImageGallery({
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {!item.is_banner && (
                   <button type="button" onClick={() => setBanner(item.id)} title="Set as hero"
-                    className="w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
+                    className="w-6 h-6 rounded-md bg-black/60 text-white flex items-center justify-center hover:bg-black/80">
                     <Star className="h-3 w-3" />
                   </button>
                 )}
                 <button type="button" onClick={() => move(idx, -1)} title="Move up" disabled={idx === 0}
-                  className="w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30">
+                  className="w-6 h-6 rounded-md bg-black/60 text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30">
                   <ChevronUp className="h-3 w-3" />
                 </button>
                 <button type="button" onClick={() => move(idx, 1)} title="Move down" disabled={idx === items.length - 1}
-                  className="w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30">
+                  className="w-6 h-6 rounded-md bg-black/60 text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30">
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 <button type="button" onClick={() => remove(item.id)} title="Remove"
-                  className="w-6 h-6 rounded-full bg-red-500/80 text-white flex items-center justify-center hover:bg-red-600">
+                  className="w-6 h-6 rounded-md bg-red-500/80 text-white flex items-center justify-center hover:bg-red-600">
                   <Trash2 className="h-3 w-3" />
                 </button>
               </div>
@@ -202,7 +202,7 @@ export function ImageGallery({
             </div>
           ) : (
             <button type="button" onClick={() => setShowVideoInput(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-darkBlack/10 p-3 text-sm text-zinc-500 hover:border-darkAqua/50 transition-colors">
+              className="w-full flex items-center justify-center gap-2 rounded-lg border border-darkBlack/10 p-3 text-sm text-zinc-500 hover:border-darkAqua/50 transition-colors">
               <LinkIcon className="h-4 w-4" /> Add YouTube / Vimeo URL
             </button>
           )}

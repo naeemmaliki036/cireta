@@ -177,16 +177,19 @@ export default function TokenCompliancePage({
   }
 
   return (
-    <IssuerDashboardLayout title={`${token.name} — Compliance`} description="Manage transfer restrictions for this token">
-      <div className="mb-6">
-        <Link href={`/issuer/tokens/${tokenId}`} className="flex items-center gap-2 text-sm text-zinc-500 hover:text-text">
-          <ArrowLeft className="h-4 w-4" /> Back to Token
+    <IssuerDashboardLayout title={`${token.name} — Compliance`} description="Manage transfer restrictions for this token"
+      actions={
+        <Link href={`/issuer/tokens/${tokenId}`}>
+          <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Back to Token
+          </Button>
         </Link>
-      </div>
+      }
+    >
 
       {/* Status messages */}
       {actionMessage && (
-        <div className={`mb-4 p-3 rounded-xl border text-sm flex items-center gap-2 ${
+        <div className={`mb-4 p-3 rounded-lg border text-sm flex items-center gap-2 ${
           actionMessage.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-600"
         }`}>
           {actionMessage.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
@@ -210,7 +213,7 @@ export default function TokenCompliancePage({
         </div>
       )}
       {autoConfigStatus && (
-        <div className="mb-4 p-3 rounded-xl border border-blue-200 bg-blue-50 text-sm text-blue-700 flex items-center gap-2">
+        <div className="mb-4 p-3 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-700 flex items-center gap-2">
           <Spinner className="h-4 w-4" /> {autoConfigStatus}
         </div>
       )}
@@ -223,7 +226,7 @@ export default function TokenCompliancePage({
       )}
 
       {/* Summary */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-6 flex items-center justify-between">
+      <div className="bg-white rounded-lg border border-zinc-100 p-5 mb-6 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-zinc-900">Compliance Contract</p>
           {complianceAddr && (
@@ -248,11 +251,11 @@ export default function TokenCompliancePage({
             const Icon = mod.icon;
 
             return (
-              <div key={mod.id} className={`rounded-xl border-2 p-4 transition-all ${
+              <div key={mod.id} className={`rounded-lg border-2 p-4 transition-all ${
                 isAttached ? "border-green-300 bg-green-50/50" : "border-zinc-200 bg-white"
               }`}>
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     isAttached ? "bg-green-100 text-green-600" : "bg-zinc-100 text-zinc-400"
                   }`}>
                     <Icon className="h-5 w-5" />
@@ -260,9 +263,9 @@ export default function TokenCompliancePage({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-zinc-900">{mod.name}</p>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${mod.tagColor}`}>{mod.tag}</span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${mod.tagColor}`}>{mod.tag}</span>
                       {isAttached && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-green-100 text-green-700">Active</span>
                       )}
                     </div>
                     <p className="text-xs text-zinc-500">{mod.description}</p>

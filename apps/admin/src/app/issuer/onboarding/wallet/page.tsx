@@ -82,8 +82,8 @@ export default function WalletOnboardingPage() {
       <div className="max-w-lg mx-auto space-y-6">
         {/* ── Step 3: Submitted ── */}
         {step === "submitted" ? (
-          <div className="bg-white rounded-2xl p-8 border border-zinc-200 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-lg p-8 border border-zinc-200 text-center space-y-4">
+            <div className="w-16 h-16 rounded-md bg-green-50 flex items-center justify-center mx-auto">
               <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
             <h2 className="text-xl font-semibold">Wallet Saved</h2>
@@ -100,7 +100,7 @@ export default function WalletOnboardingPage() {
         ) : (
           <>
             {/* Info card */}
-            <div className="bg-teal-50/50 rounded-2xl p-5 border border-teal-100">
+            <div className="bg-teal-50/50 rounded-lg p-5 border border-teal-100">
               <div className="flex gap-3">
                 <ShieldCheck className="h-5 w-5 text-teal-600 mt-0.5 shrink-0" />
                 <div className="text-sm text-teal-800">
@@ -119,7 +119,7 @@ export default function WalletOnboardingPage() {
             </div>
 
             {/* Main card */}
-            <div className="bg-white rounded-2xl p-8 border border-zinc-200 space-y-6">
+            <div className="bg-white rounded-lg p-8 border border-zinc-200 space-y-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center">
                   <Wallet className="h-6 w-6 text-teal-600" />
@@ -146,7 +146,7 @@ export default function WalletOnboardingPage() {
                   {!isConnected ? (
                     <div className="space-y-4">
                       <div className="bg-zinc-50 rounded-xl p-6 text-center space-y-3">
-                        <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center mx-auto">
+                        <div className="w-14 h-14 rounded-md bg-zinc-100 flex items-center justify-center mx-auto">
                           <Wallet className="h-7 w-7 text-zinc-400" />
                         </div>
                         <p className="text-sm text-zinc-500">No wallet connected</p>
@@ -168,7 +168,7 @@ export default function WalletOnboardingPage() {
                   ) : (
                     <div className="space-y-4">
                       <div className="bg-green-50 rounded-xl p-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-md bg-green-100 flex items-center justify-center">
                           <CheckCircle2 className="h-5 w-5 text-green-600" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -215,7 +215,7 @@ export default function WalletOnboardingPage() {
               {step === "verified" && verifiedAddress && (
                 <div className="space-y-4">
                   <div className="bg-green-50 rounded-xl p-4 flex items-center gap-3 border border-green-200">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-md bg-green-100 flex items-center justify-center shrink-0">
                       <CheckCircle2 className="h-5 w-5 text-green-600" />
                     </div>
                     <div className="flex-1 min-w-0">

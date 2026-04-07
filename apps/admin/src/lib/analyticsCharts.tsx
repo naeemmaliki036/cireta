@@ -42,11 +42,11 @@ const chartTooltipStyle = { backgroundColor: "white", border: "1px solid #e5e7eb
 export function TVLChart({ delay = 0.2 }: { delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+      className="bg-white rounded-lg p-6 border border-darkBlack/10">
       <div className="flex items-center justify-between mb-6">
         <div><h3 className="text-lg font-semibold text-text">Total Value Locked</h3>
           <p className="text-sm text-gray-500">Historical TVL trend</p></div>
-        <div className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm font-medium">
+        <div className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-md text-sm font-medium">
           <ArrowUpRight className="h-4 w-4" />+15.2%</div>
       </div>
       <ResponsiveContainer width="100%" height={250}>
@@ -70,11 +70,11 @@ export function TVLChart({ delay = 0.2 }: { delay?: number }) {
 export function FeeRevenueChart({ delay = 0.3 }: { delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+      className="bg-white rounded-lg p-6 border border-darkBlack/10">
       <div className="flex items-center justify-between mb-6">
         <div><h3 className="text-lg font-semibold text-text">Fee Revenue</h3>
           <p className="text-sm text-gray-500">Monthly platform fees</p></div>
-        <div className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm font-medium">
+        <div className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-md text-sm font-medium">
           <ArrowUpRight className="h-4 w-4" />+22.3%</div>
       </div>
       <ResponsiveContainer width="100%" height={250}>
@@ -96,7 +96,7 @@ export function KYCFunnelChart({ delay = 0.4 }: { delay?: number }) {
   const convRate = first && last ? ((last.count / first.count) * 100).toFixed(1) : "0.0";
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-3xl p-6 pb-10 border border-darkBlack/10 overflow-visible">
+      className="bg-white rounded-lg p-6 pb-10 border border-darkBlack/10 overflow-visible">
       <h3 className="text-lg font-semibold text-text mb-1">KYC Funnel</h3>
       <p className="text-sm text-gray-500 mb-6">User verification progress</p>
       <div className="space-y-4">
@@ -108,9 +108,9 @@ export function KYCFunnelChart({ delay = 0.4 }: { delay?: number }) {
                 <span className="font-medium text-text">{s.stage}</span>
                 <span className="text-sm text-gray-500">{s.count.toLocaleString()} ({pct.toFixed(0)}%)</span>
               </div>
-              <div className="h-3 bg-box rounded-full overflow-hidden">
+              <div className="h-3 bg-box rounded-md overflow-hidden">
                 <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: 0.2 * i }}
-                  className="h-full rounded-full" style={{ backgroundColor: s.color }} />
+                  className="h-full rounded-md" style={{ backgroundColor: s.color }} />
               </div>
             </motion.div>
           );
@@ -128,7 +128,7 @@ export function KYCFunnelChart({ delay = 0.4 }: { delay?: number }) {
 export function TokenDistributionChart({ delay = 0.5 }: { delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-3xl p-6 border border-darkBlack/10">
+      className="bg-white rounded-lg p-6 border border-darkBlack/10">
       <h3 className="text-lg font-semibold text-text mb-1">TVL by Token</h3>
       <p className="text-sm text-gray-500 mb-6">Distribution across tokens</p>
       <ResponsiveContainer width="100%" height={200}>
@@ -142,7 +142,7 @@ export function TokenDistributionChart({ delay = 0.5 }: { delay?: number }) {
       <div className="grid grid-cols-2 gap-4 mt-4">
         {TOKEN_DISTRIBUTION.map((t) => (
           <div key={t.name} className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
+            <div className="w-3 h-3 rounded-md" style={{ backgroundColor: t.color }} />
             <span className="text-sm text-gray-600">{t.name}</span>
             <span className="text-sm font-semibold ml-auto">{t.value}%</span>
           </div>

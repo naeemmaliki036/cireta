@@ -164,7 +164,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
       </div>
 
       {!validOtcAddress && (
-        <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+        <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
           <AlertCircle className="h-4 w-4 inline mr-2" />
           No OTC token address is configured for this sale. Deploy the OTC token first or update the sale with an OTC token address.
         </div>
@@ -173,12 +173,12 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
       {/* Supply Overview */}
       {validOtcAddress && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-2xl p-5 border border-darkBlack/10">
+          <div className="bg-white rounded-lg p-5 border border-darkBlack/10">
             <p className="text-xs uppercase tracking-wider text-darkBlack/40 mb-1">Token</p>
             <p className="text-lg font-bold text-text">{tokenSymbol}</p>
             <p className="text-xs text-darkBlack/30 font-mono mt-1 truncate">{validOtcAddress}</p>
           </div>
-          <div className="bg-white rounded-2xl p-5 border border-darkBlack/10">
+          <div className="bg-white rounded-lg p-5 border border-darkBlack/10">
             <p className="text-xs uppercase tracking-wider text-darkBlack/40 mb-1">Total Supply</p>
             <p className="text-lg font-bold text-text">
               {totalSupply !== undefined
@@ -186,7 +186,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
                 : "---"}
             </p>
           </div>
-          <div className="bg-white rounded-2xl p-5 border border-darkBlack/10">
+          <div className="bg-white rounded-lg p-5 border border-darkBlack/10">
             <p className="text-xs uppercase tracking-wider text-darkBlack/40 mb-1">OTC Allocations</p>
             <p className="text-lg font-bold text-text">{records.length}</p>
           </div>
@@ -205,7 +205,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Mint Form */}
-        <div className="bg-white rounded-2xl border border-darkBlack/10 p-6">
+        <div className="bg-white rounded-lg border border-darkBlack/10 p-6">
           <h2 className="text-lg font-semibold text-text mb-1 flex items-center gap-2">
             <Coins className="h-5 w-5 text-darkAqua" /> Mint OTC Tokens
           </h2>
@@ -214,7 +214,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
           </p>
 
           {formError && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 flex items-center gap-2">
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 flex items-center gap-2">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               {formError}
             </div>
@@ -229,7 +229,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
                 onChange={(e) => setInvestorWallet(e.target.value)}
                 placeholder="0x..."
                 maxLength={42}
-                className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua font-mono ${
+                className={`w-full px-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua font-mono ${
                   investorWallet && !isAddress(investorWallet) ? "border-red-300 bg-red-50/30" : "border-zinc-200"
                 }`}
               />
@@ -249,7 +249,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
                 placeholder="10000"
                 min="0"
                 step="any"
-                className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+                className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
               />
             </div>
             <Button
@@ -265,7 +265,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Recent Mints */}
-        <div className="bg-white rounded-2xl border border-darkBlack/10 p-6">
+        <div className="bg-white rounded-lg border border-darkBlack/10 p-6">
           <h2 className="text-lg font-semibold text-text mb-4">Recent OTC Allocations</h2>
           {records.length === 0 ? (
             <div className="text-center py-8">
@@ -275,7 +275,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {records.map((r) => (
-                <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 border border-zinc-100">
                   <div className="min-w-0">
                     <p className="text-sm font-mono text-text truncate">{r.wallet_address}</p>
                     <p className="text-xs text-darkBlack/40 mt-0.5">

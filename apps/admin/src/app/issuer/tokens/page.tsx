@@ -26,7 +26,7 @@ function TokenCard({ token }: { token: Token }) {
 
   return (
     <Link href={`/issuer/tokens/${token.id}`}
-      className="block bg-white rounded-xl border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group">
+      className="block bg-white rounded-lg border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group">
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1">
@@ -45,11 +45,11 @@ function TokenCard({ token }: { token: Token }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-          <div className="bg-zinc-50 rounded-lg px-3 py-2">
+          <div className="bg-zinc-50 rounded-md px-3 py-2">
             <p className="text-darkBlack/40 mb-0.5">Total Supply</p>
             <p className="font-semibold text-text font-mono">{parseFloat(token.total_supply).toLocaleString()}</p>
           </div>
-          <div className="bg-zinc-50 rounded-lg px-3 py-2">
+          <div className="bg-zinc-50 rounded-md px-3 py-2">
             <p className="text-darkBlack/40 mb-0.5">Contract</p>
             {masked ? (
               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(addr!); }}
@@ -85,7 +85,7 @@ function OTCTokenCard({ address: otcAddr }: { address: string }) {
   const totalSupply = totalSupplyRaw ? formatUnits(totalSupplyRaw as bigint, decimals) : "0";
 
   return (
-    <div className="bg-white rounded-xl border border-zinc-100 p-5">
+    <div className="bg-white rounded-lg border border-zinc-100 p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-semibold text-text text-sm">{(name as string) || "OTC Token"}</h3>
@@ -94,11 +94,11 @@ function OTCTokenCard({ address: otcAddr }: { address: string }) {
         <Badge variant="active" size="sm"><Coins className="h-3 w-3 mr-1" />Deployed</Badge>
       </div>
       <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-        <div className="bg-zinc-50 rounded-lg px-3 py-2">
+        <div className="bg-zinc-50 rounded-md px-3 py-2">
           <p className="text-darkBlack/40 mb-0.5">Total Minted</p>
           <p className="font-semibold text-text font-mono">{parseFloat(totalSupply).toLocaleString()}</p>
         </div>
-        <div className="bg-zinc-50 rounded-lg px-3 py-2">
+        <div className="bg-zinc-50 rounded-md px-3 py-2">
           <p className="text-darkBlack/40 mb-0.5">Contract</p>
           <button onClick={() => navigator.clipboard.writeText(otcAddr)}
             className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
@@ -178,7 +178,7 @@ function OTCTokenSection() {
           Deploy New OTC Token
         </Button>
       ) : (
-        <div className="bg-white rounded-xl border border-zinc-100 p-5 space-y-3">
+        <div className="bg-white rounded-lg border border-zinc-100 p-5 space-y-3">
           <h3 className="font-semibold text-text text-sm">Deploy New OTC Token</h3>
           <p className="text-xs text-darkBlack/40">Deploy one OTC receipt token per sale. Link it to the sale via OTC configuration.</p>
           <div className="grid grid-cols-2 gap-3">
@@ -229,7 +229,13 @@ export default function TokensPage() {
   const deployed = tokens.filter((t) => t.contract_address && t.contract_address !== "0x0000000000000000000000000000000000000000");
 
   return (
-    <IssuerDashboardLayout title="Tokens" description="Deploy and manage your ERC-3643 security tokens">
+    <IssuerDashboardLayout title="Tokens" description="Deploy and manage your ERC-3643 security tokens"
+      actions={
+        <Link href="/issuer/tokens/new">
+          <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create Token</Button>
+        </Link>
+      }
+    >
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         {[
@@ -237,7 +243,7 @@ export default function TokensPage() {
           { label: "Deployed On-Chain", value: deployed.length, color: "text-green-600", bg: "bg-green-50" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-xl px-4 py-3.5 border border-zinc-100">
+            className="bg-white rounded-md px-4 py-3.5 border border-zinc-100">
             <div className="flex items-center gap-2 mb-1.5">
               <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>
                 <Coins className="h-4 w-4" />
@@ -249,22 +255,19 @@ export default function TokensPage() {
         ))}
       </div>
 
-      {/* Search + New */}
-      <div className="flex items-center justify-between gap-4 mb-4">
+      {/* Search */}
+      <div className="flex items-center gap-4 mb-4">
         <div className="flex-1 max-w-xs">
           <Input placeholder="Search by name, symbol, or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <Link href="/issuer/tokens/new">
-          <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>New Token</Button>
-        </Link>
       </div>
 
       {/* Security Tokens Grid */}
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-zinc-100">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+        <div className="text-center py-16 bg-white rounded-lg border border-zinc-100">
+          <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
             <Coins className="h-7 w-7 text-zinc-300" />
           </div>
           <p className="text-darkBlack/40 text-sm mb-1">{tokens.length === 0 ? "No tokens yet" : "No matching tokens"}</p>

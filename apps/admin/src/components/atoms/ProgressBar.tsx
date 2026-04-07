@@ -46,20 +46,20 @@ const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
       <div ref={ref} className={cn("w-full", className)} {...props}>
         <div
           className={cn(
-            "bg-[#b2b7b81a] rounded-[100px] overflow-hidden",
+            "bg-[#b2b7b81a] rounded overflow-hidden",
             heights[size]
           )}
         >
           {animated ? (
             <motion.div
-              className={cn("rounded-[100px]", heights[size], colors[variant])}
+              className={cn("rounded", heights[size], colors[variant])}
               initial={{ width: 0 }}
               animate={{ width: `${percentage}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             />
           ) : (
             <div
-              className={cn("rounded-[100px]", heights[size], colors[variant])}
+              className={cn("rounded", heights[size], colors[variant])}
               style={{ width: `${percentage}%` }}
             />
           )}

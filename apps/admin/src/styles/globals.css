@@ -193,7 +193,7 @@ a {
 
 /* Status badges */
 .status-active {
-  border-radius: 9999px;
+  border-radius: 6px;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -202,7 +202,7 @@ a {
 }
 
 .status-pending {
-  border-radius: 9999px;
+  border-radius: 6px;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -211,7 +211,7 @@ a {
 }
 
 .status-failed {
-  border-radius: 9999px;
+  border-radius: 6px;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -220,7 +220,7 @@ a {
 }
 
 .status-success {
-  border-radius: 9999px;
+  border-radius: 6px;
   padding: 0.25rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -233,7 +233,7 @@ a {
   width: 100%;
   background-color: #ECF3F4;
   border: 1px solid rgba(24, 11, 46, 0.1);
-  border-radius: 0.75rem;
+  border-radius: 6px;
   padding: 0.75rem 1rem;
   outline: none;
   color: #0C0C0C;
@@ -289,7 +289,7 @@ a {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.7) !important;
   transition: color 150ms, background-color 150ms;
 }
@@ -307,7 +307,7 @@ a {
 /* Dashboard card */
 .dashboard-card {
   background-color: #ECF3F4;
-  border-radius: 1.5rem;
+  border-radius: 8px;
   padding: 2rem;
   border: 1px solid rgba(24, 11, 46, 0.1);
 }

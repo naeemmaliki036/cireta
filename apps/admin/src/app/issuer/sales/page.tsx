@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, BarChart3, Plus, ArrowUpRight, Rocket, Clock, FileText } from "lucide-react";
+import { TrendingUp, BarChart3, Plus, ArrowUpRight, Rocket, Clock, FileText, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { ProgressBar } from "@/components/atoms";
@@ -41,7 +41,7 @@ function SaleCard({ sale }: { sale: Sale }) {
 
   return (
     <Link href={`/issuer/sales/${sale.id}`}
-      className="block bg-white rounded-xl border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group">
+      className="block bg-white rounded-lg border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group">
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1">
@@ -83,9 +83,44 @@ function SaleCard({ sale }: { sale: Sale }) {
   );
 }
 
+function SaleRow({ sale }: { sale: Sale }) {
+  const raised = parseFloat(sale.total_raised || "0");
+  const cap = parseFloat(sale.hard_cap || "0");
+  const pct = cap > 0 ? Math.min(Math.round((raised / cap) * 100), 100) : 0;
+  const statusLabel = STATUS_LABELS[sale.status] || sale.status;
+  const variant = STATUS_VARIANTS[sale.status] || "pending";
+
+  return (
+    <Link href={`/issuer/sales/${sale.id}`}
+      className="flex items-center gap-4 px-4 py-3 bg-white border border-zinc-100 rounded-lg hover:border-darkAqua/30 hover:shadow-sm transition-all group">
+      <div className="min-w-0 flex-1">
+        <h3 className="font-semibold text-text text-sm truncate">{sale.title || sale.token_name || "Untitled Sale"}</h3>
+        <p className="text-xs text-darkBlack/40 mt-0.5">
+          {sale.token_symbol ? `${sale.token_symbol} · ` : ""}
+          {sale.is_coming_soon ? "Coming Soon" : sale.sale_mode === "vested" ? "Vested" : "Direct"}
+        </p>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-darkBlack/30 shrink-0">
+        {sale.contract_address && <span className="flex items-center gap-1"><Rocket className="h-3 w-3" /> Deployed</span>}
+        {sale.phases.length > 0 && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {sale.phases.length} phase{sale.phases.length > 1 ? "s" : ""}</span>}
+        {sale.otc_enabled && <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> OTC</span>}
+      </div>
+      {!sale.is_coming_soon && cap > 0 && (
+        <div className="w-32 shrink-0">
+          <ProgressBar value={pct} size="sm" />
+          <p className="text-[10px] text-darkBlack/30 mt-0.5 text-right">{formatCurrency(raised)} / {formatCurrency(cap)}</p>
+        </div>
+      )}
+      <Badge variant={variant} size="sm" className="shrink-0">{statusLabel}</Badge>
+      <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors shrink-0" />
+    </Link>
+  );
+}
+
 export default function SalesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -120,7 +155,12 @@ export default function SalesPage() {
   ].filter((t) => t.key === "all" || t.count > 0);
 
   return (
-    <IssuerDashboardLayout title="Token Sales" description="Manage your active and past token sales">
+    <IssuerDashboardLayout title="Token Sales" description="Manage your active and past token sales"
+      actions={
+        <Link href="/issuer/sales/new">
+          <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>New Sale</Button>
+        </Link>
+      }>
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
@@ -130,7 +170,7 @@ export default function SalesPage() {
           { label: "Total Raised", value: formatCurrency(totalRaised), icon: <BarChart3 className="h-4 w-4" />, color: "text-blue-600", bg: "bg-blue-50" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-xl px-4 py-3.5 border border-zinc-100">
+            className="bg-white rounded-lg px-4 py-3.5 border border-zinc-100">
             <div className="flex items-center gap-2 mb-1.5">
               <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>{s.icon}</div>
               <p className="text-[11px] font-medium text-darkBlack/40 uppercase tracking-wide">{s.label}</p>
@@ -153,13 +193,20 @@ export default function SalesPage() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="w-56">
             <Input placeholder="Search sales…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Link href="/issuer/sales/new">
-            <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>New Sale</Button>
-          </Link>
+          <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
+            <button onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-darkBlack/40 hover:text-text"}`}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-darkBlack/40 hover:text-text"}`}>
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -167,8 +214,8 @@ export default function SalesPage() {
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-zinc-100">
-          <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+        <div className="text-center py-16 bg-white rounded-lg border border-zinc-100">
+          <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
             <TrendingUp className="h-7 w-7 text-zinc-300" />
           </div>
           <p className="text-darkBlack/40 text-sm mb-1">{sales.length === 0 ? "No sales yet" : "No matching sales"}</p>
@@ -182,13 +229,23 @@ export default function SalesPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((sale, i) => (
-            <motion.div key={sale.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-              <SaleCard sale={sale} />
-            </motion.div>
-          ))}
-        </div>
+        viewMode === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((sale, i) => (
+              <motion.div key={sale.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                <SaleCard sale={sale} />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((sale, i) => (
+              <motion.div key={sale.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
+                <SaleRow sale={sale} />
+              </motion.div>
+            ))}
+          </div>
+        )
       )}
     </IssuerDashboardLayout>
   );
