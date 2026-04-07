@@ -69,6 +69,7 @@ export default function InvestPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
   const [saleOtcEnabled, setSaleOtcEnabled] = useState(false);
+  const [paymentTokenAddress, setPaymentTokenAddress] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"crypto" | "otc" | "otc_token" | null>(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<InvestStep>("amount");
@@ -77,7 +78,8 @@ export default function InvestPage() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isContributing, setIsContributing] = useState(false);
 
-  const usdcAddress = getUsdcAddress(chainId);
+  // Payment token from the sale (e.g. cUSDC, USDT) — falls back to global config
+  const usdcAddress = (paymentTokenAddress as `0x${string}`) || getUsdcAddress(chainId);
 
   // Derive sale contract address early so hooks can reference it
   const _rawAddr = (project as unknown as { contract_address?: string | null })?.contract_address;
@@ -206,6 +208,7 @@ export default function InvestPage() {
         setProject(proj);
         setSaleId(raw.id);
         setSaleOtcEnabled(raw.otc_enabled ?? false);
+        if (raw.payment_token) setPaymentTokenAddress(raw.payment_token);
         // If OTC is not enabled, auto-select crypto
         if (!raw.otc_enabled) setPaymentMethod("crypto");
       } catch {
