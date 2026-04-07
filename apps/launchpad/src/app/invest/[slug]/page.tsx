@@ -86,6 +86,17 @@ export default function InvestPage() {
       ? (_rawAddr as `0x${string}`)
       : null;
 
+  // Read existing USDC allowance — skip approve step if sufficient
+  const amountWei = amount ? parseUnits(amount, 6) : BigInt(0);
+  const { data: existingAllowance, refetch: refetchAllowance } = useReadContract({
+    address: usdcAddress as `0x${string}`,
+    abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const,
+    functionName: "allowance",
+    args: connectedAddress && saleContractAddress ? [connectedAddress, saleContractAddress] : undefined,
+    query: { enabled: !!connectedAddress && !!saleContractAddress && !!usdcAddress },
+  });
+  const hasEnoughAllowance = existingAllowance != null && amountWei > 0 && (existingAllowance as bigint) >= amountWei;
+
   // Wagmi: USDC approve
   const {
     writeContract: writeApprove,
@@ -207,8 +218,8 @@ export default function InvestPage() {
 
   // When approve tx confirms, advance to confirm step
   useEffect(() => {
-    if (approveConfirmed) setStep("confirm");
-  }, [approveConfirmed]);
+    if (approveConfirmed) { refetchAllowance(); setStep("confirm"); }
+  }, [approveConfirmed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When on-chain contribute confirms, record in backend then show success
   useEffect(() => {
@@ -604,7 +615,7 @@ export default function InvestPage() {
               <InvestAmountStep
                 project={project} activePhase={activePhase}
                 amount={amount} onAmountChange={setAmount}
-                onContinue={() => setStep("approve")}
+                onContinue={() => { refetchAllowance().then(({ data: a }) => { if (a != null && parseUnits(amount || "0", 6) > 0 && (a as bigint) >= parseUnits(amount || "0", 6)) { setStep("confirm"); } else { setStep("approve"); } }); }}
                 isConnected={isConnected} onConnect={() => openConnectModal?.()}
               />
             )}
