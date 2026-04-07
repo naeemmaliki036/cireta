@@ -60,7 +60,7 @@ class FileStorageService:
         """Get a fresh signed URL for a private file."""
         if self._backend == "gcs":
             return self._get_signed_url(path)
-        return f"/uploads/private/{path}"
+        return self._make_public_url(f"private/{path}")
 
     async def delete(self, path: str, private: bool = False) -> None:
         """Delete a file."""
@@ -152,13 +152,18 @@ class FileStorageService:
 
     # ── Local Backend ──
 
+    def _make_public_url(self, relative_path: str) -> str:
+        """Build absolute URL for local uploads when API_PUBLIC_URL is set."""
+        base = settings.api_public_url.rstrip("/") if settings.api_public_url else ""
+        return f"{base}/uploads/{relative_path}" if base else f"/uploads/{relative_path}"
+
     def _upload_local(self, file_data: bytes, path: str) -> str:
         upload_dir = Path(settings.upload_dir)
         file_path = upload_dir / path
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_bytes(file_data)
         logger.info("Uploaded locally: %s", file_path)
-        return f"/uploads/{path}"
+        return self._make_public_url(path)
 
     def _delete_local(self, path: str) -> None:
         file_path = Path(settings.upload_dir) / path

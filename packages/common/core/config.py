@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     api_port: int = Field(
         default=DEFAULTS["API_PORT"], validation_alias=AliasChoices("api_port", "PORT")
     )
+    api_public_url: str = Field(default="")  # e.g. https://api-keeta.up.railway.app — needed for absolute URLs in uploads
     workers: int = Field(default=DEFAULTS["WORKERS"])
 
     # CORS
