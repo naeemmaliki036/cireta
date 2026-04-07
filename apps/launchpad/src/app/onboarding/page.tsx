@@ -9,7 +9,7 @@ import { Button } from "@/components/atoms";
 import { useAuth } from "@/contexts/AuthContext";
 import { useKYC } from "@/contexts/KYCContext";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount } from "wagmi";
+import { useAccount, useSignMessage } from "wagmi";
 import { apiFetch } from "@/lib/api/client";
 import {
   getOnboardingStatus,
@@ -55,7 +55,10 @@ export default function OnboardingPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { kycStatus } = useKYC();
   const { isConnected, address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
   const [walletCopied, setWalletCopied] = useState(false);
+  const [walletLinked, setWalletLinked] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("type");
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -516,24 +519,42 @@ export default function OnboardingPage() {
               )}
             </div>
 
+            {walletError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 mb-3 text-center">{walletError}</div>
+            )}
+            {walletLinked && (
+              <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-600 mb-3 text-center flex items-center justify-center gap-2">
+                <CheckCircle2 className="h-4 w-4" /> Wallet linked to your account
+              </div>
+            )}
             <div className="flex gap-3 justify-center">
               <Button onClick={() => setStep("details")} variant="outline" className="rounded-xl">
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back
               </Button>
               <Button onClick={async () => {
-                if (isConnected && address) {
+                if (isConnected && address && !walletLinked) {
                   try {
                     setSaving(true);
-                    await apiFetch("/api/v1/wallets", { method: "POST", body: { address, label: "Primary", signature: "onboarding", nonce: "onboarding" } });
-                  } catch {
-                    // Wallet may already be linked — continue anyway
+                    setWalletError(null);
+                    const nonce = crypto.randomUUID();
+                    const message = `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}`;
+                    const signature = await signMessageAsync({ message });
+                    await apiFetch("/api/v1/wallets", { method: "POST", body: { address, signature, nonce, label: "Primary" } });
+                    setWalletLinked(true);
+                  } catch (err) {
+                    if (err instanceof Error && err.message.includes("User rejected")) {
+                      setWalletError("Signature rejected. Sign the message to link your wallet, or skip for now.");
+                      return;
+                    }
+                    // Wallet may already be linked
+                    setWalletLinked(true);
                   } finally {
                     setSaving(false);
                   }
                 }
                 setStep("kyc");
               }} className="bg-gray-900 text-white rounded-xl hover:bg-gray-800" size="lg" disabled={saving}>
-                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : <>{isConnected ? "Continue" : "Skip for now"} <ArrowRight className="h-4 w-4 ml-2" /></>}
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing...</> : <>{isConnected ? "Sign & Continue" : "Skip for now"} <ArrowRight className="h-4 w-4 ml-2" /></>}
               </Button>
             </div>
             <ExitLink />
