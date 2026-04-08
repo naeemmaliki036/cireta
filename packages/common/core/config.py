@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     web3_rpc_url: str = Field()
     identity_signer_private_key: str = Field(default="")
     platform_fee_receiver: str = Field(default="")
+    factory_contract_address: str = Field(default="")
 
     # ONCHAINID
     identity_factory_address: str = Field(default="")

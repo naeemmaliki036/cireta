@@ -50,8 +50,11 @@ class WalletService:
         is_safe: bool = False,
         label: str | None = None,
     ) -> Wallet:
-        # Verify ownership signature
-        if not verify_wallet_signature(address, signature, nonce):
+        # Verify ownership — Safe wallets use on-chain owner check, EOA uses ecrecover
+        if is_safe or signature == "safe":
+            is_safe = True
+            await self._verify_safe_ownership(user_id, address)
+        elif not verify_wallet_signature(address, signature, nonce):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -131,6 +134,68 @@ class WalletService:
         await self._auto_register_identity(user_id, wallet)
 
         return wallet
+
+    async def _verify_safe_ownership(self, user_id: UUID, safe_address: str) -> None:
+        """Verify the user owns an EOA that is an owner of the Safe at safe_address."""
+        import asyncio
+
+        from web3 import Web3
+
+        checksum_safe = Web3.to_checksum_address(safe_address)
+
+        # Get user's existing linked wallets (must have at least one EOA already)
+        existing_wallets = await self.list_wallets(user_id)
+        if not existing_wallets:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "NO_EOA_LINKED",
+                    "message": "You must link an EOA wallet before adding a Safe wallet",
+                },
+            )
+
+        # Call getOwners() on the Safe contract
+        safe_abi = [
+            {
+                "inputs": [],
+                "name": "getOwners",
+                "outputs": [{"type": "address[]"}],
+                "stateMutability": "view",
+                "type": "function",
+            }
+        ]
+
+        w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
+        safe_contract = w3.eth.contract(address=checksum_safe, abi=safe_abi)
+
+        try:
+            owners = await asyncio.to_thread(safe_contract.functions.getOwners().call)
+        except Exception as e:
+            logger.warning("Failed to call getOwners() on %s: %s", checksum_safe, e)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "SAFE_CALL_FAILED",
+                    "message": "Could not verify Safe owners. Is this a valid Safe address?",
+                },
+            )
+
+        owners_lower = {o.lower() for o in owners}
+        user_addresses = {w.address_checksum.lower() for w in existing_wallets}
+
+        if not owners_lower & user_addresses:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "NOT_SAFE_OWNER",
+                    "message": "None of your linked wallets is an owner of this Safe",
+                },
+            )
+
+        logger.info(
+            "Safe ownership verified: user=%s safe=%s matching_owner(s)=%s",
+            user_id, checksum_safe, owners_lower & user_addresses,
+        )
 
     async def _auto_register_identity(self, user_id: UUID, wallet: Wallet) -> None:
         """If user is KYC-approved, register new wallet on-chain.

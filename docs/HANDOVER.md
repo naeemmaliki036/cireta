@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Cireta is a regulated Real-World Asset (RWA) tokenization platform built on Base L2. It enables issuers to tokenize physical assets (commodities, real estate, equity) as ERC-3643 compliant security tokens, and provides a compliant launchpad for verified investors to participate in token sales. The platform is now **production-ready at the API and smart contract layer**, with 133 Python tests and 85 E2E API tests passing at 100%, all critical security vulnerabilities patched, and full on-chain integration verified on Base Sepolia.
+Cireta is a regulated Real-World Asset (RWA) tokenization platform built on Base. It enables issuers to tokenize physical assets (commodities, real estate, equity) as ERC-3643 compliant security tokens, and provides a compliant launchpad for verified investors to participate in token sales. The platform is now **production-ready at the API and smart contract layer**, with 133 Python tests and 85 E2E API tests passing at 100%, all critical security vulnerabilities patched, and full on-chain integration verified on Base Sepolia.
 
 ---
 
@@ -102,7 +102,7 @@ All issues from the P0/P1/P2 audit have been resolved. Key fixes:
      └─────────┘  └────────┘  └────┬────┘
                                     │
                           ┌─────────▼──────────┐
-                          │  Base L2 / Sepolia  │
+                          │  Base / Sepolia  │
                           │  (Web3.py + RPC)    │
                           └─────────────────────┘
 

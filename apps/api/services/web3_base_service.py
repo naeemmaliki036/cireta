@@ -22,7 +22,7 @@ class Web3BaseService:
     """Core Web3 operations: connection, balances, transactions, contract calls."""
 
     def __init__(self) -> None:
-        """Initialize Web3 service with Base L2 connection (circuit breaker)."""
+        """Initialize Web3 service with blockchain connection (circuit breaker)."""
         from apps.api.core.web3_provider import get_web3_provider
 
         try:

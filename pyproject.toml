@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "cireta"
 version = "0.1.0"
-description = "Cireta RWA Launchpad - Regulated tokenization platform for commodities on Base L2"
+description = "Cireta RWA Launchpad - Regulated tokenization platform for commodities"
 authors = ["Cireta <dev@cireta.com>"]
 readme = "README.md"
 packages = [

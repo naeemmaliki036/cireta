@@ -179,7 +179,7 @@ isScrolled
       Unlock Global Commodity Investment Through RWA Tokenization
     </h1>
     <p className="text-base font-semibold text-white/75 mb-[60px]">
-      Fully regulated ERC-3643 security tokens on Base L2.
+      Fully regulated ERC-3643 security tokens.
     </p>
     <div className="flex items-center gap-6">
       <Button className="bg-white !text-text">Explore Projects</Button>

@@ -31,7 +31,7 @@
 
 ## 1. System Overview
 
-Cireta is a regulated RWA tokenization launchpad on Base L2. The smart contract system implements ERC-3643 security tokens with a multi-issuer model. Every token transfer is gated by two checks:
+Cireta is a regulated RWA tokenization launchpad on Base. The smart contract system implements ERC-3643 security tokens with a multi-issuer model. Every token transfer is gated by two checks:
 
 1. **Identity verification** — is the recipient KYC-approved?
 2. **Compliance rules** — does this transfer satisfy all regulatory modules?
@@ -764,7 +764,7 @@ IDENTITY_REGISTRY_ADDRESS=0x...    # IdentityRegistryStorage
 
 ## 16. Gas Cost Reference
 
-| Operation | Gas | ~Cost (Base L2 @ 0.01 gwei) |
+| Operation | Gas | ~Cost (Base @ 0.01 gwei) |
 |-----------|-----|-----|
 | Full platform deploy (simple mode) | ~15M total | ~$0.50 |
 | Full platform deploy (ERC-3643) | ~22M total | ~$0.75 |

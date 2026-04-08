@@ -1,0 +1,9 @@
+{
+  "name": "Cireta Launchpad",
+  "description": "Regulated RWA tokenization launchpad for gold, copper, and commodity futures",
+  "iconPath": "/images/logo/cireta-colored.png",
+  "providedBy": {
+    "name": "Cireta",
+    "url": "https://cireta.com"
+  }
+}

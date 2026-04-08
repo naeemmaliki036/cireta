@@ -440,7 +440,7 @@ Going through `SPEC_GAP_ANALYSIS.md` claim by claim:
    - If someone buys tokens after deposit, they can claim dividends they weren't entitled to.
    - **Existing issue** in the current contract, not introduced by V2.
 
-5. **Gas consideration:** Deploying 3 contracts per sale (Sale + Vault + Fraction) is ~800K gas. On Base L2, this is cheap (~$0.30 at current gas prices), so not a blocker.
+5. **Gas consideration:** Deploying 3 contracts per sale (Sale + Vault + Fraction) is ~800K gas. On Base, this is cheap (~$0.30 at current gas prices), so not a blocker.
 
 ### 5.2 Proposed Contracts — Quality
 

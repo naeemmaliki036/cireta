@@ -2,7 +2,7 @@
   "name": "cireta",
   "version": "1.0.0",
   "private": true,
-  "description": "Cireta RWA Launchpad - Regulated commodity tokenization on Base L2",
+  "description": "Cireta RWA Launchpad - Regulated commodity tokenization",
   "scripts": {
     "dev": "poetry run honcho start -f Procfile.dev",
     "dev:launchpad": "pnpm --filter launchpad dev",

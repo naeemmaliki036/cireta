@@ -1,0 +1,9 @@
+{
+  "name": "Cireta Admin Portal",
+  "description": "Issuer and platform admin portal for Cireta RWA tokenization platform",
+  "iconPath": "/images/logo/cireta-colored.png",
+  "providedBy": {
+    "name": "Cireta",
+    "url": "https://cireta.com"
+  }
+}

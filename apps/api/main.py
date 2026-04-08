@@ -36,7 +36,7 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
         title="Cireta RWA Launchpad API",
-        description="Regulated RWA tokenization launchpad for commodities on Base L2",
+        description="Regulated RWA tokenization launchpad for commodities",
         version="1.0.0",
         docs_url="/api/docs" if settings.is_development else None,
         redoc_url="/api/redoc" if settings.is_development else None,

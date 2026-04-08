@@ -12,50 +12,32 @@ import {
   OperationType,
 } from "@safe-global/types-kit";
 
-// Base Mainnet chain ID
-const BASE_CHAIN_ID = 8453n;
+// Base chain — configurable via env
+const BASE_CHAIN_ID = BigInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
 
-// Base chain tx service URL
-const TX_SERVICE_URL = "https://safe-transaction-base.safe.global";
+// Safe transaction service URLs per chain
+const TX_SERVICE_URLS: Record<string, string> = {
+  "8453": "https://safe-transaction-base.safe.global",
+  "84532": "https://safe-transaction-base-sepolia.safe.global",
+};
 
-/**
- * Initialize Safe Protocol Kit for a given Safe address.
- */
 export async function initSafe(
   safeAddress: string,
   signer: string,
 ): Promise<Safe> {
-  const protocolKit = await Safe.init({
+  return Safe.init({
     provider: window.ethereum,
     signer,
     safeAddress,
   });
-  return protocolKit;
 }
 
-/**
- * Initialize Safe API Kit for transaction service.
- */
 export function initSafeApiKit(): SafeApiKit {
-  return new SafeApiKit({
-    chainId: BASE_CHAIN_ID,
-    txServiceUrl: TX_SERVICE_URL,
-  });
+  const chainId = BASE_CHAIN_ID;
+  const txServiceUrl = TX_SERVICE_URLS[chainId.toString()] || TX_SERVICE_URLS["8453"];
+  return new SafeApiKit({ chainId, txServiceUrl });
 }
 
-/**
- * Propose a transaction to the Safe multisig.
- *
- * Instead of executing directly, this creates a Safe transaction
- * that requires confirmations from other signers.
- *
- * @param safeAddress - The Safe contract address
- * @param signer - The current signer's address
- * @param to - Destination contract address
- * @param value - ETH value (usually "0")
- * @param data - Encoded transaction data
- * @returns The Safe transaction hash (not an on-chain tx hash)
- */
 export async function proposeTransaction(
   safeAddress: string,
   signer: string,
@@ -91,12 +73,7 @@ export async function proposeTransaction(
   return safeTxHash;
 }
 
-/**
- * Get pending transactions for a Safe.
- */
-export async function getPendingTransactions(
-  safeAddress: string,
-) {
+export async function getPendingTransactions(safeAddress: string) {
   const apiKit = initSafeApiKit();
   return apiKit.getPendingTransactions(safeAddress);
 }
@@ -113,6 +90,6 @@ export async function getSafeInfo(safeAddress: string) {
 
 /** Build the Safe App URL for a specific transaction */
 export function getSafeTxUrl(safeAddress: string, safeTxHash: string): string {
-  const chainPrefix = Number(BASE_CHAIN_ID) === 84532 ? "base-sepolia" : "base";
+  const chainPrefix = BASE_CHAIN_ID === 84532n ? "base-sepolia" : "base";
   return `https://app.safe.global/transactions/tx?safe=${chainPrefix}:${safeAddress}&id=multisig_${safeAddress}_${safeTxHash}`;
 }

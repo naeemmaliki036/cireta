@@ -1,7 +1,7 @@
 # CLAUDE.md — Cireta RWA Launchpad
 
 ## What We Are Building
-Cireta is a regulated RWA tokenization launchpad for gold, copper, and commodity futures on Base L2.
+Cireta is a regulated RWA tokenization launchpad for gold, copper, and commodity futures.
 ERC-3643 security tokens. Full KYC/AML via Sumsub + ONCHAINID. Multi-issuer platform.
 
 Website: www.cireta.com

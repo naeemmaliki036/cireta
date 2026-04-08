@@ -11,7 +11,7 @@ const FAQS = [
     items: [
       {
         q: "What is Cireta?",
-        a: "Cireta is a regulated tokenization launchpad for real-world assets (RWA). We enable investors to participate in commodity-backed security tokens — including gold, copper, and futures — on the Base L2 blockchain.",
+        a: "Cireta is a regulated tokenization launchpad for real-world assets (RWA). We enable investors to participate in commodity-backed security tokens — including gold, copper, and futures.",
       },
       {
         q: "How do I create an account?",
@@ -44,7 +44,7 @@ const FAQS = [
       },
       {
         q: "What blockchain are the tokens on?",
-        a: "All Cireta tokens are ERC-3643 security tokens deployed on Base L2 (an Ethereum Layer 2). This ensures low gas fees and fast transactions while maintaining Ethereum-level security.",
+        a: "All Cireta tokens are ERC-3643 security tokens deployed on an EVM-compatible chain. This ensures low gas fees and fast transactions.",
       },
     ],
   },

@@ -285,7 +285,7 @@ This is a fundamental auth architecture change:
 ## Design References
 
 ### Admin Login (Mizan-style split layout)
-- **Left panel**: Gradient background (use Cireta brand colours), Cireta logo, tagline ("Regulated commodity tokenization on Base L2"), copyright
+- **Left panel**: Gradient background (use Cireta brand colours), Cireta logo, tagline ("Regulated commodity tokenization"), copyright
 - **Right panel**: "Welcome back" / "Sign in to your account to continue", email + OTP code fields (no password), Sign in button
 - For admin portal only — no Google SSO, invitation-only access note at bottom
 - Issuer login: same layout, email → OTP flow

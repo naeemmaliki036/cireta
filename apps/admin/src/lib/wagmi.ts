@@ -1,4 +1,4 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
   metaMaskWallet,
   walletConnectWallet,
@@ -8,7 +8,7 @@ import {
   safeWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { base, baseSepolia } from "wagmi/chains";
-import { http, type Config } from "wagmi";
+import { http, createConfig, type Config } from "wagmi";
 
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
@@ -20,28 +20,35 @@ const chains =
     ? ([baseSepolia, base] as const)
     : ([base, baseSepolia] as const);
 
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Recommended",
+      wallets: [metaMaskWallet, coinbaseWallet, walletConnectWallet, safeWallet],
+    },
+    {
+      groupName: "More",
+      wallets: [rainbowWallet, rabbyWallet],
+    },
+  ],
+  {
+    appName: "Cireta Admin Portal",
+    projectId: walletConnectProjectId,
+  },
+);
+
 let _config: Config | null = null;
 
 export function getWagmiConfig(): Config {
   if (!_config) {
-    _config = getDefaultConfig({
-      appName: "Cireta Admin Portal",
-      projectId: walletConnectProjectId,
+    _config = createConfig({
+      connectors,
       chains,
       transports: {
         [base.id]: http(rpcUrl || undefined),
         [baseSepolia.id]: http(rpcUrl || undefined),
       },
-      wallets: [
-        {
-          groupName: "Recommended",
-          wallets: [metaMaskWallet, coinbaseWallet, walletConnectWallet, rainbowWallet],
-        },
-        {
-          groupName: "More",
-          wallets: [rabbyWallet, safeWallet],
-        },
-      ],
+      multiInjectedProviderDiscovery: false,
       ssr: true,
     });
   }

@@ -5,6 +5,9 @@ import { useWriteContract, useChainId, useConfig } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import type { Abi, TransactionReceipt } from "viem";
 import { getTxUrl } from "@/lib/contracts/addresses";
+import { useSafeDetection } from "@/hooks/useSafeDetection";
+import { useSafeContractAction } from "@/hooks/useSafeContractAction";
+import type { SafeTxState } from "@/components/molecules/SafeTransactionStatus";
 
 export interface ContractActionState {
   /** Execute a contract write. Returns the receipt on success, null on error. */
@@ -30,6 +33,24 @@ export interface ContractActionState {
   error: string | null;
   /** Reset state for a new action */
   reset: () => void;
+  /** Whether the connected wallet is a Safe multisig */
+  isSafe: boolean;
+  /** Current Safe transaction state (idle when EOA) */
+  safeState: SafeTxState;
+  /** Safe internal transaction hash */
+  safeTxHash: string | null;
+  /** URL to view the Safe transaction in the Safe app */
+  safeTxUrl: string | null;
+  /** On-chain tx hash after Safe tx is executed */
+  safeOnChainTxHash: string | null;
+  /** Explorer URL for the executed Safe tx */
+  safeOnChainTxUrl: string | null;
+  /** Number of Safe owner confirmations collected */
+  safeConfirmations: number;
+  /** Required Safe owner confirmations threshold */
+  safeThreshold: number;
+  /** Refresh Safe tx status from the Safe service */
+  refreshSafeStatus: () => Promise<void>;
 }
 
 /**
@@ -51,6 +72,8 @@ export function useContractAction(): ContractActionState {
   const [isConfirmed, setIsConfirmed] = useState(false);
 
   const { writeContractAsync } = useWriteContract();
+  const { isSafe } = useSafeDetection();
+  const safeAction = useSafeContractAction();
 
   const reset = useCallback(() => {
     setTxHash(null);
@@ -75,6 +98,25 @@ export function useContractAction(): ContractActionState {
       setIsConfirming(false);
       setIsConfirmed(false);
 
+      // --- Safe wallet: delegate to Safe proposal flow ---
+      if (isSafe) {
+        setIsPending(false);
+        const safeTxHash = await safeAction.execute({
+          address: params.address,
+          abi: params.abi,
+          functionName: params.functionName,
+          args: params.args,
+          value: params.value,
+        });
+        if (!safeTxHash) {
+          setError(safeAction.error);
+        }
+        // Safe proposals don't return a TransactionReceipt immediately.
+        // Callers should check isSafe + safeState for progress.
+        return null;
+      }
+
+      // --- EOA wallet: existing direct-execution flow ---
       try {
         // Step 1: Send transaction (user signs in wallet)
         // Default gas: 500k for simple calls. Deploy calls should pass explicit higher values.
@@ -104,7 +146,7 @@ export function useContractAction(): ContractActionState {
         return null;
       }
     },
-    [writeContractAsync, config],
+    [writeContractAsync, config, isSafe, safeAction],
   );
 
   const txUrl = txHash ? getTxUrl(chainId, txHash) : null;
@@ -116,8 +158,17 @@ export function useContractAction(): ContractActionState {
     isConfirmed,
     txHash,
     txUrl,
-    error,
-    reset,
+    error: error ?? safeAction.error,
+    reset: () => { reset(); safeAction.reset(); },
+    isSafe,
+    safeState: safeAction.state,
+    safeTxHash: safeAction.safeTxHash,
+    safeTxUrl: safeAction.safeTxUrl,
+    safeOnChainTxHash: safeAction.onChainTxHash,
+    safeOnChainTxUrl: safeAction.onChainTxUrl,
+    safeConfirmations: safeAction.confirmations,
+    safeThreshold: safeAction.threshold,
+    refreshSafeStatus: safeAction.refreshStatus,
   };
 }
 

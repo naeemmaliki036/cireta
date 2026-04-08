@@ -103,6 +103,30 @@ FRACTION_EVENTS_ABI = [
     },
 ]
 
+FACTORY_EVENTS_ABI = [
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "token", "type": "address"},
+            {"indexed": True, "name": "identityRegistry", "type": "address"},
+            {"indexed": True, "name": "compliance", "type": "address"},
+            {"indexed": False, "name": "issuer", "type": "address"},
+        ],
+        "name": "TokenDeployed",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "sale", "type": "address"},
+            {"indexed": True, "name": "token", "type": "address"},
+            {"indexed": True, "name": "issuer", "type": "address"},
+        ],
+        "name": "SaleDeployed",
+        "type": "event",
+    },
+]
+
 REDIS_LAST_BLOCK_KEY = "cireta:event_listener:last_synced_block"
 
 
@@ -166,6 +190,13 @@ class EventListenerService:
         # Poll fraction events
         for addr in fraction_addresses:
             total_processed += await self._poll_fraction_events(addr, from_block + 1, to_block)
+
+        # Poll factory deployment events (TokenDeployed, SaleDeployed)
+        factory_address = settings.factory_contract_address
+        if factory_address:
+            total_processed += await self._poll_factory_events(
+                factory_address, from_block + 1, to_block
+            )
 
         await self.set_last_synced_block(to_block)
         logger.info("Event poll complete: %d events processed, synced to block %d", total_processed, to_block)
@@ -344,3 +375,151 @@ class EventListenerService:
             "Transfer: token=%s from=%s to=%s value=%s",
             token_address, args.get("from"), args.get("to"), args.get("value"),
         )
+
+    # ------------------------------------------------------------------
+    # Factory deployment events (TokenDeployed, SaleDeployed)
+    # ------------------------------------------------------------------
+
+    async def _poll_factory_events(
+        self, factory_address: str, from_block: int, to_block: int
+    ) -> int:
+        """Poll TokenDeployed and SaleDeployed events from the factory contract."""
+        contract = self.w3.eth.contract(
+            address=Web3.to_checksum_address(factory_address), abi=FACTORY_EVENTS_ABI
+        )
+        count = 0
+
+        for event_name in ("TokenDeployed", "SaleDeployed"):
+            try:
+                logs = await asyncio.to_thread(
+                    getattr(contract.events, event_name)().get_logs,
+                    from_block=from_block,
+                    to_block=to_block,
+                )
+                for log in logs:
+                    await self._handle_factory_event(event_name, dict(log["args"]), log)
+                    count += 1
+            except Exception:
+                logger.debug(
+                    "No %s events on factory %s (blocks %d-%d)",
+                    event_name, factory_address, from_block, to_block,
+                )
+
+        return count
+
+    async def _handle_factory_event(
+        self, event_name: str, args: dict[str, Any], log: Any
+    ) -> None:
+        """Process factory deployment events and update DB records."""
+        from sqlalchemy import select
+
+        from apps.api.models.issuer import Issuer
+        from apps.api.models.token import Token
+        from apps.api.models.token_sale import TokenSale
+        from apps.api.models.enums import SaleStatus
+        from packages.common.db.session import AsyncSessionLocal
+
+        tx_hash = (
+            log["transactionHash"].hex()
+            if hasattr(log["transactionHash"], "hex")
+            else str(log["transactionHash"])
+        )
+
+        async with AsyncSessionLocal() as db:
+            if event_name == "TokenDeployed":
+                token_addr = Web3.to_checksum_address(args["token"])
+                ir_addr = Web3.to_checksum_address(args["identityRegistry"])
+                compliance_addr = Web3.to_checksum_address(args["compliance"])
+                issuer_addr = Web3.to_checksum_address(args["issuer"])
+
+                # Find the issuer by wallet address
+                issuer_result = await db.execute(
+                    select(Issuer).where(Issuer.wallet_address == issuer_addr)
+                )
+                issuer = issuer_result.scalar_one_or_none()
+                if not issuer:
+                    logger.warning(
+                        "TokenDeployed: no issuer found for wallet %s", issuer_addr
+                    )
+                    return
+
+                # Find undeployed token for this issuer
+                token_result = await db.execute(
+                    select(Token)
+                    .where(Token.issuer_id == issuer.id)
+                    .where(Token.contract_address.is_(None))
+                    .order_by(Token.created_at.desc())
+                )
+                token = token_result.scalar_one_or_none()
+                if not token:
+                    logger.info(
+                        "TokenDeployed: no pending token for issuer %s (%s)",
+                        issuer.id, issuer_addr,
+                    )
+                    return
+
+                token.contract_address = token_addr
+                token.identity_registry_address = ir_addr
+                token.compliance_address = compliance_addr
+                await db.commit()
+
+                logger.info(
+                    "TokenDeployed recorded: token_id=%s contract=%s issuer=%s tx=%s",
+                    token.id, token_addr, issuer_addr, tx_hash,
+                )
+
+            elif event_name == "SaleDeployed":
+                sale_addr = Web3.to_checksum_address(args["sale"])
+                token_addr = Web3.to_checksum_address(args["token"])
+                issuer_addr = Web3.to_checksum_address(args["issuer"])
+
+                # Find the issuer by wallet address
+                issuer_result = await db.execute(
+                    select(Issuer).where(Issuer.wallet_address == issuer_addr)
+                )
+                issuer = issuer_result.scalar_one_or_none()
+                if not issuer:
+                    logger.warning(
+                        "SaleDeployed: no issuer found for wallet %s", issuer_addr
+                    )
+                    return
+
+                # Find the token by contract address
+                token_result = await db.execute(
+                    select(Token).where(Token.contract_address == token_addr)
+                )
+                token = token_result.scalar_one_or_none()
+
+                # Find approved sale for this issuer/token without a contract address
+                query = (
+                    select(TokenSale)
+                    .where(TokenSale.issuer_id == issuer.id)
+                    .where(TokenSale.contract_address.is_(None))
+                    .where(
+                        TokenSale.status.in_([
+                            SaleStatus.APPROVED,
+                            SaleStatus.APPROVED_COMING_SOON,
+                        ])
+                    )
+                )
+                if token:
+                    query = query.where(TokenSale.token_id == token.id)
+                query = query.order_by(TokenSale.created_at.desc())
+
+                sale_result = await db.execute(query)
+                sale = sale_result.scalar_one_or_none()
+                if not sale:
+                    logger.info(
+                        "SaleDeployed: no pending sale for issuer %s token %s",
+                        issuer_addr, token_addr,
+                    )
+                    return
+
+                sale.contract_address = sale_addr
+                sale.status = SaleStatus.ACTIVE
+                await db.commit()
+
+                logger.info(
+                    "SaleDeployed recorded: sale_id=%s contract=%s token=%s issuer=%s tx=%s",
+                    sale.id, sale_addr, token_addr, issuer_addr, tx_hash,
+                )

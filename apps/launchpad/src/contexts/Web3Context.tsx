@@ -127,9 +127,16 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       }
 
       const nonce = crypto.randomUUID();
-      const message = `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}`;
-      const signature = await signMessageAsync({ message });
-      await linkWallet({ address, signature, nonce });
+
+      if (isSafe) {
+        // Safe wallets can't do personal_sign — backend verifies via Safe owners list
+        await linkWallet({ address, signature: "safe", nonce, is_safe: true });
+      } else {
+        const message = `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}`;
+        const signature = await signMessageAsync({ message });
+        await linkWallet({ address, signature, nonce });
+      }
+
       verifiedAddresses.current.add(address.toLowerCase());
       setIsVerified(true);
     } catch {
@@ -137,7 +144,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     } finally {
       setIsVerifying(false);
     }
-  }, [address, isAuthenticated, isVerified, signMessageAsync]);
+  }, [address, isAuthenticated, isVerified, isSafe, signMessageAsync]);
 
   const connect = useCallback(() => { openConnectModal?.(); }, [openConnectModal]);
 

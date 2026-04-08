@@ -315,7 +315,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         feeManagerAddress,                                 // _feeManager
         softCap,                                           // _softCap
         hardCap,                                           // _hardCap
-        issuerFeeBps != null ? BigInt(issuerFeeBps as number) : await readFeeFromChain(wagmiConfig, feeManagerAddress, walletAddress), // _feeBasisPoints
+        issuerFeeBps != null ? BigInt(issuerFeeBps as number) : await readFeeFromChain(wagmiConfig, feeManagerAddress, walletAddress as `0x${string}`), // _feeBasisPoints
         BigInt(50_000 * 1e6),                              // _feeCapUsdc ($50k)
         otcTokenAddress as `0x${string}`,                  // _otcToken
       ],

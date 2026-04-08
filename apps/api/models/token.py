@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class Token(BaseModel):
-    """ERC-3643 security token on Base L2.
+    """ERC-3643 security token.
 
     Represents a tokenized real-world asset (commodity or futures).
 

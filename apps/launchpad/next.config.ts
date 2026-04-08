@@ -24,6 +24,27 @@ if (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID === "placeholder") {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // Allow Safe app to embed this site in an iframe
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://app.safe.global https://safe-client.safe.global",
+          },
+        ],
+      },
+      {
+        source: "/manifest.json",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET" },
+        ],
+      },
+    ];
+  },
   outputFileTracingRoot: path.join(__dirname, "../../"),
   reactStrictMode: true,
   skipTrailingSlashRedirect: true,

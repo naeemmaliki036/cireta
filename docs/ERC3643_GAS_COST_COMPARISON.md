@@ -1,10 +1,10 @@
-# ERC-3643 Identity System — Gas Cost Comparison (Base L2 vs Ethereum L1)
+# ERC-3643 Identity System — Gas Cost Comparison (Base vs Ethereum L1)
 
 ## Per-Investor Operations
 
 Every new investor who passes KYC triggers these on-chain operations:
 
-| Operation | Gas Used | Base L2 Cost | Ethereum L1 Cost |
+| Operation | Gas Used | Base Cost | Ethereum L1 Cost |
 |---|---|---|---|
 | Deploy ONCHAINID contract | ~1,500,000 | $0.01 – $0.05 | $15 – $75 |
 | addClaim (KYC, topic 1) | ~150,000 | $0.001 – $0.005 | $1.50 – $7.00 |
@@ -28,7 +28,7 @@ Adding 9 more wallets only costs ~720K extra gas ($0.01 on Base). The expensive 
 
 When an issuer deploys a new token via the factory:
 
-| Operation | Gas Used | Base L2 Cost | Ethereum L1 Cost |
+| Operation | Gas Used | Base Cost | Ethereum L1 Cost |
 |---|---|---|---|
 | CiretaTokenFactory.deployToken() | ~3,500,000 | $0.03 – $0.15 | $35 – $175 |
 | Add compliance module (CountryAllow) | ~100,000 | $0.001 – $0.004 | $1 – $5 |
@@ -39,7 +39,7 @@ When an issuer deploys a new token via the factory:
 
 ## Per-Sale Operations
 
-| Operation | Gas Used | Base L2 Cost | Ethereum L1 Cost |
+| Operation | Gas Used | Base Cost | Ethereum L1 Cost |
 |---|---|---|---|
 | CiretaSaleFactory.deploySale() | ~2,500,000 | $0.02 – $0.10 | $25 – $125 |
 | Investor contribute (buy tokens) | ~200,000 | $0.002 – $0.008 | $2 – $10 |
@@ -49,7 +49,7 @@ When an issuer deploys a new token via the factory:
 
 ## Monthly Cost Projections
 
-### Base L2
+### Base
 
 | Scale | Investors/mo | Avg Wallets | Identity Cost | Token Deploys | Total/mo |
 |---|---|---|---|---|---|
@@ -69,7 +69,7 @@ When an issuer deploys a new token via the factory:
 
 ### The Verdict
 
-| | Base L2 | Ethereum L1 | Ratio |
+| | Base | Ethereum L1 | Ratio |
 |---|---|---|---|
 | Per investor (1 wallet) | $0.01 – $0.06 | $19 – $93 | **~1500x cheaper** |
 | 10K investors/month | $200 – $700 | $270K – $1.3M | **~1500x cheaper** |
@@ -98,7 +98,7 @@ Cireta's claim signer wallet needs to stay funded with ETH on Base. At current p
 |---|---|
 | Sumsub KYC verification | $1.00 – $2.00 |
 | Sumsub AML screening | $0.50 – $1.00 |
-| On-chain identity (Base L2) | $0.01 – $0.06 |
+| On-chain identity (Base) | $0.01 – $0.06 |
 | On-chain identity (Ethereum L1) | $19 – $93 |
 
 The on-chain identity cost on Base is **50-200x cheaper than the Sumsub KYC check itself**. It's a rounding error in your operating costs.
@@ -128,8 +128,8 @@ Even at max 10 wallets, the extra cost on Base is under a penny.
 
 | Network | Gas Price Used | Source |
 |---|---|---|
-| Base L2 | 0.005 – 0.02 gwei | Base mainnet average (2025-2026) |
+| Base | 0.005 – 0.02 gwei | Base mainnet average (2025-2026) |
 | Ethereum L1 | 10 – 50 gwei | ETH mainnet average (2025-2026) |
 | ETH price | $2,000 – $3,500 | Used for USD conversion |
 
-*Costs fluctuate with gas prices and ETH price. Base L2 has been consistently under 0.05 gwei.*
+*Costs fluctuate with gas prices and ETH price. Base has been consistently under 0.05 gwei.*

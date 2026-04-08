@@ -11,6 +11,26 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../../"),
   output: "standalone",
   skipTrailingSlashRedirect: true,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://app.safe.global https://safe-client.safe.global",
+          },
+        ],
+      },
+      {
+        source: "/manifest.json",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

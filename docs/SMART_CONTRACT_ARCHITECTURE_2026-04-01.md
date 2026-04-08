@@ -204,7 +204,7 @@ All contracts are already written. The deployment order is:
 
 ---
 
-## Gas Cost Estimates (Base L2)
+## Gas Cost Estimates (Base)
 
 | Operation | Gas Units | ~Cost at 0.01 gwei |
 |-----------|-----------|---------------------|
@@ -216,7 +216,7 @@ All contracts are already written. The deployment order is:
 | Contribute to sale | ~150K | ~$0.005 |
 | Token transfer | ~100K | ~$0.003 |
 
-Base L2 makes this extremely cheap — the full ERC-3643 mode is viable even at scale.
+Base makes this extremely cheap — the full ERC-3643 mode is viable even at scale.
 
 ---
 

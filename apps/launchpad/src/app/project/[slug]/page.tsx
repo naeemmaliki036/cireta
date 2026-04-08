@@ -375,7 +375,7 @@ export default function ProjectDetailPage() {
                         ["Name", project.title],
                         ["Ticker", project.tokenSymbol || "TBD"],
                         ["Asset Type", project.assetType],
-                        ["Blockchain", "Base L2"],
+                        ["Blockchain", "Base"],
                       ].map(([k, v]) => (
                         <div key={k}><span className="text-gray-500">{k}</span><p className="font-medium capitalize">{v}</p></div>
                       ))}
