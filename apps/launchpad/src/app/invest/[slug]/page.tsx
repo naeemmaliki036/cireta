@@ -646,7 +646,21 @@ export default function InvestPage() {
               <InvestAmountStep
                 project={project} activePhase={activePhase}
                 amount={amount} onAmountChange={setAmount}
-                onContinue={() => { refetchAllowance().then(({ data: a }) => { if (a != null && parseUnits(amount || "0", 6) > 0 && (a as bigint) >= parseUnits(amount || "0", 6)) { setStep("confirm"); } else { setStep("approve"); } }); }}
+                onContinue={() => {
+                  setError(null);
+                  refetchAllowance()
+                    .then(({ data: a }) => {
+                      const needed = parseUnits(amount || "0", 6);
+                      if (a != null && needed > 0 && (a as bigint) >= needed) {
+                        // Sufficient allowance — skip approve, go to confirm
+                        setStep("confirm");
+                      } else {
+                        // Need approval — show approve step (with current allowance info)
+                        setStep("approve");
+                      }
+                    })
+                    .catch(() => setStep("approve"));
+                }}
                 isConnected={isConnected} onConnect={() => openConnectModal?.()}
               />
             )}
@@ -654,6 +668,9 @@ export default function InvestPage() {
               <InvestApproveStep
                 amount={numericAmount} isLoading={isApproving || isApproveConfirming}
                 error={error} onApprove={handleApprove}
+                currentAllowance={existingAllowance != null ? Number(formatUnits(existingAllowance as bigint, 6)) : 0}
+                hasEnoughAllowance={hasEnoughAllowance}
+                onSkip={() => setStep("confirm")}
               />
             )}
             {paymentMethod === "crypto" && step === "confirm" && (
