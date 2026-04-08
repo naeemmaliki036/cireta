@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
-import { ArrowRight, CheckCircle2, Coins, FileText, Calendar, Rocket, Users, HelpCircle, Clock, Settings, ImageIcon, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowRight, CheckCircle2, Coins, FileText, Calendar, Rocket, Users, HelpCircle, Clock, Settings, ImageIcon, ChevronDown, ChevronRight, FolderOpen } from "lucide-react";
 
 const RichTextEditor = dynamic(
   () => import("@/components/molecules/RichTextEditor"),
@@ -42,7 +42,7 @@ const emptyTeam = (): TeamMemberData => ({ name: "", title: "", bio: "", photo_u
 const emptyFAQ = (): FAQData => ({ question: "", answer: "" });
 const emptyDoc = (): DocumentData => ({ name: "", type: "legal", url: "" });
 const DOC_TYPES = [{ value: "legal", label: "Legal" }, { value: "audit", label: "Audit" }, { value: "whitepaper", label: "Whitepaper" }, { value: "other", label: "Other" }];
-const TA = "w-full rounded-lg border border-darkBlack/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua";
+const TA = "w-full rounded-lg border border-darkBlack/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua resize-y";
 
 export default function CreateSalePage() {
   const router = useRouter();
@@ -67,6 +67,9 @@ export default function CreateSalePage() {
   // Step 4: FAQ & Docs
   const [faqs, setFaqs] = useState<FAQData[]>([emptyFAQ()]);
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(0);
+  const [expandedTeam, setExpandedTeam] = useState<number | null>(0);
+  const [expandedDoc, setExpandedDoc] = useState<number | null>(0);
+  const [expandedPhase, setExpandedPhase] = useState<number | null>(0);
   const [documents, setDocuments] = useState<DocumentData[]>([emptyDoc()]);
   // Step 5: Phases (skip if coming soon)
   const [phases, setPhases] = useState<PhaseData[]>([{ ...emptyPhase(), name: "Seed Round" }]);
@@ -113,11 +116,12 @@ export default function CreateSalePage() {
     { id: 2, title: "Content", icon: FileText },
     { id: 3, title: "Gallery", icon: ImageIcon },
     { id: 4, title: "Team", icon: Users },
-    { id: 5, title: "FAQ & Docs", icon: HelpCircle },
-    ...(!isComingSoon ? [{ id: 6, title: "Phases", icon: Calendar }] : []),
-    ...(!isComingSoon ? [{ id: 7, title: "Token & Caps", icon: Settings }] : []),
-    ...(!isComingSoon && saleMode === "vested" ? [{ id: 8, title: "Vesting", icon: Clock }] : []),
-    { id: 9, title: "Review", icon: Rocket },
+    { id: 5, title: "FAQs", icon: HelpCircle },
+    { id: 6, title: "Documents", icon: FolderOpen },
+    ...(!isComingSoon ? [{ id: 7, title: "Phases", icon: Calendar }] : []),
+    ...(!isComingSoon ? [{ id: 8, title: "Token & Caps", icon: Settings }] : []),
+    ...(!isComingSoon && saleMode === "vested" ? [{ id: 9, title: "Vesting", icon: Clock }] : []),
+    { id: 10, title: "Review", icon: Rocket },
   ];
   const visibleStepIds = allSteps.map((s) => s.id);
   const currentIdx = visibleStepIds.indexOf(step);
@@ -131,14 +135,30 @@ export default function CreateSalePage() {
       case 2: return true; // Content — optional
       case 3: return true; // Gallery — optional
       case 4: return true; // Team — optional
-      case 5: return true; // FAQ & Docs — optional
-      case 6: return phases.length > 0 && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== "");
-      case 7: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
-      case 8: return cliffDays !== "" && vestingDays !== "";
+      case 5: return true; // FAQs — optional
+      case 6: return true; // Documents — optional
+      case 7: return phases.length > 0 && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== "");
+      case 8: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
+      case 9: return cliffDays !== "" && vestingDays !== "";
       default: return true;
     }
   })();
   const selectedToken = tokens.find((t) => t.id === selectedTokenId);
+
+  const isStepComplete = (stepId: number): boolean => {
+    switch (stepId) {
+      case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "";
+      case 2: return !!fullDescription;
+      case 3: return galleryItems.length > 0;
+      case 4: return teamMembers.some((m) => m.name.trim() !== "");
+      case 5: return faqs.some((f) => f.question.trim() !== "");
+      case 6: return documents.some((d) => !!d.url);
+      case 7: return phases.length > 0 && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== "");
+      case 8: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
+      case 9: return cliffDays !== "" && vestingDays !== "";
+      default: return false;
+    }
+  };
 
   const upd = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>) =>
     (i: number, field: string, v: string) => setter((arr) => arr.map((item, idx) => (idx === i ? { ...item, [field]: v } : item)));
@@ -201,23 +221,62 @@ export default function CreateSalePage() {
       {/* Progress Steps */}
       <div className="mb-8 overflow-x-auto">
         <div className="flex items-center justify-between relative min-w-[600px]">
-          {allSteps.map((s, i) => (
+          {allSteps.map((s) => {
+            const complete = isStepComplete(s.id);
+            const isCurrent = step === s.id;
+            return (
             <div key={s.id} className="flex flex-col items-center z-10">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                visibleStepIds.indexOf(step) > i ? "bg-green-500 text-white" : step === s.id ? "bg-darkAqua text-white" : "bg-gray-200 text-gray-500"
+                complete && !isCurrent ? "bg-green-500 text-white" : isCurrent ? "bg-darkAqua text-white" : "bg-gray-200 text-gray-500"
               }`} onClick={() => setStep(s.id)}>
-                {visibleStepIds.indexOf(step) > i ? <CheckCircle2 className="h-5 w-5" /> : <s.icon className="h-5 w-5" />}
+                {complete && !isCurrent ? <CheckCircle2 className="h-5 w-5" /> : <s.icon className="h-5 w-5" />}
               </div>
-              <p className={`mt-2 text-xs font-semibold ${step === s.id || visibleStepIds.indexOf(step) > i ? "text-text" : "text-gray-400"}`}>{s.title}</p>
+              <p className={`mt-2 text-xs font-semibold ${isCurrent || complete ? "text-text" : "text-gray-400"}`}>{s.title}</p>
             </div>
-          ))}
+            );
+          })}
           <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 -z-0">
-            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(currentIdx / Math.max(allSteps.length - 1, 1)) * 100}%` }} />
+            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(allSteps.filter((s) => isStepComplete(s.id)).length / Math.max(allSteps.length - 1, 1)) * 100}%` }} />
           </div>
         </div>
       </div>
 
-      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-darkBlack/10">
+      {/* Navigation — above content */}
+      {!isLast && (
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            {isFirst ? <Link href="/issuer/sales"><Button variant="outline" size="sm">Cancel</Button></Link>
+              : <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>}
+            {!savedSaleId && <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save Draft"}</Button>}
+            {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+            {error && <span className="text-xs text-red-600">{error}</span>}
+          </div>
+          <Button variant="primary" size="sm" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
+        </div>
+      )}
+      {isLast && !isFirst && (
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>
+          <div className="flex items-center gap-2">
+            {!savedSaleId && (
+              <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
+                {isSaving ? "Saving..." : "Save Draft"}
+              </Button>
+            )}
+            {savedSaleId && !success && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+            {success ? (
+              <Link href="/issuer/sales"><Button variant="primary" size="sm">View Sales</Button></Link>
+            ) : (
+              <Button variant="primary" size="sm" onClick={handleSubmit} isLoading={isSubmitting}>
+                {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue"}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-5">
+      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-darkBlack/10 flex-1 min-w-0">
         {/* Step 1: Sale Info */}
         {step === 1 && (
           <div className="max-w-2xl mx-auto space-y-6">
@@ -285,158 +344,185 @@ export default function CreateSalePage() {
         {step === 4 && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-2">Team Members</h2>
-            <p className="text-gray-500 mb-6">Add key team members to display on the sale page</p>
-            <div className="space-y-6">
-              {teamMembers.map((m, i) => (
-                <div key={i} className="border border-darkBlack/10 rounded-lg p-6 space-y-4">
-                  <div className="flex items-center justify-between"><h3 className="font-semibold text-text">Member {i + 1}</h3>{rmBtn(teamMembers, () => setTeamMembers((t) => t.filter((_, idx) => idx !== i)))}</div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="Name" placeholder="John Doe" value={m.name} onChange={(e) => updTeam(i, "name", e.target.value)} />
-                    <Input label="Title" placeholder="CEO" value={m.title} onChange={(e) => updTeam(i, "title", e.target.value)} />
-                  </div>
-                  <div><label className="input-label">Bio</label><textarea className={`${TA} resize-y`} rows={7} placeholder="Brief biography, expertise, and role in the project..." value={m.bio} onChange={(e) => updTeam(i, "bio", e.target.value)} /></div>
-                  <FileUpload label="Photo" accept="image/*" prefix="team" value={m.photo_url || null} previewType="image"
-                    onUpload={(r) => updTeam(i, "photo_url", r.url)} onRemove={() => updTeam(i, "photo_url", "")} />
-                </div>))}
-              <Button variant="outline" onClick={() => setTeamMembers((t) => [...t, emptyTeam()])} className="w-full">+ Add Team Member</Button>
+            <p className="text-gray-500 mb-4 text-sm">Add key team members to display on the sale page</p>
+            <div className="space-y-2">
+              {teamMembers.map((m, i) => {
+                const isOpen = expandedTeam === i;
+                const label = m.name ? `${m.name}${m.title ? ` — ${m.title}` : ""}` : `Member ${i + 1} (empty)`;
+                return (
+                <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
+                  <button type="button" onClick={() => setExpandedTeam(isOpen ? null : i)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors">
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />}
+                    {m.photo_url ? (
+                      <img src={m.photo_url.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL || ""}${m.photo_url}` : m.photo_url}
+                        alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400 text-xs font-bold shrink-0">
+                        {m.name?.[0]?.toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <span className="font-medium text-text text-sm flex-1 truncate">{label}</span>
+                    {rmBtn(teamMembers, () => { setTeamMembers((t) => t.filter((_, idx) => idx !== i)); if (isOpen) setExpandedTeam(null); })}
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-darkBlack/5 pt-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input placeholder="Name" value={m.name} onChange={(e) => updTeam(i, "name", e.target.value)} />
+                        <Input placeholder="Title (e.g. CEO)" value={m.title} onChange={(e) => updTeam(i, "title", e.target.value)} />
+                      </div>
+                      <textarea className={`${TA}`} rows={7} placeholder="Brief biography, expertise, and role in the project..." value={m.bio} onChange={(e) => updTeam(i, "bio", e.target.value)} />
+                      <FileUpload label="Photo" accept="image/*" prefix="team" value={m.photo_url || null} previewType="image"
+                        onUpload={(r) => updTeam(i, "photo_url", r.url)} onRemove={() => updTeam(i, "photo_url", "")} />
+                    </div>
+                  )}
+                </div>);
+              })}
+              <Button variant="outline" size="sm" onClick={() => { setTeamMembers((t) => [...t, emptyTeam()]); setExpandedTeam(teamMembers.length); }} className="w-full">+ Add Team Member</Button>
             </div>
           </div>
         )}
-        {/* Step 5: FAQ & Docs */}
+        {/* Step 5: FAQs */}
         {step === 5 && (
-          <div className="max-w-2xl mx-auto space-y-8">
-            <div>
-              <h2 className="text-xl font-semibold text-text mb-2">FAQs</h2>
-              <div className="space-y-3">
-                {faqs.map((f, i) => {
-                  const isOpen = expandedFAQ === i;
-                  const preview = f.question || `FAQ ${i + 1} (empty)`;
-                  return (
-                    <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
-                      <button type="button" onClick={() => setExpandedFAQ(isOpen ? null : i)}
-                        className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-zinc-50 transition-colors">
-                        {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />}
-                        <span className="font-semibold text-text text-sm flex-1 truncate">{preview}</span>
-                        {rmBtn(faqs, () => { setFaqs((fq) => fq.filter((_, idx) => idx !== i)); if (isOpen) setExpandedFAQ(null); })}
-                      </button>
-                      {isOpen && (
-                        <div className="px-5 pb-5 space-y-3 border-t border-darkBlack/5 pt-4">
-                          <div><label className="input-label">Question</label><textarea className={TA} rows={3} placeholder="Enter the question..." value={f.question} onChange={(e) => updFAQ(i, "question", e.target.value)} /></div>
-                          <div><label className="input-label">Answer</label><textarea className={TA} rows={7} placeholder="Enter a detailed answer..." value={f.answer} onChange={(e) => updFAQ(i, "answer", e.target.value)} /></div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <Button variant="outline" onClick={() => { setFaqs((f) => [...f, emptyFAQ()]); setExpandedFAQ(faqs.length); }} className="w-full">+ Add FAQ</Button>
-              </div>
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-text mb-2">Documents</h2>
-              <div className="space-y-4">
-                {documents.map((d, i) => (
-                  <div key={i} className="border border-darkBlack/10 rounded-lg p-5 space-y-3">
-                    <div className="flex items-center justify-between"><span className="font-semibold text-text text-sm">Doc {i + 1}</span>{rmBtn(documents, () => setDocuments((ds) => ds.filter((_, idx) => idx !== i)))}</div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input label="Name" value={d.name} onChange={(e) => updDoc(i, "name", e.target.value)} />
-                      <Select label="Type" options={DOC_TYPES} value={d.type} onChange={(e) => updDoc(i, "type", e.target.value)} />
-                    </div>
-                    <FileUpload label="Document File" accept=".pdf" prefix="documents" value={d.url || null} previewType="document"
-                      visibility={["whitepaper", "legal"].includes(d.type) ? "public" : "private"}
-                      onUpload={(r) => updDoc(i, "url", r.url)} onRemove={() => updDoc(i, "url", "")} />
-                  </div>))}
-                <Button variant="outline" onClick={() => setDocuments((ds) => [...ds, emptyDoc()])} className="w-full">+ Add Document</Button>
-              </div>
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-xl font-semibold text-text mb-2">FAQs</h2>
+            <p className="text-sm text-gray-500 mb-4">Add frequently asked questions for investors. These appear on the sale page.</p>
+            <div className="space-y-3">
+              {faqs.map((f, i) => {
+                const isOpen = expandedFAQ === i;
+                const preview = f.question || `FAQ ${i + 1} (empty)`;
+                return (
+                  <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
+                    <button type="button" onClick={() => setExpandedFAQ(isOpen ? null : i)}
+                      className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-zinc-50 transition-colors">
+                      {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />}
+                      <span className="font-semibold text-text text-sm flex-1 truncate">{preview}</span>
+                      {rmBtn(faqs, () => { setFaqs((fq) => fq.filter((_, idx) => idx !== i)); if (isOpen) setExpandedFAQ(null); })}
+                    </button>
+                    {isOpen && (
+                      <div className="px-5 pb-5 space-y-3 border-t border-darkBlack/5 pt-4">
+                        <div><label className="input-label">Question</label><textarea className={TA} rows={3} placeholder="Enter the question..." value={f.question} onChange={(e) => updFAQ(i, "question", e.target.value)} /></div>
+                        <div><label className="input-label">Answer</label><textarea className={TA} rows={7} placeholder="Enter a detailed answer..." value={f.answer} onChange={(e) => updFAQ(i, "answer", e.target.value)} /></div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <Button variant="outline" onClick={() => { setFaqs((f) => [...f, emptyFAQ()]); setExpandedFAQ(faqs.length); }} className="w-full">+ Add FAQ</Button>
             </div>
           </div>
         )}
-        {/* Step 6: Phases (skip if coming soon) */}
+        {/* Step 6: Documents */}
         {step === 6 && (
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-xl font-semibold text-text mb-2">Documents</h2>
+            <p className="text-sm text-gray-500 mb-4">Upload supporting documents — legal, audit, whitepaper, or other files.</p>
+            <div className="space-y-2">
+              {documents.map((d, i) => {
+                const isOpen = expandedDoc === i;
+                const label = d.name || `Document ${i + 1} (empty)`;
+                const typeLabel = DOC_TYPES.find((t) => t.value === d.type)?.label || d.type;
+                return (
+                <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
+                  <button type="button" onClick={() => setExpandedDoc(isOpen ? null : i)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors">
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />}
+                    <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
+                    <span className="font-medium text-text text-sm flex-1 truncate">{label}</span>
+                    <span className="text-[10px] text-zinc-400 uppercase font-medium shrink-0">{typeLabel}</span>
+                    {d.url && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Uploaded" />}
+                    {rmBtn(documents, () => { setDocuments((ds) => ds.filter((_, idx) => idx !== i)); if (isOpen) setExpandedDoc(null); })}
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-darkBlack/5 pt-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input label="Name" value={d.name} onChange={(e) => updDoc(i, "name", e.target.value)} />
+                        <Select label="Type" options={DOC_TYPES} value={d.type} onChange={(e) => updDoc(i, "type", e.target.value)} />
+                      </div>
+                      <FileUpload label="Document File" accept=".pdf" prefix="documents" value={d.url || null} previewType="document"
+                        visibility={["whitepaper", "legal"].includes(d.type) ? "public" : "private"}
+                        onUpload={(r) => updDoc(i, "url", r.url)} onRemove={() => updDoc(i, "url", "")} />
+                    </div>
+                  )}
+                </div>);
+              })}
+              <Button variant="outline" size="sm" onClick={() => { setDocuments((ds) => [...ds, emptyDoc()]); setExpandedDoc(documents.length); }} className="w-full">+ Add Document</Button>
+            </div>
+          </div>
+        )}
+        {/* Step 7: Phases (skip if coming soon) */}
+        {step === 7 && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-1">Sale Phases</h2>
             <p className="text-sm text-gray-500 mb-6">
               Define one or more sale phases. Each phase has its own price, allocation, and time window.
               Phases run sequentially — they must not overlap.
             </p>
-            <div className="space-y-6">
+            <div className="space-y-2">
               {phases.map((ph, i) => {
+                const isOpen = expandedPhase === i;
                 const totalRaise = ph.pricePerToken && ph.allocation ? (parseFloat(ph.pricePerToken) * parseFloat(ph.allocation)).toLocaleString("en-US") : null;
+                const summary = ph.pricePerToken && ph.allocation ? `$${ph.pricePerToken}/token · ${Number(ph.allocation).toLocaleString()} tokens` : "";
                 return (
                 <div key={i} className="border border-zinc-200 rounded-lg overflow-hidden">
-                  {/* Phase header */}
-                  <div className="flex items-center justify-between px-5 py-3 bg-zinc-50 border-b border-zinc-100">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-darkAqua text-white text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                      <h3 className="font-semibold text-sm text-zinc-900">{ph.name || `Phase ${i + 1}`}</h3>
-                    </div>
-                    {rmBtn(phases, () => setPhases((p) => p.filter((_, idx) => idx !== i)))}
-                  </div>
-
-                  <div className="p-5 space-y-4">
-                    <div>
-                      <Input label="Phase Name" placeholder="e.g., Seed Round, Private Sale, Public Sale" value={ph.name} onChange={(e) => updPhase(i, "name", e.target.value)} />
-                      <p className="text-[11px] text-zinc-400 mt-1">This name is shown to investors on the launchpad.</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                  <button type="button" onClick={() => setExpandedPhase(isOpen ? null : i)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors">
+                    {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />}
+                    <span className="w-6 h-6 rounded-full bg-darkAqua text-white text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                    <span className="font-medium text-sm text-zinc-900 flex-1 truncate">{ph.name || `Phase ${i + 1}`}</span>
+                    {summary && <span className="text-xs text-zinc-400 shrink-0">{summary}</span>}
+                    {rmBtn(phases, () => { setPhases((p) => p.filter((_, idx) => idx !== i)); if (isOpen) setExpandedPhase(null); })}
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 space-y-4 border-t border-zinc-100 pt-3">
                       <div>
+                        <Input label="Phase Name" placeholder="e.g., Seed Round" value={ph.name} onChange={(e) => updPhase(i, "name", e.target.value)} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
                         <Input label="Price per Token (USDC)" type="number" placeholder="e.g., 1.00" value={ph.pricePerToken} onChange={(e) => updPhase(i, "pricePerToken", e.target.value)} />
-                        <p className="text-[11px] text-zinc-400 mt-1">How much 1 token costs in USDC.</p>
-                      </div>
-                      <div>
                         <Input label="Allocation (tokens)" type="number" placeholder="e.g., 100000" value={ph.allocation} onChange={(e) => updPhase(i, "allocation", e.target.value)} />
-                        <p className="text-[11px] text-zinc-400 mt-1">Max tokens available in this phase.</p>
+                      </div>
+                      {totalRaise && (
+                        <div className="bg-darkAqua/5 rounded-md px-3 py-2 text-xs">
+                          <span className="text-zinc-500">Phase raise: </span>
+                          <span className="font-semibold text-darkAqua">${totalRaise} USDC</span>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input label="Start Date" type="datetime-local" value={ph.startDate} onChange={(e) => updPhase(i, "startDate", e.target.value)} />
+                        <Input label="End Date" type="datetime-local" value={ph.endDate} onChange={(e) => updPhase(i, "endDate", e.target.value)} />
                       </div>
                     </div>
-
-                    {/* Calculated raise */}
-                    {totalRaise && (
-                      <div className="bg-darkAqua/5 rounded-lg px-4 py-2 text-sm">
-                        <span className="text-zinc-500">Phase raise: </span>
-                        <span className="font-semibold text-darkAqua">${totalRaise} USDC</span>
-                        <span className="text-zinc-400"> ({Number(ph.allocation).toLocaleString("en-US")} tokens × ${ph.pricePerToken})</span>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Input label="Start Date & Time" type="datetime-local" value={ph.startDate} onChange={(e) => updPhase(i, "startDate", e.target.value)} />
-                        <p className="text-[11px] text-zinc-400 mt-1">When investors can start buying.</p>
-                      </div>
-                      <div>
-                        <Input label="End Date & Time" type="datetime-local" value={ph.endDate} onChange={(e) => updPhase(i, "endDate", e.target.value)} />
-                        <p className="text-[11px] text-zinc-400 mt-1">Phase closes at this time.</p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>);
               })}
-              <button onClick={() => setPhases((p) => [...p, emptyPhase()])}
-                className="w-full border-2 border-dashed border-zinc-300 hover:border-darkAqua rounded-lg py-4 text-sm font-medium text-zinc-500 hover:text-darkAqua transition-colors">
-                + Add Another Phase
-              </button>
+              <Button variant="outline" size="sm" onClick={() => { setPhases((p) => [...p, emptyPhase()]); setExpandedPhase(phases.length); }} className="w-full">
+                + Add Phase
+              </Button>
             </div>
           </div>
         )}
-        {/* Step 7: Token & Caps (skip if coming soon) */}
-        {step === 7 && (
+        {/* Step 8: Token & Caps (skip if coming soon) */}
+        {step === 8 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Token & Funding Caps</h2>
-            <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.map((t) => {
-              const addr = t.contract_address;
-              const masked = addr ? ` — ${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
-              return { value: t.id, label: `${t.name} (${t.symbol})${masked}` };
+            <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.filter((t) => t.contract_address && t.contract_address !== "0x0000000000000000000000000000000000000000").map((t) => {
+              const addr = t.contract_address!;
+              return { value: t.id, label: `${t.name} (${t.symbol}) — ${addr.slice(0, 6)}...${addr.slice(-4)}` };
             })]}
               value={selectedTokenId} onChange={(e) => setSelectedTokenId(e.target.value)} />
-            <Select label="Payment Token (Stablecoin)" options={PAYMENT_TOKENS} value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)} />
+            <Select label="Payment Token (Stablecoin)" options={PAYMENT_TOKENS.map((pt) => ({
+              ...pt,
+              label: pt.value ? `${pt.label.split(" — ")[0]} — ${pt.value.slice(0, 6)}...${pt.value.slice(-4)}` : pt.label,
+            }))} value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Soft Cap (USDC)" type="number" placeholder="e.g., 50000" value={softCap} onChange={(e) => setSoftCap(e.target.value)} />
               <Input label="Hard Cap (USDC)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />
             </div>
           </div>
         )}
-        {/* Step 8: Vesting (skip if direct or coming soon) */}
-        {step === 8 && (() => {
+        {/* Step 9: Vesting (skip if direct or coming soon) */}
+        {step === 9 && (() => {
           const PRESETS = [
             { label: "No cliff", days: 0 },
             { label: "1 day", days: 1 },
@@ -547,67 +633,230 @@ export default function CreateSalePage() {
           </div>
           );
         })()}
-        {/* Step 9: Review */}
-        {step === 9 && (
-          <div className="max-w-2xl mx-auto text-center">
-            <div className="w-20 h-20 rounded-md bg-darkAqua/10 flex items-center justify-center mx-auto mb-6"><Rocket className="h-10 w-10 text-darkAqua" /></div>
-            <h2 className="text-xl font-semibold text-text mb-2">{isComingSoon ? "Ready to Publish as Coming Soon" : "Ready to Submit"}</h2>
-            <p className="text-gray-500 mb-8">{isComingSoon ? "This will be submitted for admin approval as a Coming Soon listing" : "This will be submitted for admin approval"}</p>
-            <div className="bg-box rounded-lg p-6 text-left mb-8 space-y-3 text-sm">
-              <h3 className="font-semibold text-text mb-2">Sale Summary</h3>
-              {[
-                ["Title", title || "Untitled"],
-                ["Type", isComingSoon ? "Coming Soon" : "Live Sale"],
-                ["Mode", saleMode === "vested" ? "Vested" : "Direct"],
-                ["Structure", saleStructure === "phase_allocated" ? "Phase Allocated" : "Price Tiered"],
-                ...(!isComingSoon ? [
-                  ["Token", selectedToken ? `${selectedToken.name} (${selectedToken.symbol})` : "Not selected"],
-                  ["Soft Cap", softCap ? `${softCap} USDC` : "Not set"],
-                  ["Hard Cap", hardCap ? `${hardCap} USDC` : "Not set"],
-                  ["Phases", `${phases.filter((p) => p.name).length} configured`],
-                  ...(saleMode === "vested" ? [["Vesting", `${cliffDays}d cliff + ${vestingDays}d linear`]] : []),
-                ] : []),
-                ["OTC & Bank Transfer", otcEnabled ? "Enabled" : "Disabled"],
-                ["Description", description ? `${description.slice(0, 60)}...` : "None"],
-                ["Full Description", fullDescription ? `${fullDescription.length} chars` : "None"],
-                ["Gallery", `${galleryItems.filter((i) => i.media_type === "image").length} images, ${galleryItems.filter((i) => i.media_type === "video").length} videos`],
-                ["Hero", bannerImageUrl ? "Selected" : "None"],
-                ["Team", `${teamMembers.filter((m) => m.name).length} members`],
-                ["FAQs", `${faqs.filter((f) => f.question).length}`],
-                ["Documents", `${documents.filter((d) => d.url).length}`],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="flex justify-between"><span className="text-gray-500">{label}</span><span className="font-medium">{value}</span></div>
-              ))}
+        {/* Step 10: Review */}
+        {step === 10 && (() => {
+          const imgCount = galleryItems.filter((i) => i.media_type === "image").length;
+          const vidCount = galleryItems.filter((i) => i.media_type === "video").length;
+          const teamCount = teamMembers.filter((m) => m.name).length;
+          const faqCount = faqs.filter((f) => f.question).length;
+          const docCount = documents.filter((d) => d.url).length;
+          const phaseCount = phases.filter((p) => p.name).length;
+
+          const SectionRow = ({ label, value, muted }: { label: string; value: string; muted?: boolean }) => (
+            <div className="flex justify-between py-1.5">
+              <span className="text-zinc-500 text-sm">{label}</span>
+              <span className={`text-sm font-medium ${muted ? "text-zinc-400" : "text-text"}`}>{value}</span>
             </div>
-            <div className="p-4 rounded-lg bg-gold/10 border border-gold/30 text-left">
-              <p className="text-sm text-gray-600"><strong className="text-gold">Next steps:</strong> {isComingSoon
-                ? "Save to create the sale. Once approved by admin, it will appear on the launchpad as Coming Soon."
-                : "Save to create the sale. You'll then deploy the sale contract on-chain, complete the setup checklist, and submit for admin approval."}</p>
+          );
+
+          return (
+          <div className="max-w-3xl mx-auto">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-text">{isComingSoon ? "Ready to Publish" : "Review & Submit"}</h2>
+              <p className="text-sm text-zinc-500 mt-0.5">Review your sale details before {isComingSoon ? "publishing" : "saving"}</p>
             </div>
+
+            {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 mb-4">{error}</div>}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Sale Info */}
+              <div className="bg-white border border-zinc-100 rounded-lg p-5">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Sale Info</h3>
+                <SectionRow label="Title" value={title || "Untitled"} muted={!title} />
+                <SectionRow label="Type" value={isComingSoon ? "Coming Soon" : "Live Sale"} />
+                <SectionRow label="Mode" value={saleMode === "vested" ? "Vested" : "Direct"} />
+                <SectionRow label="Structure" value={saleStructure === "phase_allocated" ? "Phase Allocated" : "Price Tiered"} />
+                <SectionRow label="OTC & Bank Transfer" value={otcEnabled ? "Enabled" : "Disabled"} />
+                {description && <SectionRow label="Description" value={`${description.slice(0, 50)}...`} />}
+              </div>
+
+              {/* Token & Funding */}
+              {!isComingSoon && (
+                <div className="bg-white border border-zinc-100 rounded-lg p-5">
+                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Token & Funding</h3>
+                  <SectionRow label="Token" value={selectedToken ? `${selectedToken.name} (${selectedToken.symbol})` : "Not selected"} muted={!selectedToken} />
+                  <SectionRow label="Payment" value={paymentToken ? PAYMENT_TOKENS.find(t => t.value === paymentToken)?.label?.split(" — ")[0] || paymentToken.slice(0, 10) + "..." : "Not set"} muted={!paymentToken} />
+                  <SectionRow label="Soft Cap" value={softCap ? `$${Number(softCap).toLocaleString()}` : "Not set"} muted={!softCap} />
+                  <SectionRow label="Hard Cap" value={hardCap ? `$${Number(hardCap).toLocaleString()}` : "Not set"} muted={!hardCap} />
+                  <SectionRow label="Phases" value={`${phaseCount} configured`} />
+                  {saleMode === "vested" && (
+                    <SectionRow label="Vesting" value={`${cliffDays}d cliff + ${vestingDays}d linear`} />
+                  )}
+                </div>
+              )}
+
+              {/* Content & Media */}
+              <div className="bg-white border border-zinc-100 rounded-lg p-5">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Content & Media</h3>
+                <SectionRow label="Full Description" value={fullDescription ? `${fullDescription.length} chars` : "None"} muted={!fullDescription} />
+                <SectionRow label="Gallery" value={imgCount || vidCount ? `${imgCount} image${imgCount !== 1 ? "s" : ""}, ${vidCount} video${vidCount !== 1 ? "s" : ""}` : "Empty"} muted={!imgCount && !vidCount} />
+                <SectionRow label="Hero Image" value={bannerImageUrl ? "Selected" : "None"} muted={!bannerImageUrl} />
+                <SectionRow label="Team" value={teamCount ? `${teamCount} member${teamCount !== 1 ? "s" : ""}` : "None"} muted={!teamCount} />
+              </div>
+
+              {/* FAQs */}
+              <div className="bg-white border border-zinc-100 rounded-lg p-5">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">FAQs</h3>
+                {faqCount > 0 ? (
+                  <div className="space-y-2">
+                    {faqs.filter((f) => f.question).map((f, i) => (
+                      <div key={i} className="text-sm">
+                        <p className="font-medium text-text">{f.question}</p>
+                        <p className="text-zinc-400 text-xs mt-0.5 truncate">{f.answer || "No answer"}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-400">No FAQs added</p>
+                )}
+              </div>
+
+              {/* Documents */}
+              <div className="bg-white border border-zinc-100 rounded-lg p-5 lg:col-span-2">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Documents</h3>
+                {docCount > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {documents.filter((d) => d.url).map((d, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-zinc-50 rounded-md px-3 py-2 text-sm">
+                        <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-text truncate">{d.name || "Untitled"}</p>
+                          <p className="text-[10px] text-zinc-400 uppercase">{d.type}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-400">No documents uploaded</p>
+                )}
+              </div>
+            </div>
+
           </div>
-        )}
+          );
+        })()}
       </motion.div>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center mt-8">
-        <div className="flex items-center gap-3">
-          {isFirst ? <Link href="/issuer/sales"><Button variant="outline">Cancel</Button></Link>
-            : <Button variant="outline" onClick={prevStep}>Back</Button>}
-          {!savedSaleId && <Button variant="outline" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save as Draft"}</Button>}
-          {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
-          {error && <span className="text-xs text-red-600">{error}</span>}
+      {/* Right sidebar — contextual tips */}
+      <aside className="hidden lg:block w-72 shrink-0">
+        <div className="sticky top-20 space-y-4">
+          {step === 1 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Choose a clear, descriptive title that investors will recognize.</li>
+                <li><strong>Direct</strong> mode delivers tokens immediately after purchase.</li>
+                <li><strong>Vested</strong> mode locks tokens and releases them over time.</li>
+                <li>Enable OTC if you want to accept bank transfers or off-chain payments.</li>
+              </ul>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Content Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Use the rich editor to add headings, images, and videos.</li>
+                <li>This content appears as the main description on the sale page.</li>
+                <li>Upload images directly — they&apos;re stored on our cloud storage.</li>
+              </ul>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Gallery Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Add high-quality images that showcase the asset.</li>
+                <li>Set one image as the hero/banner — it appears at the top of the sale page.</li>
+                <li>You can also add YouTube videos for presentations or explainers.</li>
+              </ul>
+            </div>
+          )}
+          {step === 4 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Team Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Showing your team builds trust with investors.</li>
+                <li>Include key roles: CEO, CTO, legal, operations.</li>
+                <li>Photos are optional but strongly recommended.</li>
+              </ul>
+            </div>
+          )}
+          {step === 5 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">FAQ Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Answer common investor questions: &ldquo;What is this token backed by?&rdquo;, &ldquo;When can I trade?&rdquo;</li>
+                <li>Good FAQs reduce support requests and improve conversion.</li>
+                <li>3-5 FAQs is a good starting point.</li>
+              </ul>
+            </div>
+          )}
+          {step === 6 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Document Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Upload legal documents, audit reports, and whitepapers.</li>
+                <li>Legal and whitepaper docs are publicly visible to investors.</li>
+                <li>Audit docs build credibility — third-party audits are highly valued.</li>
+              </ul>
+            </div>
+          )}
+          {step === 7 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Phase Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Phases run sequentially — they must not overlap in dates.</li>
+                <li>Common pattern: Seed → Private → Public with increasing prices.</li>
+                <li>Each phase has its own allocation cap and time window.</li>
+              </ul>
+            </div>
+          )}
+          {step === 8 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Funding Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li>Select the deployed token this sale will distribute.</li>
+                <li><strong>Soft cap</strong> — minimum raise needed. Below this, investors can claim refunds.</li>
+                <li><strong>Hard cap</strong> — maximum raise. Sale closes when this is reached.</li>
+              </ul>
+            </div>
+          )}
+          {step === 9 && (
+            <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Vesting Tips</h4>
+              <ul className="text-xs text-zinc-500 space-y-2">
+                <li><strong>Cliff</strong> — no tokens can be claimed during this period.</li>
+                <li><strong>Vesting</strong> — after the cliff, tokens unlock linearly over this duration.</li>
+                <li>Common: 6-month cliff + 12-month vesting for early investors.</li>
+              </ul>
+            </div>
+          )}
+          {step === 10 && (
+            <div className="bg-gold/10 border border-gold/30 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-wider mb-2">Next Steps</h4>
+              <ul className="text-xs text-zinc-600 space-y-2">
+                {isComingSoon ? (
+                  <>
+                    <li>Save to create the sale.</li>
+                    <li>Once approved by admin, it will appear on the launchpad as Coming Soon.</li>
+                    <li>You can convert it to a live sale later by adding phases and token details.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>Save to create the sale record.</li>
+                    <li>Deploy the sale contract on-chain.</li>
+                    <li>Complete the setup checklist (whitelist, deposit tokens).</li>
+                    <li>Submit for admin approval.</li>
+                    <li>Once approved, investors can start buying.</li>
+                  </>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
-        {!isLast ? (
-          <Button variant="primary" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
-        ) : (
-          <div className="flex flex-col items-end gap-2">
-            {success ? <Link href="/issuer/sales"><Button variant="primary">View Sales</Button></Link>
-              : <Button variant="primary" onClick={handleSubmit} isLoading={isSubmitting}>
-                  {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue"}
-                </Button>}
-          </div>
-        )}
+      </aside>
       </div>
+
     </IssuerDashboardLayout>
   );
 }

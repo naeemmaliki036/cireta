@@ -2,18 +2,27 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title IssuerRegistry
- * @dev Registry of approved issuers on the platform
+ * @dev Registry of approved issuers with role-based access control.
+ *
+ *      Roles:
+ *        - DEFAULT_ADMIN_ROLE: Can grant/revoke roles, upgrade contract
+ *        - ISSUER_MANAGER_ROLE: Can register, activate, suspend, update issuers
  */
 contract IssuerRegistry is
     Initializable,
     OwnableUpgradeable,
+    AccessControlUpgradeable,
     UUPSUpgradeable
 {
+    /// @dev Role that can manage issuers (register, activate, suspend)
+    bytes32 public constant ISSUER_MANAGER_ROLE = keccak256("ISSUER_MANAGER_ROLE");
+
     enum IssuerStatus {
         None,
         Pending,
@@ -37,13 +46,22 @@ contract IssuerRegistry is
     address[] private _issuerAddresses;
 
     /// @dev Reserved storage gap for future upgrades
-    uint256[50] private __gap;
+    uint256[46] private __gap;
 
     // Events
     event IssuerRegistered(address indexed wallet, string name, string jurisdiction);
     event IssuerActivated(address indexed wallet);
     event IssuerSuspended(address indexed wallet, string reason);
     event IssuerUpdated(address indexed wallet, string name, string jurisdiction);
+
+    /// @dev Can manage issuers: ISSUER_MANAGER_ROLE or owner
+    modifier onlyIssuerManager() {
+        require(
+            hasRole(ISSUER_MANAGER_ROLE, msg.sender) || msg.sender == owner(),
+            "not issuer manager"
+        );
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -52,9 +70,25 @@ contract IssuerRegistry is
 
     function initialize(address initialOwner) public initializer {
         __Ownable_init(initialOwner);
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    /// @dev Flag to prevent double-initialization of AccessControl
+    bool private _rolesInitialized;
+
+    /**
+     * @dev One-time migration from owner-only to AccessControl.
+     *      Initializes AccessControl and grants DEFAULT_ADMIN_ROLE to owner.
+     *      Call after upgrading the proxy implementation.
+     */
+    function migrateToRoles() external onlyOwner {
+        require(!_rolesInitialized, "already migrated");
+        _grantRole(DEFAULT_ADMIN_ROLE, owner());
+        _rolesInitialized = true;
+    }
 
     modifier onlyActiveIssuer() {
         require(issuers[msg.sender].status == IssuerStatus.Active, "not active issuer");
@@ -65,7 +99,7 @@ contract IssuerRegistry is
         address wallet,
         string calldata name,
         string calldata jurisdiction
-    ) external onlyOwner {
+    ) external onlyIssuerManager {
         require(wallet != address(0), "zero address");
         require(bytes(name).length > 0, "empty name");
         require(issuers[wallet].status == IssuerStatus.None, "already registered");
@@ -84,7 +118,7 @@ contract IssuerRegistry is
         emit IssuerRegistered(wallet, name, jurisdiction);
     }
 
-    function activateIssuer(address wallet) external onlyOwner {
+    function activateIssuer(address wallet) external onlyIssuerManager {
         require(issuers[wallet].status == IssuerStatus.Pending, "not pending");
 
         issuers[wallet].status = IssuerStatus.Active;
@@ -96,7 +130,7 @@ contract IssuerRegistry is
     function suspendIssuer(
         address wallet,
         string calldata reason
-    ) external onlyOwner {
+    ) external onlyIssuerManager {
         require(
             issuers[wallet].status == IssuerStatus.Active ||
             issuers[wallet].status == IssuerStatus.Pending,
@@ -109,7 +143,7 @@ contract IssuerRegistry is
         emit IssuerSuspended(wallet, reason);
     }
 
-    function reactivateIssuer(address wallet) external onlyOwner {
+    function reactivateIssuer(address wallet) external onlyIssuerManager {
         require(issuers[wallet].status == IssuerStatus.Suspended, "not suspended");
 
         issuers[wallet].status = IssuerStatus.Active;
@@ -122,7 +156,7 @@ contract IssuerRegistry is
         address wallet,
         string calldata name,
         string calldata jurisdiction
-    ) external onlyOwner {
+    ) external onlyIssuerManager {
         require(issuers[wallet].status != IssuerStatus.None, "not registered");
         require(bytes(name).length > 0, "empty name");
 
