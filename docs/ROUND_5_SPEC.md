@@ -5,8 +5,21 @@ Built from the requirements + Q&A in [`SALE_SYSTEM_DEEP_DIVE.md`](./SALE_SYSTEM_
 Deployed via [`FRESH_DEPLOY_PLAN.md`](./FRESH_DEPLOY_PLAN.md) — no upgrades to
 existing testnet sales.
 
-Status: planned, not yet implemented.
-Decisions locked: 2026-04-10.
+Status: **core implementation complete**, awaiting final UI polish + fresh deploy.
+Decisions locked: 2026-04-10. Implementation started: 2026-04-10.
+
+**Implementation checkpoints (commits):**
+- `491f34d` — Contracts (Sale.sol, CiretaVault.sol, CiretaFractionToken1155.sol, CiretaFractionFactory.sol) + hardhat.config evmVersion bumped to cancun
+- `0766c09` — Backend (DB models, alembic 029, Pydantic schemas, web3 service, endpoints, test scripts)
+- `62a8899` — UI (admin AddPhaseForm + sale create form, launchpad saleAbi + revertReasons)
+
+**Still to land (separate commits):**
+- Launchpad project page: open-ended status pills, "Pending launch" tile for approved-not-activated, safety floor display, refund flow uses `refundsActive` gate
+- Launchpad invest page: claim flow uses ERC-1155 vault.claim() (single call releases id 1 + id 2)
+- Admin sale detail page: approve/activate/extend-phase/close/activate-refunds buttons
+- Test runs: hardhat test for new round-5 reverts
+- Fresh deploy via `scripts/deploy_clean_testnet.py` (extends `deploy_round4_impls.py`)
+- Doc updates (BUY_FLOW_USDC_AND_OTC.md to reflect ERC-1155 ids, etc.)
 
 ---
 
