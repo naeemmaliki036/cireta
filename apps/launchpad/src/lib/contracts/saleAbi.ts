@@ -50,6 +50,7 @@ export const SALE_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    // Round-5: Phase struct gained topUpMin + allocationMode (uint8 enum)
     name: "getPhase",
     type: "function",
     stateMutability: "view",
@@ -65,14 +66,17 @@ export const SALE_ABI = [
           { name: "sold", type: "uint256" },
           { name: "minContribution", type: "uint256" },
           { name: "maxContribution", type: "uint256" },
+          { name: "topUpMin", type: "uint256" },
           { name: "startTime", type: "uint256" },
           { name: "endTime", type: "uint256" },
           { name: "whitelistOnly", type: "bool" },
+          { name: "allocationMode", type: "uint8" },
         ],
       },
     ],
   },
   {
+    // Round-5: Contribution struct dropped isOtc
     name: "getContribution",
     type: "function",
     stateMutability: "view",
@@ -86,10 +90,63 @@ export const SALE_ABI = [
           { name: "tokensAllocated", type: "uint256" },
           { name: "claimed", type: "bool" },
           { name: "refunded", type: "bool" },
-          { name: "isOtc", type: "bool" },
         ],
       },
     ],
+  },
+  // Round-5: split USDC and OTC contribution mappings
+  {
+    name: "usdcContributed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "otcContributed",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  // Round-5: open-ended sale flag
+  {
+    name: "openEnded",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  // Round-5: refund activation gate
+  {
+    name: "refundsActive",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  // Round-5: finalization pending flag (set when hardcap or supply hit)
+  {
+    name: "finalizationPending",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  // Round-5: total token supply
+  {
+    name: "totalTokenSupply",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "totalTokenSold",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
   },
   {
     name: "totalContributed",

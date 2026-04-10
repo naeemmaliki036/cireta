@@ -81,6 +81,11 @@ export default function CreateSalePage() {
   const [paymentToken, setPaymentToken] = useState("");
   const [softCap, setSoftCap] = useState("");
   const [hardCap, setHardCap] = useState("");
+  // Round-5: explicit total token supply + optional sale end time (none = open-ended)
+  const [totalTokenSupply, setTotalTokenSupply] = useState("");
+  const [saleStartDate, setSaleStartDate] = useState("");
+  const [saleEndDate, setSaleEndDate] = useState("");
+  const [isOpenEnded, setIsOpenEnded] = useState(false);
   // State
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -197,9 +202,16 @@ export default function CreateSalePage() {
           cliff_duration_days: parseInt(cliffDays) || 0, vesting_duration_days: parseInt(vestingDays) || 365,
           token_id: selectedTokenId || undefined, payment_token: paymentToken,
           soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
+          // Round-5: total supply + sale window
+          total_token_supply: totalTokenSupply || undefined,
+          sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
+          sale_end_time: isOpenEnded || !saleEndDate ? undefined : new Date(saleEndDate).toISOString(),
           phases: isComingSoon ? [] : validPhases.map((p) => ({
             name: p.name, allocation: Number(p.allocation), price_per_token: p.pricePerToken,
             start_time: new Date(p.startDate).toISOString(), end_time: new Date(p.endDate).toISOString(),
+            min_contribution: "1",  // round-5: must be > 0; user can override later via phase form
+            top_up_min: "1000",     // round-5: contract floor
+            allocation_mode: "fixed",
           })),
         }, tk);
         setSavedSaleId(sale.id);
@@ -541,6 +553,48 @@ export default function CreateSalePage() {
               <Input label="Soft Cap (USDC)" type="number" placeholder="e.g., 50000" value={softCap} onChange={(e) => setSoftCap(e.target.value)} />
               <Input label="Hard Cap (USDC)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />
             </div>
+            {/* Round-5: total token supply */}
+            <Input
+              label="Total Token Supply (tokens)"
+              type="number"
+              placeholder="e.g., 1000000"
+              value={totalTokenSupply}
+              onChange={(e) => setTotalTokenSupply(e.target.value)}
+            />
+            <p className="text-xs text-gray-500">
+              Maximum tokens this sale will ever sell across all phases. Required.
+            </p>
+            {/* Round-5: sale window */}
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Sale Start"
+                type="datetime-local"
+                value={saleStartDate}
+                onChange={(e) => setSaleStartDate(e.target.value)}
+              />
+              <Input
+                label="Sale End (optional)"
+                type="datetime-local"
+                value={saleEndDate}
+                onChange={(e) => setSaleEndDate(e.target.value)}
+                disabled={isOpenEnded}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={isOpenEnded}
+                onChange={(e) => {
+                  setIsOpenEnded(e.target.checked);
+                  if (e.target.checked) setSaleEndDate("");
+                }}
+                className="rounded border-zinc-300 text-darkAqua focus:ring-darkAqua/30"
+              />
+              <span>
+                <strong>Open-ended sale</strong>
+                <span className="text-gray-500"> — issuer keeps adding phases until target reached. Max 730 days from start.</span>
+              </span>
+            </label>
           </div>
         )}
         {/* Step 9: Vesting (skip if direct or coming soon) */}

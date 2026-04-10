@@ -106,12 +106,20 @@ export interface CreateSaleRequest {
   payment_token?: string;
   soft_cap?: string;
   hard_cap?: string;
+  // Round-5: explicit total token supply + optional sale window
+  total_token_supply?: string;
+  sale_start_time?: string;
+  sale_end_time?: string; // undefined = open-ended
   phases?: {
     name: string;
     allocation: number;
     price_per_token: string;
     start_time: string;
     end_time: string;
+    // Round-5: required by Pydantic — defaults provided by callers
+    min_contribution?: string;
+    top_up_min?: string;
+    allocation_mode?: "fixed" | "remaining";
   }[];
 }
 

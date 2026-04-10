@@ -56,6 +56,25 @@ export const CUSTOM_ERROR_SELECTORS: Record<string, string> = {
   "0x27836e1f": "Time delay has not yet elapsed.",
   // ── IssuerOTCToken.sol ─────────────────────────────────────────
   "0xa3e9d91e": "OTC token recipient is not on the identity registry. The sale contract may not be whitelisted yet — contact support.",
+  // ── Round-5 — sale + phase + refund + ERC-1155 fraction errors ──
+  "0xea913584": "Phase overlaps with another phase. Choose non-overlapping start/end times.",
+  "0xcbe28a93": "Cannot extend a phase that has already ended.",
+  "0xe4965da3": "New end time must be later than the current end time.",
+  "0x5ef7c526": "Phase extension would overlap with the next phase.",
+  "0x87240838": "Top-up minimum must be at least 1000 USDC (contract floor).",
+  "0xf1ea44a0": "Amount is below the top-up minimum for repeat buyers in this phase.",
+  "0xcf56e448": "A phase is currently active — wait until it ends before closing.",
+  "0xc19f17a9": "Sale has not been approved by an admin yet.",
+  "0xf82cae11": "Refunds are not yet active. Issuer or admin must activate them first.",
+  "0x4c442bdf": "You are not eligible for an on-chain refund. OTC contributors get refunded off-chain.",
+  "0xc2f5625a": "Amount is too small to allocate any tokens.",
+  "0xfd43402b": "Insufficient OTC token balance.",
+  "0x7af54dad": "OTC token spending allowance is too low. Re-approve before buying.",
+  "0xc919b2f2": "Total token supply must be greater than zero.",
+  "0x1c07ee3d": "Buy would exceed the sale's total token supply.",
+  "0x9cbe2357": "Fraction tokens are non-transferable (soul-bound).",
+  "0xdfa1a408": "Invalid fraction token id (must be 1 for USDC or 2 for OTC).",
+  "0x101f817a": "Sale or refunds are already in the requested state.",
 };
 
 /**
