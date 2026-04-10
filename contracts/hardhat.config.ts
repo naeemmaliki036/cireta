@@ -14,6 +14,11 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
       viaIR: true,
+      // Round-5: bumped from "paris" to "cancun" so OpenZeppelin's ERC1155
+      // (used by CiretaFractionToken1155) can compile — it relies on the
+      // mcopy opcode introduced in Cancun. Base + Base Sepolia both support
+      // Cancun (Dencun upgrade Mar 2024), so the bytecode is fine to deploy.
+      evmVersion: "cancun",
     },
   },
   networks: {

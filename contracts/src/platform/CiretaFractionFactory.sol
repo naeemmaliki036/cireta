@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "../fraction/CiretaFractionToken.sol";
+import "../fraction/CiretaFractionToken1155.sol";
 import "../vault/CiretaVault.sol";
 
 /// @title CiretaFractionFactory
@@ -38,7 +38,8 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         vaultImplementation = _vaultImpl;
     }
 
-    /// @notice Deploy a fraction token + vault pair for a vested sale.
+    /// @notice Deploy a fraction token + vault pair for a vested sale (round 5).
+    /// Uses the new ERC-1155 fraction token with id 1 (USDC) and id 2 (OTC).
     function deployVaultAndFraction(
         string memory fractionName,
         string memory fractionSymbol,
@@ -54,13 +55,23 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         // Deploy Vault proxy with factory as owner (to allow setFractionToken)
         bytes memory vaultInitData = abi.encodeCall(
             CiretaVault.initialize,
-            (projectToken, address(0), cliffDuration, vestingDuration, sale, admin, excessPolicy, address(this))
+            (
+                projectToken,
+                address(0),           // fractionToken — set in two-step deploy below
+                identityRegistry,
+                cliffDuration,
+                vestingDuration,
+                sale,
+                admin,
+                excessPolicy,
+                address(this)         // owner = factory (transferred to admin at end)
+            )
         );
         vaultProxy = address(new ERC1967Proxy(vaultImplementation, vaultInitData));
 
-        // Deploy FractionToken proxy with factory as admin (to allow grantRole)
+        // Deploy ERC-1155 FractionToken proxy with factory as admin
         bytes memory fractionInitData = abi.encodeCall(
-            CiretaFractionToken.initialize,
+            CiretaFractionToken1155.initialize,
             (fractionName, fractionSymbol, 6, identityRegistry, projectToken, vaultProxy, address(this))
         );
         fractionProxy = address(new ERC1967Proxy(fractionTokenImplementation, fractionInitData));
@@ -68,18 +79,18 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         // Set fraction token on vault (two-step deploy)
         CiretaVault(vaultProxy).setFractionToken(fractionProxy);
 
-        // Grant roles: Sale can mint fractions, Vault + Sale can burn fractions
-        bytes32 minterRole = CiretaFractionToken(fractionProxy).MINTER_ROLE();
-        bytes32 burnerRole = CiretaFractionToken(fractionProxy).BURNER_ROLE();
-        bytes32 defaultAdmin = CiretaFractionToken(fractionProxy).DEFAULT_ADMIN_ROLE();
+        // Grant roles: Sale can mint, Vault + Sale can burn
+        bytes32 minterRole = CiretaFractionToken1155(fractionProxy).MINTER_ROLE();
+        bytes32 burnerRole = CiretaFractionToken1155(fractionProxy).BURNER_ROLE();
+        bytes32 defaultAdmin = CiretaFractionToken1155(fractionProxy).DEFAULT_ADMIN_ROLE();
 
-        CiretaFractionToken(fractionProxy).grantRole(minterRole, sale);
-        CiretaFractionToken(fractionProxy).grantRole(burnerRole, vaultProxy);
-        CiretaFractionToken(fractionProxy).grantRole(burnerRole, sale);
+        CiretaFractionToken1155(fractionProxy).grantRole(minterRole, sale);
+        CiretaFractionToken1155(fractionProxy).grantRole(burnerRole, vaultProxy);
+        CiretaFractionToken1155(fractionProxy).grantRole(burnerRole, sale);
 
-        // Transfer admin of fraction token to the actual admin
-        CiretaFractionToken(fractionProxy).grantRole(defaultAdmin, admin);
-        CiretaFractionToken(fractionProxy).renounceRole(defaultAdmin, address(this));
+        // Transfer fraction token admin
+        CiretaFractionToken1155(fractionProxy).grantRole(defaultAdmin, admin);
+        CiretaFractionToken1155(fractionProxy).renounceRole(defaultAdmin, address(this));
 
         // Transfer vault ownership to the actual admin
         CiretaVault(vaultProxy).transferOwnership(admin);

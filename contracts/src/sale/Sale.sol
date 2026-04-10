@@ -7,9 +7,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IIdentityRegistry.sol";
-import "../fraction/CiretaFractionToken.sol";
+import "../fraction/CiretaFractionToken1155.sol";
 import "../vault/CiretaVault.sol";
 import "../otc/IssuerOTCToken.sol";
 
@@ -24,26 +25,31 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     enum SaleStatus { Draft, Active, Paused, FinalizedSuccess, FinalizedFailed, Rejected }
     enum SaleMode { Direct, Vested }
-    enum SaleStructure { PhaseAllocated, PriceTiered }
+
+    /// @notice Per-phase allocation strategy. Replaces the old global SaleStructure.
+    /// - Fixed: phase has a hard cap in token units (`allocation`); reverts when exceeded.
+    /// - Remaining: phase can buy any unsold tokens up to the global `totalTokenSupply`.
+    enum AllocationMode { Fixed, Remaining }
 
     struct Phase {
         string name;
         uint256 pricePerToken;
-        uint256 allocation;
+        uint256 allocation;        // Fixed mode only — hard cap in token units
         uint256 sold;
-        uint256 minContribution;
-        uint256 maxContribution;
+        uint256 minContribution;   // First-time buyer minimum (USDC raw)
+        uint256 maxContribution;   // Per-investor cumulative cap (0 = unlimited)
+        uint256 topUpMin;          // Repeat-buyer minimum per buy (≥ TOP_UP_MIN_FLOOR)
         uint256 startTime;
         uint256 endTime;
         bool whitelistOnly;
+        AllocationMode allocationMode;
     }
 
     struct Contribution {
-        uint256 amount;           // USDC contributed on-platform
-        uint256 tokensAllocated;  // Tokens to receive
-        bool claimed;
+        uint256 amount;           // Total contribution (USDC + OTC) — informational
+        uint256 tokensAllocated;  // Total tokens received from all sources
+        bool claimed;             // Direct mode only
         bool refunded;
-        bool isOtc;               // True = off-platform OTC allocation
     }
 
     // ── State ────────────────────────────────────────────────────────────────
@@ -61,18 +67,28 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // Sale-level window. All phases must fall inside [saleStartTime, saleEndTime].
     // Set in initialize() and immutable thereafter.
+    // saleEndTime == 0 means open-ended (see `openEnded` flag below).
     uint256 public saleStartTime;
     uint256 public saleEndTime;
 
-    // Cumulative phase allocation for PhaseAllocated structure (in token units).
-    // Updated in addPhase() and validated against hardCap on each addition.
-    uint256 public totalPhaseAllocation;
+    // Round-5: explicit total token supply declared at sale creation, in token-decimal units.
+    // Independent of hardCap (which is denominated in USDC).
+    uint256 public totalTokenSupply;
+    uint256 public totalTokenSold;            // Σ phase.sold across all phases
+
+    // Token decimals snapshot — read once at init via IERC20Metadata, used in price math.
+    uint8 public tokenDecimals;
 
     // Maximum platform fee in basis points (10% ceiling).
     uint256 public constant MAX_FEE_BPS = 1000;
 
-    uint256 public totalRaised;              // Total USDC raised (on-platform only)
-    uint256 public totalOtcAllocated;        // Total OTC token allocation (excluded from fee)
+    // Round-5: open-ended sale safety constants.
+    uint256 public constant MAX_SALE_DURATION = 730 days;
+    uint256 public constant INACTIVITY_TIMEOUT = 180 days;
+    uint256 public constant TOP_UP_MIN_FLOOR = 1000 * 1e6; // 1000 USDC raw
+
+    uint256 public totalRaised;              // Total raised across USDC + OTC (mixed units, kept for hardcap math)
+    uint256 public usdcContributedTotal;     // Strict USDC sum across all buy() calls (used for fees)
     uint256 public platformFeeCollected;
 
     SaleStatus public status;
@@ -81,7 +97,18 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public whitelisted;
     mapping(address => Contribution) public contributions;
     mapping(address => uint256) public totalContributed;
-    mapping(address => uint256) public otcAllocations;
+    // Round-5: split USDC and OTC contribution accounting per buyer.
+    // - usdcContributed is the source of truth for refund eligibility (R1 fix).
+    // - otcContributed is informational; OTC refunds are off-chain.
+    mapping(address => uint256) public usdcContributed;
+    mapping(address => uint256) public otcContributed;
+
+    // Round-5: state for two-step activation, open-ended sales, and refund gate.
+    bool public approved;                    // Set by admin's approveSale()
+    bool public openEnded;                   // Cached: saleEndTime == 0
+    bool public finalizationPending;         // Set when hardcap or supply hit; cleared by finalizeSale()
+    bool public refundsActive;               // Set by activateRefunds() after FinalizedFailed
+    uint256 public lastPhaseAddedAt;         // For inactivity timeout in open-ended sales
 
     /// @notice Per-block contribution limit to mitigate front-running attacks.
     uint256 public maxPerBlock;
@@ -90,25 +117,28 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     // ── Vested mode state ─────────────────────────────────────────────────────
     SaleMode public saleMode;
     CiretaVault public vault;
-    CiretaFractionToken public fractionToken;
+    CiretaFractionToken1155 public fractionToken;
+    // Round-5: ERC-1155 token IDs for the two contribution sources.
+    uint256 public constant FRACTION_ID_USDC = 1;
+    uint256 public constant FRACTION_ID_OTC = 2;
 
     // ── OTC token state ──────────────────────────────────────────────────────
     IssuerOTCToken public otcToken;
-
-    // ── Sale structure ──────────────────────────────────────────────────────
-    SaleStructure public saleStructure;
 
     // ── Emergency withdrawal ────────────────────────────────────────────────
     uint256 public finalizedAt;
     uint256 public constant EMERGENCY_WITHDRAW_DELAY = 90 days;
 
-    /// @dev Reserved storage gap for future upgrades
-    uint256[43] private __gap;
+    /// @dev Reserved storage gap for future upgrades.
+    /// Round 5 added: totalTokenSupply, totalTokenSold, tokenDecimals, usdcContributedTotal,
+    /// usdcContributed, otcContributed, approved, openEnded, finalizationPending, refundsActive,
+    /// lastPhaseAddedAt — gap shrunk from 43 → 31.
+    uint256[31] private __gap;
 
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
+    event PhaseExtended(uint256 indexed phaseId, uint256 newEndTime);
     event Purchase(address indexed buyer, uint256 indexed phaseId, uint256 amount, uint256 tokensAllocated, bool isOTC);
-    event OTCAllocation(address indexed investor, uint256 tokensAllocated, string paymentReference);
     event TokensClaimed(address indexed claimer, uint256 amount);
     event RefundClaimed(address indexed contributor, uint256 amount);
     event SaleFinalized(bool success, uint256 totalRaised, uint256 platformFee);
@@ -119,6 +149,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     event ProjectTokensDeposited(uint256 amount);
     event FundsWithdrawn(address indexed recipient, uint256 amount);
     event TokensWithdrawn(address indexed recipient, uint256 amount);
+    // Round-5
+    event SaleApproved();
+    event SaleUnapproved();
+    event FinalizationPending(uint256 totalRaised, uint256 totalTokenSold);
+    event RefundsActivated();
+    event SaleClosed(bool failed, address closer);
 
     // ── Errors ───────────────────────────────────────────────────────────────
     error InvalidStatus();
@@ -163,6 +199,24 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error SaleNotFinalized();
     error TokensNotDeposited();
     error DelayNotElapsed();
+    // Round-5
+    error ZeroTokenSupply();
+    error SaleWindowTooLong();
+    error TokenSupplyExceeded();
+    error PhaseOverlap();
+    error CannotExtendEnded();
+    error ExtensionTooEarly();
+    error ExtensionOverlap();
+    error TopUpBelowFloor();
+    error TopUpBelowMin();
+    error PhaseStillActive();
+    error NotApproved();
+    error AlreadyApproved();
+    error RefundsNotActive();
+    error NotUSDCContributor();
+    error AmountTooSmall();
+    error InsufficientOTCBalance();
+    error OTCNotApproved();
 
     // ── Access Control ──────────────────────────────────────────────────────
 
@@ -174,6 +228,11 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     /// @dev Is the caller the platform admin or the factory itself?
     function _isAdmin() internal view returns (bool) {
         return msg.sender == factory || msg.sender == OwnableUpgradeable(factory).owner();
+    }
+
+    /// @dev Same as _isAdmin but parameterized — used by closeSale to check arbitrary callers.
+    function _isAdminAddr(address who) internal view returns (bool) {
+        return who == factory || who == OwnableUpgradeable(factory).owner();
     }
 
     modifier adminOnly() {
@@ -199,6 +258,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() { _disableInitializers(); }
 
+    /// @notice Sale initializer (round 5).
+    /// @param _saleEndTime Pass 0 for an open-ended sale (issuer keeps adding phases until they decide to close).
+    /// @param _totalTokenSupply Hard cap on total tokens that can ever be sold across all phases (token-decimal units).
     function initialize(
         address _token,
         address _paymentToken,
@@ -212,7 +274,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         uint256 _feeCapUsdc,
         address _otcToken,
         uint256 _saleStartTime,
-        uint256 _saleEndTime
+        uint256 _saleEndTime,
+        uint256 _totalTokenSupply
     ) external initializer {
         if (_token == address(0)) revert ZeroAddress();
         if (_paymentToken == address(0)) revert ZeroAddress();
@@ -220,16 +283,23 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (_issuer == address(0)) revert ZeroAddress();
         if (_factory == address(0)) revert ZeroAddress();
         if (_feeManager == address(0)) revert ZeroAddress();
-        // Caps must be sane: both > 0 and soft <= hard
+        // Caps must be sane
         if (_softCap == 0 || _hardCap == 0 || _softCap > _hardCap) revert InvalidCaps();
-        // Fee bps capped at 10% (1000 bps)
         if (_feeBasisPoints > MAX_FEE_BPS) revert InvalidFeeBps();
-        // Sale window must be a strictly positive interval ending in the future
-        if (_saleStartTime >= _saleEndTime) revert InvalidSaleWindow();
-        if (_saleEndTime <= block.timestamp) revert InvalidSaleWindow();
-        // Issuer wallet must be on the project's identity registry — they
-        // sign every onlyIssuer call and the platform shouldn't allow
-        // unverified principals to operate a sale.
+        // Round-5: explicit token supply required
+        if (_totalTokenSupply == 0) revert ZeroTokenSupply();
+        // Sale window: open-ended if _saleEndTime == 0, otherwise validated
+        if (_saleEndTime == 0) {
+            // Open-ended: still need a valid start in the future
+            if (_saleStartTime == 0) revert InvalidSaleWindow();
+            openEnded = true;
+        } else {
+            if (_saleStartTime >= _saleEndTime) revert InvalidSaleWindow();
+            if (_saleEndTime <= block.timestamp) revert InvalidSaleWindow();
+            // Even fixed-end sales can't span more than the safety floor
+            if (_saleEndTime - _saleStartTime > MAX_SALE_DURATION) revert SaleWindowTooLong();
+        }
+        // Issuer wallet must be KYC-verified
         if (!IIdentityRegistry(_identityRegistry).isVerified(_issuer)) revert IssuerNotVerified();
 
         token = _token;
@@ -244,6 +314,16 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         feeCapUsdc = _feeCapUsdc;
         saleStartTime = _saleStartTime;
         saleEndTime = _saleEndTime;
+        totalTokenSupply = _totalTokenSupply;
+        lastPhaseAddedAt = _saleStartTime;
+
+        // Snapshot token decimals for the price math (default 18 if read fails)
+        try IERC20Metadata(_token).decimals() returns (uint8 d) {
+            tokenDecimals = d;
+        } catch {
+            tokenDecimals = 18;
+        }
+
         if (_otcToken != address(0)) otcToken = IssuerOTCToken(_otcToken);
         maxPerBlock = 50_000 * 1e6; // 50,000 USDC default per-block cap
         status = SaleStatus.Draft;
@@ -253,19 +333,36 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ── Admin-Only Functions ────────────────────────────────────────────────
 
-    /// @notice Activate the sale (Draft → Active). Admin approval gate.
-    function activate() external adminOnly onlyStatus(SaleStatus.Draft) {
+    /// @notice Round-5: admin approves the sale (compliance gate).
+    /// Approved sales become visible to investors as "pending launch" but
+    /// can't accept buys until the issuer calls activate().
+    function approveSale() external adminOnly onlyStatus(SaleStatus.Draft) {
+        if (approved) revert AlreadyApproved();
+        approved = true;
+        emit SaleApproved();
+    }
+
+    /// @notice Round-5: admin can revoke approval BEFORE the issuer activates.
+    function unapproveSale() external adminOnly onlyStatus(SaleStatus.Draft) {
+        if (!approved) revert NotApproved();
+        approved = false;
+        emit SaleUnapproved();
+    }
+
+    /// @notice Round-5: ISSUER activates an admin-approved sale.
+    /// Authority moved from admin → issuer; admin's role is the upstream
+    /// approveSale() compliance gate.
+    function activate() external onlyIssuer onlyStatus(SaleStatus.Draft) {
+        if (!approved) revert NotApproved();
+
         // Require project tokens deposited before activation
         if (saleMode == SaleMode.Direct) {
-            // Direct: tokens must be in the sale contract
             uint256 tokenBalance = IERC20(token).balanceOf(address(this));
             if (tokenBalance == 0) revert TokensNotDeposited();
         } else {
-            // Vested: tokens must be in the vault
             uint256 vaultBalance = IERC20(token).balanceOf(address(vault));
             if (vaultBalance == 0) revert TokensNotDeposited();
         }
-        // Require at least one phase configured
         if (phases.length == 0) revert InvalidStatus();
 
         status = SaleStatus.Active;
@@ -299,53 +396,63 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (_vault == address(0) || _fractionToken == address(0)) revert ZeroAddress();
         saleMode = SaleMode.Vested;
         vault = CiretaVault(_vault);
-        fractionToken = CiretaFractionToken(_fractionToken);
+        fractionToken = CiretaFractionToken1155(_fractionToken);
     }
 
     // ── Issuer-Only Functions ───────────────────────────────────────────────
 
     /// @notice Add a sale phase. Only issuer configures their own sale.
+    /// Round-5 changes:
+    /// - allocationMode replaces the global SaleStructure flag
+    /// - topUpMin enforced for repeat buyers (≥ TOP_UP_MIN_FLOOR = 1000 USDC)
+    /// - phase overlap with existing phases is rejected
+    /// - phase allocation (Fixed mode) is bounded by totalTokenSupply, not hardCap
+    /// - lastPhaseAddedAt updated for inactivity timeout (open-ended sales)
     function addPhase(
         string calldata name,
         uint256 pricePerToken,
         uint256 allocation,
         uint256 minContribution,
         uint256 maxContribution,
+        uint256 topUpMin,
         uint256 startTime,
         uint256 endTime,
-        bool whitelistOnly
+        bool whitelistOnly,
+        AllocationMode allocationMode
     ) external onlyIssuer {
         if (status != SaleStatus.Draft && status != SaleStatus.Active) revert CannotAddPhase();
-
-        // Price must be positive (free tokens are never intended).
         if (pricePerToken == 0) revert ZeroPricePerToken();
-
-        // Every phase must have a non-zero minimum contribution. Setting min=0
-        // is almost always a configuration mistake (it disables the
-        // first-time-buyer floor entirely) and there is no updatePhase to
-        // correct it after the fact. Issuers who want a low floor can use $1.
         if (minContribution == 0) revert ZeroMinContribution();
-
-        // Max contribution, if set, must be >= min. Zero is allowed (= unlimited).
         if (maxContribution != 0 && maxContribution < minContribution) revert InvalidContributionRange();
-
-        // Phase window must be a strictly positive interval.
+        if (topUpMin < TOP_UP_MIN_FLOOR) revert TopUpBelowFloor();
         if (startTime >= endTime) revert InvalidPhaseTimeRange();
-
-        // Phase must not already be in the past at creation time.
         if (endTime <= block.timestamp) revert PhaseInPast();
+        if (startTime < saleStartTime) revert PhaseOutsideSaleWindow();
 
-        // Phase must fall entirely inside the sale window.
-        if (startTime < saleStartTime || endTime > saleEndTime) revert PhaseOutsideSaleWindow();
-
-        // For PhaseAllocated structure: each phase needs a positive allocation,
-        // and the sum of all phase allocations must not exceed hardCap.
-        if (saleStructure == SaleStructure.PhaseAllocated) {
-            if (allocation == 0) revert ZeroPhaseAllocation();
-            uint256 newTotal = totalPhaseAllocation + allocation;
-            if (newTotal > hardCap) revert PhaseAllocationExceedsHardCap();
-            totalPhaseAllocation = newTotal;
+        // Open-ended skips upper bound but enforces the safety floor
+        if (openEnded) {
+            if (endTime > saleStartTime + MAX_SALE_DURATION) revert SaleWindowTooLong();
+        } else {
+            if (endTime > saleEndTime) revert PhaseOutsideSaleWindow();
         }
+
+        // Phase overlap detection — linear scan over existing phases
+        for (uint256 i = 0; i < phases.length; i++) {
+            Phase storage existing = phases[i];
+            if (startTime < existing.endTime && existing.startTime < endTime) {
+                revert PhaseOverlap();
+            }
+        }
+
+        // Per-phase allocation mode
+        if (allocationMode == AllocationMode.Fixed) {
+            if (allocation == 0) revert ZeroPhaseAllocation();
+            // Sum of all Fixed phase allocations + this one must fit in supply
+            uint256 fixedSum = _totalFixedAllocations() + allocation;
+            if (fixedSum > totalTokenSupply) revert TokenSupplyExceeded();
+        }
+        // Remaining mode: `allocation` is informational; runtime check at buy time
+        // bounds the phase to (totalTokenSupply - totalTokenSold).
 
         phases.push(Phase({
             name: name,
@@ -354,16 +461,65 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             sold: 0,
             minContribution: minContribution,
             maxContribution: maxContribution,
+            topUpMin: topUpMin,
             startTime: startTime,
             endTime: endTime,
-            whitelistOnly: whitelistOnly
+            whitelistOnly: whitelistOnly,
+            allocationMode: allocationMode
         }));
+        lastPhaseAddedAt = block.timestamp;
         emit PhaseAdded(phases.length - 1, name, pricePerToken);
     }
 
+    /// @notice Round-5: extend the end time of an active or upcoming phase.
+    /// Issuer-only. Cannot shrink, must stay future, must not overlap next phase,
+    /// must stay inside sale window.
+    function extendPhase(uint256 phaseId, uint256 newEndTime) external onlyIssuer {
+        if (phaseId >= phases.length) revert InvalidPhase();
+        Phase storage p = phases[phaseId];
+
+        // Phase must not have ended yet
+        if (block.timestamp > p.endTime) revert CannotExtendEnded();
+        // Must be strictly later than current end
+        if (newEndTime <= p.endTime) revert ExtensionTooEarly();
+        // Must be in the future
+        if (newEndTime <= block.timestamp) revert PhaseInPast();
+
+        // Must not overlap any subsequent phase (chronological scan)
+        for (uint256 i = 0; i < phases.length; i++) {
+            if (i == phaseId) continue;
+            Phase storage other = phases[i];
+            if (other.startTime >= p.endTime && other.startTime < newEndTime) {
+                revert ExtensionOverlap();
+            }
+        }
+
+        // Stay inside sale window
+        if (openEnded) {
+            if (newEndTime > saleStartTime + MAX_SALE_DURATION) revert SaleWindowTooLong();
+        } else {
+            if (newEndTime > saleEndTime) revert PhaseOutsideSaleWindow();
+        }
+
+        p.endTime = newEndTime;
+        emit PhaseExtended(phaseId, newEndTime);
+    }
+
+    /// @dev Sum of all Fixed-mode phase allocations.
+    function _totalFixedAllocations() internal view returns (uint256 sum) {
+        for (uint256 i = 0; i < phases.length; i++) {
+            if (phases[i].allocationMode == AllocationMode.Fixed) {
+                sum += phases[i].allocation;
+            }
+        }
+    }
+
     /// @notice Manage investor whitelist per phase. Only issuer.
+    /// Round-5: locked once the phase has started (fairness guarantee).
     function setWhitelist(uint256 phaseId, address[] calldata addresses, bool allow) external onlyIssuer {
         if (status == SaleStatus.Rejected) revert InvalidStatus();
+        if (phaseId >= phases.length) revert InvalidPhase();
+        if (block.timestamp >= phases[phaseId].startTime) revert PhaseStillActive();
         for (uint256 i = 0; i < addresses.length; i++) {
             whitelisted[phaseId][addresses[i]] = allow;
         }
@@ -389,26 +545,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         otcToken = IssuerOTCToken(_otcToken);
     }
 
-    /// @notice Set the sale structure. Only issuer, only in Draft status.
-    function setSaleStructure(SaleStructure _structure) external onlyIssuer onlyStatus(SaleStatus.Draft) {
-        saleStructure = _structure;
-    }
-
-    /// @notice Issuer allocates tokens to investor who paid off-platform (OTC).
-    function issuerAllocate(
-        address investor,
-        uint256 tokenAmount,
-        string calldata paymentReference
-    ) external onlyIssuer {
-        if (status != SaleStatus.Active && status != SaleStatus.Draft) revert SaleNotActive();
-        if (!identityRegistry.isVerified(investor)) revert InvestorNotVerified();
-
-        contributions[investor].tokensAllocated += tokenAmount;
-        otcAllocations[investor] += tokenAmount;
-        totalOtcAllocated += tokenAmount;
-
-        emit OTCAllocation(investor, tokenAmount, paymentReference);
-    }
+    // Round-5: setSaleStructure REMOVED — replaced by per-phase AllocationMode.
+    // Round-5: issuerAllocate REMOVED — OTC allocations now go through the
+    //          OTC token contract + buyOTC() flow. Manual off-platform OTC
+    //          refunds are tracked off-chain.
 
     /// @notice Deposit project tokens into the vault for vested mode. Only issuer.
     function depositProjectTokens(uint256 amount) external onlyIssuer nonReentrant {
@@ -439,10 +579,56 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit SaleStatusChanged(SaleStatus.Paused);
     }
 
-    /// @notice Finalize the sale. Issuer finalizes normally; admin override for abandoned sales.
+    /// @notice Finalize the sale. Issuer or admin can call when:
+    /// - finalizationPending is set (hardcap or supply hit), OR
+    /// - sale window has expired (fixed-end sales only)
+    /// Open-ended sales must use closeSale() instead.
     function finalizeSale() external onlyIssuerOrAdmin nonReentrant {
         if (status != SaleStatus.Active && status != SaleStatus.Paused) revert CannotFinalize();
-        _finalize();
+        bool windowExpired = !openEnded && block.timestamp >= saleEndTime;
+        if (!finalizationPending && !windowExpired) revert CannotFinalize();
+        _finalize(totalRaised >= softCap);
+    }
+
+    /// @notice Round-5: close an open-ended sale.
+    /// Authorization tiers:
+    /// 1. Issuer or admin (normal close)
+    /// 2. Anyone (after MAX_SALE_DURATION elapses from saleStartTime)
+    /// 3. Anyone (after INACTIVITY_TIMEOUT since lastPhaseAddedAt + below soft cap)
+    /// Preconditions: sale is Active/Paused, has at least 1 phase, no phase currently active.
+    /// @param failed If true, force the failed branch even if soft cap met.
+    function closeSale(bool failed) external nonReentrant {
+        if (status != SaleStatus.Active && status != SaleStatus.Paused) revert InvalidStatus();
+        if (phases.length == 0) revert InvalidStatus();
+
+        // No phase may be currently in its [start, end] window
+        for (uint256 i = 0; i < phases.length; i++) {
+            Phase storage p = phases[i];
+            if (block.timestamp >= p.startTime && block.timestamp <= p.endTime) {
+                revert PhaseStillActive();
+            }
+        }
+
+        bool isOwner = msg.sender == issuer || _isAdmin();
+        bool safetyFloor = openEnded && block.timestamp >= saleStartTime + MAX_SALE_DURATION;
+        bool inactivityTimeout = openEnded
+            && block.timestamp >= lastPhaseAddedAt + INACTIVITY_TIMEOUT
+            && totalRaised < softCap;
+
+        if (!isOwner && !safetyFloor && !inactivityTimeout) revert NotIssuerOrAdmin();
+
+        // Failed branch is forced for inactivity (issuer ghosted) and explicit failure.
+        bool success;
+        if (inactivityTimeout) {
+            success = false;
+        } else if (failed) {
+            success = false;
+        } else {
+            success = totalRaised >= softCap;
+        }
+
+        _finalize(success);
+        emit SaleClosed(!success, msg.sender);
     }
 
     // ── Emergency Withdrawal ────────────────────────────────────────────────
@@ -463,28 +649,61 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ── Buy ─────────────────────────────────────────────────────────────────
 
-    function buy(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
-        // ── Checks ──
+    /// @dev Shared min/topup check. First-time buyers must clear minContribution;
+    /// repeat buyers must clear topUpMin. The "last chunk" exception lets a
+    /// first-time buyer purchase below minContribution if doing so would consume
+    /// all remaining supply.
+    function _checkMinContribution(Phase storage phase, uint256 amount, uint256 tokensToAllocate) internal view {
+        if (totalContributed[msg.sender] == 0) {
+            if (amount < phase.minContribution) {
+                // Last-chunk exception: allow buying remaining supply even below min
+                uint256 remaining = totalTokenSupply - totalTokenSold;
+                if (tokensToAllocate < remaining) revert BelowMinContribution();
+            }
+        } else {
+            if (amount < phase.topUpMin) revert TopUpBelowMin();
+        }
+    }
+
+    /// @dev Shared phase + buyer eligibility checks.
+    function _checkBuyEligibility(uint256 phaseId, uint256 amount) internal view returns (Phase storage) {
         if (phaseId >= phases.length) revert InvalidPhase();
         Phase storage phase = phases[phaseId];
         if (block.timestamp < phase.startTime) revert PhaseNotStarted();
         if (block.timestamp > phase.endTime) revert PhaseEnded();
-        if (totalContributed[msg.sender] == 0 && amount < phase.minContribution) revert BelowMinContribution();
         if (phase.maxContribution > 0 && totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
         if (totalRaised + amount > hardCap) revert ExceedsHardCap();
         if (_blockContributions[block.number] + amount > maxPerBlock) revert ExceedsBlockLimit();
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
+        return phase;
+    }
 
-        uint256 tokensToAllocate = (amount * 1e18) / phase.pricePerToken;
-        if (saleStructure == SaleStructure.PhaseAllocated) {
+    /// @dev Shared phase allocation check (Fixed mode) + global supply check.
+    function _checkAllocationAndSupply(Phase storage phase, uint256 tokensToAllocate) internal view {
+        if (phase.allocationMode == AllocationMode.Fixed) {
             if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
         }
+        if (totalTokenSold + tokensToAllocate > totalTokenSupply) revert TokenSupplyExceeded();
+    }
+
+    function buy(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
+        // ── Checks ──
+        Phase storage phase = _checkBuyEligibility(phaseId, amount);
+
+        uint256 tokensToAllocate = (amount * (10 ** tokenDecimals)) / phase.pricePerToken;
+        if (tokensToAllocate == 0) revert AmountTooSmall();
+
+        _checkMinContribution(phase, amount, tokensToAllocate);
+        _checkAllocationAndSupply(phase, tokensToAllocate);
 
         // ── Effects ──
         phase.sold += tokensToAllocate;
         totalRaised += amount;
+        totalTokenSold += tokensToAllocate;
         totalContributed[msg.sender] += amount;
+        usdcContributed[msg.sender] += amount;     // Round-5: USDC-strict tracking
+        usdcContributedTotal += amount;
         _blockContributions[block.number] += amount;
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
@@ -496,12 +715,17 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             IERC20(token).safeTransfer(msg.sender, tokensToAllocate);
             contributions[msg.sender].claimed = true;
         } else {
-            fractionToken.mint(msg.sender, tokensToAllocate);
-            vault.recordAllocation(msg.sender, tokensToAllocate);
+            fractionToken.mint(msg.sender, FRACTION_ID_USDC, tokensToAllocate, "");
+            vault.recordAllocation(msg.sender, FRACTION_ID_USDC, tokensToAllocate);
         }
 
-        if (totalRaised >= hardCap) {
-            _finalize();
+        // Round-5: defer-finalize. Don't call _finalize() inline; just flag it
+        // and emit so the issuer/admin can call finalizeSale() in a separate tx.
+        if (totalRaised >= hardCap || totalTokenSold >= totalTokenSupply) {
+            if (!finalizationPending) {
+                finalizationPending = true;
+                emit FinalizationPending(totalRaised, totalTokenSold);
+            }
         }
 
         emit Purchase(msg.sender, phaseId, amount, tokensToAllocate, false);
@@ -512,39 +736,28 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     function buyOTC(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
         // ── Checks ──
         if (address(otcToken) == address(0)) revert OTCNotEnabled();
-        require(amount > 0, "amount must be > 0");
+        if (amount == 0) revert AmountTooSmall();
 
-        if (phaseId >= phases.length) revert InvalidPhase();
-        Phase storage phase = phases[phaseId];
-        if (block.timestamp < phase.startTime) revert PhaseNotStarted();
-        if (block.timestamp > phase.endTime) revert PhaseEnded();
-        if (totalContributed[msg.sender] == 0 && amount < phase.minContribution) revert BelowMinContribution();
-        if (phase.maxContribution > 0 && totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
-        if (totalRaised + amount > hardCap) revert ExceedsHardCap();
-        if (_blockContributions[block.number] + amount > maxPerBlock) revert ExceedsBlockLimit();
-        if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
-        if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
+        Phase storage phase = _checkBuyEligibility(phaseId, amount);
 
-        // Verify buyer has sufficient OTC token balance and approval
-        require(IERC20(address(otcToken)).balanceOf(msg.sender) >= amount, "insufficient OTC token balance");
-        require(IERC20(address(otcToken)).allowance(msg.sender, address(this)) >= amount, "OTC token not approved");
+        if (IERC20(address(otcToken)).balanceOf(msg.sender) < amount) revert InsufficientOTCBalance();
+        if (IERC20(address(otcToken)).allowance(msg.sender, address(this)) < amount) revert OTCNotApproved();
 
-        uint256 tokensToAllocate = (amount * 1e18) / phase.pricePerToken;
-        require(tokensToAllocate > 0, "amount too small for token allocation");
-        if (saleStructure == SaleStructure.PhaseAllocated) {
-            if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
-        }
+        uint256 tokensToAllocate = (amount * (10 ** tokenDecimals)) / phase.pricePerToken;
+        if (tokensToAllocate == 0) revert AmountTooSmall();
+
+        _checkMinContribution(phase, amount, tokensToAllocate);
+        _checkAllocationAndSupply(phase, tokensToAllocate);
 
         // ── Effects ──
         phase.sold += tokensToAllocate;
-        totalRaised += amount; // OTC counts toward hard cap
-        totalOtcAllocated += tokensToAllocate;
+        totalRaised += amount;       // OTC counts toward hard cap (1:1 by convention)
+        totalTokenSold += tokensToAllocate;
         totalContributed[msg.sender] += amount;
+        otcContributed[msg.sender] += amount;       // Round-5: OTC-strict tracking
         _blockContributions[block.number] += amount;
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
-        contributions[msg.sender].isOtc = true;
-        otcAllocations[msg.sender] += tokensToAllocate;
 
         // ── Interactions (CEI) ──
         IERC20(address(otcToken)).safeTransferFrom(msg.sender, address(this), amount);
@@ -554,8 +767,15 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             IERC20(token).safeTransfer(msg.sender, tokensToAllocate);
             contributions[msg.sender].claimed = true;
         } else {
-            fractionToken.mint(msg.sender, tokensToAllocate);
-            vault.recordAllocation(msg.sender, tokensToAllocate);
+            fractionToken.mint(msg.sender, FRACTION_ID_OTC, tokensToAllocate, "");
+            vault.recordAllocation(msg.sender, FRACTION_ID_OTC, tokensToAllocate);
+        }
+
+        if (totalRaised >= hardCap || totalTokenSold >= totalTokenSupply) {
+            if (!finalizationPending) {
+                finalizationPending = true;
+                emit FinalizationPending(totalRaised, totalTokenSold);
+            }
         }
 
         emit Purchase(msg.sender, phaseId, amount, tokensToAllocate, true);
@@ -563,23 +783,24 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ── Finalization (internal) ─────────────────────────────────────────────
 
-    function _finalize() internal {
-        if (totalRaised >= softCap) {
+    /// @dev Round-5: parameterized so closeSale can force the failed branch
+    /// even when soft cap is met.
+    function _finalize(bool success) internal {
+        finalizationPending = false;
+        if (success) {
             status = SaleStatus.FinalizedSuccess;
             finalizedAt = block.timestamp;
 
+            // Fee calc uses USDC-strict total (not totalRaised which mixes OTC).
             uint256 fee = 0;
             if (feeManager != address(0) && feeBasisPoints > 0) {
-                fee = (totalRaised * feeBasisPoints) / 10000;
+                fee = (usdcContributedTotal * feeBasisPoints) / 10000;
                 if (feeCapUsdc > 0 && fee > feeCapUsdc) fee = feeCapUsdc;
                 platformFeeCollected = fee;
                 paymentToken.safeTransfer(feeManager, fee);
             }
 
             if (saleMode == SaleMode.Vested) {
-                // Vault must already hold project tokens. Without this check,
-                // startVesting() would succeed against an empty vault and
-                // investors would receive fractions backed by nothing.
                 if (IERC20(token).balanceOf(address(vault)) == 0) revert VaultEmpty();
                 vault.startVesting();
             }
@@ -607,22 +828,40 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit TokensClaimed(msg.sender, contrib.tokensAllocated);
     }
 
+    /// @notice Round-5: admin/issuer activates the refund window after a failed sale.
+    /// One-way switch — once activated, refunds are open forever.
+    function activateRefunds() external onlyIssuerOrAdmin {
+        if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
+        if (refundsActive) revert AlreadyApproved();
+        refundsActive = true;
+        emit RefundsActivated();
+    }
+
+    /// @notice Round-5 refund — only USDC contributors are eligible.
+    /// OTC contributors get a clear revert and must use the off-chain refund flow.
     function claimRefund() external nonReentrant {
         if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
+        if (!refundsActive) revert RefundsNotActive();
         Contribution storage contrib = contributions[msg.sender];
-        if (contrib.amount == 0) revert NothingToClaim();
         if (contrib.refunded) revert AlreadyClaimed();
 
-        contrib.refunded = true;
+        uint256 refundAmount = usdcContributed[msg.sender];
+        if (refundAmount == 0) revert NotUSDCContributor();
 
+        contrib.refunded = true;
+        usdcContributed[msg.sender] = 0;
+
+        // Burn the investor's id-1 fractions (vested mode only).
+        // OTC fractions (id 2) are NOT burned — they stay with the investor as
+        // a record of their off-platform allocation. The off-chain OTC refund
+        // process handles those separately.
         if (saleMode == SaleMode.Vested) {
-            uint256 fractionBalance = fractionToken.balanceOf(msg.sender);
-            if (fractionBalance > 0) {
-                fractionToken.burnFrom(msg.sender, fractionBalance);
+            uint256 usdcFractions = fractionToken.balanceOf(msg.sender, FRACTION_ID_USDC);
+            if (usdcFractions > 0) {
+                fractionToken.burn(msg.sender, FRACTION_ID_USDC, usdcFractions);
             }
         }
 
-        uint256 refundAmount = contrib.amount;
         paymentToken.safeTransfer(msg.sender, refundAmount);
         emit RefundClaimed(msg.sender, refundAmount);
     }
