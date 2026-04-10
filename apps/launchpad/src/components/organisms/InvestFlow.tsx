@@ -2,11 +2,71 @@
 
 import { useState } from "react";
 import { useChainId } from "wagmi";
-import { Shield, AlertCircle, CheckCircle2, Wallet } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle2, Wallet, Fuel } from "lucide-react";
 import { Button, Badge } from "@/components/atoms";
 import { formatCurrency } from "@/lib/utils";
 import { getTxUrl } from "@/lib/contracts/addresses";
 import type { Project, ProjectPhase } from "@/lib/api/repositories/projects.repository";
+
+/**
+ * Shared compliance acknowledgment block. Used in both USDC and OTC approve
+ * steps so both flows enforce the same disclosure.
+ */
+export function ComplianceAcknowledgment({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="bg-box rounded-xl p-5 mb-4 space-y-4">
+      <p className="text-sm text-black/60">
+        This investment involves tokenized securities which may be subject to
+        transfer restrictions and lock-up periods. Please ensure you are eligible
+        to participate and that your local laws permit such investments.
+      </p>
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="mt-0.5 w-4 h-4 rounded border-black/20 text-darkAqua focus:ring-darkAqua"
+          data-testid="jurisdiction-checkbox"
+        />
+        <span className="text-sm text-text">
+          I confirm I am not a resident of a restricted jurisdiction
+        </span>
+      </label>
+    </div>
+  );
+}
+
+/**
+ * Low-gas warning banner. Shown when the connected wallet has less than the
+ * configured threshold of native ETH on the current chain.
+ */
+export function LowGasWarning({
+  balanceEth,
+  threshold = 0.0005,
+}: {
+  balanceEth: number | null;
+  threshold?: number;
+}) {
+  if (balanceEth == null || balanceEth >= threshold) return null;
+  return (
+    <div className="mb-4 p-3 rounded-xl bg-yellow-50 border border-yellow-200 flex gap-3 items-start">
+      <Fuel className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+      <div className="text-sm">
+        <p className="font-medium text-yellow-900">Low ETH for gas</p>
+        <p className="text-yellow-800/80">
+          You have {balanceEth.toFixed(5)} ETH. You need at least
+          {" "}{threshold.toFixed(4)} ETH to cover transaction fees.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 // Minimal ERC-20 ABI for approve
 export const ERC20_APPROVE_ABI = [
@@ -46,6 +106,12 @@ interface InvestAmountStepProps {
   onContinue: () => void;
   isConnected: boolean;
   onConnect: () => void;
+  /** Per-block contribution limit, in human units (e.g. 50_000_000 USDC). */
+  maxPerBlock?: number;
+  /** This investor's existing cumulative contribution to the sale, human units. */
+  userTotalContributed?: number;
+  /** Low-gas warning: investor's native ETH balance, in ETH (null = unknown). */
+  ethBalance?: number | null;
 }
 
 const QUICK_AMOUNTS = [500, 1000, 5000, 10000];
@@ -58,6 +124,9 @@ export function InvestAmountStep({
   onContinue,
   isConnected,
   onConnect,
+  maxPerBlock,
+  userTotalContributed = 0,
+  ethBalance = null,
 }: InvestAmountStepProps) {
   const numericAmount = parseFloat(amount) || 0;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
@@ -65,12 +134,19 @@ export function InvestAmountStep({
   const maxContrib = activePhase ? parseFloat(activePhase.max_contribution) || Infinity : Infinity;
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
 
+  // Effective max for this investor: phase max minus what they've already contributed.
+  const remainingMax = isFinite(maxContrib) ? Math.max(0, maxContrib - userTotalContributed) : Infinity;
+
   // Inline validation error
   let validationError: string | null = null;
   if (numericAmount > 0 && numericAmount < minContrib) {
     validationError = `Minimum contribution is ${formatCurrency(minContrib)}`;
-  } else if (numericAmount > 0 && numericAmount > maxContrib) {
-    validationError = `Maximum contribution is ${formatCurrency(maxContrib)}`;
+  } else if (numericAmount > 0 && numericAmount > remainingMax) {
+    validationError = isFinite(remainingMax)
+      ? `Maximum remaining for your wallet is ${formatCurrency(remainingMax)}`
+      : `Amount exceeds the maximum contribution`;
+  } else if (numericAmount > 0 && maxPerBlock && numericAmount > maxPerBlock) {
+    validationError = `Per-block limit is ${formatCurrency(maxPerBlock)}. Split into smaller transactions.`;
   }
 
   if (!isConnected) {
@@ -132,15 +208,39 @@ export function InvestAmountStep({
           <SummaryRow label="Price per Token" value={formatCurrency(pricePerToken)} />
         </div>
       )}
-      <p className="text-xs text-black/40 mb-6">
+      <p className="text-xs text-black/40 mb-2">
         Min: {formatCurrency(minContrib)} &bull; Max Allocation:{" "}
         {isFinite(maxContrib) ? formatCurrency(maxContrib) : "No Limit"}
+        {maxPerBlock != null && (
+          <>
+            {" "}&bull; Per-block: {formatCurrency(maxPerBlock)}
+          </>
+        )}
       </p>
+      {userTotalContributed > 0 && (
+        <p className="text-xs text-black/50 mb-4">
+          You&apos;ve already contributed{" "}
+          <span className="font-semibold text-text">{formatCurrency(userTotalContributed)}</span>
+          {isFinite(maxContrib) && (
+            <>
+              {" "}of {formatCurrency(maxContrib)} max
+              {" "}({formatCurrency(remainingMax)} remaining)
+            </>
+          )}
+        </p>
+      )}
+      <LowGasWarning balanceEth={ethBalance} />
       <Button
         variant="primary"
         className="w-full"
         size="lg"
-        disabled={numericAmount <= 0 || numericAmount < minContrib || numericAmount > maxContrib || !activePhase}
+        disabled={
+          numericAmount <= 0 ||
+          numericAmount < minContrib ||
+          numericAmount > remainingMax ||
+          (maxPerBlock != null && numericAmount > maxPerBlock) ||
+          !activePhase
+        }
         onClick={onContinue}
       >
         Continue
@@ -171,10 +271,7 @@ export function InvestApproveStep({
   hasEnoughAllowance = false,
   onSkip,
 }: InvestApproveStepProps) {
-  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
-  const [jurisdictionConfirmed, setJurisdictionConfirmed] = useState(false);
-
-  const complianceMet = riskAcknowledged && jurisdictionConfirmed;
+  const [complianceMet, setComplianceMet] = useState(false);
 
   return (
     <>
@@ -213,24 +310,7 @@ export function InvestApproveStep({
       {/* If enough allowance, show skip button prominently */}
       {hasEnoughAllowance && onSkip && (
         <div className="mb-6">
-          {/* Compliance acknowledgment */}
-          <div className="bg-box rounded-xl p-5 mb-4 space-y-4">
-            <p className="text-sm text-black/60">
-              This investment involves tokenized securities which may be subject to transfer restrictions and lock-up periods.
-            </p>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={jurisdictionConfirmed}
-                onChange={(e) => { setJurisdictionConfirmed(e.target.checked); setRiskAcknowledged(e.target.checked); }}
-                className="mt-0.5 w-4 h-4 rounded border-black/20 text-darkAqua focus:ring-darkAqua"
-                data-testid="jurisdiction-checkbox"
-              />
-              <span className="text-sm text-text">
-                I confirm I am not a resident of a restricted jurisdiction
-              </span>
-            </label>
-          </div>
+          <ComplianceAcknowledgment checked={complianceMet} onChange={setComplianceMet} />
           {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
           <Button variant="primary" className="w-full" size="lg" onClick={onSkip} disabled={!complianceMet}>
             Continue to Purchase
@@ -250,25 +330,7 @@ export function InvestApproveStep({
             <p className="text-sm text-black/50">This is a one-time approval for this investment</p>
           </div>
 
-          {/* Compliance acknowledgment */}
-          <div className="bg-box rounded-xl p-5 mb-6 space-y-4">
-            <p className="text-sm text-black/60">
-              This investment involves tokenized securities which may be subject to transfer restrictions and lock-up periods.
-              Please ensure you are eligible to participate and that your local laws permit such investments.
-            </p>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={jurisdictionConfirmed}
-                onChange={(e) => { setJurisdictionConfirmed(e.target.checked); setRiskAcknowledged(e.target.checked); }}
-                className="mt-0.5 w-4 h-4 rounded border-black/20 text-darkAqua focus:ring-darkAqua"
-                data-testid="jurisdiction-checkbox"
-              />
-              <span className="text-sm text-text">
-                I confirm I am not a resident of a restricted jurisdiction
-              </span>
-            </label>
-          </div>
+          <ComplianceAcknowledgment checked={complianceMet} onChange={setComplianceMet} />
 
           <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
             <AlertCircle className="w-5 h-5 text-darkAqua flex-shrink-0" />
@@ -312,11 +374,11 @@ export function InvestConfirmStep({
       <div className="bg-box rounded-xl p-6 space-y-4 mb-6">
         <SummaryRow label="Project" value={project.title} />
         <SummaryRow label="Amount" value={formatCurrency(amount)} />
-        <SummaryRow label="Tokens" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
-        <div className="pt-4 border-t border-black/10">
-          <SummaryRow label="Network Fee" value="~$0.10" />
-        </div>
+        <SummaryRow label="Tokens" value={`${tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${project.tokenSymbol}`} />
       </div>
+      <p className="text-xs text-black/40 mb-4 text-center">
+        Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
+      </p>
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
       <div className="flex gap-3">
         {onBack && (

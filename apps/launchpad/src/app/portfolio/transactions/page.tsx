@@ -11,7 +11,7 @@ import {
   type TransactionFilters,
   type Holding,
 } from "@/lib/api/repositories/portfolio.repository";
-import { truncateAddress } from "@/lib/utils";
+import { truncateAddress, formatTokenDisplay } from "@/lib/utils";
 import { getTxUrl } from "@/lib/contracts/addresses";
 import { useChainId } from "wagmi";
 
@@ -241,7 +241,7 @@ export default function TransactionsPage() {
                             Number(tx.tokens_allocated) > 0 &&
                             tx.type === "investment" && (
                               <p className="text-black/30 text-xs">
-                                {Number(tx.tokens_allocated).toLocaleString()} tokens
+                                {formatTokenDisplay(tx.tokens_allocated)} tokens
                               </p>
                             )}
                         </td>

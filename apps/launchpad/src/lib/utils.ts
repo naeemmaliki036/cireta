@@ -59,6 +59,27 @@ export function formatTokenAmount(
 }
 
 /**
+ * Format a token allocation amount that may already be a decimal-scaled number.
+ * Handles three cases: zero, very small (renders "<0.0001" or scientific),
+ * and normal (locale-formatted with up to 4 decimals).
+ *
+ * Used by the Transactions table where the value comes from the backend as a
+ * decimal string and may underflow to scientific notation (e.g. "1.176470E-12").
+ */
+export function formatTokenDisplay(value: number | string): string {
+  const num = typeof value === "string" ? Number(value) : value;
+  if (!isFinite(num) || num === 0) return "0";
+  if (num < 0.0001 && num > -0.0001) {
+    // Show one significant figure in scientific form for tiny values
+    return num.toExponential(2);
+  }
+  if (Math.abs(num) < 1) {
+    return num.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  }
+  return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
+/**
  * Truncate wallet address for display
  */
 export function truncateAddress(address: string, chars = 4): string {

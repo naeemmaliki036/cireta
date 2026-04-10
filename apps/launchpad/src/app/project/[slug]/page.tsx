@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar, Button } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatTokenDisplay } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
@@ -655,7 +655,7 @@ export default function ProjectDetailPage() {
                                   {isOffPlatform ? (
                                     <>
                                       <p className="text-text font-semibold">
-                                        {Number(tx.tokens_allocated).toLocaleString()}{" "}
+                                        {formatTokenDisplay(tx.tokens_allocated)}{" "}
                                         <span className="text-gray-400 font-normal text-xs">{tx.token_symbol || "tokens"}</span>
                                       </p>
                                       <p className="text-gray-400 text-xs">Off-platform</p>
@@ -667,7 +667,7 @@ export default function ProjectDetailPage() {
                                         <span className="text-gray-400 font-normal text-xs">{isOtc ? "OTC" : "USDC"}</span>
                                       </p>
                                       {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && (
-                                        <p className="text-gray-400 text-xs">{Number(tx.tokens_allocated).toLocaleString()} tokens</p>
+                                        <p className="text-gray-400 text-xs">{formatTokenDisplay(tx.tokens_allocated)} tokens</p>
                                       )}
                                     </>
                                   )}

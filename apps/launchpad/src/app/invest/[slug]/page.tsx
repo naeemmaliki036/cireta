@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { useAccount, useBalance, useChainId, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits, formatUnits, zeroAddress } from "viem";
 import { Button } from "@/components/atoms";
@@ -15,6 +15,7 @@ import {
   InvestApproveStep,
   InvestConfirmStep,
   InvestSuccessStep,
+  ComplianceAcknowledgment,
   ERC20_APPROVE_ABI,
   type InvestStep,
 } from "@/components/organisms/InvestFlow";
@@ -26,39 +27,10 @@ import { Spinner } from "@/components/atoms";
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { OTC_TOKEN_ABI, SALE_OTC_ABI } from "@/lib/contracts/otcTokenAbi";
 import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
+import { parseRevertReason } from "@/lib/contracts/revertReasons";
 
-/**
- * Map common Sale contract revert reasons to user-friendly messages.
- */
-const REVERT_MESSAGES: Record<string, string> = {
-  "KYC required": "Your wallet is not KYC-verified. Please complete identity verification first.",
-  "not whitelisted": "Your wallet is not whitelisted for this sale phase.",
-  "below min": "Amount is below the minimum contribution for this phase.",
-  "exceeds max": "Amount exceeds the maximum contribution limit.",
-  "exceeds hard cap": "This contribution would exceed the sale's hard cap.",
-  "phase not started": "This sale phase has not started yet.",
-  "phase ended": "This sale phase has ended.",
-  "exceeds allocation": "This phase's token allocation is fully subscribed.",
-  "exceeds block limit": "Too many contributions in this block. Please try again shortly.",
-  "invalid phase": "Invalid sale phase.",
-};
-
-function parseRevertReason(error: unknown): string {
-  const msg = error instanceof Error ? error.message : String(error);
-  // Check for known revert reasons in the error message
-  for (const [key, value] of Object.entries(REVERT_MESSAGES)) {
-    if (msg.toLowerCase().includes(key.toLowerCase())) return value;
-  }
-  if (msg.includes("User rejected") || msg.includes("user rejected")) {
-    return "Transaction was rejected in your wallet.";
-  }
-  if (msg.includes("insufficient funds")) {
-    return "Insufficient USDC balance.";
-  }
-  return "Transaction failed. Please try again.";
-}
-
-const STEPS = ["amount", "approve", "confirm"] as const;
+// Steps shown in the progress bar (success is rendered separately).
+const STEPS_BAR = ["amount", "approve", "confirm"] as const;
 
 export default function InvestPage() {
   const params = useParams<{ slug: string }>();
@@ -77,6 +49,7 @@ export default function InvestPage() {
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isContributing, setIsContributing] = useState(false);
+  const [otcComplianceMet, setOtcComplianceMet] = useState(false);
 
   // Payment token from the sale (e.g. cUSDC, USDT) — falls back to global config
   const usdcAddress = (paymentTokenAddress as `0x${string}`) || getUsdcAddress(chainId);
@@ -97,6 +70,31 @@ export default function InvestPage() {
     args: connectedAddress ? [connectedAddress] : undefined,
     query: { enabled: !!connectedAddress && !!identityRegistryAddress },
   });
+
+  // Read native ETH balance for low-gas warning
+  const { data: nativeBalance } = useBalance({
+    address: connectedAddress,
+    query: { enabled: !!connectedAddress },
+  });
+  const ethBalance = nativeBalance ? Number(formatUnits(nativeBalance.value, 18)) : null;
+
+  // Read sale.maxPerBlock() and sale.totalContributed[wallet] for amount-step display
+  const { data: saleMaxPerBlock } = useReadContract({
+    address: saleContractAddress ?? undefined,
+    abi: [{ name: "maxPerBlock", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }] as const,
+    functionName: "maxPerBlock",
+    query: { enabled: !!saleContractAddress },
+  });
+  const maxPerBlockUsdc = saleMaxPerBlock != null ? Number(formatUnits(saleMaxPerBlock as bigint, 6)) : undefined;
+
+  const { data: userTotalContributedRaw } = useReadContract({
+    address: saleContractAddress ?? undefined,
+    abi: [{ name: "totalContributed", type: "function", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ type: "uint256" }] }] as const,
+    functionName: "totalContributed",
+    args: connectedAddress ? [connectedAddress] : undefined,
+    query: { enabled: !!saleContractAddress && !!connectedAddress },
+  });
+  const userTotalContributed = userTotalContributedRaw != null ? Number(formatUnits(userTotalContributedRaw as bigint, 6)) : 0;
 
   // Read existing USDC allowance — skip approve step if sufficient
   const amountWei = amount ? parseUnits(amount, 6) : BigInt(0);
@@ -199,12 +197,17 @@ export default function InvestPage() {
     query: { enabled: !!otcTokenAddress },
   });
 
-  const otcTokenDecimals = typeof otcDecimals === "number" ? otcDecimals : 18;
-  const otcTokenSymbol = typeof otcSymbol === "string" ? otcSymbol : "cOTC";
-  const otcBalanceFormatted = otcBalance
+  const otcDecimalsLoaded = typeof otcDecimals === "number";
+  const otcSymbolLoaded = typeof otcSymbol === "string";
+  const otcMetadataReady = otcDecimalsLoaded && otcSymbolLoaded;
+  const otcTokenDecimals = otcDecimalsLoaded ? (otcDecimals as number) : 6;
+  const otcTokenSymbol = otcSymbolLoaded ? (otcSymbol as string) : "…";
+  const otcBalanceFormatted = otcBalance && otcDecimalsLoaded
     ? Number(formatUnits(otcBalance as bigint, otcTokenDecimals))
     : 0;
   const hasOtcBalance = otcBalanceFormatted > 0;
+  // Sale advertises OTC support if the OTC token address is non-zero on-chain.
+  const saleHasOtcToken = otcTokenAddress != null;
 
   // Read OTC token allowance — skip approve step if sufficient
   const { data: otcAllowance, refetch: refetchOtcAllowance } = useReadContract({
@@ -480,14 +483,14 @@ export default function InvestPage() {
           {/* Progress bar */}
           {step !== "success" && (
             <div className="mb-8 flex items-center justify-between relative">
-              {STEPS.map((s, i) => (
+              {STEPS_BAR.map((s, i) => (
                 <div key={s} className="flex flex-col items-center z-10">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     step === s ? "bg-darkAqua text-white"
-                      : i < STEPS.indexOf(step as (typeof STEPS)[number]) ? "bg-green-500 text-white"
+                      : i < STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number]) ? "bg-green-500 text-white"
                       : "bg-black/10 text-black/50"
                   }`}>
-                    {i < STEPS.indexOf(step as (typeof STEPS)[number])
+                    {i < STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number])
                       ? <CheckCircle2 className="h-5 w-5" /> : i + 1}
                   </div>
                   <span className="text-xs mt-2 text-black/50 capitalize">{s}</span>
@@ -495,7 +498,7 @@ export default function InvestPage() {
               ))}
               <div className="absolute top-5 left-0 right-0 h-0.5 bg-black/10 -z-0">
                 <div className="h-full bg-green-500 transition-all"
-                  style={{ width: `${STEPS.indexOf(step as (typeof STEPS)[number]) * 50}%` }}/>
+                  style={{ width: `${STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number]) * 50}%` }}/>
               </div>
             </div>
           )}
@@ -576,7 +579,7 @@ export default function InvestPage() {
             {saleOtcEnabled && !paymentMethod && activePhase && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-text text-center">How would you like to invest?</h2>
-                <div className={`grid grid-cols-1 ${hasOtcBalance ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <button
                     onClick={() => setPaymentMethod("crypto")}
                     className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
@@ -585,10 +588,11 @@ export default function InvestPage() {
                     <h3 className="font-semibold text-text">On-Chain (USDC)</h3>
                     <p className="text-sm text-gray-500">Pay with USDC from your connected wallet. Instant settlement on Base.</p>
                   </button>
-                  {hasOtcBalance && (
+                  {saleHasOtcToken && hasOtcBalance ? (
                     <button
                       onClick={() => setPaymentMethod("otc_token")}
-                      className="p-6 rounded-2xl border-2 border-darkAqua/30 hover:border-darkAqua transition-colors text-left space-y-2 bg-darkAqua/5"
+                      disabled={!otcMetadataReady}
+                      className="p-6 rounded-2xl border-2 border-darkAqua/30 hover:border-darkAqua transition-colors text-left space-y-2 bg-darkAqua/5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span className="text-2xl">&#x1F3AB;</span>
                       <h3 className="font-semibold text-text">OTC Token ({otcTokenSymbol})</h3>
@@ -596,7 +600,18 @@ export default function InvestPage() {
                         Use your {otcTokenSymbol} balance: {otcBalanceFormatted.toLocaleString()} tokens available.
                       </p>
                     </button>
-                  )}
+                  ) : saleHasOtcToken ? (
+                    <div className="p-6 rounded-2xl border-2 border-dashed border-black/10 text-left space-y-2 opacity-70 cursor-not-allowed">
+                      <span className="text-2xl">&#x1F3AB;</span>
+                      <h3 className="font-semibold text-text">OTC Token{otcSymbolLoaded ? ` (${otcTokenSymbol})` : ""}</h3>
+                      <p className="text-sm text-gray-500">
+                        You don&apos;t have any OTC vouchers in this wallet.
+                      </p>
+                      <p className="text-xs text-darkAqua">
+                        Contact <a href="mailto:otc@cireta.com" className="underline">otc@cireta.com</a> to request an allocation.
+                      </p>
+                    </div>
+                  ) : null}
                   <button
                     onClick={() => setPaymentMethod("otc")}
                     className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
@@ -618,13 +633,12 @@ export default function InvestPage() {
                     This sale accepts investments via bank wire transfer and OTC allocation.
                     Review the full instructions on the project page.
                   </p>
-                  <a
+                  <Link
                     href={`/project/${params.slug}#otc`}
-                    onClick={(e) => { e.preventDefault(); window.history.back(); }}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-darkAqua hover:underline"
                   >
                     View OTC & Bank Instructions on Project Page &#x2192;
-                  </a>
+                  </Link>
                 </div>
                 <div className="p-4 rounded-xl bg-gray-50 text-sm space-y-2">
                   <p className="font-medium text-text">For large allocations ($50,000+)</p>
@@ -678,6 +692,11 @@ export default function InvestPage() {
                     Amount exceeds your {otcTokenSymbol} balance.
                   </div>
                 )}
+                {maxPerBlockUsdc != null && numericAmount > maxPerBlockUsdc && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
+                    Per-block limit is {maxPerBlockUsdc.toLocaleString()} {otcTokenSymbol}. Split into smaller transactions.
+                  </div>
+                )}
                 {numericAmount > 0 && numericAmount <= otcBalanceFormatted && (
                   <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
                     <div className="flex justify-between text-sm">
@@ -690,9 +709,31 @@ export default function InvestPage() {
                     </div>
                   </div>
                 )}
+                {maxPerBlockUsdc != null && (
+                  <p className="text-xs text-black/40 mb-2">
+                    Per-block limit: {maxPerBlockUsdc.toLocaleString()} {otcTokenSymbol}
+                  </p>
+                )}
+                {userTotalContributed > 0 && (
+                  <p className="text-xs text-black/50 mb-3">
+                    You&apos;ve already contributed{" "}
+                    <span className="font-semibold text-text">{userTotalContributed.toLocaleString()}</span> to this sale.
+                  </p>
+                )}
+                {ethBalance != null && ethBalance < 0.0005 && (
+                  <div className="mb-4 p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
+                    Low ETH for gas: you have {ethBalance.toFixed(5)} ETH. Top up before continuing.
+                  </div>
+                )}
                 <Button
                   variant="primary" className="w-full" size="lg"
-                  disabled={numericAmount <= 0 || numericAmount > otcBalanceFormatted || !activePhase}
+                  disabled={
+                    !otcMetadataReady ||
+                    numericAmount <= 0 ||
+                    numericAmount > otcBalanceFormatted ||
+                    (maxPerBlockUsdc != null && numericAmount > maxPerBlockUsdc) ||
+                    !activePhase
+                  }
                   onClick={() => {
                     refetchOtcAllowance().then(({ data: a }) => {
                       const needed = parseUnits(amount || "0", otcTokenDecimals);
@@ -704,7 +745,7 @@ export default function InvestPage() {
                     }).catch(() => setStep("approve"));
                   }}
                 >
-                  Continue
+                  {otcMetadataReady ? "Continue" : "Loading…"}
                 </Button>
                 <button
                   onClick={() => { setPaymentMethod(null); setAmount(""); setStep("amount"); }}
@@ -724,11 +765,17 @@ export default function InvestPage() {
                   <p className="font-semibold text-text mb-2">Approve {numericAmount.toLocaleString()} {otcTokenSymbol}</p>
                   <p className="text-sm text-black/50">This is a one-time approval for this investment</p>
                 </div>
+                <ComplianceAcknowledgment checked={otcComplianceMet} onChange={setOtcComplianceMet} />
                 <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
                   <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet.</p>
                 </div>
                 {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-                <Button variant="primary" className="w-full" size="lg" onClick={handleOtcApprove} isLoading={isOtcApproving}>
+                <Button
+                  variant="primary" className="w-full" size="lg"
+                  onClick={handleOtcApprove}
+                  isLoading={isOtcApproving}
+                  disabled={!otcComplianceMet || !otcMetadataReady || isOtcApproving}
+                >
                   {isOtcApproving ? "Approving..." : `Approve ${otcTokenSymbol}`}
                 </Button>
               </>
@@ -750,17 +797,19 @@ export default function InvestPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-black/50">Tokens</span>
-                    <span className="font-semibold">{tokensToReceive.toLocaleString()} {project.tokenSymbol}</span>
-                  </div>
-                  <div className="pt-4 border-t border-black/10">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-black/50">Network Fee</span>
-                      <span className="font-semibold">~$0.10</span>
-                    </div>
+                    <span className="font-semibold">{tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} {project.tokenSymbol}</span>
                   </div>
                 </div>
+                <p className="text-xs text-black/40 mb-4 text-center">
+                  Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
+                </p>
                 {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-                <Button variant="primary" className="w-full" size="lg" onClick={handleOtcConfirm} isLoading={otcConfirmLoading}>
+                <Button
+                  variant="primary" className="w-full" size="lg"
+                  onClick={handleOtcConfirm}
+                  isLoading={otcConfirmLoading}
+                  disabled={!otcMetadataReady || otcConfirmLoading}
+                >
                   {otcConfirmLoading ? "Confirming..." : "Confirm Investment"}
                 </Button>
               </>
@@ -787,6 +836,9 @@ export default function InvestPage() {
                     .catch(() => setStep("approve"));
                 }}
                 isConnected={isConnected} onConnect={() => openConnectModal?.()}
+                maxPerBlock={maxPerBlockUsdc}
+                userTotalContributed={userTotalContributed}
+                ethBalance={ethBalance}
               />
             )}
             {paymentMethod === "crypto" && step === "approve" && (
