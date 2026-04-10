@@ -11,6 +11,9 @@ import {
   ShoppingBag,
   FolderOpen,
   Send,
+  Wallet,
+  Shield,
+  Bell,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -26,6 +29,13 @@ const ACCOUNT_LINKS = [
   { href: "/portfolio/vesting", label: "Vesting", icon: Clock },
   { href: "/portfolio/transfer", label: "Transfer", icon: Send },
   { href: "/portfolio/transactions", label: "Transactions", icon: FileText },
+];
+
+const SETTINGS_LINKS = [
+  { href: "/settings/profile", label: "Profile", icon: User },
+  { href: "/settings/wallets", label: "Wallets", icon: Wallet },
+  { href: "/settings/verification", label: "Verification", icon: Shield },
+  { href: "/settings/notifications", label: "Notifications", icon: Bell },
 ];
 
 export interface DashboardLayoutProps {
@@ -90,6 +100,27 @@ export function DashboardLayout({
             </nav>
           </div>
 
+          <div className="mt-6">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Settings</p>
+            <nav className="space-y-1">
+              {SETTINGS_LINKS.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      isActive ? "bg-gray-100 text-text" : "text-gray-500 hover:bg-gray-50 hover:text-text"
+                    )}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         </aside>
 
         {/* Main Content */}
