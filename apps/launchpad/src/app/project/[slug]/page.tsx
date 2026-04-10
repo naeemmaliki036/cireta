@@ -271,7 +271,7 @@ export default function ProjectDetailPage() {
                   <div className="space-y-2.5 text-sm mb-4">
                     {!project.isComingSoon && endTime && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
                     <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minContrib.toLocaleString()} USDC`}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Max. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : maxContrib > 0 ? `${maxContrib.toLocaleString()} USDC` : "Unlimited"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Max. Allocation</span><span className="font-medium">{project.isComingSoon ? "TBD" : maxContrib > 0 ? `${maxContrib.toLocaleString()} USDC` : "No Limit"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
                   </div>
@@ -463,7 +463,7 @@ export default function ProjectDetailPage() {
                                   <p className="font-semibold">{formatCurrency(parseFloat(phase.min_contribution))}</p>
                                 </div>
                                 <div>
-                                  <p className="text-gray-500 text-xs mb-0.5">Max Buy</p>
+                                  <p className="text-gray-500 text-xs mb-0.5">Max. Allocation</p>
                                   <p className="font-semibold">{formatCurrency(parseFloat(phase.max_contribution))}</p>
                                 </div>
                               </div>

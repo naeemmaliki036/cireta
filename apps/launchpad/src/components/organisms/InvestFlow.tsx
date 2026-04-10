@@ -131,8 +131,8 @@ export function InvestAmountStep({
         </div>
       )}
       <p className="text-xs text-black/40 mb-6">
-        Min: {formatCurrency(minContrib)} &bull; Max:{" "}
-        {isFinite(maxContrib) ? formatCurrency(maxContrib) : "Unlimited"}
+        Min: {formatCurrency(minContrib)} &bull; Max Allocation:{" "}
+        {isFinite(maxContrib) ? formatCurrency(maxContrib) : "No Limit"}
       </p>
       <Button
         variant="primary"

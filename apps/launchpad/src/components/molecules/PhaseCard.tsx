@@ -122,7 +122,7 @@ export function PhaseCard({
           <span className="font-medium">{formatCurrency(minContribution)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Max Contribution</span>
+          <span className="text-gray-500">Max. Allocation</span>
           <span className="font-medium">{formatCurrency(maxContribution)}</span>
         </div>
         <div className="flex justify-between">
