@@ -202,7 +202,57 @@ for any deployed proxy** — existing testnet sales must be redeployed.
 | R | `mint` `amount > 0` on OTC token | `IssuerOTCToken.sol` | `0x...` `ZeroAmount` ✅ |
 | S | All new selectors mapped in launchpad `revertReasons.ts` | `apps/launchpad/src/lib/contracts/revertReasons.ts` | ✅ |
 
-### Deploy plan (testnet)
+### Deployed (Base Sepolia, 2026-04-10)
+
+Round-4 implementations deployed via `scripts/deploy_round4_impls.py` and
+the live factories now point at them. Existing sales already deployed
+against the old impls keep running on the old code.
+
+| Contract | New impl address | Tx |
+| --- | --- | --- |
+| `Sale` | `0xD33f9b093160C124aa7946AE42BDf31183A7f3c9` | `0x362deb4d…2cb2a4cb` |
+| `IssuerOTCToken` | `0x928884Aa3C4A62DCac83959D9D4114deEf948fDD` | `0x5d332d33…ee6f9b249` |
+
+Factory pointer updates:
+
+| Factory | Setter call | Tx |
+| --- | --- | --- |
+| `CiretaSaleFactory` `setSaleImplementation` | → `0xD33f9b09…` | `0x286b0558…dde44614e` |
+| `IssuerOTCTokenFactory` `setOTCTokenImplementation` | → `0x928884Aa…` | `0xf4044af6…0a1863d73` |
+
+`contracts/deployments/base-sepolia.json` updated to reflect the new
+addresses. Verified via:
+```bash
+cast call $SALE_FACTORY 'saleImplementation()(address)' --rpc-url base-sepolia
+# → 0xD33f9b093160C124aa7946AE42BDf31183A7f3c9
+cast call $OTC_FACTORY 'otcTokenImplementation()(address)' --rpc-url base-sepolia
+# → 0x928884Aa3C4A62DCac83959D9D4114deEf948fDD
+```
+
+#### Not yet deployed: `CiretaVault` + `CiretaFractionToken`
+
+`CiretaFractionFactory` is owned by `CiretaSaleFactory`
+(`0xf83CbEf4…`), not by the admin wallet, and the SaleFactory does not
+expose pass-through setters. To swap the vault/fraction impls we need
+to either:
+
+1. **Upgrade `CiretaSaleFactory`** (it's UUPS-upgradeable) to add
+   pass-through setters `setFractionVaultImpl(address)` /
+   `setFractionTokenImpl(address)` that internally call
+   `fractionFactory.setVaultImplementation(impl)` and
+   `fractionFactory.setFractionTokenImplementation(impl)`. Cleanest;
+   leaves the security boundary intact.
+2. Add a one-shot `setFractionFactoryOwner(address)` to SaleFactory,
+   transfer FractionFactory ownership to admin, do the updates, transfer
+   back. Less clean but smaller change.
+
+Tracked as a follow-up. Until then, **new sales deployed via
+CiretaSaleFactory will use the new Sale impl + the old Vault/Fraction
+impls.** That means the new sale-level + phase-level validation works,
+but the new `amount > 0` checks on fraction mint/burn and the
+`InvalidVestingConfig` check don't apply yet.
+
+### Deploy plan (testnet) — for the next round
 
 The new code requires deploying a fresh **implementation** contract for
 each touched contract and pointing the factory(ies) at the new impls.
