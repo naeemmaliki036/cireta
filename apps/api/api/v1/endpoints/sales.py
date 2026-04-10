@@ -38,8 +38,18 @@ async def get_sale_service(
     return SaleService(db)
 
 
-def _phase_to_response(phase) -> SalePhaseResponse:
-    """Convert phase model to response."""
+def _phase_to_response(
+    phase,
+    sold_map: dict[str, tuple[str, str]] | None = None,
+) -> SalePhaseResponse:
+    """Convert phase model to response.
+
+    `sold_map` maps phase_id (str) → (tokens_sold, usdc_raised). When omitted,
+    the response shows zeros.
+    """
+    sold = ("0", "0")
+    if sold_map is not None:
+        sold = sold_map.get(str(phase.id), ("0", "0"))
     return SalePhaseResponse(
         id=str(phase.id),
         phase_number=phase.phase_number,
@@ -52,11 +62,43 @@ def _phase_to_response(phase) -> SalePhaseResponse:
         end_time=phase.end_time,
         whitelist_only=phase.whitelist_only,
         is_active=phase.is_active,
+        tokens_sold=sold[0],
+        usdc_raised=sold[1],
     )
 
 
-def _sale_to_response(sale) -> SaleResponse:
-    """Convert sale model to response."""
+async def _phase_sold_map(
+    db: AsyncSession,
+    sale_id: UUID,
+) -> dict[str, tuple[str, str]]:
+    """Aggregate confirmed contribution totals per phase for a sale.
+
+    Returns a map of phase_id (str) → (tokens_sold, usdc_raised).
+    """
+    from sqlalchemy import func, select as _select
+
+    from apps.api.models.contribution import Contribution
+
+    rows = await db.execute(
+        _select(
+            Contribution.phase_id,
+            func.coalesce(func.sum(Contribution.tokens_allocated), 0),
+            func.coalesce(func.sum(Contribution.amount), 0),
+        )
+        .where(
+            Contribution.sale_id == sale_id,
+            Contribution.status == "confirmed",
+        )
+        .group_by(Contribution.phase_id)
+    )
+    return {str(pid): (str(tokens), str(amount)) for pid, tokens, amount in rows.all()}
+
+
+def _sale_to_response(
+    sale,
+    sold_map: dict[str, tuple[str, str]] | None = None,
+) -> SaleResponse:
+    """Convert sale model to response. Optional `sold_map` populates per-phase aggregates."""
     return SaleResponse(
         id=str(sale.id),
         token_id=str(sale.token_id) if sale.token_id else None,
@@ -90,7 +132,7 @@ def _sale_to_response(sale) -> SaleResponse:
         hard_cap_reached=sale.hard_cap_reached,
         remaining_capacity=str(sale.remaining_capacity),
         contract_address=getattr(sale, "contract_address", None),
-        phases=[_phase_to_response(p) for p in sale.phases],
+        phases=[_phase_to_response(p, sold_map) for p in sorted(sale.phases, key=lambda ph: ph.start_time)],
         token_name=sale.token.name if sale.token else None,
         token_symbol=sale.token.symbol if sale.token else None,
         token_slug=sale.token.slug if sale.token else None,
@@ -142,7 +184,8 @@ async def get_sale_by_slug(
         from fastapi import HTTPException
 
         raise HTTPException(status_code=404, detail="Project not found")
-    return _sale_to_response(sale)
+    sold_map = await _phase_sold_map(sale_service.db, sale.id)
+    return _sale_to_response(sale, sold_map)
 
 
 @router.get("", response_model=SaleListResponse)
@@ -176,7 +219,8 @@ async def get_sale(
     Public endpoint.
     """
     sale = await sale_service.get_sale(sale_id)
-    return _sale_to_response(sale)
+    sold_map = await _phase_sold_map(sale_service.db, sale.id)
+    return _sale_to_response(sale, sold_map)
 
 
 @router.patch("/{sale_id}", response_model=SaleResponse)

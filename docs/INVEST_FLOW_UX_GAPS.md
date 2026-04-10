@@ -6,9 +6,13 @@ which describes how the flow is *meant* to work end-to-end.
 
 Reviewed: 2026-04-10 against commit `ee4f450` on `staging`.
 
-> **Status:** All in-app gaps (#1–12) **fixed** in the follow-up commit.
+> **Status:** All in-app gaps (#1–12) **fixed** in commit `5ba637d`.
 > #13 (test wallet topup script) is left as a separate operational task.
 > See "Implementation order" at the bottom for the per-gap status check.
+>
+> **Round 2 fixes** (commit pending) close the **phase display gaps**
+> (#14–16) and the **Account/Settings IA duplication** (#17). See the new
+> sections below.
 
 Files referenced:
 - `apps/launchpad/src/app/invest/[slug]/page.tsx` — invest page (state, hooks)
@@ -162,6 +166,95 @@ rendered separately and the progress bar uses only the first three. Cosmetic.
 intentionally hides at success), or rename to `STEPS_BAR` to make intent
 explicit.
 
+## Phase display issues (round 2)
+
+### 14. Phase numbering — duplicate `phase_number=1`
+**Where:** `apps/launchpad/src/app/project/[slug]/page.tsx` (Token & Sale tab),
+phases rendered with `Phase {phase.phase_number}: {phase.name}`.
+**Symptom:** Two distinct phases on the same sale both display as "Phase 1"
+because the DB column has `phase_number = 1, 1, 2` (duplicates).
+The retail-phase commit (`f09f7d0`) added a phase but didn't reset the
+existing numbering.
+**Fix:** ignore `phase_number` for display; sort phases by `start_time` and
+render the index (`Phase {idx + 1}: {name}`). Backend `_sale_to_response`
+also now returns phases sorted by `start_time` so list views and detail
+views agree.
+
+### 15. Per-phase `sold` hardcoded to `0`
+**Where:** `project/[slug]/page.tsx:434` (now fixed):
+```ts
+const phaseSoldPct = 0; // TODO: wire per-phase sold data when API supports it
+```
+**Symptom:** Every phase always shows `0% sold (0/2,882)` regardless of
+actual contributions. Today the Wassa sale has 5 confirmed contributions
+totalling $100M raised, but the phase bars show 0.
+**Fix:**
+- **Backend:** new `_phase_sold_map(db, sale_id)` helper aggregates
+  `SUM(tokens_allocated)` and `SUM(amount)` from `contributions` grouped by
+  `phase_id` (filter `status='confirmed'`). Returned as a map and injected
+  into `_phase_to_response`.
+- **Schema:** `SalePhaseResponse` gains `tokens_sold: str` and
+  `usdc_raised: str` fields, defaulted to `"0"`.
+- **Endpoints:** `get_sale` and `get_sale_by_slug` compute and pass the map.
+  `list_sales` does not (the list view doesn't render per-phase bars).
+- **Frontend:** project page reads `phase.tokens_sold` and
+  `phase.usdc_raised` and renders the bar accordingly.
+
+### 16. `Allocation` column lies for `price_tiered` sales
+**Where:** Same Token & Sale tab.
+**Symptom:** The contract has two `SaleStructure` modes:
+```solidity
+enum SaleStructure { PhaseAllocated, PriceTiered }
+```
+- **`PhaseAllocated`** — each phase has its own enforced cap. `phase.allocation`
+  is real and hard.
+- **`PriceTiered`** — `phase.allocation` is **completely ignored** by the
+  contract. There's a single shared global pool capped only by `hardCap`.
+  Phases are price tiers + time windows.
+
+The Wassa Gold sale is `price_tiered`. Showing `Allocation: 2,882` per phase
+implies three independent buckets when in fact there's one shared pool.
+**Fix:**
+- **Backend:** `sale_structure` was already exposed on `SaleResponse`.
+- **Frontend:**
+  - Read `saleRaw.sale_structure` and branch on it
+  - Render an explainer banner above the phase list:
+    - `price_tiered` → "All phases sell from a single shared pool of {hardCap}. Earlier phases offer different pricing; unsold supply from one phase remains available in the next."
+    - `phase_allocated` → "Each phase has its own token allocation cap. Tokens unsold at the end of a phase do not roll over."
+  - Hide the per-phase "Allocation" column entirely for `price_tiered`
+  - For the per-phase bar:
+    - `price_tiered` → show `{usdc_raised} raised in this tier` and the bar fills against the global hardCap fraction this tier contributed
+    - `phase_allocated` → show `{tokens_sold}/{allocation} ({pct}%)` and the bar fills against the per-phase cap
+
+## Account / Settings IA duplication (round 2)
+
+### 17. `Wallets` (and Profile, Notifications) appear in two places at once
+**Where:** sidebar `DashboardLayout.tsx` and `/account/page.tsx`.
+**Symptom:** From the user screenshot, the sidebar showed `ACCOUNT > Account`
+with internal **tabs** for Profile / Wallets / Notifications, AND a separate
+`SETTINGS` section in the same sidebar with full-page entries for
+Profile / Wallets / Verification / Notifications. Three of those four
+appear twice (and Verification was implicit in the Account page's profile
+tab as a status card).
+**Why this happened:** the `/account` page evolved as a "summary with tabs"
+pattern while `/settings/*` are the original full-page implementations.
+Both got wired into the sidebar.
+**Fix:**
+- **Drop the Profile / Wallets / Notifications tabs from `/account`.** The
+  `/account` page is now a clean landing card grid: header (avatar, name,
+  email, KYC badge) + four navigation cards linking to `/settings/profile`,
+  `/settings/wallets`, `/settings/verification`, `/settings/notifications`.
+- **Drop the SETTINGS sidebar section** from `DashboardLayout`. The
+  `SETTINGS_LINKS` constant and the entire Settings nav block are removed.
+- **Settings sub-pages (/settings/*) remain** unchanged — they're the
+  source of truth, more functional, and reachable via the cards on
+  `/account` or via direct URL. Internal links (e.g. the "Wallet not
+  verified" warning on the invest page that points at `/settings/wallets`
+  and `/settings/verification`) still work.
+
+This collapses the IA: there is now exactly one path to each settings
+sub-page, and `/account` is the landing page that opens by default.
+
 ### 13. Test investor wallet has 0.01 ETH — barely enough for repeated runs
 **Where:** Operational, not UI. Investor wallet `0x5c5C4A...` is at 0.0099 ETH
 on Base Sepolia. Each on-chain test costs ~0.0001 ETH.
@@ -190,6 +283,10 @@ the same 2-3 files, and the order respects dependencies.
 | 8 | Remove "$0.10" hardcoded fee | XS | ✅ — replaced with "Network fee paid in ETH from your wallet. Estimated by your wallet at signing time." |
 | 11 | OTC & Bank tile → `/project/{slug}#otc` | XS | ✅ — replaced `window.history.back()` with a Next.js `<Link>` to `/project/{slug}#otc` |
 | 12 | `STEPS` constant naming / extension | XS | ✅ — renamed to `STEPS_BAR` to make intent (progress-bar-only) explicit |
+| 14 | Phase numbering — duplicate `phase_number` | XS | ✅ — display by `start_time` index, backend also sorts |
+| 15 | `sold` hardcoded to 0 | S | ✅ — `_phase_sold_map` aggregates from `contributions`, surfaced as `tokens_sold` / `usdc_raised` on `SalePhaseResponse` |
+| 16 | `Allocation` lies for `price_tiered` | S | ✅ — explainer banner above phases, hide Allocation column for price-tiered, switch bar metric |
+| 17 | Account / Settings IA duplication | S | ✅ — `/account` reduced to landing card grid, `SETTINGS_LINKS` sidebar block removed |
 | 13 | Test wallet topup script | M (separate PR) | ⏳ Not done — operational task, needs `scripts/topup-test-wallet.ts` |
 
 ### Files touched

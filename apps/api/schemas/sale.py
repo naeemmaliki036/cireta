@@ -138,6 +138,10 @@ class SalePhaseResponse(BaseModel):
     end_time: datetime
     whitelist_only: bool
     is_active: bool
+    # Aggregated from confirmed contributions in this phase. Always present;
+    # zero when no contributions have been recorded.
+    tokens_sold: str = "0"
+    usdc_raised: str = "0"
 
     class Config:
         from_attributes = True

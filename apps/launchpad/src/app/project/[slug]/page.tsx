@@ -424,105 +424,152 @@ export default function ProjectDetailPage() {
                     ))}
                   </div>
 
-                  {project.phases.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-text mb-4">Sale Phases</h3>
-                      <div className="space-y-4">
-                        {project.phases.map((phase) => {
-                          const status = getPhaseStatus(phase);
-                          const allocation = Number(phase.allocation);
-                          const phaseSoldPct = 0; // TODO: wire per-phase sold data when API supports it
-                          const phaseSold = Math.round(allocation * phaseSoldPct / 100);
-                          return (
-                            <div
-                              key={phase.id}
-                              className={cn(
-                                "rounded-2xl border p-5 transition-all",
-                                status === "active"
-                                  ? "border-darkAqua/30 bg-darkAqua/[0.03] shadow-sm"
-                                  : "border-gray-100 bg-gray-50/50"
-                              )}
-                            >
-                              {/* Header row */}
-                              <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2.5">
-                                  <span className={cn(
-                                    "w-3 h-3 rounded-full border-2 flex-shrink-0",
-                                    status === "active" ? "bg-darkAqua border-darkAqua" : status === "upcoming" ? "bg-white border-blue-400" : "bg-gray-300 border-gray-300"
-                                  )} />
-                                  <span className="font-semibold text-sm text-text">
-                                    Phase {phase.phase_number}: {phase.name}
+                  {project.phases.length > 0 && (() => {
+                    // Sort phases by start_time and assign display indices (fixes duplicate phase_number bug)
+                    const sortedPhases = [...project.phases].sort(
+                      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+                    );
+                    const isPriceTiered = (saleRaw?.sale_structure ?? "phase_allocated") === "price_tiered";
+                    return (
+                      <div>
+                        <h3 className="font-bold text-text mb-3">Sale Phases</h3>
+                        {/* Structure context banner */}
+                        <div className={cn(
+                          "rounded-xl px-4 py-3 mb-4 text-xs",
+                          isPriceTiered ? "bg-blue-50 text-blue-900 border border-blue-100" : "bg-amber-50 text-amber-900 border border-amber-100"
+                        )}>
+                          {isPriceTiered ? (
+                            <>
+                              <span className="font-semibold">Price-tiered sale.</span>{" "}
+                              All phases sell from a single shared pool of {formatCurrency(hardCap)} (the global hard cap).
+                              Earlier phases offer different pricing; unsold supply from one phase remains available in the next.
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-semibold">Phase-allocated sale.</span>{" "}
+                              Each phase has its own token allocation cap. Tokens unsold at the end of a phase do not roll over.
+                            </>
+                          )}
+                        </div>
+                        <div className="space-y-4">
+                          {sortedPhases.map((phase, idx) => {
+                            const status = getPhaseStatus(phase);
+                            const allocation = Number(phase.allocation);
+                            const tokensSold = Number(phase.tokens_sold ?? "0");
+                            const usdcRaised = Number(phase.usdc_raised ?? "0");
+                            const phaseSoldPct = !isPriceTiered && allocation > 0
+                              ? Math.min(100, Math.round((tokensSold / allocation) * 100))
+                              : 0;
+                            // For price-tiered sales, the bar reflects the global cap progress for this phase's contribution
+                            const tieredPct = isPriceTiered && hardCap > 0
+                              ? Math.min(100, Math.round((usdcRaised / hardCap) * 100))
+                              : 0;
+                            const displayPct = isPriceTiered ? tieredPct : phaseSoldPct;
+                            return (
+                              <div
+                                key={phase.id}
+                                className={cn(
+                                  "rounded-2xl border p-5 transition-all",
+                                  status === "active"
+                                    ? "border-darkAqua/30 bg-darkAqua/[0.03] shadow-sm"
+                                    : "border-gray-100 bg-gray-50/50"
+                                )}
+                              >
+                                {/* Header row */}
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className={cn(
+                                      "w-3 h-3 rounded-full border-2 flex-shrink-0",
+                                      status === "active" ? "bg-darkAqua border-darkAqua" : status === "upcoming" ? "bg-white border-blue-400" : "bg-gray-300 border-gray-300"
+                                    )} />
+                                    <span className="font-semibold text-sm text-text">
+                                      Phase {idx + 1}: {phase.name}
+                                    </span>
+                                    {phase.whitelist_only && (
+                                      <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Whitelist</span>
+                                    )}
+                                  </div>
+                                  <Badge
+                                    variant={status === "active" ? "active" : status === "upcoming" ? "default" : "outline"}
+                                    size="sm"
+                                    className={cn(
+                                      status === "upcoming" && "bg-blue-50 text-blue-600 border-blue-200",
+                                      status === "ended" && "bg-gray-100 text-gray-500 border-gray-200"
+                                    )}
+                                  >
+                                    {status === "active" ? "Active" : status === "upcoming" ? "Upcoming" : "Ended"}
+                                  </Badge>
+                                </div>
+
+                                {/* Details grid */}
+                                <div className={cn("grid gap-3 text-sm mb-4", isPriceTiered ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
+                                  <div>
+                                    <p className="text-gray-500 text-xs mb-0.5">Price</p>
+                                    <p className="font-semibold">{formatCurrency(parseFloat(phase.price_per_token))}/token</p>
+                                  </div>
+                                  {!isPriceTiered && (
+                                    <div>
+                                      <p className="text-gray-500 text-xs mb-0.5">Allocation</p>
+                                      <p className="font-semibold">{allocation.toLocaleString()}</p>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="text-gray-500 text-xs mb-0.5">Min Buy</p>
+                                    <p className="font-semibold">{formatCurrency(parseFloat(phase.min_contribution))}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500 text-xs mb-0.5">Max. Allocation</p>
+                                    <p className="font-semibold">
+                                      {parseFloat(phase.max_contribution) > 0
+                                        ? formatCurrency(parseFloat(phase.max_contribution))
+                                        : "No Limit"}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Progress + sold counter */}
+                                <div className="mb-3">
+                                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    {isPriceTiered ? (
+                                      <span>
+                                        {usdcRaised > 0
+                                          ? `${formatCurrency(usdcRaised)} raised in this tier`
+                                          : "No purchases yet in this tier"}
+                                      </span>
+                                    ) : (
+                                      <span>{phaseSoldPct}% sold ({tokensSold.toLocaleString()}/{allocation.toLocaleString()})</span>
+                                    )}
+                                  </div>
+                                  <ProgressBar value={displayPct} size="sm" animated={status === "active"} />
+                                </div>
+
+                                {/* Date range + countdown */}
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <span>
+                                    {status === "upcoming" ? "Starts" : "Started"}: {fmtDate(new Date(phase.start_time))}
+                                    {" — "}
+                                    Ends: {fmtDate(new Date(phase.end_time))}
                                   </span>
-                                  {phase.whitelist_only && (
-                                    <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Whitelist</span>
+                                  {status === "active" && (
+                                    <span className="inline-flex items-center gap-1 text-darkAqua font-medium">
+                                      <Clock className="h-3 w-3" />
+                                      {getTimeRemaining(phase.end_time)}
+                                    </span>
+                                  )}
+                                  {status === "upcoming" && (
+                                    <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+                                      <Clock className="h-3 w-3" />
+                                      {getTimeUntilStart(phase.start_time)}
+                                    </span>
                                   )}
                                 </div>
-                                <Badge
-                                  variant={status === "active" ? "active" : status === "upcoming" ? "default" : "outline"}
-                                  size="sm"
-                                  className={cn(
-                                    status === "upcoming" && "bg-blue-50 text-blue-600 border-blue-200",
-                                    status === "ended" && "bg-gray-100 text-gray-500 border-gray-200"
-                                  )}
-                                >
-                                  {status === "active" ? "Active" : status === "upcoming" ? "Upcoming" : "Ended"}
-                                </Badge>
                               </div>
-
-                              {/* Details grid */}
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
-                                <div>
-                                  <p className="text-gray-500 text-xs mb-0.5">Price</p>
-                                  <p className="font-semibold">{formatCurrency(parseFloat(phase.price_per_token))}/token</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-500 text-xs mb-0.5">Allocation</p>
-                                  <p className="font-semibold">{allocation.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-500 text-xs mb-0.5">Min Buy</p>
-                                  <p className="font-semibold">{formatCurrency(parseFloat(phase.min_contribution))}</p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-500 text-xs mb-0.5">Max. Allocation</p>
-                                  <p className="font-semibold">{formatCurrency(parseFloat(phase.max_contribution))}</p>
-                                </div>
-                              </div>
-
-                              {/* Progress bar */}
-                              <div className="mb-3">
-                                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                                  <span>{phaseSoldPct}% sold ({phaseSold.toLocaleString()}/{allocation.toLocaleString()})</span>
-                                </div>
-                                <ProgressBar value={phaseSoldPct} size="sm" animated={status === "active"} />
-                              </div>
-
-                              {/* Date range + countdown */}
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <span>
-                                  {status === "upcoming" ? "Starts" : "Started"}: {fmtDate(new Date(phase.start_time))}
-                                  {" — "}
-                                  Ends: {fmtDate(new Date(phase.end_time))}
-                                </span>
-                                {status === "active" && (
-                                  <span className="inline-flex items-center gap-1 text-darkAqua font-medium">
-                                    <Clock className="h-3 w-3" />
-                                    {getTimeRemaining(phase.end_time)}
-                                  </span>
-                                )}
-                                {status === "upcoming" && (
-                                  <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
-                                    <Clock className="h-3 w-3" />
-                                    {getTimeUntilStart(phase.start_time)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {token && (
                     <div className="bg-gray-50 rounded-xl p-4 text-sm">

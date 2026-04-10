@@ -18,6 +18,8 @@ export interface ProjectPhase {
   end_time: string;
   whitelist_only: boolean;
   is_active: boolean;
+  tokens_sold?: string;
+  usdc_raised?: string;
 }
 
 export interface Project {
@@ -69,6 +71,8 @@ interface SalePhaseRaw {
   end_time: string;
   whitelist_only: boolean;
   is_active: boolean;
+  tokens_sold?: string;
+  usdc_raised?: string;
 }
 
 export interface SaleRaw {
@@ -109,6 +113,7 @@ export interface SaleRaw {
   discord_url?: string;
   cliff_duration_days?: number;
   vesting_duration_days?: number;
+  sale_structure?: "phase_allocated" | "price_tiered" | string;
 }
 
 interface SaleListRaw {
