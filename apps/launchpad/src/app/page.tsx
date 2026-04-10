@@ -537,7 +537,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-8">
+            <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
               {team.sort((a, b) => a.sort_order - b.sort_order).map((m, i) => (
                 <motion.div
                   key={m.id}
@@ -545,32 +545,44 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08 }}
-                  className="text-center w-full sm:w-80"
+                  className="bg-box rounded-2xl p-7"
                 >
-                  <div className="relative w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden bg-box flex items-center justify-center">
-                    {m.photo_url ? (
-                      <Image src={m.photo_url} alt={m.name} width={96} height={96} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl font-bold text-darkAqua">
-                        {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                      </span>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-darkAqua flex items-center justify-center shrink-0">
+                        {m.photo_url ? (
+                          <Image src={m.photo_url} alt={m.name} width={64} height={64} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xl font-bold text-white">
+                            {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-text">{m.name}</h3>
+                        <p className="text-sm text-darkAqua font-semibold">{m.title}</p>
+                      </div>
+                    </div>
+                    {m.linkedin_url && (
+                      <Link
+                        href={m.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-8 h-8 flex items-center justify-center text-darkAqua border border-darkAqua/30 rounded-md hover:bg-darkAqua hover:text-white transition-colors shrink-0"
+                      >
+                        <Linkedin className="w-4 h-4" />
+                      </Link>
                     )}
                   </div>
-                  <h3 className="text-lg font-bold text-text">{m.name}</h3>
-                  <p className="text-sm text-darkAqua font-medium mb-2">{m.title}</p>
-                  {m.bio && <p className="text-xs text-black/50 leading-relaxed mb-3">{m.bio}</p>}
-                  {m.linkedin_url && (
-                    <Link
-                      href={m.linkedin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-darkAqua hover:text-black transition-colors border border-darkAqua/30 rounded-md px-3 py-1.5 hover:bg-darkAqua/5"
-                    >
-                      <Linkedin className="w-3.5 h-3.5" /> LinkedIn
-                    </Link>
-                  )}
+                  {m.bio && <p className="text-sm text-black/50 leading-relaxed">{m.bio}</p>}
                 </motion.div>
               ))}
+            </div>
+
+            <div className="text-center mt-10">
+              <Link href="https://cireta.com/team" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-darkAqua hover:underline">
+                Meet the full team →
+              </Link>
             </div>
           </div>
         </section>
@@ -623,9 +635,9 @@ export default function HomePage() {
               <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Institutional &amp; Strategic Partners</h2>
             </div>
 
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-y-10 gap-x-8 items-center justify-items-center">
+            <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-10">
               {partners.sort((a, b) => a.sort_order - b.sort_order).map((p) => (
-                <div key={p.id} className="flex items-center justify-center">
+                <div key={p.id} className="flex items-center justify-center" style={{ minWidth: "140px" }}>
                   {p.logo_url ? (
                     <Image src={p.logo_url} alt={p.name} width={140} height={48} className="h-10 md:h-12 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
                   ) : (
