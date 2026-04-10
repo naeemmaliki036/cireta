@@ -91,7 +91,13 @@ export function AddPhaseForm({
       setValidationError(`Allocation cannot exceed available supply (${availableSupply!.toLocaleString()} tokens).`);
       return;
     }
-    if (form.minContribution && form.maxContribution && parseFloat(form.minContribution) > parseFloat(form.maxContribution)) {
+    // Min contribution is required > 0 — mirrors Sale.addPhase ZeroMinContribution()
+    // revert. Issuers who want a low floor should set $1.
+    if (!form.minContribution || parseFloat(form.minContribution) <= 0) {
+      setValidationError("Min contribution is required and must be greater than 0. Use $1 for a low floor.");
+      return;
+    }
+    if (form.maxContribution && parseFloat(form.minContribution) > parseFloat(form.maxContribution)) {
       setValidationError("Min contribution cannot exceed max contribution.");
       return;
     }
@@ -111,9 +117,8 @@ export function AddPhaseForm({
     try {
       const pricePerToken = parseUnits(form.pricePerToken, 18);
       const allocation = parseUnits(form.allocation, tokenDecimals);
-      const minContribution = form.minContribution
-        ? parseUnits(form.minContribution, 6)
-        : BigInt(0);
+      // min is required — validation above guarantees a non-empty positive value
+      const minContribution = parseUnits(form.minContribution, 6);
       const maxContribution = form.maxContribution
         ? parseUnits(form.maxContribution, 6)
         : BigInt(0);
@@ -230,7 +235,8 @@ export function AddPhaseForm({
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
-            Min Contribution <span className="text-zinc-400">(USDC)</span>
+            Min Contribution <span className="text-red-500">*</span>{" "}
+            <span className="text-zinc-400">(USDC, must be &gt; 0)</span>
           </label>
           <input
             type="text"
@@ -239,6 +245,7 @@ export function AddPhaseForm({
             onChange={(e) => updateNumeric("minContribution", e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
             placeholder="100"
+            required
           />
         </div>
         <div>

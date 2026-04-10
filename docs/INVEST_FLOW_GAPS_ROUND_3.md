@@ -215,6 +215,54 @@ known gaps. Belongs in the sale-deploy pipeline, not runtime.
 zero sidebar nav. Needs a hamburger / drawer pattern for the entire
 investor section.
 
+### 18. `min_contribution = 0` allowed at every layer
+**Severity:** High — config mistake silently breaks the buyer floor.
+
+**Symptom:** The Wassa sale's Phase 1 (Seed) was created on-chain with
+`minContribution = 0`. This disables the first-time-buyer floor entirely
+(`if (totalContributed[msg.sender] == 0 && amount < phase.minContribution)
+revert BelowMinContribution();` — a comparison against 0 that always passes).
+Anyone can buy any amount in that phase, even $0.000001. The DB also
+allowed it, the admin form allowed it, and there's no `updatePhase`
+function to fix it after the fact.
+
+**Root cause:** None of the four layers validated `min > 0`:
+1. **Contract `Sale.addPhase`** — accepts any uint256 including 0
+2. **Pydantic `SalePhaseCreate`** — `min_contribution: Decimal = Field(default=Decimal("0"))`
+3. **Endpoint `PhaseCreateRequest`** — `min_contribution: str = "0"`
+4. **Admin `AddPhaseForm.tsx`** — defaulted to `BigInt(0)` when blank
+
+**Fix shipped:**
+- **Contract:** new `error ZeroMinContribution()` (selector `0xbf48e85d`)
+  and `if (minContribution == 0) revert ZeroMinContribution();` in
+  `Sale.addPhase`. Sale.sol is UUPS-upgradeable so the existing Wassa sale
+  can pick up this validation via an upgrade. Existing wrong phases (like
+  Wassa's Phase 1 on-chain) are NOT fixed because the contract has no
+  `updatePhase` function — the workaround is to (a) add a new phase with
+  the right config, then (b) ensure the broken phase's time window has
+  passed before activation.
+- **Pydantic:** `min_contribution: Decimal = Field(..., gt=0)` — required
+  and must parse to a positive Decimal. Inherits the same validator
+  semantics as the existing `min < max` check.
+- **Endpoint:** removed the `"0"` default; endpoint now raises
+  `400 ZERO_MIN_CONTRIBUTION` if the value parses to ≤ 0.
+- **Admin form:** required field, validation message
+  "Min contribution is required and must be greater than 0. Use $1 for a
+  low floor.". Label gains `*` and "must be > 0" hint, `required` HTML
+  attribute set.
+- **Launchpad:** added the `0xbf48e85d` selector to
+  `revertReasons.ts` so any caller hitting the contract revert sees a
+  friendly message instead of the raw selector.
+
+**Follow-up tracked:** consider also requiring `max_contribution > 0` if
+the issuer's intent is to cap individual investors. Currently `max = 0`
+means "unlimited" which is intentional and stays optional.
+
+> **Existing wrong data on Base Sepolia:** Wassa Sale phase 0 still has
+> `minContribution = 0` on-chain. There is no on-chain fix without a
+> contract redeploy. Document this and live with it for the test sale,
+> or roll a fresh test sale with the new validation in place.
+
 ### 17. Settings sidebar restored after over-zealous dedup
 Round-2 fix removed the `SETTINGS_LINKS` block in `DashboardLayout`
 because /account had inline tabs that mirrored /settings/*. After /account
@@ -247,3 +295,4 @@ longer has inline tabs.
 | 15 | Subscribe button copy | Low | ⏳ Tracked | copy update |
 | 16 | Empty sales state | Low | ⏳ Tracked | placeholder add |
 | 17 | Settings sidebar restored | — | ✅ Fixed | `DashboardLayout.tsx` |
+| 18 | `min_contribution = 0` allowed at every layer | High | ✅ Fixed (4 layers) | `Sale.sol` + `schemas/sale.py` + `endpoints/sales.py` + `AddPhaseForm.tsx` + `revertReasons.ts` |

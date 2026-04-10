@@ -542,7 +542,7 @@ class PhaseCreateRequest(BaseModel):
     name: str
     price_per_token: str
     allocation: str
-    min_contribution: str = "0"
+    min_contribution: str  # required, must parse to Decimal > 0 — see add_phase()
     max_contribution: str = "0"
     start_time: str
     end_time: str
@@ -572,13 +572,23 @@ async def add_phase(
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
 
     from decimal import Decimal
+    min_contribution = Decimal(request.min_contribution)
+    if min_contribution <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "ZERO_MIN_CONTRIBUTION",
+                "message": "Phase min_contribution must be greater than zero. "
+                "If you want a low floor, set $1.",
+            },
+        )
     phase = SalePhase()
     phase.sale_id = sale_id
     phase.phase_number = len(sale.phases) + 1
     phase.name = request.name
     phase.price_per_token = Decimal(request.price_per_token)
     phase.allocation = Decimal(request.allocation)
-    phase.min_contribution = Decimal(request.min_contribution)
+    phase.min_contribution = min_contribution
     phase.max_contribution = Decimal(request.max_contribution)
     phase.start_time = request.start_time
     phase.end_time = request.end_time

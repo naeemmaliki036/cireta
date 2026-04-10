@@ -12,7 +12,10 @@ class SalePhaseCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     price_per_token: Decimal = Field(..., gt=0)
     allocation: Decimal = Field(..., gt=0)
-    min_contribution: Decimal = Field(default=Decimal("0"))
+    # Required > 0. Setting min_contribution = 0 disables the first-time-buyer
+    # floor on-chain entirely and is almost always a configuration mistake.
+    # Mirrored by the Sale.addPhase() ZeroMinContribution() revert.
+    min_contribution: Decimal = Field(..., gt=0)
     max_contribution: Decimal = Field(default=Decimal("0"))  # 0 = unlimited
     start_time: datetime
     end_time: datetime

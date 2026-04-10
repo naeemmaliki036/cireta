@@ -128,6 +128,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error NotWhitelisted();
     error ExceedsAllocation();
     error CannotAddPhase();
+    error ZeroMinContribution();
     error ZeroMaxPerBlock();
     error SaleNotActive();
     error InvestorNotVerified();
@@ -275,6 +276,11 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         bool whitelistOnly
     ) external onlyIssuer {
         if (status != SaleStatus.Draft && status != SaleStatus.Active) revert CannotAddPhase();
+        // Every phase must have a non-zero minimum contribution. Setting min=0
+        // is almost always a configuration mistake (it disables the
+        // first-time-buyer floor entirely) and there is no updatePhase to
+        // correct it after the fact. Issuers who want a low floor can use $1.
+        if (minContribution == 0) revert ZeroMinContribution();
         phases.push(Phase({
             name: name,
             pricePerToken: pricePerToken,

@@ -27,6 +27,7 @@ export const CUSTOM_ERROR_SELECTORS: Record<string, string> = {
   "0x584a7938": "Your wallet is not whitelisted for this sale phase.",
   "0x8541190c": "This phase's token allocation is fully subscribed.",
   "0x13ce5d74": "Cannot add a phase at this time.",
+  "0xbf48e85d": "Min contribution must be greater than zero. Set a non-zero minimum (e.g. $1).",
   "0x58c93530": "Per-block limit must be greater than zero.",
   "0xb7b24097": "Sale is not active.",
   "0xeda53895": "Investor is not verified for this sale.",
