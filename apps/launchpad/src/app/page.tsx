@@ -196,10 +196,10 @@ const FAQS = [
 /* ─── How It Works steps ─── */
 
 const STEPS = [
-  { num: 1, title: "Browse", desc: "Explore live tokenized commodity projects, each backed by verified physical assets and structured through regulated SPVs." },
-  { num: 2, title: "Connect", desc: "Connect your Web3 wallet (MetaMask, Coinbase Wallet, or WalletConnect) to the Base L2 network in one click." },
-  { num: 3, title: "Verify", desc: "Complete a quick KYC identity check powered by Sumsub. Most verifications are approved in under 5 minutes." },
-  { num: 4, title: "Invest", desc: "Choose your investment amount, approve USDC, and receive ERC-3643 security tokens directly to your wallet." },
+  { num: 1, title: "Browse", desc: "Explore live projects and download white papers. No account required to review project details and tokenomics." },
+  { num: 2, title: "Connect", desc: "Sign up securely to start your investment journey. Create your account in minutes." },
+  { num: 3, title: "Verify", desc: "Complete a few simple KYC/KYB steps to get yourself verified as an eligible investor." },
+  { num: 4, title: "Invest", desc: "Choose from a range of tokenized commodity projects and invest with USDC. Tokens are issued on-chain immediately." },
 ];
 
 /* ─── Why Cireta cards ─── */
