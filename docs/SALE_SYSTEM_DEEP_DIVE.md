@@ -493,62 +493,45 @@ sale structure, phase update functions). Bundling them by effort:
 
 ---
 
-## Part 5 — Open questions for you to clarify
+## Part 5 — Open questions (answered 2026-04-10)
 
-These are the spots where I made an interpretation that may be wrong:
+All 12 questions answered. Locked-in decisions below — see
+[`ROUND_5_SPEC.md`](./ROUND_5_SPEC.md) for the full implementation spec.
 
-### Q1 — "Total supply of the tokens up for sale is decided at the time of sale creation"
-How do you want to express this on-chain?
-- Option (a): `totalTokenSupply` is a separate field (in token units) set in init. `addPhase()` validates `Σ phase.allocation ≤ totalTokenSupply`. `buy()` validates `Σ phase.sold ≤ totalTokenSupply`. `hardCap` (USDC) and `totalTokenSupply` (token units) are independent caps.
-- Option (b): Derive from `hardCap / cheapest_price` (the maximum tokens an issuer would ever sell if everyone bought at the lowest tier). Brittle.
-- Option (c): Inferred from how many tokens the issuer deposits before activation. **Current implicit behavior** but not validated.
+| # | Question | Answer |
+| --- | --- | --- |
+| Q1 | Total token supply representation | ✅ Explicit `totalTokenSupply` field in token units, set in `initialize()`. Independent of `hardCap`. `addPhase()` and `buy()` enforce `Σ ≤ totalTokenSupply`. |
+| Q2 | Per-phase allocation mode | ✅ Per-phase `allocationMode: Fixed \| Remaining` enum. Global `SaleStructure` flag is removed. |
+| Q3 | OTC token minting limit | ✅ **No restriction.** Issuer can mint any amount of OTC tokens without on-chain enforcement. Excess OTC vouchers will revert at `buyOTC` time when they hit `ExceedsHardCap`. Issuer responsibility. |
+| Q4 | Fraction token type | ✅ **ERC-1155**, two ids: `1 = USDC purchases`, `2 = OTC purchases`. |
+| Q5 | Auto-finalize on hardcap | ✅ **Removed inline.** When hardcap is hit, `buy()`/`buyOTC()` set `finalizationPending = true` and emit `HardCapReached()` event. Issuer or admin must call `finalizeSale()` as a separate tx. |
+| Q6 | Failed sale shows as "Completed" | ✅ Label only. On-chain status stays `FinalizedFailed`; UI renders as `Closed — refund available`. |
+| Q7 | OTC refund mechanism | ✅ Off-chain only. No contract function for OTC refunds. Admin handles wire transfers + DB record. Optionally add `markOtcRefunded(investor, ref)` admin event-only function for audit trail. |
+| Q8 / Q9 | Min top-up cap | ✅ Per-phase `topUpMin` field, set in `addPhase()`. **Hard contract floor of 1000 USDC** — issuers cannot specify below this. Applies when `totalContributed[buyer] > 0` (repeat buyer, sale-wide). |
+| Q10 | Refund activation | ✅ One-way switch. `activateRefunds()` callable by issuer or admin once status is `FinalizedFailed` (or stale). Emits `RefundsEnabled` event. No way to disable. |
+| Q11 | Phase extension constraints | ✅ All four: `newEndTime > current endTime`, `> block.timestamp`, `≤ nextPhase.startTime` (if any), `≤ saleEndTime` (if fixed-end). Caller must be issuer. Phase must be Active or Upcoming. |
+| Q12 | Total supply unit | ✅ Raw token-decimal units. Backend normalizes from human input. Same convention as `pricePerToken`. |
 
-I'd recommend (a). Worth confirming.
+### Part 6 questions (Q13–Q17) — confirmed at defaults
 
-### Q2 — "Issuer can decide to specify the supply for the phase or keep all the available supply in a phase"
-Do you mean:
-- Per-phase choice: each phase can independently be "fixed allocation X tokens" or "all remaining"? **(B6 in the plan)**
-- Or: the global `SaleStructure` (current behavior) is enough, and issuers either run a fully PhaseAllocated sale or a fully PriceTiered sale?
+| # | Question | Answer |
+| --- | --- | --- |
+| Q13 | Safety floor duration | ✅ 730 days (2 years) |
+| Q14 | Inactivity timeout | ✅ 180 days |
+| Q15 | Open-ended close authority | ✅ Issuer or admin (anyone after timeout/floor) |
+| Q16 | Admin can revoke approval | ✅ Yes — `unapproveSale()` |
+| Q17 | Pending-launch visibility | ✅ Yes — visible to investors as "Pending launch" tile with subscribe |
 
-If per-phase, structural change. If global, today's `SaleStructure` covers it (just need a per-phase explanation).
+### Additional clarification
 
-### Q3 — "Each OTC token is pegged 1:1 to USDC. Both count toward total raised"
-Concretely: if hard cap is $10M and an issuer mints 5M OTC tokens to a wallet that buys all 5M in `buyOTC`, then USDC buyers can only buy $5M more before the hardcap triggers? Yes/no?
+**Phases drive the countdown, not the sale.** Investors always see the
+**current active phase's** end time, not the sale-level end time. The
+"open-ended" nature only shows up in two contexts:
+1. The phase list view (no terminal "sale ends" date)
+2. When there's no active phase between phases — UI shows "Awaiting next phase from issuer" instead of "Sale Concluded"
 
-Today's contract already does this — `buyOTC` increments `totalRaised` by the OTC amount. I want to confirm this is the intended semantics. If so, what's the policy if the issuer mints more OTC than the hardcap allows? Today the contract would silently let them mint, then `buyOTC` would revert with `ExceedsHardCap`.
-
-### Q4 — "Two fraction token IDs"
-ERC-1155 with id 1 + id 2 — confirm that's the intended approach over two separate ERC-20 contracts. ERC-1155 is more gas-efficient and a single deployment, but the existing code is ERC-20 — this is the biggest refactor on the list.
-
-### Q5 — Auto-finalize on hardcap inline
-Today `buy()` auto-finalizes inline if hardcap is hit. The buyer pays gas for the entire `_finalize()` sequence. You said "issuer or admin can finalize" — does that mean **only** they can, and the inline auto-finalize should be removed entirely? Or auto-finalize stays as a fallback and they can still call it manually?
-
-### Q6 — "Failed sale shows as Completed in the UI"
-Is this just a label change, or does it imply that **on-chain** the sale should look "successful" too? I assume label only, but worth confirming.
-
-### Q7 — "Refund only allowed for on-chain purchases via fractions id 1"
-With ERC-1155 in place, do we also want a function for issuer to manually trigger an OTC refund (e.g., issuer transfers USDC off-chain, calls `markOtcRefunded(investor)`), or are OTC refunds 100% off-chain with no contract record?
-
-### Q8 — "Min top-up cap"
-Is this per phase or per sale? Should it be a single number or different for each phase? My read: per phase, set in `addPhase`. Confirm.
-
-### Q9 — "Anyone can top up with any amount but not tiny amounts"
-Is this the same as Q8 or distinct? I read it as: same thing — repeat buyers have a min top-up requirement. Confirm.
-
-### Q10 — Refund activation
-Is "activate refunds" a one-way switch (once on, always on), or can it be toggled? I'd recommend one-way with an `EnableRefunds` event.
-
-### Q11 — Phase extension
-When the issuer extends a phase end time, what are the constraints?
-- Must be > current `endTime`?
-- Must be ≤ next phase's `startTime`?
-- Must be ≤ `saleEndTime`?
-- Must be in the future?
-
-I'd say all four. Confirm.
-
-### Q12 — Total supply token unit
-For ERC-20 project tokens with 18 decimals, "total supply 1,000,000 tokens" stored on-chain as `1_000_000 * 1e18`. Is the issuer's input in human units (1,000,000) or raw (`1e24`)? Backend probably normalizes, but it affects the validation messages.
+This means for fixed-end and open-ended sales, the buy page looks identical
+when a phase is active. Reduces UI complexity significantly.
 
 ---
 
