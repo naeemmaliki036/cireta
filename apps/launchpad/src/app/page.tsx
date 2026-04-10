@@ -77,16 +77,36 @@ function LiveProjectCard({ project: p }: { project: Project }) {
             <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
           </div>
         )}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-            <span className={`w-1.5 h-1.5 rounded-full ${p.isComingSoon ? "bg-amber-400" : "bg-darkAqua animate-pulse"}`} />
-            {p.isComingSoon ? "coming soon" : "on going"}
-          </span>
-          {!p.isComingSoon && p.fundingRound && (
-            <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-white">
-              {p.fundingRound}
-            </span>
-          )}
+        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+          {(() => {
+            const now = Date.now();
+            const ap = p.phases.find((ph) => {
+              const s = new Date(ph.start_time || 0).getTime();
+              const e = new Date(ph.end_time || 0).getTime();
+              return now >= s && now < e;
+            });
+            return ap ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-darkAqua animate-pulse" />
+                  on going
+                </span>
+                <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-white">
+                  {ap.name}
+                </span>
+              </>
+            ) : p.isComingSoon ? (
+              <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-black/30" />
+                coming soon
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium text-black/50">
+                <span className="w-1.5 h-1.5 rounded-full bg-black/30" />
+                {p.phases.every((ph) => now >= new Date(ph.end_time || 0).getTime()) ? "completed" : "upcoming"}
+              </span>
+            );
+          })()}
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
           <h3 className="text-white font-semibold text-sm flex items-center gap-1">
@@ -95,7 +115,26 @@ function LiveProjectCard({ project: p }: { project: Project }) {
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
-        <p className="text-xs text-gray-500 line-clamp-2 mb-3">{p.description || "Invest in tokenized real-world assets."}</p>
+        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{p.description || "Invest in tokenized real-world assets."}</p>
+        {p.phases.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {p.phases.map((ph) => {
+              const now = Date.now();
+              const s = new Date(ph.start_time || 0).getTime();
+              const e = new Date(ph.end_time || 0).getTime();
+              const st = now < s ? "upcoming" : now >= e ? "ended" : "active";
+              return (
+                <span key={ph.id || ph.name} className={`text-[10px] font-medium px-2 py-0.5 rounded ${
+                  st === "active" ? "bg-darkAqua/10 text-darkAqua" :
+                  st === "ended" ? "bg-black/5 text-black/30 line-through" :
+                  "bg-box text-black/40"
+                }`}>
+                  {ph.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className="mt-auto space-y-3">
           <div>
             <div className="flex justify-between text-xs text-gray-500 mb-1">

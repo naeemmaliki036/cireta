@@ -98,15 +98,30 @@ function ActiveProjectCard({ project }: { project: Project }) {
       <div className="relative h-72 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4 flex items-center gap-2">
-          <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-            <span className="w-2 h-2 rounded-full bg-darkAqua animate-pulse" />
-            on going
-          </span>
-          {project.fundingRound && (
-            <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white">
-              {project.fundingRound}
-            </span>
-          )}
+          {(() => {
+            const now = Date.now();
+            const ap = project.phases.find((p) => {
+              const s = new Date(p.start_time || 0).getTime();
+              const e = new Date(p.end_time || 0).getTime();
+              return now >= s && now < e;
+            });
+            return ap ? (
+              <>
+                <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
+                  <span className="w-2 h-2 rounded-full bg-darkAqua animate-pulse" />
+                  on going
+                </span>
+                <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white">
+                  {ap.name}
+                </span>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium text-black/50">
+                <span className="w-2 h-2 rounded-full bg-black/30" />
+                {project.phases.every((p) => now >= new Date(p.end_time || 0).getTime()) ? "Completed" : "Upcoming"}
+              </span>
+            );
+          })()}
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
           <h3 className="text-white font-semibold text-base flex items-center gap-1.5">
@@ -116,16 +131,32 @@ function ActiveProjectCard({ project }: { project: Project }) {
       </div>
       <div className="px-5 pb-5 pt-2 space-y-4">
         <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Invest in verified tokenized real-world assets backed by institutional issuers."}</p>
-        {project.phases.length > 0 && (() => {
-          const ap = project.phases.find((p) => p.is_active) ?? project.phases[0]!;
-          const minBuy = parseFloat(ap.min_contribution);
-          return (
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span>{ap.name}</span>
-              {minBuy > 0 && <><span>·</span><span>Min. {minBuy.toLocaleString()} USDC</span></>}
-            </div>
-          );
-        })()}
+        {project.phases.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {project.phases.map((p) => {
+              const now = Date.now();
+              const start = new Date(p.start_time || 0).getTime();
+              const end = new Date(p.end_time || 0).getTime();
+              const status = now < start ? "upcoming" : now >= end ? "ended" : "active";
+              const minBuy = parseFloat(p.min_contribution);
+              return (
+                <div key={p.id || p.name} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border ${
+                  status === "active" ? "bg-darkAqua/10 border-darkAqua/20 text-darkAqua" :
+                  status === "ended" ? "bg-black/5 border-black/10 text-black/40" :
+                  "bg-box border-black/10 text-black/50"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    status === "active" ? "bg-darkAqua animate-pulse" : status === "ended" ? "bg-black/30" : "bg-black/20"
+                  }`} />
+                  <span className="font-medium">{p.name}</span>
+                  {status === "active" && minBuy > 0 && <span className="text-darkAqua/60">· Min ${minBuy >= 1000 ? `${(minBuy/1000).toFixed(0)}K` : minBuy.toLocaleString()}</span>}
+                  {status === "ended" && <span>· Ended</span>}
+                  {status === "upcoming" && <span>· Coming Soon</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
         {raised > 0 && <div>
           <div className="flex justify-between text-sm text-gray-500 mb-1.5">
             <span>Funding progress</span>
