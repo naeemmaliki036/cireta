@@ -191,15 +191,47 @@ itself didn't need a change, but every caller that builds initData (backend
 the upgrade-safety footprint constant. **However, this is a one-way change
 for any deployed proxy** — existing testnet sales must be redeployed.
 
-### Medium / Low — tracked
+### Round 2 — shipped
 
-- Vault non-empty check in `Sale._finalize()` for vested sales (M)
-- `mint`/`burn` `amount > 0` checks on fraction + OTC tokens (M)
+| # | Fix | Where | Selector / Status |
+|---|---|---|---|
+| N | Vault non-empty check in `_finalize()` for vested sales | `Sale.sol` `_finalize` | `0x...` `VaultEmpty` ✅ |
+| O | Issuer must be on the identity registry at sale init | `Sale.sol` `initialize` | `0x...` `IssuerNotVerified` ✅ |
+| P | `setMaxPerBlock` floor (≥ 1 USDC = 1e6) | `Sale.sol` `setMaxPerBlock` | `0x...` `MaxPerBlockTooLow` ✅ |
+| Q | `mint`/`burnFrom` `amount > 0` on fraction token | `CiretaFractionToken.sol` | `0x...` `ZeroAmount` ✅ |
+| R | `mint` `amount > 0` on OTC token | `IssuerOTCToken.sol` | `0x...` `ZeroAmount` ✅ |
+| S | All new selectors mapped in launchpad `revertReasons.ts` | `apps/launchpad/src/lib/contracts/revertReasons.ts` | ✅ |
+
+### Deploy plan (testnet)
+
+The new code requires deploying a fresh **implementation** contract for
+each touched contract and pointing the factory(ies) at the new impls.
+Existing sales already deployed against the old impl keep running on the
+old code — leave them alone. New sales deployed via the factory after
+the swap get all the new validation.
+
+Steps:
+
+1. `hardhat run scripts/deploy-sale-impl.ts --network base-sepolia`
+   → deploys new `Sale` implementation
+2. From the factory owner wallet:
+   `CiretaSaleFactory.setSaleImplementation(newImpl)`
+3. Same for CiretaVault, CiretaFractionToken (each lives behind its
+   own factory), IssuerOTCToken
+4. **Do not UUPS-upgrade existing sales.** The new `Sale.sol` has 3 new
+   storage slots (`saleStartTime`, `saleEndTime`, `totalPhaseAllocation`)
+   that would read as zero in an upgraded existing proxy, breaking
+   `addPhase` because `phase.endTime <= 0` always fails.
+5. Roll fresh test sales via the admin UI. The backend deploy flow
+   already passes the new init params (sale window derived from DB phases),
+   so a fresh sale uses all the new validation end-to-end.
+
+### Medium / Low — still tracked
+
 - Factory pre-validates `initData` before deploying (M)
-- `setMaxPerBlock` floor sanity check (L)
 - Identity registry country-code allowlist (L)
 - Cascading freeze on identity removal (L, larger scope)
-- Issuer must be KYC'd before deploying their first sale (L)
+- `setSaleImplementation` deploy script automation (Operational)
 
 ### Medium (follow-up)
 

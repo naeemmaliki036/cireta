@@ -33,6 +33,7 @@ contract IssuerOTCToken is
     // --- Errors ---
     error RecipientNotVerified(address to);
     error ZeroAddress();
+    error ZeroAmount();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -71,6 +72,7 @@ contract IssuerOTCToken is
     /// @param to      Recipient address
     /// @param amount  Amount to mint (6 decimals)
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
+        if (amount == 0) revert ZeroAmount();
         _mint(to, amount);
         emit OTCMinted(to, amount);
     }

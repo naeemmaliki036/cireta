@@ -38,6 +38,7 @@ contract CiretaFractionToken is
     error RecipientNotVerified(address to);
     error SenderNotVerified(address from);
     error ZeroAddress();
+    error ZeroAmount();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -73,12 +74,14 @@ contract CiretaFractionToken is
 
     /// @notice Mint fractions to investor — called by Sale contract on contribute()
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
+        if (amount == 0) revert ZeroAmount();
         _mint(to, amount);
         emit FractionsMinted(to, amount);
     }
 
     /// @notice Burn fractions from investor — called by Vault on claim()
     function burnFrom(address from, uint256 amount) public override onlyRole(BURNER_ROLE) {
+        if (amount == 0) revert ZeroAmount();
         _burn(from, amount);
         emit FractionsBurned(from, amount);
     }

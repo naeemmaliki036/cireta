@@ -152,6 +152,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error InvalidContributionRange();
     error ZeroPhaseAllocation();
     error PhaseAllocationExceedsHardCap();
+    error IssuerNotVerified();
+    error VaultEmpty();
+    error MaxPerBlockTooLow();
     error SaleNotActive();
     error InvestorNotVerified();
     error CannotFinalize();
@@ -224,6 +227,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         // Sale window must be a strictly positive interval ending in the future
         if (_saleStartTime >= _saleEndTime) revert InvalidSaleWindow();
         if (_saleEndTime <= block.timestamp) revert InvalidSaleWindow();
+        // Issuer wallet must be on the project's identity registry — they
+        // sign every onlyIssuer call and the platform shouldn't allow
+        // unverified principals to operate a sale.
+        if (!IIdentityRegistry(_identityRegistry).isVerified(_issuer)) revert IssuerNotVerified();
 
         token = _token;
         paymentToken = IERC20(_paymentToken);
@@ -364,9 +371,14 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     /// @notice Set per-block contribution limit. Only issuer.
+    /// @dev Floor of 1 USDC (1e6 raw) prevents accidentally setting a
+    ///      sub-USDC value that would brick the sale (every buy would revert
+    ///      with ExceedsBlockLimit). Issuers wanting effectively unlimited
+    ///      should set hardCap or higher.
     function setMaxPerBlock(uint256 _maxPerBlock) external onlyIssuer {
         if (status == SaleStatus.Rejected) revert InvalidStatus();
         if (_maxPerBlock == 0) revert ZeroMaxPerBlock();
+        if (_maxPerBlock < 1e6) revert MaxPerBlockTooLow();
         maxPerBlock = _maxPerBlock;
         emit MaxPerBlockUpdated(_maxPerBlock);
     }
@@ -565,6 +577,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             }
 
             if (saleMode == SaleMode.Vested) {
+                // Vault must already hold project tokens. Without this check,
+                // startVesting() would succeed against an empty vault and
+                // investors would receive fractions backed by nothing.
+                if (IERC20(token).balanceOf(address(vault)) == 0) revert VaultEmpty();
                 vault.startVesting();
             }
 

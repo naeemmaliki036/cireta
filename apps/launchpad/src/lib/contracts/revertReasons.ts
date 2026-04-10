@@ -41,6 +41,11 @@ export const CUSTOM_ERROR_SELECTORS: Record<string, string> = {
   "0xe25a5543": "Phase allocation must be greater than zero (phase-allocated sale).",
   "0x646bd99d": "Sum of phase allocations exceeds the sale's hard cap.",
   "0x5c9504c2": "Vesting config is invalid: cliff must be strictly less than total vesting duration.",
+  // Sale init / ops + token amount checks (round 4 part 2)
+  "0xaf5716a6": "Issuer wallet must be KYC-verified on the identity registry before deploying a sale.",
+  "0x2c1b7dae": "Vault has no project tokens deposited — cannot finalize a vested sale with an empty vault.",
+  "0x6a5b6ddc": "Per-block contribution limit must be at least 1 USDC (1e6).",
+  "0x1f2a2005": "Token amount must be greater than zero.",
   "0xb7b24097": "Sale is not active.",
   "0xeda53895": "Investor is not verified for this sale.",
   "0x98a6eccc": "Sale cannot be finalized yet.",
