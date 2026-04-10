@@ -14,7 +14,9 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
+import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
 import { apiGet, apiPost, apiFetch } from "@/lib/api/client";
+import { truncateAddress } from "@/lib/utils";
 
 /* ---------- types for sale content endpoints ---------- */
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: "image" | "video"; video_url?: string }
@@ -90,6 +92,9 @@ export default function ProjectDetailPage() {
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(0);
+  const [txs, setTxs] = useState<Transaction[]>([]);
+  const [txsLoading, setTxsLoading] = useState(false);
+  const [txsError, setTxsError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -113,6 +118,19 @@ export default function ProjectDetailPage() {
     }
     if (slug) load();
   }, [slug]);
+
+  // Fetch transactions when Transactions tab opens (filtered by token)
+  useEffect(() => {
+    if ((activeTab !== "Transactions" && activeTab !== "My Position") || !isAuthenticated || !saleRaw?.token_id) return;
+    let cancelled = false;
+    setTxsLoading(true);
+    setTxsError(null);
+    getTransactions({ token_id: saleRaw.token_id, limit: 100 })
+      .then((data) => { if (!cancelled) setTxs(data.transactions); })
+      .catch(() => { if (!cancelled) setTxsError("Failed to load transactions."); })
+      .finally(() => { if (!cancelled) setTxsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, isAuthenticated, saleRaw?.token_id]);
 
   const handleSubscribe = async () => {
     if (!saleRaw) return;
@@ -570,7 +588,110 @@ export default function ProjectDetailPage() {
                 </div>
               )}
               {(activeTab === "My Position" || activeTab === "Transactions") && (
-                <div className="bg-gray-50 rounded-xl p-10 text-center"><p className="text-gray-400 font-medium">Coming soon</p></div>
+                !isAuthenticated ? (
+                  <div className="bg-gray-50 rounded-xl p-10 text-center">
+                    <p className="text-gray-400 font-medium">Sign in to view your transactions</p>
+                    <Link href={`/login?redirect=/project/${slug}`} className="inline-block mt-3 text-darkAqua text-sm font-semibold hover:underline">Sign In</Link>
+                  </div>
+                ) : txsLoading ? (
+                  <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+                ) : txsError ? (
+                  <div className="bg-gray-50 rounded-xl p-10 text-center"><p className="text-red-500 font-medium">{txsError}</p></div>
+                ) : txs.length === 0 ? (
+                  <div className="bg-gray-50 rounded-xl p-10 text-center">
+                    <p className="text-gray-400 font-medium">No transactions yet</p>
+                    <p className="text-gray-300 text-sm mt-1">Your transactions for this project will appear here after you invest.</p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100 text-gray-400 text-xs uppercase">
+                            <th className="text-left px-4 py-3">Date</th>
+                            <th className="text-left px-4 py-3">Type</th>
+                            <th className="text-right px-4 py-3">Amount</th>
+                            <th className="text-left px-4 py-3">Status</th>
+                            <th className="text-left px-4 py-3">Tx Hash</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {txs.map((tx) => {
+                            const isOtc = tx.tx_hash?.startsWith("otc-") ?? false;
+                            const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
+                            const typeStyle: Record<string, string> = {
+                              investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
+                              claim: "bg-green-50 text-green-700",
+                              redemption: "bg-purple-50 text-purple-700",
+                              refund: "bg-orange-50 text-orange-700",
+                            };
+                            const statusStyle: Record<string, string> = {
+                              confirmed: "bg-green-100 text-green-700",
+                              claimed: "bg-green-100 text-green-700",
+                              pending: "bg-yellow-100 text-yellow-700",
+                              processing: "bg-yellow-100 text-yellow-700",
+                              fulfilled: "bg-green-100 text-green-700",
+                              refunded: "bg-orange-100 text-orange-700",
+                              failed: "bg-red-100 text-red-700",
+                              cancelled: "bg-red-100 text-red-700",
+                            };
+                            const d = tx.created_at ? new Date(tx.created_at) : null;
+                            return (
+                              <tr key={tx.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+                                <td className="px-4 py-3">
+                                  <p className="text-text">{d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</p>
+                                  <p className="text-gray-400 text-xs">{d ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : ""}</p>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
+                                    {typeLabel[tx.type] ?? tx.type}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {isOtc ? (
+                                    <>
+                                      <p className="text-text font-semibold">
+                                        {Number(tx.tokens_allocated).toLocaleString()}{" "}
+                                        <span className="text-gray-400 font-normal text-xs">{tx.token_symbol || "tokens"}</span>
+                                      </p>
+                                      <p className="text-gray-400 text-xs">Off-platform</p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="text-text font-semibold">
+                                        {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+                                        <span className="text-gray-400 font-normal text-xs">USDC</span>
+                                      </p>
+                                      {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && (
+                                        <p className="text-gray-400 text-xs">{Number(tx.tokens_allocated).toLocaleString()} tokens</p>
+                                      )}
+                                    </>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full capitalize", statusStyle[tx.status] ?? "bg-gray-100 text-gray-400")}>
+                                    {tx.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
+                                    <a href={`https://basescan.org/tx/${tx.tx_hash}`} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
+                                      {truncateAddress(tx.tx_hash, 6)}
+                                    </a>
+                                  ) : tx.tx_hash?.startsWith("otc-") ? (
+                                    <span className="text-gray-400 text-xs">OTC</span>
+                                  ) : (
+                                    <span className="text-gray-300 text-xs">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
               )}
             </div>
           </main>
