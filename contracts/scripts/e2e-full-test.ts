@@ -55,7 +55,9 @@ const SALE_ABI = [
   "function depositProjectTokens(uint256) external",
   "function setOTCToken(address) external",
   "function getTotalRaised() view returns (uint256)",
-  "function getContribution(address) view returns (tuple(uint256 amount, uint256 tokensAllocated, bool claimed, bool refunded, bool isOtc))",
+  "function getContribution(address) view returns (tuple(uint256 amount, uint256 tokensAllocated, bool claimed, bool refunded))",
+  "function paymentContributed(address) view returns (uint256)",
+  "function otcContributed(address) view returns (uint256)",
   "function status() view returns (uint8)",
   "function issuer() view returns (address)",
   "function admin() view returns (address)",
@@ -114,7 +116,10 @@ async function main() {
   const investor2 = new ethers.Wallet(inv2Key, ethers.provider);
   const otcOperator = new ethers.Wallet(otcKey, ethers.provider);
 
-  const deploymentsPath = path.join(__dirname, "..", "deployments", "base-sepolia.json");
+  // Pick deployments file by current network: localhost = local hardhat node, otherwise base-sepolia
+  const network = await ethers.provider.getNetwork();
+  const deploymentsFile = network.chainId === 31337n ? "localhost.json" : "base-sepolia.json";
+  const deploymentsPath = path.join(__dirname, "..", "deployments", deploymentsFile);
   const addr = JSON.parse(fs.readFileSync(deploymentsPath, "utf-8"));
 
   console.log("╔══════════════════════════════════════════════════════╗");
@@ -263,8 +268,11 @@ async function main() {
     "event SaleDeployed(address indexed sale, address indexed token, address indexed issuer)",
   ], issuer);
 
+  // Round-5: finalizeSale requires finalizationPending (hardcap hit) or window
+  // expired. Pick a hardcap that the test buys (200 USDC + 500 OTC = 700) hit
+  // exactly so finalizationPending fires.
   const softCap = ethers.parseUnits("50", 6);
-  const hardCap = ethers.parseUnits("10000", 6);
+  const hardCap = ethers.parseUnits("700", 6);
 
   const saleIface = new ethers.Interface(SALE_INIT_ABI);
   const nowTs = Math.floor(Date.now() / 1000);
@@ -302,9 +310,11 @@ async function main() {
 
   const phaseStart = saleStart + 30;          // 30s after sale start
   const phaseEnd = phaseStart + 86400;
+  // pricePerToken: round-5 formula is `(amount * 10^tokenDecimals) / pricePerToken`,
+  // so for a 6-dec token at "1 USDC per whole token" the price is 10^6 raw payment units.
   await (await sale.addPhase(
     "Public Sale",
-    ethers.parseUnits("1", 18),                  // 1 USDC per token
+    ethers.parseUnits("1", 6),                   // 1 USDC per token (6-dec test token)
     ethers.parseUnits("10000", 6),               // 10K allocation in token units (6 dec)
     ethers.parseUnits("10", 6),                  // min 10 USDC (first-time)
     ethers.parseUnits("5000", 6),                // max 5K USDC per investor
@@ -397,7 +407,9 @@ async function main() {
   await (await saleInv2.buyOTC(0, otcMintAmt, { gasLimit: 500_000 })).wait();
 
   const contrib2 = await sale.getContribution(investor2.address);
-  log("10", `Investor2 OTC bought: ${fmt(contrib2.tokensAllocated)} eTST (isOtc: ${contrib2.isOtc})`);
+  // Round-5: Contribution.isOtc removed; check via otcContributed mapping instead
+  const otcAmt2 = await sale.otcContributed(investor2.address);
+  log("10", `Investor2 OTC bought: ${fmt(contrib2.tokensAllocated)} eTST (otc spent: ${fmt(otcAmt2)})`);
   log("10", `Investor2 eTST balance: ${fmt(await token.balanceOf(investor2.address))}`);
   log("10", `Total raised (USDC only): ${fmt(await sale.getTotalRaised())}`);
 
@@ -422,7 +434,7 @@ async function main() {
   const initData2 = saleIface.encodeFunctionData("initialize", [
     tokenAddr, usdcAddr, irAddr, issuer.address,
     addr.saleFactory, addr.platformFeeManager,
-    ethers.parseUnits("50", 6), ethers.parseUnits("5000", 6),
+    ethers.parseUnits("50", 6), ethers.parseUnits("100", 6),  // soft 50, hard 100 — matches the test buy
     200, 0,
     ethers.ZeroAddress, // no OTC for vested
     saleStart, saleEnd,
@@ -465,7 +477,7 @@ async function main() {
     const phaseEnd2 = phaseStart2 + 86400;
     await (await vestedSale.addPhase(
       "Vested Round",
-      ethers.parseUnits("1", 18),     // 1 USDC per token
+      ethers.parseUnits("1", 6),      // 1 USDC per token (6-dec test token)
       ethers.parseUnits("5000", 6),   // 5K allocation (6 dec)
       ethers.parseUnits("10", 6),     // min 10 USDC (first-time)
       ethers.parseUnits("5000", 6),   // max 5K USDC
@@ -475,6 +487,17 @@ async function main() {
     )).wait();
     log("12", "Phase added");
 
+    // Deposit project tokens into the vault (vested mode requires this before activation)
+    const depositAmount = ethers.parseUnits("5000", 6);
+    const tokenForDeposit = new ethers.Contract(tokenAddr, TOKEN_ABI, issuer);
+    await (await tokenForDeposit.approve(vestedSaleAddr, depositAmount)).wait();
+    const vestedSaleForDeposit = new ethers.Contract(vestedSaleAddr, [
+      ...SALE_ABI,
+      "function depositProjectTokens(uint256) external",
+    ], issuer);
+    await (await vestedSaleForDeposit.depositProjectTokens(depositAmount)).wait();
+    log("12", `Deposited ${ethers.formatUnits(depositAmount, 6)} eTST to vault`);
+
     // Round-5: admin approves, then issuer activates
     const vestedSaleAdmin = new ethers.Contract(vestedSaleAddr, SALE_ABI, admin);
     await (await vestedSaleAdmin.approveSale()).wait();
@@ -483,7 +506,7 @@ async function main() {
     log("12", "Issuer activated");
 
     // Wait for phase
-    const wait2 = (now2 + 5) - Math.floor(Date.now() / 1000) + 3;
+    const wait2 = phaseStart2 - Math.floor(Date.now() / 1000) + 3;
     if (wait2 > 0) {
       log("12", `Waiting ${wait2}s...`);
       await new Promise(r => setTimeout(r, wait2 * 1000));
@@ -499,20 +522,20 @@ async function main() {
     const contribV = await vestedSale.getContribution(investor1.address);
     log("12", `Investor1 vested: ${fmt(contribV.tokensAllocated)} fractions`);
 
-    // Check fraction balance
+    // Round-5: Fraction is now ERC-1155 with id 1 = USDC, id 2 = OTC
     const fractionAddr = await vestedSale.fractionToken();
-    const fraction = new ethers.Contract(fractionAddr, ERC20_ABI, ethers.provider);
-    log("12", `Fraction balance: ${fmt(await fraction.balanceOf(investor1.address))}`);
+    const fraction1155 = new ethers.Contract(fractionAddr, [
+      "function balanceOf(address account, uint256 id) view returns (uint256)",
+    ], ethers.provider);
+    const fracBal = await fraction1155.balanceOf(investor1.address, 1);
+    log("12", `Fraction id-1 balance: ${fmt(fracBal)}`);
 
     // ═══════════════════════════════════════════
-    // STEP 13: Deposit Tokens & Finalize Vested
+    // STEP 13: Finalize Vested Sale (already deposited above)
     // ═══════════════════════════════════════════
-    console.log("\n=== Step 13: Deposit & Finalize Vested Sale ===");
-    const depositAmt = ethers.parseUnits("5000", 6);
-    await (await token.approve(vestedSaleAddr, depositAmt)).wait();
-    await (await vestedSale.depositProjectTokens(depositAmt, { gasLimit: 500_000 })).wait();
-    log("13", `Deposited ${fmt(depositAmt)} eTST to vault`);
-
+    console.log("\n=== Step 13: Finalize Vested Sale ===");
+    // Round-5: finalizeSale requires finalizationPending. The 100 USDC buy
+    // hits the 100 hardcap exactly, so the flag should be set.
     await (await vestedSale.finalizeSale({ gasLimit: 500_000 })).wait();
     log("13", `Vested sale finalized! Status: ${await vestedSale.status()}`);
 
@@ -520,8 +543,17 @@ async function main() {
     // STEP 14: Claim Vested Tokens
     // ═══════════════════════════════════════════
     console.log("\n=== Step 14: Claim Vested Tokens ===");
-    log("14", "Waiting 65s for vesting...");
-    await new Promise(r => setTimeout(r, 65000));
+    // On hardhat localhost, advance chain time so vesting elapses (vesting = 60s).
+    // On a real network, just wait wall-clock time.
+    const isLocal = (await ethers.provider.getNetwork()).chainId === 31337n;
+    if (isLocal) {
+      await ethers.provider.send("evm_increaseTime", [70]);
+      await ethers.provider.send("evm_mine", []);
+      log("14", "Advanced chain time by 70s");
+    } else {
+      log("14", "Waiting 65s for vesting...");
+      await new Promise(r => setTimeout(r, 65000));
+    }
 
     const vaultAddr = await vestedSale.vault();
     const vault = new ethers.Contract(vaultAddr, VAULT_ABI, investor1);

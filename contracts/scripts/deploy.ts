@@ -274,13 +274,13 @@ async function main() {
   }
 
   if (!addr.fractionTokenImplementation) {
-    const F = await ethers.getContractFactory("CiretaFractionToken");
+    const F = await ethers.getContractFactory("CiretaFractionToken1155");
     const impl = await F.deploy();
     await impl.waitForDeployment();
     addr.fractionTokenImplementation = await impl.getAddress();
-    console.log("  FractionToken impl:", addr.fractionTokenImplementation);
+    console.log("  FractionToken1155 impl:", addr.fractionTokenImplementation);
   } else {
-    console.log("  FractionToken impl: (exists)", addr.fractionTokenImplementation);
+    console.log("  FractionToken1155 impl: (exists)", addr.fractionTokenImplementation);
   }
 
   if (!addr.vaultImplementation) {

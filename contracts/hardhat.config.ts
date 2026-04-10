@@ -23,11 +23,11 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      chainId: 8453,
+      chainId: 31337,
     },
     localhost: {
       url: "http://127.0.0.1:8545",
-      chainId: 8453,
+      chainId: 31337,
     },
     base: {
       url: process.env.WEB3_RPC_URL || "https://mainnet.base.org",
