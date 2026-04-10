@@ -40,7 +40,7 @@ const ERC20_ABI = [
 ];
 
 const SALE_INIT_ABI = [
-  "function initialize(address token, address paymentToken, address identityRegistry, address issuer, address factory, address feeManager, uint256 softCap, uint256 hardCap, uint256 feeBasisPoints, uint256 feeCapUsdc, address otcToken) external",
+  "function initialize(address token, address paymentToken, address identityRegistry, address issuer, address factory, address feeManager, uint256 softCap, uint256 hardCap, uint256 feeBasisPoints, uint256 feeCapUsdc, address otcToken, uint256 saleStartTime, uint256 saleEndTime) external",
 ];
 
 const SALE_ABI = [
@@ -266,11 +266,15 @@ async function main() {
   const hardCap = ethers.parseUnits("10000", 6);
 
   const saleIface = new ethers.Interface(SALE_INIT_ABI);
+  const nowTs = Math.floor(Date.now() / 1000);
+  const saleStart = nowTs + 60;          // start in 1 minute
+  const saleEnd = nowTs + 30 * 24 * 3600; // end 30 days out
   const initData = saleIface.encodeFunctionData("initialize", [
     tokenAddr, usdcAddr, irAddr, issuer.address,
     addr.saleFactory, addr.platformFeeManager,
     softCap, hardCap, 200, 0, // 2% fee, no cap
     otcAddr, // OTC token linked at creation
+    saleStart, saleEnd,
   ]);
 
   const tx7 = await saleFactory.deploySale(tokenAddr, initData, { gasLimit: 3_000_000 });
@@ -409,6 +413,7 @@ async function main() {
     ethers.parseUnits("50", 6), ethers.parseUnits("5000", 6),
     200, 0,
     ethers.ZeroAddress, // no OTC for vested
+    saleStart, saleEnd,
   ]);
 
   try {

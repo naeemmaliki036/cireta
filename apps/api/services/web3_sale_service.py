@@ -39,6 +39,8 @@ class Web3SaleService:
         hard_cap: int,
         fee_basis_points: int,
         fee_cap_usdc: int,
+        sale_start_time: int,
+        sale_end_time: int,
         otc_token: str | None = None,
     ) -> tuple[str, str]:
         """Deploy a Sale via CiretaSaleFactory.deploySale().
@@ -66,6 +68,8 @@ class Web3SaleService:
                 fee_basis_points,
                 fee_cap_usdc,
                 otc_addr,
+                sale_start_time,
+                sale_end_time,
             ],
         )
 
@@ -100,6 +104,8 @@ class Web3SaleService:
         hard_cap: int,
         fee_basis_points: int,
         fee_cap_usdc: int,
+        sale_start_time: int,
+        sale_end_time: int,
         fraction_name: str = "Cireta Fraction",
         fraction_symbol: str = "cFRAC",
         fraction_decimals: int = 18,
@@ -135,6 +141,8 @@ class Web3SaleService:
                 fee_basis_points,
                 fee_cap_usdc,
                 otc_addr,
+                sale_start_time,
+                sale_end_time,
             ],
         )
 

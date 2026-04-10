@@ -39,10 +39,16 @@ async function main() {
   const feeManager = d.platformFeeManager;
   const softCap = ethers.parseUnits("100", 6);
   const hardCap = ethers.parseUnits("500", 6);
-  
+  const nowTs = Math.floor(Date.now() / 1000);
+  const saleStart = nowTs + 60;
+  const saleEnd = nowTs + 30 * 24 * 3600;
+
   const initData = Sale.interface.encodeFunctionData("initialize", [
-    tokenAddr, paymentToken, identityReg, deployer.address, feeManager,
-    softCap, hardCap, 250, 0, deployer.address
+    tokenAddr, paymentToken, identityReg, deployer.address,
+    d.saleFactory, feeManager,
+    softCap, hardCap, 250, 0,
+    ethers.ZeroAddress, // no OTC
+    saleStart, saleEnd,
   ]);
   
   console.log("\nSimulating deploySaleVested...");

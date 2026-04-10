@@ -355,7 +355,11 @@ async def deploy_sale(
     # Verify caller is the issuer who owns this sale
     sale_result = await sale_service.db.execute(
         select(TokenSale)
-        .options(selectinload(TokenSale.issuer), selectinload(TokenSale.token))
+        .options(
+            selectinload(TokenSale.issuer),
+            selectinload(TokenSale.token),
+            selectinload(TokenSale.phases),
+        )
         .where(TokenSale.id == sale_id)
     )
     sale = sale_result.scalar_one_or_none()
@@ -394,6 +398,20 @@ async def deploy_sale(
     soft = int(sale.soft_cap * 10**6)
     hard = int(sale.hard_cap * 10**6)
 
+    # Sale window is derived from the configured phases. The contract enforces
+    # that every phase added later must fall inside [saleStartTime, saleEndTime].
+    if not sale.phases:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "NO_PHASES",
+                "message": "Sale must have at least one phase configured before deployment.",
+            },
+        )
+    sorted_phases = sorted(sale.phases, key=lambda p: p.start_time)
+    sale_start_ts = int(sorted_phases[0].start_time.timestamp())
+    sale_end_ts = int(max(p.end_time for p in sale.phases).timestamp())
+
     mode = sale.sale_mode.value if hasattr(sale.sale_mode, 'value') else str(sale.sale_mode)
     if mode == "vested":
         # Vested mode: deploy sale + vault + fraction token
@@ -407,6 +425,8 @@ async def deploy_sale(
             hard_cap=hard,
             fee_basis_points=request.fee_basis_points,
             fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
+            sale_start_time=sale_start_ts,
+            sale_end_time=sale_end_ts,
             fraction_name=f"c{sale.token.symbol}",
             fraction_symbol=f"c{sale.token.symbol}",
             cliff_duration=request.cliff_duration if hasattr(request, 'cliff_duration') else 0,
@@ -426,6 +446,8 @@ async def deploy_sale(
             hard_cap=hard,
             fee_basis_points=request.fee_basis_points,
             fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
+            sale_start_time=sale_start_ts,
+            sale_end_time=sale_end_ts,
         )
 
     # Persist sale address to DB
@@ -571,8 +593,12 @@ async def add_phase(
     if sale.issuer.user_id != user_id:
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
 
+    from datetime import datetime, timezone
     from decimal import Decimal
     min_contribution = Decimal(request.min_contribution)
+    max_contribution = Decimal(request.max_contribution)
+    price_per_token = Decimal(request.price_per_token)
+    allocation_dec = Decimal(request.allocation)
     if min_contribution <= 0:
         raise HTTPException(
             status_code=400,
@@ -582,14 +608,69 @@ async def add_phase(
                 "If you want a low floor, set $1.",
             },
         )
+    if price_per_token <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "ZERO_PRICE_PER_TOKEN", "message": "Phase price_per_token must be greater than zero."},
+        )
+    if max_contribution != 0 and max_contribution < min_contribution:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_CONTRIBUTION_RANGE", "message": "Phase max_contribution must be >= min_contribution."},
+        )
+    # Parse times
+    try:
+        start_dt = (
+            request.start_time
+            if isinstance(request.start_time, datetime)
+            else datetime.fromisoformat(str(request.start_time).replace("Z", "+00:00"))
+        )
+        end_dt = (
+            request.end_time
+            if isinstance(request.end_time, datetime)
+            else datetime.fromisoformat(str(request.end_time).replace("Z", "+00:00"))
+        )
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_PHASE_TIME_RANGE", "message": "Could not parse phase start/end time."},
+        )
+    if start_dt >= end_dt:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_PHASE_TIME_RANGE", "message": "Phase start_time must be before end_time."},
+        )
+    if end_dt <= datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "PHASE_IN_PAST", "message": "Phase end_time must be in the future."},
+        )
+    # If the parent sale is already deployed, validate the new phase falls inside
+    # the on-chain sale window. If not yet deployed, the contract will enforce
+    # this at addPhase time after deployment.
+    if sale.contract_address:
+        existing_starts = [p.start_time for p in sale.phases]
+        existing_ends = [p.end_time for p in sale.phases]
+        if existing_starts and existing_ends:
+            sale_window_start = min(existing_starts)
+            sale_window_end = max(existing_ends)
+            if start_dt < sale_window_start or end_dt > sale_window_end:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "PHASE_OUTSIDE_SALE_WINDOW",
+                        "message": "Phase must fall inside the sale window. "
+                        f"Sale window: {sale_window_start.isoformat()} to {sale_window_end.isoformat()}.",
+                    },
+                )
     phase = SalePhase()
     phase.sale_id = sale_id
     phase.phase_number = len(sale.phases) + 1
     phase.name = request.name
-    phase.price_per_token = Decimal(request.price_per_token)
-    phase.allocation = Decimal(request.allocation)
+    phase.price_per_token = price_per_token
+    phase.allocation = allocation_dec
     phase.min_contribution = min_contribution
-    phase.max_contribution = Decimal(request.max_contribution)
+    phase.max_contribution = max_contribution
     phase.start_time = request.start_time
     phase.end_time = request.end_time
     phase.whitelist_only = request.whitelist_only

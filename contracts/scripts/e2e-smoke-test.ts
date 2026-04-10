@@ -195,22 +195,29 @@ async function main() {
       const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy");
 
       const saleInitAbi = new ethers.Interface([
-        "function initialize(address _token, address _paymentToken, address _identityRegistry, address _issuer, address _feeManager, uint256 _softCap, uint256 _hardCap, uint256 _feeBasisPoints, uint256 _feeCapUsdc)",
+        "function initialize(address _token, address _paymentToken, address _identityRegistry, address _issuer, address _factory, address _feeManager, uint256 _softCap, uint256 _hardCap, uint256 _feeBasisPoints, uint256 _feeCapUsdc, address _otcToken, uint256 _saleStartTime, uint256 _saleEndTime)",
       ]);
 
       const softCap = ethers.parseUnits("10", 6);
       const hardCap = ethers.parseUnits("100", 6);
+      const nowTs = Math.floor(Date.now() / 1000);
+      const saleStart = nowTs + 60;
+      const saleEnd = nowTs + 30 * 24 * 3600;
 
       const saleInitData = saleInitAbi.encodeFunctionData("initialize", [
         tokenAddress,
         USDC_BASE_SEPOLIA,
         identityRegistryAddress,
         deployer.address,
+        ADDRESSES.saleFactory,
         ADDRESSES.platformFeeManager,
         softCap,
         hardCap,
         250n, // 2.5%
         ethers.parseUnits("10", 6),
+        ethers.ZeroAddress,
+        BigInt(saleStart),
+        BigInt(saleEnd),
       ]);
 
       await wait(3000);

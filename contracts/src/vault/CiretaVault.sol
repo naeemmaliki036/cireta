@@ -65,6 +65,7 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     error OnlyIssuer();
     error ZeroAddress();
     error FractionTokenAlreadySet();
+    error InvalidVestingConfig();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() { _disableInitializers(); }
@@ -83,6 +84,10 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
 
         if (_projectToken == address(0)) revert ZeroAddress();
         if (_issuer == address(0)) revert ZeroAddress();
+        // Vesting must be a strictly positive interval with cliff strictly less than total.
+        // (cliff == vesting would make every claim release the full amount once, which
+        // defeats vesting; cliff > vesting locks tokens forever.)
+        if (_vestingDuration == 0 || _cliffDuration >= _vestingDuration) revert InvalidVestingConfig();
 
         projectToken = IERC20(_projectToken);
         fractionToken = CiretaFractionToken(_fractionToken);

@@ -108,9 +108,14 @@ export function AddPhaseForm({
 
     const startTimestamp = BigInt(Math.floor(new Date(form.startTime).getTime() / 1000));
     const endTimestamp = BigInt(Math.floor(new Date(form.endTime).getTime() / 1000));
+    const nowTs = BigInt(Math.floor(Date.now() / 1000));
 
     if (endTimestamp <= startTimestamp) {
       setValidationError("End time must be after start time.");
+      return;
+    }
+    if (endTimestamp <= nowTs) {
+      setValidationError("Phase end time must be in the future.");
       return;
     }
 

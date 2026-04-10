@@ -99,10 +99,13 @@ async function main() {
   console.log("\nAttempting deploySaleVested...");
 
   const SALE_INIT_ABI = [
-    "function initialize(address, address, address, address, address, address, uint256, uint256, uint256, uint256, address) external",
+    "function initialize(address, address, address, address, address, address, uint256, uint256, uint256, uint256, address, uint256, uint256) external",
   ];
   const saleIface = new ethers.Interface(SALE_INIT_ABI);
   const usdcAddr = addr.ciretaUSDC;
+  const nowTs = Math.floor(Date.now() / 1000);
+  const saleStart = nowTs + 60;
+  const saleEnd = nowTs + 30 * 24 * 3600;
 
   const initData = saleIface.encodeFunctionData("initialize", [
     tokenAddr, usdcAddr, irAddr, issuer.address,
@@ -111,6 +114,7 @@ async function main() {
     ethers.parseUnits("5000", 6), // hardCap
     200, 0,                       // feeBps, feeCap
     ethers.ZeroAddress,           // no OTC
+    saleStart, saleEnd,
   ]);
 
   const saleFactoryIssuer = new ethers.Contract(addr.saleFactory, [

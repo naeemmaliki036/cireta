@@ -26,9 +26,9 @@ class SalePhaseCreate(BaseModel):
         # end_time must be after start_time
         if self.end_time <= self.start_time:
             raise ValueError("Phase end_time must be after start_time")
-        # start_time must be in the future
-        if self.start_time.tzinfo and self.start_time < datetime.now(timezone.utc):
-            raise ValueError("Phase start_time must be in the future")
+        # end_time must be in the future (phase can't already be over at create time)
+        if self.end_time.tzinfo and self.end_time <= datetime.now(timezone.utc):
+            raise ValueError("Phase end_time must be in the future")
         # min_contribution <= max_contribution (when max > 0)
         if self.max_contribution > 0 and self.min_contribution > self.max_contribution:
             raise ValueError(

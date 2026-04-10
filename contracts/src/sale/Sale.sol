@@ -59,6 +59,18 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     uint256 public feeBasisPoints;   // e.g. 250 = 2.5%
     uint256 public feeCapUsdc;       // Absolute max fee in USDC (6 decimals)
 
+    // Sale-level window. All phases must fall inside [saleStartTime, saleEndTime].
+    // Set in initialize() and immutable thereafter.
+    uint256 public saleStartTime;
+    uint256 public saleEndTime;
+
+    // Cumulative phase allocation for PhaseAllocated structure (in token units).
+    // Updated in addPhase() and validated against hardCap on each addition.
+    uint256 public totalPhaseAllocation;
+
+    // Maximum platform fee in basis points (10% ceiling).
+    uint256 public constant MAX_FEE_BPS = 1000;
+
     uint256 public totalRaised;              // Total USDC raised (on-platform only)
     uint256 public totalOtcAllocated;        // Total OTC token allocation (excluded from fee)
     uint256 public platformFeeCollected;
@@ -91,7 +103,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     uint256 public constant EMERGENCY_WITHDRAW_DELAY = 90 days;
 
     /// @dev Reserved storage gap for future upgrades
-    uint256[46] private __gap;
+    uint256[43] private __gap;
 
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
@@ -130,6 +142,16 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error CannotAddPhase();
     error ZeroMinContribution();
     error ZeroMaxPerBlock();
+    error InvalidCaps();
+    error InvalidFeeBps();
+    error InvalidSaleWindow();
+    error ZeroPricePerToken();
+    error InvalidPhaseTimeRange();
+    error PhaseOutsideSaleWindow();
+    error PhaseInPast();
+    error InvalidContributionRange();
+    error ZeroPhaseAllocation();
+    error PhaseAllocationExceedsHardCap();
     error SaleNotActive();
     error InvestorNotVerified();
     error CannotFinalize();
@@ -185,7 +207,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         uint256 _hardCap,
         uint256 _feeBasisPoints,
         uint256 _feeCapUsdc,
-        address _otcToken
+        address _otcToken,
+        uint256 _saleStartTime,
+        uint256 _saleEndTime
     ) external initializer {
         if (_token == address(0)) revert ZeroAddress();
         if (_paymentToken == address(0)) revert ZeroAddress();
@@ -193,6 +217,13 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (_issuer == address(0)) revert ZeroAddress();
         if (_factory == address(0)) revert ZeroAddress();
         if (_feeManager == address(0)) revert ZeroAddress();
+        // Caps must be sane: both > 0 and soft <= hard
+        if (_softCap == 0 || _hardCap == 0 || _softCap > _hardCap) revert InvalidCaps();
+        // Fee bps capped at 10% (1000 bps)
+        if (_feeBasisPoints > MAX_FEE_BPS) revert InvalidFeeBps();
+        // Sale window must be a strictly positive interval ending in the future
+        if (_saleStartTime >= _saleEndTime) revert InvalidSaleWindow();
+        if (_saleEndTime <= block.timestamp) revert InvalidSaleWindow();
 
         token = _token;
         paymentToken = IERC20(_paymentToken);
@@ -204,6 +235,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         hardCap = _hardCap;
         feeBasisPoints = _feeBasisPoints;
         feeCapUsdc = _feeCapUsdc;
+        saleStartTime = _saleStartTime;
+        saleEndTime = _saleEndTime;
         if (_otcToken != address(0)) otcToken = IssuerOTCToken(_otcToken);
         maxPerBlock = 50_000 * 1e6; // 50,000 USDC default per-block cap
         status = SaleStatus.Draft;
@@ -276,11 +309,37 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         bool whitelistOnly
     ) external onlyIssuer {
         if (status != SaleStatus.Draft && status != SaleStatus.Active) revert CannotAddPhase();
+
+        // Price must be positive (free tokens are never intended).
+        if (pricePerToken == 0) revert ZeroPricePerToken();
+
         // Every phase must have a non-zero minimum contribution. Setting min=0
         // is almost always a configuration mistake (it disables the
         // first-time-buyer floor entirely) and there is no updatePhase to
         // correct it after the fact. Issuers who want a low floor can use $1.
         if (minContribution == 0) revert ZeroMinContribution();
+
+        // Max contribution, if set, must be >= min. Zero is allowed (= unlimited).
+        if (maxContribution != 0 && maxContribution < minContribution) revert InvalidContributionRange();
+
+        // Phase window must be a strictly positive interval.
+        if (startTime >= endTime) revert InvalidPhaseTimeRange();
+
+        // Phase must not already be in the past at creation time.
+        if (endTime <= block.timestamp) revert PhaseInPast();
+
+        // Phase must fall entirely inside the sale window.
+        if (startTime < saleStartTime || endTime > saleEndTime) revert PhaseOutsideSaleWindow();
+
+        // For PhaseAllocated structure: each phase needs a positive allocation,
+        // and the sum of all phase allocations must not exceed hardCap.
+        if (saleStructure == SaleStructure.PhaseAllocated) {
+            if (allocation == 0) revert ZeroPhaseAllocation();
+            uint256 newTotal = totalPhaseAllocation + allocation;
+            if (newTotal > hardCap) revert PhaseAllocationExceedsHardCap();
+            totalPhaseAllocation = newTotal;
+        }
+
         phases.push(Phase({
             name: name,
             pricePerToken: pricePerToken,
