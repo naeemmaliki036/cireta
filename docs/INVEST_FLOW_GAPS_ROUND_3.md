@@ -66,12 +66,20 @@ writes to the DB but does **not** push the new value on-chain (and vice
 versa). The two diverge silently.
 
 **Fix shipped:**
-- One-shot sync script `scripts/sync_phases_from_chain.py` reads each
-  active sale's on-chain phases via `Sale.getPhase(i)` and overwrites the
-  DB row. Run against dev + staging for the Wassa sale to bring DB in
-  sync with the deployed contract.
-- New backend helper `Web3SaleService.read_phase_data(sale_address, idx)`
-  exposed for ad-hoc reads.
+- Read on-chain phases via `Sale.getPhase(i)` and update the DB rows.
+- Run against dev + staging for the Wassa sale to bring DB in sync with
+  the deployed contract.
+
+> **Correction (2026-04-10):** the first attempt of this sync used a
+> wrong ABI ordering (swapped `allocation, sold` with `minContribution,
+> maxContribution`) and wrote garbage values into the DB
+> (`Phase 1 Seed → max $1,177.65` etc.). The actual Solidity struct
+> order is `name, pricePerToken, allocation, sold, minContribution,
+> maxContribution, startTime, endTime, whitelistOnly`. Fixed and re-synced.
+> The on-chain truth for the Wassa sale is:
+> - Phase 1 Seed: min `$0`, max `$0` (no per-investor caps)
+> - Phase 2 Seed Round: min `$85,000`, max `$50,000,000`
+> - Phase 3 Retail: min `$50,000`, max `$50,000,000`
 
 **Follow-up tracked:** add an event listener that subscribes to
 `Sale.PhaseAdded` / `Sale.PhaseUpdated` (if those events exist) and
