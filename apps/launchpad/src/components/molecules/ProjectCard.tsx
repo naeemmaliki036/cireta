@@ -17,6 +17,8 @@ export interface ProjectCardProps {
   currentRaised: number;
   targetAmount: number;
   investorCount?: number;
+  status?: string;
+  isComingSoon?: boolean;
   className?: string;
   index?: number;
 }
@@ -30,6 +32,8 @@ export function ProjectCard({
   currentRaised,
   targetAmount,
   investorCount,
+  status,
+  isComingSoon,
   className,
   index = 0,
 }: ProjectCardProps) {
@@ -114,38 +118,46 @@ export function ProjectCard({
             )}
             {!fundingRound && <div className="mb-6" />}
 
-            {/* Progress Bar */}
-            <div className="bg-[#b2b7b81a] rounded-[100px] overflow-hidden h-[12px]">
-              <div
-                className="h-[12px] bg-darkAqua rounded-[100px] transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+            {/* Progress Bar — only for active sales with raised amount */}
+            {!isComingSoon && status !== "upcoming" && status !== "approved" && currentRaised > 0 && (
+              <div className="bg-[#b2b7b81a] rounded-[100px] overflow-hidden h-[12px]">
+                <div
+                  className="h-[12px] bg-darkAqua rounded-[100px] transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
 
             {/* Stats Row */}
             <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-[12px] mt-1.5 lg:mt-2.5">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center justify-center text-darkAqua h-[13px] w-[20px]">
-                    <TrendingUp className="h-4 w-4" />
-                  </span>
-                  <span className="font-medium text-[14px] lg:text-[16px]/5">
-                    Raised
-                  </span>
-                  <span className="text-[14px] lg:text-[16px]/[19.09px] font-semibold">
-                    {formatCurrency(currentRaised)}
-                  </span>
+              {isComingSoon ? (
+                <span className="font-medium text-[14px] lg:text-[16px]/5 text-gray-400">TBD</span>
+              ) : (
+                <div className="flex items-center gap-4">
+                  {currentRaised > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center text-darkAqua h-[13px] w-[20px]">
+                        <TrendingUp className="h-4 w-4" />
+                      </span>
+                      <span className="font-medium text-[14px] lg:text-[16px]/5">
+                        Raised
+                      </span>
+                      <span className="text-[14px] lg:text-[16px]/[19.09px] font-semibold">
+                        {formatCurrency(currentRaised)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-[14px] lg:text-[16px]/5">
+                      Target
+                    </span>
+                    <span className="text-[14px] lg:text-[16px]/[19.09px] font-semibold">
+                      {formatCurrency(targetAmount)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-[14px] lg:text-[16px]/5">
-                    Target
-                  </span>
-                  <span className="text-[14px] lg:text-[16px]/[19.09px] font-semibold">
-                    {formatCurrency(targetAmount)}
-                  </span>
-                </div>
-              </div>
-              {investorCount !== undefined && (
+              )}
+              {investorCount !== undefined && investorCount > 0 && (
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-darkAqua" />
                   <span className="text-[14px] lg:text-[16px]/5 font-semibold">

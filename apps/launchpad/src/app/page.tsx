@@ -136,15 +136,26 @@ function LiveProjectCard({ project: p }: { project: Project }) {
           </div>
         )}
         <div className="mt-auto space-y-3">
-          <div>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Funding progress</span>
-              <span>{p.isComingSoon ? "TBD" : `${progress}%`}</span>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${p.isComingSoon ? 0 : progress}%` }} />
-            </div>
-          </div>
+          {(() => {
+            const now = Date.now();
+            const isOngoing = p.phases.some((ph) => {
+              const s = new Date(ph.start_time || 0).getTime();
+              const e = new Date(ph.end_time || 0).getTime();
+              return now >= s && now < e;
+            });
+            const showProgress = isOngoing && p.currentRaised > 0;
+            return showProgress ? (
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Funding progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            ) : null;
+          })()}
           <div className="flex items-center justify-between pt-1">
             <div>
               <p className="text-[10px] text-gray-400 uppercase">Target</p>
@@ -279,8 +290,18 @@ export default function HomePage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await getProjects({ size: 4 });
-        const sorted = [...data.items].sort((a, b) => (a.isComingSoon ? 1 : 0) - (b.isComingSoon ? 1 : 0));
+        const data = await getProjects({ size: 12 });
+        const now = Date.now();
+        const rank = (p: Project) => {
+          if (p.isComingSoon) return 2; // coming soon — last
+          const hasActivePhase = p.phases.some((ph) => {
+            const s = new Date(ph.start_time || 0).getTime();
+            const e = new Date(ph.end_time || 0).getTime();
+            return now >= s && now < e;
+          });
+          return hasActivePhase ? 0 : 1; // ongoing first, then upcoming
+        };
+        const sorted = [...data.items].sort((a, b) => rank(a) - rank(b));
         setProjects(sorted);
       } catch { /* empty */ }
       finally { setLoadingProjects(false); }

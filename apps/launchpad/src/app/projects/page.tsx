@@ -220,7 +220,17 @@ export default function ExplorePage() {
     })();
   }, []);
 
-  const activeProjects = projects.filter((p) => !p.isComingSoon && p.status !== "completed");
+  const now = Date.now();
+  const activeProjects = projects
+    .filter((p) => !p.isComingSoon && p.status !== "completed")
+    .sort((a, b) => {
+      const hasActive = (p: typeof a) => p.phases.some((ph) => {
+        const s = new Date(ph.start_time || 0).getTime();
+        const e = new Date(ph.end_time || 0).getTime();
+        return now >= s && now < e;
+      });
+      return (hasActive(a) ? 0 : 1) - (hasActive(b) ? 0 : 1);
+    });
   const comingSoonProjects = projects.filter((p) => p.isComingSoon);
   const completedProjects = projects.filter((p) => p.status === "completed");
 
