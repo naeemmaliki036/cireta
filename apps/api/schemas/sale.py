@@ -150,6 +150,9 @@ class SalePhaseResponse(BaseModel):
     end_time: datetime
     whitelist_only: bool
     is_active: bool
+    # Round-5 fields
+    top_up_min: str = "0"
+    allocation_mode: str = "fixed"
     # Aggregated from confirmed contributions in this phase. Always present;
     # zero when no contributions have been recorded.
     tokens_sold: str = "0"
@@ -214,6 +217,15 @@ class SaleResponse(BaseModel):
     identity_registry_address: str | None = None
     issuer_name: str | None = None
     issuer_slug: str | None = None
+    # Round-5 fields
+    is_open_ended: bool = False
+    total_token_supply: str | None = None
+    sale_start_time: datetime | None = None
+    sale_end_time: datetime | None = None
+    approved_at: datetime | None = None
+    activated_at: datetime | None = None
+    refunds_activated_at: datetime | None = None
+    finalization_pending: bool = False
 
     class Config:
         from_attributes = True

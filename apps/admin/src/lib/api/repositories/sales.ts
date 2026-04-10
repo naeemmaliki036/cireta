@@ -7,9 +7,14 @@ export interface SalePhase {
   price_per_token: string;
   allocation: string;
   sold: string;
+  min_contribution: string;
+  max_contribution: string;
   start_time: string;
   end_time: string;
   whitelist_only?: boolean;
+  // Round-5 fields
+  top_up_min: string;
+  allocation_mode: string;
 }
 
 export interface Sale {
@@ -49,6 +54,15 @@ export interface Sale {
   token_symbol: string | null;
   issuer_name: string | null;
   created_at: string;
+  // Round-5 fields
+  is_open_ended: boolean;
+  total_token_supply: string | null;
+  approved_at: string | null;
+  activated_at: string | null;
+  refunds_activated_at: string | null;
+  finalization_pending: boolean;
+  sale_start_time: string | null;
+  sale_end_time: string | null;
 }
 
 export interface SaleListResponse {

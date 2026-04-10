@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   BarChart3, Clock, ArrowLeft, CheckCircle2, XCircle, Flag,
   AlertCircle, Zap, Pause, Play, ShieldAlert, Eye, EyeOff,
+  Timer, Power, RefreshCw, Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
@@ -33,6 +34,9 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [emergencyRecipient, setEmergencyRecipient] = useState("");
+  // Extend phase state
+  const [extendPhaseId, setExtendPhaseId] = useState<number | null>(null);
+  const [extendNewEnd, setExtendNewEnd] = useState("");
 
   // On-chain actions
   const { isConnected } = useAccount();
@@ -70,6 +74,9 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const unpauseAction = useContractAction();
   const finalizeAction = useContractAction();
   const emergencyAction = useContractAction();
+  const closeSaleAction = useContractAction();
+  const extendPhaseAction = useContractAction();
+  const activateRefundsAction = useContractAction();
 
   useEffect(() => { paramsPromise.then((p) => setResolvedId(p.id)); }, [paramsPromise]);
   useEffect(() => {
@@ -166,6 +173,54 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
     await reload();
   };
 
+  const handleCloseSale = async (failed: boolean) => {
+    if (!sale?.contract_address || !requireWallet()) return;
+    const receipt = await closeSaleAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "closeSale",
+      args: [failed],
+      gas: 1_000_000n,
+    });
+    if (receipt) {
+      try {
+        await apiFetch(`/api/v1/sales/${resolvedId}/finalize`, { method: "POST", body: { tx_hash: receipt.transactionHash }, token: getToken() });
+      } catch { /* on-chain is source of truth */ }
+      await reload();
+    }
+  };
+
+  const handleExtendPhase = async () => {
+    if (!sale?.contract_address || !requireWallet() || extendPhaseId === null || !extendNewEnd) return;
+    const newEndTimestamp = BigInt(Math.floor(new Date(extendNewEnd).getTime() / 1000));
+    const receipt = await extendPhaseAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "extendPhase",
+      args: [BigInt(extendPhaseId), newEndTimestamp],
+    });
+    if (receipt) {
+      setExtendPhaseId(null);
+      setExtendNewEnd("");
+      await reload();
+    }
+  };
+
+  const handleActivateRefunds = async () => {
+    if (!sale?.contract_address || !requireWallet()) return;
+    const receipt = await activateRefundsAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "activateRefunds",
+    });
+    if (receipt) {
+      try {
+        await apiFetch(`/api/v1/sales/${resolvedId}/activate-refunds`, { method: "POST", body: { tx_hash: receipt.transactionHash }, token: getToken() });
+      } catch { /* on-chain is source of truth */ }
+      await reload();
+    }
+  };
+
   const handleEmergencyWithdraw = async () => {
     if (!sale?.contract_address || !requireWallet() || !emergencyRecipient) return;
     await emergencyAction.execute({
@@ -192,6 +247,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const isFinalizedFailed = sale.status === "finalized_failed" || sale.status === "failed";
   const isRejected = sale.status === "rejected";
   const hasContract = !!sale.contract_address;
+  const isOpenEnded = sale.is_open_ended;
 
   return (
     <PlatformAdminLayout title={sale.title || sale.token_name || "Sale Review"} description={`Sale ID: ${sale.id}`}>
@@ -203,8 +259,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
 
       {actionError && <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600"><AlertCircle className="h-4 w-4 inline mr-1" />{actionError}</div>}
       {actionSuccess && <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-600"><CheckCircle2 className="h-4 w-4 inline mr-1" />Action completed</div>}
-
-      {/* Pending approval sections are below (split by hasContract) */}
 
       {/* ── Rejected (DB) ── */}
       {isRejected && (
@@ -218,7 +272,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       {isPending && !hasContract && !sale.is_coming_soon && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
           <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Not Deployed</h2>
-          <p className="text-sm text-amber-700">Issuer has submitted for approval but hasn't deployed the sale contract on-chain yet. Cannot approve until deployed.</p>
+          <p className="text-sm text-amber-700">Issuer has submitted for approval but hasn&apos;t deployed the sale contract on-chain yet. Cannot approve until deployed.</p>
         </motion.div>
       )}
 
@@ -298,39 +352,60 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </motion.div>
       )}
 
-      {/* ── Active — Pause / Finalize ── */}
+      {/* ── Active — Pause / Finalize / Close ── */}
       {isActive && hasContract && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 rounded-lg p-6 border border-blue-200 mb-6">
-          <h2 className="text-lg font-semibold text-blue-800 mb-2">Sale is Live</h2>
-          <p className="text-sm text-blue-700 mb-4">Investors can buy. You can pause or finalize from your admin wallet.</p>
-          <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-blue-800 mb-2">
+            Sale is Live{isOpenEnded ? " (Open-Ended)" : ""}
+          </h2>
+          <p className="text-sm text-blue-700 mb-4">
+            Investors can buy. You can pause, finalize{isOpenEnded ? ", or close" : ""} from your admin wallet.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
             <Button variant="outline" onClick={handlePauseOnChain} disabled={pauseAction.isPending || pauseAction.isConfirming} isLoading={pauseAction.isPending || pauseAction.isConfirming} className="text-amber-600 border-amber-200 hover:bg-amber-50">
               <Pause className="h-4 w-4 mr-2" /> Pause Sale
             </Button>
             <Button variant="primary" onClick={handleFinalizeOnChain} disabled={finalizeAction.isPending || finalizeAction.isConfirming} isLoading={finalizeAction.isPending || finalizeAction.isConfirming}>
               <Flag className="h-4 w-4 mr-2" /> Finalize Sale
             </Button>
+            {isOpenEnded && (
+              <>
+                <Button variant="outline" onClick={() => handleCloseSale(false)} disabled={closeSaleAction.isPending || closeSaleAction.isConfirming} isLoading={closeSaleAction.isPending || closeSaleAction.isConfirming}>
+                  <Power className="h-4 w-4 mr-2" /> Close Sale (Success)
+                </Button>
+                <Button variant="outline" onClick={() => handleCloseSale(true)} disabled={closeSaleAction.isPending || closeSaleAction.isConfirming} isLoading={closeSaleAction.isPending || closeSaleAction.isConfirming} className="text-red-600 border-red-200 hover:bg-red-50">
+                  <Power className="h-4 w-4 mr-2" /> Close Sale (Failed)
+                </Button>
+              </>
+            )}
           </div>
           <TransactionStatus isPending={pauseAction.isPending} isConfirming={pauseAction.isConfirming} isConfirmed={pauseAction.isConfirmed} txHash={pauseAction.txHash} txUrl={pauseAction.txUrl} error={pauseAction.error} successMessage="Sale paused." />
           <TransactionStatus isPending={finalizeAction.isPending} isConfirming={finalizeAction.isConfirming} isConfirmed={finalizeAction.isConfirmed} txHash={finalizeAction.txHash} txUrl={finalizeAction.txUrl} error={finalizeAction.error} successMessage="Sale finalized." />
+          <TransactionStatus isPending={closeSaleAction.isPending} isConfirming={closeSaleAction.isConfirming} isConfirmed={closeSaleAction.isConfirmed} txHash={closeSaleAction.txHash} txUrl={closeSaleAction.txUrl} error={closeSaleAction.error} successMessage="Sale closed." />
         </motion.div>
       )}
 
-      {/* ── Paused — Unpause ── */}
+      {/* ── Paused — Unpause / Close ── */}
       {isPaused && hasContract && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
           <h2 className="text-lg font-semibold text-amber-800 mb-2">Sale Paused</h2>
           <p className="text-sm text-amber-700 mb-4">This sale is paused. Only admin can unpause (regulatory control).</p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Button variant="primary" onClick={handleUnpauseOnChain} disabled={unpauseAction.isPending || unpauseAction.isConfirming} isLoading={unpauseAction.isPending || unpauseAction.isConfirming}>
               <Play className="h-4 w-4 mr-2" /> Unpause Sale
             </Button>
             <Button variant="outline" onClick={handleFinalizeOnChain} disabled={finalizeAction.isPending || finalizeAction.isConfirming} isLoading={finalizeAction.isPending || finalizeAction.isConfirming}>
               <Flag className="h-4 w-4 mr-2" /> Finalize Instead
             </Button>
+            {isOpenEnded && (
+              <Button variant="outline" onClick={() => handleCloseSale(true)} disabled={closeSaleAction.isPending || closeSaleAction.isConfirming} isLoading={closeSaleAction.isPending || closeSaleAction.isConfirming} className="text-red-600 border-red-200 hover:bg-red-50">
+                <Power className="h-4 w-4 mr-2" /> Close Sale (Failed)
+              </Button>
+            )}
           </div>
           <TransactionStatus isPending={unpauseAction.isPending} isConfirming={unpauseAction.isConfirming} isConfirmed={unpauseAction.isConfirmed} txHash={unpauseAction.txHash} txUrl={unpauseAction.txUrl} error={unpauseAction.error} successMessage="Sale unpaused — live again." />
           <TransactionStatus isPending={finalizeAction.isPending} isConfirming={finalizeAction.isConfirming} isConfirmed={finalizeAction.isConfirmed} txHash={finalizeAction.txHash} txUrl={finalizeAction.txUrl} error={finalizeAction.error} successMessage="Sale finalized." />
+          <TransactionStatus isPending={closeSaleAction.isPending} isConfirming={closeSaleAction.isConfirming} isConfirmed={closeSaleAction.isConfirmed} txHash={closeSaleAction.txHash} txUrl={closeSaleAction.txUrl} error={closeSaleAction.error} successMessage="Sale closed." />
         </motion.div>
       )}
 
@@ -342,11 +417,38 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </div>
       )}
 
-      {/* ── Finalized Failed ── */}
-      {isFinalizedFailed && (
+      {/* ── Finalized Failed — Activate Refunds ── */}
+      {isFinalizedFailed && hasContract && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 rounded-lg p-6 border border-red-200 mb-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Sale Failed — Soft Cap Not Reached</h2>
+          <p className="text-sm text-red-700 mb-4">
+            {sale.refunds_activated_at
+              ? "Refunds are active. Investors can claim USDC refunds."
+              : "Activate refunds to allow investors to reclaim their USDC contributions. OTC contributors must be refunded off-chain."
+            }
+          </p>
+          {!sale.refunds_activated_at && (
+            <Button variant="primary" onClick={handleActivateRefunds}
+              disabled={activateRefundsAction.isPending || activateRefundsAction.isConfirming}
+              isLoading={activateRefundsAction.isPending || activateRefundsAction.isConfirming}
+              className="bg-red-600 hover:bg-red-700">
+              <RefreshCw className="h-4 w-4 mr-2" /> Activate Refunds
+            </Button>
+          )}
+          {sale.refunds_activated_at && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Refunds activated on {new Date(sale.refunds_activated_at).toLocaleDateString()}
+            </div>
+          )}
+          <TransactionStatus isPending={activateRefundsAction.isPending} isConfirming={activateRefundsAction.isConfirming} isConfirmed={activateRefundsAction.isConfirmed} txHash={activateRefundsAction.txHash} txUrl={activateRefundsAction.txUrl} error={activateRefundsAction.error} successMessage="Refunds activated — investors can now claim USDC refunds." />
+        </motion.div>
+      )}
+
+      {/* ── Finalized Failed without contract (DB-only) ── */}
+      {isFinalizedFailed && !hasContract && (
         <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
           <p className="font-semibold mb-1">Sale failed — soft cap not reached</p>
-          <p>Investors can claim refunds.</p>
+          <p>No contract deployed — refunds handled off-chain.</p>
         </div>
       )}
 
@@ -447,6 +549,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
             ["Issuer", sale.issuer_name ?? "—"],
             ["Payment Token", sale.payment_token],
             ["Sale Mode", sale.sale_mode ?? "vested"],
+            ["Sale Type", isOpenEnded ? "Open-Ended" : "Fixed Window"],
             ["Contract", sale.contract_address ? `${sale.contract_address.slice(0, 10)}...${sale.contract_address.slice(-8)}` : "Not deployed"],
             ["Phases", `${sale.phases.length} configured`],
           ].map(([label, value]) => (
@@ -458,26 +561,65 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </div>
       </motion.div>
 
-      {/* Phases */}
+      {/* Phases with Extend button */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg p-6 border border-black/10">
         <h2 className="text-lg font-semibold text-text mb-6">Phases</h2>
         {sale.phases.length === 0 ? (
           <p className="text-black/40 text-center py-4">No phases configured</p>
         ) : (
           <div className="space-y-4">
-            {sale.phases.map((phase) => {
+            {sale.phases.map((phase, idx) => {
               const phaseSold = parseFloat(phase.sold || "0");
               const phaseAlloc = parseFloat(phase.allocation || "0");
               const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
+              const phaseEnd = new Date(phase.end_time);
+              const phaseStart = new Date(phase.start_time);
+              const now = new Date();
+              const isPhaseActive = now >= phaseStart && now <= phaseEnd;
+              const isPhaseUpcoming = now < phaseStart;
+              const canExtend = hasContract && (isActive || isPaused) && (isPhaseActive || isPhaseUpcoming);
               return (
                 <div key={phase.id} className="p-4 rounded-lg bg-box">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-text">{phase.name}</p>
-                    <div className="flex items-center gap-2 text-sm text-black/50">
-                      <Clock className="h-3 w-3" />
-                      <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-text">{phase.name}</p>
+                      {isPhaseActive && <Badge variant="active" size="sm">Active</Badge>}
+                      {isPhaseUpcoming && <Badge variant="default" size="sm">Upcoming</Badge>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-sm text-black/50">
+                        <Clock className="h-3 w-3" />
+                        <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
+                      </div>
+                      {canExtend && (
+                        <Button variant="outline" size="sm" onClick={() => { setExtendPhaseId(idx); setExtendNewEnd(""); }}>
+                          <Calendar className="h-3 w-3 mr-1" /> Extend
+                        </Button>
+                      )}
                     </div>
                   </div>
+                  {/* Extend phase inline form */}
+                  {extendPhaseId === idx && (
+                    <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                      <p className="text-xs text-blue-700 mb-2">Extend phase end time (must be after {phase.end_time.slice(0, 16)})</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="datetime-local"
+                          value={extendNewEnd}
+                          onChange={(e) => setExtendNewEnd(e.target.value)}
+                          min={phase.end_time.slice(0, 16)}
+                          className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 flex-1"
+                        />
+                        <Button variant="primary" size="sm" onClick={handleExtendPhase}
+                          disabled={!extendNewEnd || extendPhaseAction.isPending || extendPhaseAction.isConfirming}
+                          isLoading={extendPhaseAction.isPending || extendPhaseAction.isConfirming}>
+                          <Timer className="h-3 w-3 mr-1" /> Confirm
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setExtendPhaseId(null)}>Cancel</Button>
+                      </div>
+                      <TransactionStatus isPending={extendPhaseAction.isPending} isConfirming={extendPhaseAction.isConfirming} isConfirmed={extendPhaseAction.isConfirmed} txHash={extendPhaseAction.txHash} txUrl={extendPhaseAction.txUrl} error={extendPhaseAction.error} successMessage="Phase extended successfully." />
+                    </div>
+                  )}
                   <ProgressBar value={phasePct} size="sm" />
                   <div className="flex justify-between text-xs mt-1 text-black/40">
                     <span>Price: ${parseFloat(phase.price_per_token).toLocaleString()}</span>

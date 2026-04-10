@@ -62,6 +62,8 @@ def _phase_to_response(
         end_time=phase.end_time,
         whitelist_only=phase.whitelist_only,
         is_active=phase.is_active,
+        top_up_min=str(getattr(phase, "top_up_min", 0) or 0),
+        allocation_mode=getattr(phase, "allocation_mode", "fixed") or "fixed",
         tokens_sold=sold[0],
         usdc_raised=sold[1],
     )
@@ -149,6 +151,15 @@ def _sale_to_response(
         identity_registry_address=sale.token.identity_registry_address if sale.token else None,
         issuer_name=sale.issuer.name if sale.issuer else None,
         issuer_slug=sale.issuer.slug if sale.issuer else None,
+        # Round-5 fields
+        is_open_ended=getattr(sale, "is_open_ended", False) or False,
+        total_token_supply=str(sale.total_token_supply) if getattr(sale, "total_token_supply", None) else None,
+        sale_start_time=getattr(sale, "sale_start_time", None),
+        sale_end_time=getattr(sale, "sale_end_time", None),
+        approved_at=getattr(sale, "approved_at", None),
+        activated_at=getattr(sale, "activated_at", None),
+        refunds_activated_at=getattr(sale, "refunds_activated_at", None),
+        finalization_pending=getattr(sale, "finalization_pending", False) or False,
     )
 
 

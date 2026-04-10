@@ -231,13 +231,17 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     if (!sale?.contract_address) return;
     const pricePerToken = parseUnits(phase.price_per_token, 18);
     const allocation = parseUnits(phase.allocation, tokenDecimals);
+    const minContribution = parseUnits(phase.min_contribution || "1000", 6);
+    const maxContribution = parseUnits(phase.max_contribution || "0", 6);
+    const topUpMin = parseUnits(phase.top_up_min || "1000", 6);
     const startTimestamp = BigInt(Math.floor(new Date(phase.start_time).getTime() / 1000));
     const endTimestamp = BigInt(Math.floor(new Date(phase.end_time).getTime() / 1000));
+    const allocationMode = (phase.allocation_mode === "remaining") ? 1 : 0;
     const receipt = await phaseDeployAction.execute({
       address: sale.contract_address as `0x${string}`,
       abi: SALE_ABI as unknown as Abi,
       functionName: "addPhase",
-      args: [phase.name, pricePerToken, allocation, BigInt(0), BigInt(0), startTimestamp, endTimestamp, phase.whitelist_only ?? false],
+      args: [phase.name, pricePerToken, allocation, minContribution, maxContribution, topUpMin, startTimestamp, endTimestamp, phase.whitelist_only ?? false, allocationMode],
     });
     if (receipt) {
       refetchPhaseCount();
@@ -287,6 +291,22 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
     const otcTokenAddress = sale.otc_enabled ? (sale.otc_token_address ?? zeroAddress) : zeroAddress;
 
+    // Round-5: derive sale window from phases (earliest start, latest end)
+    const sortedPhases = [...sale.phases].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    const saleStartTime = sortedPhases.length > 0
+      ? BigInt(Math.floor(new Date(sortedPhases[0]!.start_time).getTime() / 1000))
+      : BigInt(Math.floor(Date.now() / 1000));
+    // saleEndTime = 0 for open-ended sales, otherwise latest phase end
+    const saleEndTime = sale.is_open_ended
+      ? 0n
+      : sortedPhases.length > 0
+        ? BigInt(Math.floor(new Date(sortedPhases[sortedPhases.length - 1]!.end_time).getTime() / 1000))
+        : BigInt(Math.floor(Date.now() / 1000) + 365 * 86400);
+    // Total token supply in token-decimal units (default 6 decimals, 1M tokens)
+    const totalTokenSupply = sale.total_token_supply
+      ? BigInt(Math.round(parseFloat(sale.total_token_supply) * 1e6))
+      : BigInt(1_000_000 * 1e6);
+
     // Debug: log all deployment arguments
     console.log("[deploySale] Resolved addresses:", {
       token: sale.token_contract_address,
@@ -300,9 +320,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       hardCap: hardCap.toString(),
       otcToken: otcTokenAddress,
       saleMode: sale.sale_mode,
+      saleStartTime: saleStartTime.toString(),
+      saleEndTime: saleEndTime.toString(),
+      totalTokenSupply: totalTokenSupply.toString(),
     });
 
-    // Encode Sale.initialize() calldata
+    // Encode Sale.initialize() calldata (round 5: 14 args)
     const initData = encodeFunctionData({
       abi: SALE_ABI,
       functionName: "initialize",
@@ -318,6 +341,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         issuerFeeBps != null ? BigInt(issuerFeeBps as number) : await readFeeFromChain(wagmiConfig, feeManagerAddress, walletAddress as `0x${string}`), // _feeBasisPoints
         BigInt(50_000 * 1e6),                              // _feeCapUsdc ($50k)
         otcTokenAddress as `0x${string}`,                  // _otcToken
+        saleStartTime,                                     // _saleStartTime
+        saleEndTime,                                       // _saleEndTime (0 = open-ended)
+        totalTokenSupply,                                  // _totalTokenSupply
       ],
     });
 
