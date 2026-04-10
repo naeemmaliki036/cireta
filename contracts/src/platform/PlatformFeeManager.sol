@@ -33,8 +33,11 @@ contract PlatformFeeManager is
     // Maximum fee (10%)
     uint256 public constant MAX_FEE_BPS = 1000;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[50] private __gap;
+    uint256[100] private __gap;
 
     // Events
     event FeeReceiverUpdated(address indexed oldReceiver, address indexed newReceiver);
@@ -67,7 +70,12 @@ contract PlatformFeeManager is
         defaultFeeBps = _defaultFeeBps;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     function setFeeReceiver(address newReceiver) external onlyOwner {
         require(newReceiver != address(0), "zero address");

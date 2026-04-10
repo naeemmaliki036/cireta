@@ -58,8 +58,11 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     // Incremented in recordAllocation, decremented in claim.
     uint256 public totalOutstandingFractions;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[48] private __gap;
+    uint256[100] private __gap;
 
     // --- Events ---
     event TokensLocked(uint256 amount);
@@ -307,5 +310,10 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         return vested - claimed;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 }

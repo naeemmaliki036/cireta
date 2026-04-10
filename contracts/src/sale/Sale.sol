@@ -131,11 +131,11 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     uint256 public finalizedAt;
     uint256 public constant EMERGENCY_WITHDRAW_DELAY = 90 days;
 
+    /// @notice Incremented on every UUPS upgrade — lets indexer/admin detect upgrades.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades.
-    /// Round 5 added: totalTokenSupply, totalTokenSold, tokenDecimals, paymentContributedTotal,
-    /// paymentContributed, otcContributed, approved, openEnded, finalizationPending, refundsActive,
-    /// lastPhaseAddedAt — gap shrunk from 43 → 31.
-    uint256[31] private __gap;
+    uint256[100] private __gap;
 
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
@@ -331,7 +331,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         status = SaleStatus.Draft;
     }
 
-    function _authorizeUpgrade(address) internal override adminOnly {}
+    function _authorizeUpgrade(address) internal override adminOnly {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version — used to verify which impl is live on-chain.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     // ── Admin-Only Functions ────────────────────────────────────────────────
 

@@ -48,8 +48,11 @@ contract SimpleIdentityRegistry is
     /// @dev total whitelisted addresses
     uint256 public whitelistedCount;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[46] private __gap;
+    uint256[100] private __gap;
 
     /// @dev Can add wallets: REGISTRAR_ROLE, AGENT_ROLE, or legacy _agents
     modifier onlyRegistrar() {
@@ -104,7 +107,12 @@ contract SimpleIdentityRegistry is
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     // ============ Role Migration (call after UUPS upgrade) ============
 

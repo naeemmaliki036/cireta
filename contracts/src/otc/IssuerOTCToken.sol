@@ -23,8 +23,11 @@ contract IssuerOTCToken is
     IIdentityRegistry public identityRegistry;
     address public issuerWallet;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[50] private __gap;
+    uint256[100] private __gap;
 
     // --- Events ---
     event OTCMinted(address indexed to, uint256 amount);
@@ -103,5 +106,10 @@ contract IssuerOTCToken is
         super._update(from, to, amount);
     }
 
-    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 }

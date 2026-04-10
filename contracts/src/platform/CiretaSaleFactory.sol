@@ -29,8 +29,11 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
     PlatformFeeManager public platformFeeManager;
     mapping(address => address[]) public issuerSales;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[47] private __gap;
+    uint256[100] private __gap;
 
     event SaleDeployed(
         address indexed token,
@@ -56,7 +59,12 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         saleImplementation = _saleImplementation;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     // ── Configuration (admin-only) ──────────────────────────────────────────
 
@@ -80,6 +88,20 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         require(_feeManager != address(0), "zero addr");
         platformFeeManager = PlatformFeeManager(_feeManager);
         emit PlatformFeeManagerSet(_feeManager);
+    }
+
+    /// @notice Pass-through setter: update the vault implementation on CiretaFractionFactory.
+    /// Solves the round-4 gap where FractionFactory is owned by SaleFactory
+    /// and has no direct admin access for impl swaps.
+    function setFractionVaultImpl(address impl) external onlyOwner {
+        require(impl != address(0), "zero impl");
+        fractionFactory.setVaultImplementation(impl);
+    }
+
+    /// @notice Pass-through setter: update the fraction token implementation on CiretaFractionFactory.
+    function setFractionTokenImpl(address impl) external onlyOwner {
+        require(impl != address(0), "zero impl");
+        fractionFactory.setFractionTokenImplementation(impl);
     }
 
     // ── Modifiers ───────────────────────────────────────────────────────────

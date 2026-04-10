@@ -39,8 +39,11 @@ contract CiretaFractionToken1155 is
     string public name;
     string public symbol;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[48] private __gap;
+    uint256[100] private __gap;
 
     // --- Events ---
     event FractionsMinted(address indexed to, uint256 indexed id, uint256 amount);
@@ -122,7 +125,12 @@ contract CiretaFractionToken1155 is
         super._update(from, to, ids, values);
     }
 
-    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     /// @dev Required for AccessControl + ERC1155 — explicit override for the diamond inheritance.
     function supportsInterface(bytes4 interfaceId)

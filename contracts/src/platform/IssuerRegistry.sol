@@ -45,8 +45,11 @@ contract IssuerRegistry is
     // Array of all issuer addresses
     address[] private _issuerAddresses;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[46] private __gap;
+    uint256[100] private __gap;
 
     // Events
     event IssuerRegistered(address indexed wallet, string name, string jurisdiction);
@@ -74,7 +77,12 @@ contract IssuerRegistry is
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     /// @dev Flag to prevent double-initialization of AccessControl
     bool private _rolesInitialized;

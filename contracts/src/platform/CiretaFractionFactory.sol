@@ -19,8 +19,11 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     mapping(address => address) public saleToVault;
     mapping(address => address) public saleToFraction;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[50] private __gap;
+    uint256[100] private __gap;
 
     event VaultDeployed(address indexed sale, address vault, address fractionToken, address projectToken);
 
@@ -117,5 +120,10 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         vaultImplementation = impl;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 }

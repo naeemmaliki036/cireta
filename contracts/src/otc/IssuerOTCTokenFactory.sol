@@ -24,8 +24,11 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     /// @notice Mapping from issuer wallet => list of all deployed OTC tokens
     mapping(address => address[]) public issuerOTCTokenList;
 
+    /// @notice Incremented on every UUPS upgrade.
+    uint256 public upgradeNonce;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[49] private __gap;
+    uint256[100] private __gap;
 
     // --- Events ---
     event OTCTokenDeployed(address indexed issuer, address indexed otcToken);
@@ -53,7 +56,12 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         otcTokenImplementation = _otcTokenImpl;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner {
+        upgradeNonce++;
+    }
+
+    /// @notice Contract version.
+    function version() external pure returns (string memory) { return "5.0.0"; }
 
     /// @notice Update the OTC token implementation for future deployments.
     function setOTCTokenImplementation(address impl) external onlyOwner {
