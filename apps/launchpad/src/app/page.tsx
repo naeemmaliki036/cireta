@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, ChevronDown, Linkedin } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Navbar, Footer } from "@/components/organisms";
 import { getProjects, type Project } from "@/lib/api/repositories/projects.repository";
@@ -570,7 +570,9 @@ export default function HomePage() {
                         rel="noopener noreferrer"
                         className="w-8 h-8 flex items-center justify-center text-darkAqua border border-darkAqua/30 rounded-md hover:bg-darkAqua hover:text-white transition-colors shrink-0"
                       >
-                        <Linkedin className="w-4 h-4" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 21 21" fill="currentColor">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M2.2614 0.28125C1.47738 0.28125 0.841797 0.91683 0.841797 1.70086V18.8616C0.841797 19.6457 1.47738 20.2812 2.2614 20.2812H19.4222C20.2062 20.2812 20.8418 19.6457 20.8418 18.8616V1.70086C20.8418 0.916831 20.2062 0.28125 19.4222 0.28125H2.2614ZM5.33088 6.49228C6.28909 6.49228 7.06587 5.71549 7.06587 4.75728C7.06587 3.79906 6.28909 3.02227 5.33088 3.02227C4.37267 3.02227 3.59588 3.79906 3.59588 4.75728C3.59588 5.71549 4.37267 6.49228 5.33088 6.49228ZM8.65484 7.77449H11.5303V9.09175C11.5303 9.09175 12.3106 7.53116 14.4336 7.53116C16.3275 7.53116 17.8964 8.46413 17.8964 11.3079V17.3045H14.9166V12.0345C14.9166 10.357 14.021 10.1725 13.3385 10.1725C11.9222 10.1725 11.6797 11.3941 11.6797 12.2533V17.3045H8.65484V7.77449ZM6.84332 7.7745H3.81844V17.3046H6.84332V7.7745Z" />
+                        </svg>
                       </Link>
                     )}
                   </div>

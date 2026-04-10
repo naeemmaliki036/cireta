@@ -88,6 +88,16 @@ export default function InvestPage() {
       ? (_rawAddr as `0x${string}`)
       : null;
 
+  // Check if wallet is whitelisted on identity registry
+  const identityRegistryAddress = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}` | undefined;
+  const { data: isWalletVerified } = useReadContract({
+    address: identityRegistryAddress,
+    abi: [{ name: "isVerified", type: "function", stateMutability: "view", inputs: [{ name: "userAddress", type: "address" }], outputs: [{ name: "", type: "bool" }] }] as const,
+    functionName: "isVerified",
+    args: connectedAddress ? [connectedAddress] : undefined,
+    query: { enabled: !!connectedAddress && !!identityRegistryAddress },
+  });
+
   // Read existing USDC allowance — skip approve step if sufficient
   const amountWei = amount ? parseUnits(amount, 6) : BigInt(0);
   const { data: existingAllowance, refetch: refetchAllowance } = useReadContract({
@@ -196,6 +206,17 @@ export default function InvestPage() {
     : 0;
   const hasOtcBalance = otcBalanceFormatted > 0;
 
+  // Read OTC token allowance — skip approve step if sufficient
+  const { data: otcAllowance, refetch: refetchOtcAllowance } = useReadContract({
+    address: otcTokenAddress ?? undefined,
+    abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const,
+    functionName: "allowance",
+    args: connectedAddress && saleContractAddress ? [connectedAddress, saleContractAddress] : undefined,
+    query: { enabled: !!otcTokenAddress && !!connectedAddress && !!saleContractAddress },
+  });
+  const otcAmountWei = amount ? parseUnits(amount, otcTokenDecimals) : BigInt(0);
+  const hasEnoughOtcAllowance = otcAllowance != null && otcAmountWei > 0 && (otcAllowance as bigint) >= otcAmountWei;
+
   // Load project data
   useEffect(() => {
     if (!params.slug) return;
@@ -245,9 +266,9 @@ export default function InvestPage() {
     // Record contribution in backend (non-blocking for UX — tx is already on-chain)
     (async () => {
       try {
-        await buy(saleId, { phase_id: "", amount, tx_hash: hash });
-      } catch {
-        // Backend recording can be retried later; on-chain tx is the source of truth
+        await buy(saleId, { phase_id: activePhase?.id || "", amount, tx_hash: hash });
+      } catch (err) {
+        console.error("[invest] Backend recording failed:", err);
       }
       setIsContributing(false);
       setStep("success");
@@ -264,7 +285,7 @@ export default function InvestPage() {
 
   // OTC: When OTC approve tx confirms, advance to confirm step
   useEffect(() => {
-    if (otcApproveConfirmed && paymentMethod === "otc_token") setStep("confirm");
+    if (otcApproveConfirmed && paymentMethod === "otc_token") { refetchOtcAllowance(); setStep("confirm"); }
   }, [otcApproveConfirmed, paymentMethod]);
 
   // OTC: When buyOTC confirms, record in backend then show success
@@ -274,8 +295,8 @@ export default function InvestPage() {
     setTxHash(hash);
     (async () => {
       try {
-        await buy(saleId, { phase_id: "", amount, tx_hash: hash });
-      } catch { /* on-chain is source of truth */ }
+        await buy(saleId, { phase_id: activePhase?.id || "", amount, tx_hash: hash });
+      } catch (err) { console.error("[invest] OTC backend recording failed:", err); }
       setIsContributing(false);
       refetchOtcBalance();
       setStep("success");
@@ -296,7 +317,8 @@ export default function InvestPage() {
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
 
   // Determine the active phase index (0-based, for on-chain call)
-  const activePhaseIndex = project?.phases.findIndex((p) => p.is_active) ?? 0;
+  const rawPhaseIndex = project?.phases.findIndex((p) => p.is_active) ?? -1;
+  const activePhaseIndex = rawPhaseIndex >= 0 ? rawPhaseIndex : 0;
 
   const handleApprove = useCallback(() => {
     if (!saleContractAddress) {
@@ -456,6 +478,25 @@ export default function InvestPage() {
           )}
           <motion.div key={paymentMethod ?? "choose"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl p-8 border border-black/10">
+
+            {/* Wallet not whitelisted warning */}
+            {isConnected && isWalletVerified === false && (
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
+                <p className="text-sm font-semibold text-red-700 mb-1">Wallet not verified</p>
+                <p className="text-sm text-red-600 mb-3">
+                  Your connected wallet is not yet registered on the identity registry. You need to complete KYC verification and add this wallet to your profile before you can invest.
+                </p>
+                <div className="flex gap-3">
+                  <Link href="/settings/wallets" className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline">
+                    Add wallet to profile →
+                  </Link>
+                  <Link href="/settings/verification" className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline">
+                    Complete KYC →
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* Payment Method Selector — shown when OTC is enabled and method not yet chosen */}
             {saleOtcEnabled && !paymentMethod && (
               <div className="space-y-6">
@@ -577,7 +618,16 @@ export default function InvestPage() {
                 <Button
                   variant="primary" className="w-full" size="lg"
                   disabled={numericAmount <= 0 || numericAmount > otcBalanceFormatted || !activePhase}
-                  onClick={() => setStep("approve")}
+                  onClick={() => {
+                    refetchOtcAllowance().then(({ data: a }) => {
+                      const needed = parseUnits(amount || "0", otcTokenDecimals);
+                      if (a != null && needed > 0 && (a as bigint) >= needed) {
+                        setStep("confirm");
+                      } else {
+                        setStep("approve");
+                      }
+                    }).catch(() => setStep("approve"));
+                  }}
                 >
                   Continue
                 </Button>
