@@ -34,7 +34,7 @@ with `Rejected` as a permanent dead end from Draft.
 
 | From | To | Function | Caller | Notes |
 | --- | --- | --- | --- | --- |
-| `Draft` | `Active` | `activate()` | Admin | Requires tokens deposited; ≥ 1 phase configured |
+| `Draft` | `Active` | `activate()` | **Admin (today)** | Requires tokens deposited; ≥ 1 phase configured. **See § Part 6 for proposed two-step issuer-activation flow.** |
 | `Draft` | `Rejected` | `reject()` | Admin | Permanent. Issuer can still `withdrawTokens()` |
 | `Active` | `Paused` | `pause()` | Issuer or Admin | |
 | `Paused` | `Active` | `unpause()` | Admin only | |
@@ -552,7 +552,311 @@ For ERC-20 project tokens with 18 decimals, "total supply 1,000,000 tokens" stor
 
 ---
 
-Once you've answered these, I'll write the round-5 implementation. The full
+## Part 6 — Open-ended sales + issuer activation (added 2026-04-10)
+
+Two design changes raised after the first review:
+1. **Sale end time should be optional** to enable open-ended sales where the
+   issuer keeps adding phases until they reach their target.
+2. **Issuer (not admin) should activate the sale** so the issuer controls when
+   it goes live.
+
+Both are good ideas; both have investor-protection trade-offs that require
+explicit safeguards. This section captures the design.
+
+### 6.1 Open-ended sales
+
+#### Use case
+Regulated RWA deals (private placements, slow-bake commodities, institutional
+allocations) often don't fit a hard deadline. The issuer matches investor
+interest as it surfaces and decides when to conclude based on whether the
+target was met. Forcing every sale to have an end date is the wrong default
+for this segment.
+
+#### Schema change
+
+```solidity
+uint256 public saleStartTime;  // required, > 0
+uint256 public saleEndTime;    // 0 = open-ended; otherwise hard end
+
+bool public openEnded;         // derived, set in init: (_saleEndTime == 0)
+```
+
+`saleEndTime = 0` is the sentinel for "open-ended". The boolean `openEnded` is
+a cached derivation for cheap UI reads.
+
+#### addPhase validation under open-ended
+
+Today: `phase.endTime <= saleEndTime` (round 4 `PhaseOutsideSaleWindow`).
+Open-ended: skip the upper bound when `openEnded == true`. Phases still need
+`startTime >= saleStartTime` and `startTime < endTime` and (P3) no overlap with
+existing phases.
+
+#### Closing an open-ended sale — the safety rails
+
+Open-ended without safeguards = funds locked indefinitely. Three guardrails:
+
+**G1 — Absolute safety floor (`MAX_SALE_DURATION`).** Even open-ended, the
+contract enforces an absolute maximum from `saleStartTime`. Suggested: 730 days
+(2 years). After that, **anyone** can call `closeSale()`. Triggers either:
+- Success branch if `totalRaised >= softCap`
+- Failed branch (refund-eligible) otherwise
+
+This is the "if the issuer disappears, investor money isn't locked forever"
+guarantee. Rationale: real-world securities regulations don't usually allow
+indefinite open offers, and indefinite lockups expose investors to issuer
+counterparty risk with no escape valve.
+
+**G2 — Inactivity timeout.** Track `lastPhaseAddedAt`. If
+`block.timestamp - lastPhaseAddedAt > 180 days && totalRaised < softCap`, the
+sale auto-transitions to "stale" — refunds become claimable, no new phases can
+be added. Catches the "issuer launches, gets a few buyers, ghosts" scenario.
+
+**G3 — Mandatory close preconditions.** A new `closeSale()` function. Issuer
+or admin can call it; for safety-floor and inactivity-timeout cases, anyone
+can call it. Requires:
+
+1. **No phase is currently active** — `block.timestamp` must be outside every
+   phase's `[startTime, endTime]` window. Otherwise mid-purchase buyers get
+   stuck. The issuer must wait for the current phase to end before closing.
+2. **At least one phase has been added.** Empty sales can't be closed (use
+   `reject()` from Draft instead).
+3. **Issuer can choose success or failure explicitly.** Even if `totalRaised >=
+   softCap`, issuer can call `closeSale(failed: true)` to abandon (rare, but
+   needed for compliance / regulatory abort scenarios).
+
+#### Behavior summary
+
+| Trigger | Who can call | Effect |
+| --- | --- | --- |
+| `closeSale()` (open-ended success) | Issuer or admin | Finalizes success if soft cap met |
+| `closeSale(failed=true)` (open-ended abandon) | Issuer or admin | Forces failed branch even if soft cap met |
+| `closeSale()` after safety floor | **Anyone** | Whichever branch matches `totalRaised vs softCap` |
+| `closeSale()` after inactivity timeout | **Anyone** | Forces failed branch (refund eligible) |
+| `finalizeSale()` (today) | Issuer or admin | Same as today, only valid for fixed-end sales |
+| Auto-finalize on hardcap | Internal | Same as today (both fixed and open-ended) |
+
+#### Investor POV
+
+The investor experience changes substantively:
+
+**Today (fixed end date):**
+- Countdown clock — "Ends in 23 days, 4 hours"
+- Clear deadline pressure
+- Refund timing is known: "If soft cap not met by Apr 30, refunds open"
+
+**With open-ended:**
+- No countdown — replaced with "Open-ended — issuer will close when target reached"
+- Soft cap progress bar becomes the dominant signal
+- Refund timing is uncertain — could be tomorrow, could be 2 years
+- Trust signals matter more: "Last phase added 5 days ago" (active issuer) vs "Last activity 90 days ago" (red flag)
+- **Safety floor display** — "If soft cap not met by Aug 2028, refunds open automatically" — the investor's worst-case timeline is bounded
+
+#### What investors need on the UI
+
+| UI element | Today | With open-ended |
+| --- | --- | --- |
+| Status pill | `Active` / `Ended` / `Upcoming` | `Active — open-ended` / `Active — closes Apr 30` / `Stale — refund open` / `Closed — successful` / `Closed — refund open` |
+| Time indicator | Countdown to phase end | Last activity timestamp + safety floor countdown |
+| Soft cap | Background bar | Foreground — primary trust signal |
+| Phase list | Today | Today + "Last phase added: 5 days ago" annotation |
+| Refund ETA | "Available Apr 30 if cap not met" | "Available when issuer closes, OR by Aug 2028 (safety floor)" |
+| Issuer activity | Not shown | "Active — added 3 phases in last 30 days" or "Inactive — no activity in 60 days" |
+| Subscribe to updates | Generic | Phase-add notifications, close notifications |
+
+#### The trade-off
+
+Today the investor knows on day 1: (a) when the sale ends, (b) when their
+money is back if soft cap fails. With open-ended they only know: (a) the
+safety floor, (b) the current soft cap progress. **For institutional
+investors this is fine** — they're underwriting issuer diligence. **For
+retail investors it's a clarity downgrade.**
+
+**Recommendation:** make open-ended an **explicit opt-in** at sale creation,
+not a default. Default is still fixed end date with the round-4 window
+validation. Open-ended is a checkbox the issuer ticks during sale creation,
+and the launchpad UI clearly labels open-ended sales differently so retail
+investors can self-select. Both modes coexist.
+
+### 6.2 Issuer-driven activation
+
+#### The change
+
+Today: `activate()` is `adminOnly`. The issuer creates the sale, the admin
+flips the switch.
+
+Proposed: two-step. Admin **approves** (compliance gate), issuer **activates**
+(go-live trigger).
+
+#### State machine change
+
+Add a new boolean `approved` to the sale (or a new SaleStatus value).
+
+```solidity
+bool public approved;
+
+function approveSale() external adminOnly onlyStatus(SaleStatus.Draft) {
+    approved = true;
+    emit SaleApproved();
+}
+
+function unapproveSale() external adminOnly onlyStatus(SaleStatus.Draft) {
+    approved = false;
+    emit SaleUnapproved();
+}
+
+function activate() external onlyIssuer onlyStatus(SaleStatus.Draft) {
+    require(approved, "Sale not yet approved by admin");
+    // Existing checks: tokens deposited, phases > 0, etc.
+    status = SaleStatus.Active;
+    emit SaleStatusChanged(SaleStatus.Active);
+}
+```
+
+The transition table changes:
+
+| From | To | Function | Caller | Conditions |
+| --- | --- | --- | --- | --- |
+| `Draft` | `Draft` (with `approved=true`) | `approveSale()` | Admin | None |
+| `Draft` (approved) | `Draft` (with `approved=false`) | `unapproveSale()` | Admin | Pre-activation only |
+| `Draft` (approved) | `Active` | `activate()` | **Issuer** | Tokens deposited, ≥ 1 phase |
+| `Draft` | `Rejected` | `reject()` | Admin | Permanent |
+
+#### Investor POV
+
+| Stage | What investor sees |
+| --- | --- |
+| Draft, not approved | Hidden from launchpad |
+| Draft, approved (awaiting issuer activation) | "Pending launch — Issuer will activate soon" tile, with subscribe button |
+| Active | Normal sale page |
+
+The "approved but not yet activated" state is **valuable marketing** — it's a
+public signal that the sale has passed compliance review and will go live
+shortly. Today there's no way to publish a sale before it's live; with this
+change, you can tease sales before activation.
+
+The launchpad needs a small reorganization:
+- New "Upcoming" section above "Active" sales — shows approved-but-not-activated sales
+- Subscribe button is the primary CTA for upcoming sales (since you can't buy yet)
+- Notification email when issuer activates → goes to subscribers
+
+#### Risk
+
+Removing `adminOnly` from `activate()` removes the platform's last
+checkpoint on the activation moment. **Mitigation:** the new admin
+`approveSale()` explicitly captures the compliance review at a separate step.
+The platform still gates "is this sale allowed to ever go live?" — it just
+doesn't gate "exactly when the sale goes live". That's the right division
+of responsibility: admin = compliance, issuer = go-to-market timing.
+
+#### Open-ended + issuer activation interaction
+
+Combined, these two changes give the issuer a much fuller control loop:
+1. Issuer creates sale with `saleEndTime = 0` (open-ended)
+2. Admin approves
+3. Issuer activates (whenever ready)
+4. Issuer adds phases over time (today + future)
+5. As soft cap is approached, issuer decides whether to close
+6. Issuer calls `closeSale()` once no phase is active and target met
+7. Successful finalize → issuer withdraws funds
+
+Compare to the closed flow (still supported as default):
+1. Issuer creates sale with `saleEndTime = Apr 30`
+2. Admin approves
+3. Issuer activates
+4. Issuer adds phases up-front
+5. On Apr 30, sale auto-finalizes (or can be manually finalized any time after hardcap)
+6. Issuer withdraws funds
+
+Both flows coexist; the choice is per-sale.
+
+### 6.3 Updated requirements scoreboard
+
+These changes add to the requirements list:
+
+| # | Requirement | Status today | Status after Part 6 |
+| --- | --- | --- | --- |
+| O1 | Sales can be open-ended (no end time) | ❌ | ✅ (new opt-in flag) |
+| O2 | Open-ended sales need a safety floor for max duration | ❌ | ✅ (`MAX_SALE_DURATION`) |
+| O3 | Stale sales (no activity + below soft cap) become refund-eligible | ❌ | ✅ (inactivity timeout) |
+| O4 | `closeSale()` can only run when no phase is active | ❌ | ✅ (new function precondition) |
+| O5 | UI distinguishes open-ended vs fixed-end sales | ❌ | ✅ (frontend label change) |
+| O6 | UI shows "issuer activity" indicator | ❌ | ✅ (frontend addition) |
+| O7 | Subscribe-to-phase-add notifications | ❌ | ✅ (frontend + email) |
+| O8 | Issuer (not admin) activates sale | ❌ | ✅ (two-step approval) |
+| O9 | Admin pre-approval gate before issuer activation | ✅ (single-step today) | ✅ (separate step) |
+| O10 | "Pending launch" tile in launchpad for approved-not-activated sales | ❌ | ✅ (frontend addition) |
+| O11 | Email notification when issuer activates an approved sale | ❌ | ✅ (subscribers) |
+
+### 6.4 Plan delta
+
+Bumping these into the implementation plan:
+
+#### New stage entries
+
+| # | Fix | Stage | Effort |
+| --- | --- | --- | --- |
+| E1 | `saleEndTime = 0` opt-in for open-ended sales | B | S |
+| E2 | `MAX_SALE_DURATION` constant + safety-floor check | B | XS |
+| E3 | `lastPhaseAddedAt` storage + inactivity timeout | B | S |
+| E4 | `closeSale(bool failed)` function + preconditions | B | M |
+| E5 | "No phase currently active" check helper | B | XS |
+| E6 | Two-step activation: `approveSale()` + `unapproveSale()` admin functions, `activate()` becomes `onlyIssuer` | B | S |
+| E7 | UI: open-ended sale labels, safety floor display, inactivity badge | C | M (frontend) |
+| E8 | UI: pending-launch tile + subscribe + email notify | C | M (frontend + backend email) |
+| E9 | UI: "issuer activity" timestamp indicator | C | S (frontend) |
+
+These add ~1 day of contract work and ~1.5 days of frontend/backend work to
+the round-5 plan. None of them block stage A or stage C (ERC-1155).
+
+### 6.5 Updated open questions
+
+Adding to the questions in Part 5:
+
+#### Q13 — Open-ended safety floor duration
+
+What's the right `MAX_SALE_DURATION`?
+- 365 days (1 year) — aggressive, forces issuer commitment
+- 730 days (2 years) — middle ground, common in private placements
+- 1095 days (3 years) — generous, fits very slow-bake commodities
+
+I'd recommend 730 days as the default but make it a constructor param so
+issuers can pick (within an admin-set max). Confirm.
+
+#### Q14 — Inactivity timeout duration
+
+What's the right "no phase added in N days → stale" threshold?
+- 90 days — strict, catches dormant sales fast
+- 180 days — middle ground
+- 365 days — generous
+
+I'd recommend 180 days. Confirm.
+
+#### Q15 — Open-ended close authority
+
+For an open-ended sale that hasn't hit the safety floor or inactivity timeout,
+who can call `closeSale()`?
+- Issuer only (matches "issuer drives" philosophy)
+- Issuer or admin (admin can step in for compliance reasons)
+
+I'd recommend issuer-or-admin. Confirm.
+
+#### Q16 — Two-step activation revocation
+
+If admin approves a sale and then changes their mind (compliance concern,
+fraud detected, jurisdictional issue), can they revoke approval before the
+issuer activates? My recommendation: yes, via `unapproveSale()`. After
+activation, the only way back is `pause()` + `reject()` from Draft is no
+longer possible. Confirm.
+
+#### Q17 — Pending-launch visibility
+
+Should approved-but-not-activated sales be visible to investors before the
+issuer activates? I think yes (it's marketing value), but it adds a new
+"pending" listing state. Confirm.
+
+---
+
+Once you've answered these (Q1–Q17), I'll write the round-5 implementation. The full
 plan would land as **one breaking-change PR** (because of the fraction token
 refactor), be deployed as part of the [`FRESH_DEPLOY_PLAN.md`](./FRESH_DEPLOY_PLAN.md)
 fresh-redeploy, and skip any UUPS-upgrade dance on existing testnet sales.
