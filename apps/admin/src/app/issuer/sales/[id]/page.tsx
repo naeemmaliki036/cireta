@@ -756,12 +756,39 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               const phaseAlloc = parseFloat(phase.allocation || "0");
               const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
               const isOnChain = sale.contract_address ? idx < chainPhases : false;
+              // Time-based phase status
+              const phaseNow = Date.now();
+              const phaseStart = new Date(phase.start_time).getTime();
+              const phaseEnd = new Date(phase.end_time).getTime();
+              const phaseStatus: "upcoming" | "active" | "ended" =
+                phaseNow < phaseStart ? "upcoming" : phaseNow >= phaseEnd ? "ended" : "active";
+              // Time display helpers
+              const timeDiff = phaseStatus === "active"
+                ? phaseEnd - phaseNow
+                : phaseStatus === "ended"
+                  ? phaseNow - phaseEnd
+                  : phaseStart - phaseNow;
+              const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+              const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const timeLabel = phaseStatus === "active"
+                ? days > 0 ? `${days}d ${hours}h remaining` : `${hours}h remaining`
+                : phaseStatus === "ended"
+                  ? days > 0 ? `Ended ${days}d ago` : `Ended ${hours}h ago`
+                  : days > 0 ? `Starts in ${days}d ${hours}h` : `Starts in ${hours}h`;
               return (
                 <div key={phase.id} className={`p-4 rounded-lg border transition-colors ${isOnChain ? "border-green-200 bg-green-50/30" : "border-amber-200 bg-amber-50/30"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="w-6 h-6 rounded-md bg-darkAqua/10 text-darkAqua flex items-center justify-center text-xs font-bold">{idx + 1}</span>
                       <p className="font-medium text-sm text-text">{phase.name}</p>
+                      {/* Time-based status badge */}
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                        phaseStatus === "active" ? "bg-green-100 text-green-700"
+                          : phaseStatus === "upcoming" ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {phaseStatus === "active" ? "Active" : phaseStatus === "upcoming" ? "Upcoming" : "Ended"}
+                      </span>
                       {sale.contract_address && (
                         isOnChain
                           ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-green-100 text-green-700">On-Chain</span>
@@ -779,6 +806,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                         <Clock className="h-3 w-3" />
                         <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
                       </div>
+                      <span className={`text-[10px] font-medium ${
+                        phaseStatus === "active" ? "text-green-600" : phaseStatus === "upcoming" ? "text-blue-600" : "text-gray-400"
+                      }`}>
+                        {timeLabel}
+                      </span>
                     </div>
                   </div>
                   <ProgressBar value={phasePct} size="sm" />

@@ -30,14 +30,13 @@ function getEmbedUrl(url: string): string | null {
   return null;
 }
 
-function getPhaseStatus(phase: { start_time: string; end_time: string; is_active: boolean }): "active" | "upcoming" | "ended" {
-  if (phase.is_active) return "active";
+function getPhaseStatus(phase: { start_time: string; end_time: string; is_active?: boolean }): "active" | "upcoming" | "ended" {
   const now = Date.now();
   const start = new Date(phase.start_time).getTime();
   const end = new Date(phase.end_time).getTime();
   if (now < start) return "upcoming";
-  if (now > end) return "ended";
-  return "upcoming";
+  if (now >= end) return "ended";
+  return "active";
 }
 
 function getTimeRemaining(endTime: string): string {
@@ -144,7 +143,13 @@ export default function ProjectDetailPage() {
       <Link href="/projects" className="text-darkAqua font-semibold hover:underline">Back to Sales</Link>
     </div>
   );
-  const ap = project.phases?.find((p) => p.is_active) ?? project.phases?.[0] ?? null;
+  // Time-based active phase: find the phase whose window contains "now"
+  const _now = new Date();
+  const ap = project.phases?.find((p) => {
+    const start = new Date(p.start_time).getTime();
+    const end = new Date(p.end_time).getTime();
+    return _now.getTime() >= start && _now.getTime() < end;
+  }) ?? project.phases?.[0] ?? null;
   const pricePerToken = ap ? parseFloat(ap.price_per_token) : 0;
   const minContrib = ap ? parseFloat(ap.min_contribution) : 0;
   const maxContrib = ap ? parseFloat(ap.max_contribution) : 0;
@@ -242,7 +247,7 @@ export default function ProjectDetailPage() {
                           <span className="w-1.5 h-1.5 rounded-full bg-darkAqua" />
                           {ap.name}
                         </span>
-                        {ap.is_active && endTime && (
+                        {getPhaseStatus(ap) === "active" && endTime && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 font-medium">
                             <Clock className="h-3 w-3" />
                             {getTimeRemaining(ap.end_time)}
@@ -250,7 +255,7 @@ export default function ProjectDetailPage() {
                         )}
                       </div>
                       {/* Between-phases messaging */}
-                      {!ap.is_active && (() => {
+                      {getPhaseStatus(ap) !== "active" && (() => {
                         const nextPhase = project.phases.find((ph) => new Date(ph.start_time).getTime() > Date.now());
                         if (!nextPhase) return null;
                         return (

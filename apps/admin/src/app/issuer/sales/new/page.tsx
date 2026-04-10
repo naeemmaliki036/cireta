@@ -129,6 +129,23 @@ export default function CreateSalePage() {
   const prevStep = () => { const pi = currentIdx - 1; if (pi >= 0) setStep(visibleStepIds[pi]!); };
   const isLast = currentIdx === visibleStepIds.length - 1;
   const isFirst = currentIdx === 0;
+  // Validate that phases don't overlap: each phase start must be >= previous phase end
+  const phasesHaveOverlap = (() => {
+    if (phases.length < 2) return false;
+    for (let i = 1; i < phases.length; i++) {
+      const prevEnd = phases[i - 1]!.endDate;
+      const currStart = phases[i]!.startDate;
+      if (!prevEnd || !currStart) continue;
+      if (new Date(currStart).getTime() < new Date(prevEnd).getTime()) return true;
+    }
+    return false;
+  })();
+
+  const phasesValid = phases.length > 0
+    && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== ""
+      && new Date(p.endDate).getTime() > new Date(p.startDate).getTime())
+    && !phasesHaveOverlap;
+
   const canProceed = (() => {
     switch (step) {
       case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "";
@@ -137,7 +154,7 @@ export default function CreateSalePage() {
       case 4: return true; // Team — optional
       case 5: return true; // FAQs — optional
       case 6: return true; // Documents — optional
-      case 7: return phases.length > 0 && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== "");
+      case 7: return phasesValid;
       case 8: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
       case 9: return cliffDays !== "" && vestingDays !== "";
       default: return true;
@@ -153,7 +170,7 @@ export default function CreateSalePage() {
       case 4: return teamMembers.some((m) => m.name.trim() !== "");
       case 5: return faqs.some((f) => f.question.trim() !== "");
       case 6: return documents.some((d) => !!d.url);
-      case 7: return phases.length > 0 && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== "");
+      case 7: return phasesValid;
       case 8: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
       case 9: return cliffDays !== "" && vestingDays !== "";
       default: return false;
@@ -456,8 +473,13 @@ export default function CreateSalePage() {
             <h2 className="text-xl font-semibold text-text mb-1">Sale Phases</h2>
             <p className="text-sm text-gray-500 mb-6">
               Define one or more sale phases. Each phase has its own price, allocation, and time window.
-              Phases run sequentially — they must not overlap.
+              Phases run sequentially -- they must not overlap.
             </p>
+            {phasesHaveOverlap && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 mb-2">
+                Phases overlap: each phase&apos;s start date must be after the previous phase&apos;s end date.
+              </div>
+            )}
             <div className="space-y-2">
               {phases.map((ph, i) => {
                 const isOpen = expandedPhase === i;

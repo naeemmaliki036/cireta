@@ -312,13 +312,36 @@ export default function InvestPage() {
   }, [buyOtcError]);
 
   const numericAmount = parseFloat(amount) || 0;
-  const activePhase = project?.phases.find((p) => p.is_active) ?? project?.phases[0] ?? null;
+
+  // Time-based active phase: only the phase whose window contains "now" is active
+  const now = new Date();
+  const activePhase = project?.phases.find((p) => {
+    const start = new Date(p.start_time);
+    const end = new Date(p.end_time);
+    return now >= start && now < end;
+  }) ?? null;
+
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
   const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
 
   // Determine the active phase index (0-based, for on-chain call)
-  const rawPhaseIndex = project?.phases.findIndex((p) => p.is_active) ?? -1;
+  const rawPhaseIndex = project?.phases.findIndex((p) => {
+    const start = new Date(p.start_time);
+    const end = new Date(p.end_time);
+    return now >= start && now < end;
+  }) ?? -1;
   const activePhaseIndex = rawPhaseIndex >= 0 ? rawPhaseIndex : 0;
+
+  // Determine sale timing status for messaging
+  const allPhasesEnded = project?.phases.length
+    ? project.phases.every((p) => now >= new Date(p.end_time))
+    : false;
+  const allPhasesUpcoming = project?.phases.length
+    ? project.phases.every((p) => now < new Date(p.start_time))
+    : false;
+  const nextUpcomingPhase = project?.phases
+    .filter((p) => now < new Date(p.start_time))
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0] ?? null;
 
   const handleApprove = useCallback(() => {
     if (!saleContractAddress) {
@@ -497,8 +520,60 @@ export default function InvestPage() {
               </div>
             )}
 
+            {/* No active phase — show timing message */}
+            {!activePhase && project.phases.length > 0 && (
+              <div className="text-center py-8 space-y-3">
+                {allPhasesEnded ? (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
+                      <CheckCircle2 className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-text">Sale Concluded</h2>
+                    <p className="text-black/50">This sale has concluded. No active phases.</p>
+                    <Link href={`/project/${project.slug}`} className="text-darkAqua font-medium hover:underline inline-block mt-2">
+                      Back to Project
+                    </Link>
+                  </>
+                ) : allPhasesUpcoming && nextUpcomingPhase ? (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-2">
+                      <ArrowLeft className="h-6 w-6 text-blue-500 rotate-180" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-text">Sale Not Yet Open</h2>
+                    <p className="text-black/50">
+                      Sale starts on{" "}
+                      <span className="font-medium text-text">
+                        {new Date(nextUpcomingPhase.start_time).toLocaleDateString("en-GB", {
+                          day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </span>
+                    </p>
+                    <Link href={`/project/${project.slug}`} className="text-darkAqua font-medium hover:underline inline-block mt-2">
+                      Back to Project
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold text-text">No Active Phase</h2>
+                    <p className="text-black/50">There is currently no active sale phase. Please check back later.</p>
+                    {nextUpcomingPhase && (
+                      <p className="text-sm text-blue-600 font-medium">
+                        Next phase starts{" "}
+                        {new Date(nextUpcomingPhase.start_time).toLocaleDateString("en-GB", {
+                          day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </p>
+                    )}
+                    <Link href={`/project/${project.slug}`} className="text-darkAqua font-medium hover:underline inline-block mt-2">
+                      Back to Project
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Payment Method Selector — shown when OTC is enabled and method not yet chosen */}
-            {saleOtcEnabled && !paymentMethod && (
+            {saleOtcEnabled && !paymentMethod && activePhase && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-text text-center">How would you like to invest?</h2>
                 <div className={`grid grid-cols-1 ${hasOtcBalance ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
@@ -566,7 +641,7 @@ export default function InvestPage() {
             )}
 
             {/* OTC Token flow — amount step */}
-            {paymentMethod === "otc_token" && step === "amount" && (
+            {paymentMethod === "otc_token" && activePhase && step === "amount" && (
               <>
                 <h1 className="text-2xl font-semibold text-text mb-2">Invest with {otcTokenSymbol}</h1>
                 <p className="text-black/50 mb-4">
@@ -692,7 +767,7 @@ export default function InvestPage() {
             )}
 
             {/* Crypto flow — existing steps */}
-            {paymentMethod === "crypto" && step === "amount" && (
+            {paymentMethod === "crypto" && activePhase && step === "amount" && (
               <InvestAmountStep
                 project={project} activePhase={activePhase}
                 amount={amount} onAmountChange={setAmount}
