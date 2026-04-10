@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,6 +154,41 @@ async def admin_finalize_sale(
         status=sale.status.value if hasattr(sale.status, "value") else sale.status,
         message="Sale finalized",
     )
+
+
+@router.post("/{sale_id}/display-order", response_model=SaleActionResponse)
+async def set_display_order(
+    sale_id: UUID,
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+    body: dict = Body(...),
+) -> SaleActionResponse:
+    """Set the display order for a sale. Lower numbers appear first.
+    Set to null to use default ordering (ongoing → upcoming → coming soon)."""
+    display_order = body.get("display_order")  # int or None
+    sale = await sale_service.get_sale(sale_id)
+    sale.display_order = display_order
+    await sale_service.db.commit()
+    return SaleActionResponse(
+        status=sale.status.value if hasattr(sale.status, "value") else sale.status,
+        message=f"Display order set to {display_order}" if display_order is not None else "Display order cleared (using default)",
+    )
+
+
+@router.post("/reorder", response_model=dict)
+async def reorder_sales(
+    user_id: RequireAdmin,
+    sale_service: Annotated[SaleService, Depends(get_sale_service)],
+    body: dict = Body(...),
+) -> dict:
+    """Bulk-set display order for multiple sales.
+    Body: { "order": [{"sale_id": "uuid", "display_order": 1}, ...] }"""
+    order_list = body.get("order", [])
+    for item in order_list:
+        sale = await sale_service.get_sale(item["sale_id"])
+        sale.display_order = item.get("display_order")
+    await sale_service.db.commit()
+    return {"message": f"Updated display order for {len(order_list)} sales"}
 
 
 @router.get("", response_model=dict)

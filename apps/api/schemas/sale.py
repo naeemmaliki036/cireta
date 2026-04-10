@@ -226,6 +226,7 @@ class SaleResponse(BaseModel):
     activated_at: datetime | None = None
     refunds_activated_at: datetime | None = None
     finalization_pending: bool = False
+    display_order: int | None = None
 
     class Config:
         from_attributes = True

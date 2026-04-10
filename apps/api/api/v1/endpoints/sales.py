@@ -160,6 +160,7 @@ def _sale_to_response(
         activated_at=getattr(sale, "activated_at", None),
         refunds_activated_at=getattr(sale, "refunds_activated_at", None),
         finalization_pending=getattr(sale, "finalization_pending", False) or False,
+        display_order=getattr(sale, "display_order", None),
     )
 
 

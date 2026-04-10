@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -68,6 +68,14 @@ class SaleQueryService:
 
         If public_only=True, only returns ACTIVE and APPROVED_COMING_SOON sales.
         """
+        # Sort: admin-set display_order first (NULLs last), then status priority
+        # (active before coming_soon before others), then newest first.
+        status_priority = case(
+            (TokenSale.status == SaleStatus.ACTIVE, 0),
+            (TokenSale.status == SaleStatus.APPROVED, 1),
+            (TokenSale.status.in_([SaleStatus.APPROVED_COMING_SOON]), 2),
+            else_=3,
+        )
         query = (
             select(TokenSale)
             .options(
@@ -76,7 +84,11 @@ class SaleQueryService:
                 selectinload(TokenSale.issuer),
                 selectinload(TokenSale.images),
             )
-            .order_by(TokenSale.created_at.desc())
+            .order_by(
+                TokenSale.display_order.asc().nulls_last(),
+                status_priority,
+                TokenSale.created_at.desc(),
+            )
         )
 
         count_query = select(func.count()).select_from(TokenSale)

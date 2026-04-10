@@ -130,6 +130,9 @@ class TokenSale(BaseModel):
         DateTime(timezone=True), nullable=True, default=None
     )
 
+    # Admin-controlled display ordering. NULL = use default sort (ongoing → upcoming → coming soon).
+    display_order: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+
     # Relationships
     token: Mapped[Token | None] = relationship(back_populates="token_sales")
     issuer: Mapped[Issuer] = relationship(back_populates="token_sales")

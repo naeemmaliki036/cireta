@@ -63,6 +63,7 @@ export interface Sale {
   finalization_pending: boolean;
   sale_start_time: string | null;
   sale_end_time: string | null;
+  display_order: number | null;
 }
 
 export interface SaleListResponse {
