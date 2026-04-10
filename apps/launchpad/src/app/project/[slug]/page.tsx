@@ -17,6 +17,8 @@ import { getToken, type Token } from "@/lib/api/repositories/tokens";
 import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
 import { apiGet, apiPost, apiFetch } from "@/lib/api/client";
 import { truncateAddress } from "@/lib/utils";
+import { getTxUrl } from "@/lib/contracts/addresses";
+import { useChainId } from "wagmi";
 
 /* ---------- types for sale content endpoints ---------- */
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: "image" | "video"; video_url?: string }
@@ -96,6 +98,7 @@ export default function ProjectDetailPage() {
   const [txsLoading, setTxsLoading] = useState(false);
   const [txsError, setTxsError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
+  const chainId = useChainId();
 
   useEffect(() => {
     async function load() {
@@ -676,7 +679,7 @@ export default function ProjectDetailPage() {
                                 </td>
                                 <td className="px-4 py-3">
                                   {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
-                                    <a href={`https://basescan.org/tx/${tx.tx_hash}`} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
+                                    <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
                                       {truncateAddress(tx.tx_hash, 6)}
                                     </a>
                                   ) : tx.tx_hash?.startsWith("otc-") ? (

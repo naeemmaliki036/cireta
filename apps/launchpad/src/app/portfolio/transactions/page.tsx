@@ -12,6 +12,8 @@ import {
   type Holding,
 } from "@/lib/api/repositories/portfolio.repository";
 import { truncateAddress } from "@/lib/utils";
+import { getTxUrl } from "@/lib/contracts/addresses";
+import { useChainId } from "wagmi";
 
 const PAGE_SIZE = 20;
 
@@ -49,6 +51,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function TransactionsPage() {
+  const chainId = useChainId();
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -258,7 +261,7 @@ export default function TransactionsPage() {
                         <td className="px-4 py-3">
                           {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
                             <a
-                              href={`https://basescan.org/tx/${tx.tx_hash}`}
+                              href={getTxUrl(chainId, tx.tx_hash)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-darkAqua hover:text-darkAqua/80 inline-flex items-center gap-1 text-xs font-mono"

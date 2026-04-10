@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useChainId } from "wagmi";
 import { Shield, AlertCircle, CheckCircle2, Wallet } from "lucide-react";
 import { Button, Badge } from "@/components/atoms";
 import { formatCurrency } from "@/lib/utils";
+import { getTxUrl } from "@/lib/contracts/addresses";
 import type { Project, ProjectPhase } from "@/lib/api/repositories/projects.repository";
 
 // Minimal ERC-20 ABI for approve
@@ -338,6 +340,7 @@ interface InvestSuccessStepProps {
 }
 
 export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: InvestSuccessStepProps) {
+  const chainId = useChainId();
   return (
     <div className="text-center py-8">
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
@@ -356,7 +359,7 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
             label="Tx Hash"
             value={
               <a
-                href={`https://basescan.org/tx/${txHash}`}
+                href={getTxUrl(chainId, txHash)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-darkAqua underline"
