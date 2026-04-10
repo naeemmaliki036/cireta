@@ -94,9 +94,10 @@ export const SALE_ABI = [
       },
     ],
   },
-  // Round-5: split USDC and OTC contribution mappings
+  // Round-5: split payment-token vs OTC contribution mappings.
+  // "payment" = whatever stable the sale uses (USDC, USDT, etc.) — generic.
   {
-    name: "usdcContributed",
+    name: "paymentContributed",
     type: "function",
     stateMutability: "view",
     inputs: [{ name: "", type: "address" }],

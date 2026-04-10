@@ -87,8 +87,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     uint256 public constant INACTIVITY_TIMEOUT = 180 days;
     uint256 public constant TOP_UP_MIN_FLOOR = 1000 * 1e6; // 1000 USDC raw
 
-    uint256 public totalRaised;              // Total raised across USDC + OTC (mixed units, kept for hardcap math)
-    uint256 public usdcContributedTotal;     // Strict USDC sum across all buy() calls (used for fees)
+    uint256 public totalRaised;              // Total raised across payment-token + OTC (mixed units, kept for hardcap math)
+    uint256 public paymentContributedTotal;  // Sum of payment-token (USDC/USDT/etc.) buys only — used for fee calc
     uint256 public platformFeeCollected;
 
     SaleStatus public status;
@@ -97,10 +97,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public whitelisted;
     mapping(address => Contribution) public contributions;
     mapping(address => uint256) public totalContributed;
-    // Round-5: split USDC and OTC contribution accounting per buyer.
-    // - usdcContributed is the source of truth for refund eligibility (R1 fix).
+    // Round-5: split payment-token and OTC contribution accounting per buyer.
+    // - paymentContributed is the source of truth for refund eligibility (R1 fix).
+    //   It tracks contributions paid in the sale's `paymentToken` (USDC, USDT, or
+    //   any other ERC-20 the issuer chose). Generic name — sale supports any stable.
     // - otcContributed is informational; OTC refunds are off-chain.
-    mapping(address => uint256) public usdcContributed;
+    mapping(address => uint256) public paymentContributed;
     mapping(address => uint256) public otcContributed;
 
     // Round-5: state for two-step activation, open-ended sales, and refund gate.
@@ -130,8 +132,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     uint256 public constant EMERGENCY_WITHDRAW_DELAY = 90 days;
 
     /// @dev Reserved storage gap for future upgrades.
-    /// Round 5 added: totalTokenSupply, totalTokenSold, tokenDecimals, usdcContributedTotal,
-    /// usdcContributed, otcContributed, approved, openEnded, finalizationPending, refundsActive,
+    /// Round 5 added: totalTokenSupply, totalTokenSold, tokenDecimals, paymentContributedTotal,
+    /// paymentContributed, otcContributed, approved, openEnded, finalizationPending, refundsActive,
     /// lastPhaseAddedAt — gap shrunk from 43 → 31.
     uint256[31] private __gap;
 
@@ -213,7 +215,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error NotApproved();
     error AlreadyApproved();
     error RefundsNotActive();
-    error NotUSDCContributor();
+    error NotPaymentContributor();
     error AmountTooSmall();
     error InsufficientOTCBalance();
     error OTCNotApproved();
@@ -702,8 +704,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         totalRaised += amount;
         totalTokenSold += tokensToAllocate;
         totalContributed[msg.sender] += amount;
-        usdcContributed[msg.sender] += amount;     // Round-5: USDC-strict tracking
-        usdcContributedTotal += amount;
+        paymentContributed[msg.sender] += amount;     // Round-5: payment-token-strict tracking (USDC/USDT/...)
+        paymentContributedTotal += amount;
         _blockContributions[block.number] += amount;
         contributions[msg.sender].amount += amount;
         contributions[msg.sender].tokensAllocated += tokensToAllocate;
@@ -791,10 +793,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             status = SaleStatus.FinalizedSuccess;
             finalizedAt = block.timestamp;
 
-            // Fee calc uses USDC-strict total (not totalRaised which mixes OTC).
+            // Fee calc uses the payment-token-strict total (not totalRaised which mixes OTC).
             uint256 fee = 0;
             if (feeManager != address(0) && feeBasisPoints > 0) {
-                fee = (usdcContributedTotal * feeBasisPoints) / 10000;
+                fee = (paymentContributedTotal * feeBasisPoints) / 10000;
                 if (feeCapUsdc > 0 && fee > feeCapUsdc) fee = feeCapUsdc;
                 platformFeeCollected = fee;
                 paymentToken.safeTransfer(feeManager, fee);
@@ -837,7 +839,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit RefundsActivated();
     }
 
-    /// @notice Round-5 refund — only USDC contributors are eligible.
+    /// @notice Round-5 refund — only payment-token contributors are eligible.
+    /// (Payment token is whatever stable the issuer chose: USDC, USDT, etc.)
     /// OTC contributors get a clear revert and must use the off-chain refund flow.
     function claimRefund() external nonReentrant {
         if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
@@ -845,11 +848,11 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         Contribution storage contrib = contributions[msg.sender];
         if (contrib.refunded) revert AlreadyClaimed();
 
-        uint256 refundAmount = usdcContributed[msg.sender];
-        if (refundAmount == 0) revert NotUSDCContributor();
+        uint256 refundAmount = paymentContributed[msg.sender];
+        if (refundAmount == 0) revert NotPaymentContributor();
 
         contrib.refunded = true;
-        usdcContributed[msg.sender] = 0;
+        paymentContributed[msg.sender] = 0;
 
         // Burn the investor's id-1 fractions (vested mode only).
         // OTC fractions (id 2) are NOT burned — they stay with the investor as

@@ -97,10 +97,12 @@ def upgrade() -> None:
     )
 
     # ── contributions ────────────────────────────────────────────────────────
+    # Round-5: split payment-token vs OTC contributions. "payment" = whatever
+    # stable the sale uses (USDC, USDT, etc.) — generic name on purpose.
     op.add_column(
         "contributions",
         sa.Column(
-            "usdc_amount",
+            "payment_amount",
             sa.Numeric(precision=78, scale=18),
             nullable=False,
             server_default="0",
@@ -116,19 +118,19 @@ def upgrade() -> None:
         ),
     )
 
-    # Backfill: existing rows where is_otc is True go to otc_amount, else usdc_amount.
+    # Backfill: existing rows where is_otc is True go to otc_amount, else payment_amount.
     op.execute(
         """
         UPDATE contributions
-        SET usdc_amount = CASE WHEN is_otc THEN 0 ELSE amount END,
-            otc_amount  = CASE WHEN is_otc THEN amount ELSE 0 END
+        SET payment_amount = CASE WHEN is_otc THEN 0 ELSE amount END,
+            otc_amount     = CASE WHEN is_otc THEN amount ELSE 0 END
         """
     )
 
 
 def downgrade() -> None:
     op.drop_column("contributions", "otc_amount")
-    op.drop_column("contributions", "usdc_amount")
+    op.drop_column("contributions", "payment_amount")
     op.drop_column("sale_phases", "allocation_mode")
     op.drop_column("sale_phases", "top_up_min")
     op.drop_column("token_sales", "last_phase_added_at")

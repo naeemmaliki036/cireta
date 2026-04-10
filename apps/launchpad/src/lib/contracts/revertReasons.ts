@@ -66,7 +66,7 @@ export const CUSTOM_ERROR_SELECTORS: Record<string, string> = {
   "0xcf56e448": "A phase is currently active — wait until it ends before closing.",
   "0xc19f17a9": "Sale has not been approved by an admin yet.",
   "0xf82cae11": "Refunds are not yet active. Issuer or admin must activate them first.",
-  "0x4c442bdf": "You are not eligible for an on-chain refund. OTC contributors get refunded off-chain.",
+  "0x2bd0456c": "You are not eligible for an on-chain refund. OTC contributors get refunded off-chain.",
   "0xc2f5625a": "Amount is too small to allocate any tokens.",
   "0xfd43402b": "Insufficient OTC token balance.",
   "0x7af54dad": "OTC token spending allowance is too low. Re-approve before buying.",

@@ -79,8 +79,8 @@ bool public openEnded;                    // saleEndTime == 0
 bool public approved;                     // admin approval gate
 bool public finalizationPending;          // hardcap reached, awaiting manual finalize
 bool public refundsActive;                // admin-activated refund gate
-uint256 public usdcContributedTotal;      // strictly USDC, for fee calc clarity
-mapping(address => uint256) public usdcContributed;  // strictly USDC per buyer
+uint256 public paymentContributedTotal;      // payment-token-strict, for fee calc clarity
+mapping(address => uint256) public paymentContributed;  // payment-token-strict per buyer
 mapping(address => uint256) public otcContributed;   // strictly OTC voucher amount per buyer
 
 uint256 public constant MAX_SALE_DURATION = 730 days;
@@ -100,7 +100,7 @@ struct Contribution {
 }
 ```
 
-For refund accounting, the new mappings `usdcContributed[addr]` and
+For refund accounting, the new mappings `paymentContributed[addr]` and
 `otcContributed[addr]` are the source of truth.
 
 `Phase` struct after round 5 (NEW: `allocationMode`, `topUpMin`):
@@ -190,7 +190,7 @@ error InactivityNotReached();
 error SafetyFloorNotReached();
 error RefundsNotActive();
 error LastChunkOnly();
-error NotUSDCContributor();
+error NotPaymentContributor();
 ```
 
 ---
@@ -392,8 +392,8 @@ function buy(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(S
     totalRaised += amount;
     totalTokenSold += tokensToAllocate;            // NEW
     totalContributed[msg.sender] += amount;
-    usdcContributed[msg.sender] += amount;          // NEW: USDC-specific tracking
-    usdcContributedTotal += amount;                 // NEW: for fee calc
+    paymentContributed[msg.sender] += amount;          // NEW: payment-token tracking
+    paymentContributedTotal += amount;                 // NEW: for fee calc (USDC/USDT/etc.)
     _blockContributions[block.number] += amount;
     contributions[msg.sender].amount += amount;
     contributions[msg.sender].tokensAllocated += tokensToAllocate;
@@ -428,7 +428,7 @@ vault.recordAllocation(msg.sender, 2, tokensToAllocate);
 otcContributed[msg.sender] += amount;
 ```
 
-The `usdcContributed` mapping is **not** incremented in `buyOTC()`. That's the
+The `paymentContributed` mapping is **not** incremented in `buyOTC()`. That's the
 key fix for the refund bug.
 
 ---
@@ -579,12 +579,12 @@ function claimRefund() external nonReentrant {
     if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
 
     // Only USDC contributors get refunds
-    uint256 refundAmount = usdcContributed[msg.sender];
-    if (refundAmount == 0) revert NotUSDCContributor();
+    uint256 refundAmount = paymentContributed[msg.sender];
+    if (refundAmount == 0) revert NotPaymentContributor();
     if (contributions[msg.sender].refunded) revert AlreadyClaimed();
 
     contributions[msg.sender].refunded = true;
-    usdcContributed[msg.sender] = 0;  // zero out to prevent double-spend
+    paymentContributed[msg.sender] = 0;  // zero out to prevent double-spend
 
     // Burn the investor's id-1 fractions (vested mode only)
     if (saleMode == SaleMode.Vested) {
@@ -602,7 +602,7 @@ function claimRefund() external nonReentrant {
 ```
 
 OTC contributors who try to call `claimRefund()` will revert with
-`NotUSDCContributor()`. They get a clear error and the off-chain refund flow
+`NotPaymentContributor()`. They get a clear error and the off-chain refund flow
 takes over.
 
 ---
@@ -733,7 +733,7 @@ event TokensClaimed(address indexed claimer, uint256 usdcFractions, uint256 otcF
 - New columns: `top_up_min: Numeric`, `allocation_mode: Enum("fixed","remaining")`
 
 `apps/api/models/contribution.py`:
-- New columns: `usdc_amount: Numeric`, `otc_amount: Numeric` (split out from existing `amount`)
+- New columns: `payment_amount: Numeric`, `otc_amount: Numeric` (split out from existing `amount`)
 
 Alembic migration: `alembic revision -m "round5 sale schema"` adds all new columns.
 

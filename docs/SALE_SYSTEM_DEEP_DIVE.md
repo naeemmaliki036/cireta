@@ -476,7 +476,7 @@ sale structure, phase update functions). Bundling them by effort:
 | # | Fix | Where | Effort |
 | --- | --- | --- | --- |
 | C1 | **ERC-1155 fraction token with id 1 (USDC) + id 2 (OTC)** (R5, R6) | Replace `CiretaFractionToken` (ERC-20) with `CiretaFractionToken1155`. Sale mints id 1 in `buy` and id 2 in `buyOTC`. Vault tracks per-id totals and per-id claim state. Refund only burns id 1 + transfers USDC. | L |
-| C2 | Refund accounting bug fix (R1, R3, R7) | Once C1 lands, `claimRefund` only refunds id-1-backed contributions. OTC refunds become a separate manual flow with its own admin-gated function (or off-chain entirely). Track `usdcContributedExcludingOtc` per investor. | M |
+| C2 | Refund accounting bug fix (R1, R3, R7) | Once C1 lands, `claimRefund` only refunds id-1-backed contributions. OTC refunds become a separate manual flow with its own admin-gated function (or off-chain entirely). Track `paymentContributedExcludingOtc` per investor. | M |
 | C3 | Per-phase price history (R4, B7) | Each contribution becomes an array entry: `{phaseId, amount, tokensAllocated, isOtc}`. Sum-based queries become array-walks but allow exact reconstruction. | M |
 
 ### Stage D — Polish
