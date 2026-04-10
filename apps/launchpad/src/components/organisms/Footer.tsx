@@ -26,17 +26,28 @@ const LINK_COLUMNS = [
   {
     title: "Company",
     links: [
-      { label: "About Cireta", href: "https://cireta.com", external: true },
-      { label: "Contact Us", href: "/contact" },
-      { label: "Partnerships", href: "mailto:issuers@cireta.com" },
+      { label: "About Us", href: "https://www.cireta.com/about", external: true },
+      { label: "Team", href: "https://www.cireta.com/team", external: true },
+      { label: "Contact Us", href: "https://www.cireta.com/contact", external: true },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "FAQ", href: "/faq" },
-      { label: "Terms of Service", href: "https://cireta.com/terms-of-service", external: true },
-      { label: "Privacy Policy", href: "https://cireta.com/privacy-policy", external: true },
+      { label: "Insights", href: "https://www.cireta.com/insights", external: true },
+      { label: "FAQs", href: "https://www.cireta.com/faqs", external: true },
+      { label: "Token Lifecycle", href: "https://www.cireta.com/token-lifecycle", external: true },
+      { label: "Guides & Glossary", href: "https://www.cireta.com/guides", external: true },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Compliance", href: "https://www.cireta.com/compliance", external: true },
+      { label: "Risk Disclosure", href: "https://www.cireta.com/risk-disclosure", external: true },
+      { label: "Terms of Service", href: "https://www.cireta.com/terms-of-service", external: true },
+      { label: "Privacy Policy", href: "https://www.cireta.com/privacy-policy", external: true },
+      { label: "Editorial Policy", href: "https://www.cireta.com/editorial-policy", external: true },
     ],
   },
 ];
@@ -46,9 +57,9 @@ export function Footer() {
     <footer className="bg-white border-t border-gray-200">
       <div className="max-w-inner mx-auto px-6 md:px-8">
         {/* Main footer grid */}
-        <div className="py-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-12 gap-8 lg:gap-6">
+        <div className="py-12 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-12 gap-8 lg:gap-6">
           {/* Brand column */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-5 lg:pr-8">
+          <div className="col-span-2 sm:col-span-4 lg:col-span-4 lg:pr-8">
             <Link href="/" className="inline-block mb-4">
               <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className="h-7 w-auto" />
             </Link>
@@ -100,8 +111,6 @@ export function Footer() {
             </div>
           ))}
 
-          {/* Contact column */}
-          <div className="lg:col-span-1 hidden lg:block" />
         </div>
 
         {/* Disclaimer */}
@@ -119,9 +128,9 @@ export function Footer() {
             &copy; {new Date().getFullYear()} Cireta. All rights reserved.
           </p>
           <div className="flex items-center gap-5 text-xs text-gray-500">
-            <a href="https://cireta.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">Terms</a>
-            <a href="https://cireta.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">Privacy</a>
-            <Link href="/contact" className="hover:text-gray-900 transition-colors">Contact</Link>
+            <a href="https://www.cireta.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">Terms</a>
+            <a href="https://www.cireta.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">Privacy</a>
+            <a href="https://www.cireta.com/contact" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors">Contact</a>
           </div>
         </div>
       </div>

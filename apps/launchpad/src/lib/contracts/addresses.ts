@@ -65,7 +65,7 @@ export function getAddresses(chainId: number): ChainAddresses {
   const factory = ADDRESSES[chainId];
   if (!factory) {
     throw new Error(
-      `Unsupported chain ID: ${chainId}. Cireta supports Base Mainnet (8453), Base Sepolia (84532), and Sepolia (11155111).`
+      `Unsupported chain ID: ${chainId}. Please switch to a supported network.`
     );
   }
   return factory();

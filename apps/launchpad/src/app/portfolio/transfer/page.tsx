@@ -232,7 +232,7 @@ export default function TransferPage() {
             <div className="space-y-3">
               {txHash && (
                 <a href={getTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" className="w-full" size="lg">View on BaseScan</Button>
+                  <Button variant="outline" className="w-full" size="lg">View Transaction</Button>
                 </a>
               )}
               <Link href="/portfolio">

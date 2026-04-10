@@ -869,7 +869,7 @@ export default function InvestPage() {
             <div className="mt-6 space-y-3 max-w-xl mx-auto">
               {txHash && (
                 <a href={getTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" className="w-full" size="lg">View on BaseScan</Button>
+                  <Button variant="outline" className="w-full" size="lg">View Transaction</Button>
                 </a>
               )}
               <Link href="/portfolio"><Button variant="primary" className="w-full" size="lg">View Portfolio</Button></Link>

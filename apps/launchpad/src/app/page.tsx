@@ -165,31 +165,31 @@ function LiveProjectCard({ project: p }: { project: Project }) {
 const FAQS = [
   {
     q: "What is Cireta?",
-    a: "Cireta is a regulated real-world asset (RWA) tokenization launchpad built on Base L2. We enable investors to participate in tokenized gold, copper, and commodity futures through compliant ERC-3643 security tokens with full KYC/AML verification.",
+    a: "Cireta is a tokenized commodity investment platform. It connects verified investors to production-stage gold, copper, and mineral projects through blockchain-based tokens with physical delivery rights and credit risk insurance. The platform is operated by A&M Cireta Holdings LTD.",
   },
   {
-    q: "How are investments structured?",
-    a: "Each investment opportunity is structured through a dedicated Special Purpose Vehicle (SPV). The SPV holds the underlying commodity assets, and tokenized shares of the SPV are issued on-chain as ERC-3643 compliant security tokens, giving investors fractional ownership.",
+    q: "What is the minimum investment?",
+    a: "Minimum investment varies by project, funding round, and token structure. Seed rounds for institutional allocations carry higher thresholds, while fractional token structures allow smaller positions on select projects. Check individual project pages for current round availability, entry requirements, and token denomination details.",
   },
   {
-    q: "What commodities can I invest in?",
-    a: "Currently, Cireta offers tokenized gold and copper investments sourced from production-stage mines. We are expanding into additional commodity futures and precious metals as regulatory approvals are obtained.",
+    q: "How is my investment protected?",
+    a: "Every project includes 105% credit risk insurance backed by reinsurers including Swiss Re, Munich Re, and Lloyd\u2019s. Projects are structured through segregated SPVs with independent trust accounts, isolating each investment from platform-level risk.",
   },
   {
-    q: "Is KYC required?",
-    a: "Yes. All investors must complete identity verification (KYC) through our Sumsub-powered verification flow before they can participate in any token sale. This ensures full regulatory compliance and protects all participants on the platform.",
+    q: "Can I take physical delivery of my commodities?",
+    a: "Yes. After a 12-month vesting period, gold investors can take physical delivery. Copper tokens include FOB delivery terms for international shipping. You can also choose to settle in USDC or continue holding your token position.",
   },
   {
-    q: "How do I receive returns?",
-    a: "Returns are distributed based on the terms of each specific project. This may include periodic yield distributions in USDC, token appreciation tied to commodity price movements, or physical delivery options depending on the project structure.",
+    q: "Is Cireta regulated?",
+    a: "Cireta operates through A&M Cireta Holdings LTD, registered with RAKICC in the UAE. Each project is structured as a licensed SPV with full KYC/KYB compliance, blockchain-based settlement, and independent trust accounts.",
   },
   {
     q: "What blockchain does Cireta use?",
-    a: "Cireta is built on Base, a secure and low-cost Layer 2 blockchain built on Ethereum. All token contracts follow the ERC-3643 standard for compliant security tokens, with on-chain identity verification via ONCHAINID.",
+    a: "Cireta uses blockchain technology for token issuance and settlement. Smart contracts handle compliance checks, ownership transfer, and delivery tracking. Tokens are issued on-chain immediately upon investment and remain fully transferable.",
   },
   {
-    q: "Is there insurance on investments?",
-    a: "Yes. All commodity assets backing Cireta tokens carry comprehensive insurance coverage including transit, storage, and market risk protection. Insurance details are disclosed in each project's documentation before investment.",
+    q: "What are the risks of tokenized commodity investment?",
+    a: "Risks include commodity price fluctuation, mining operational delays, regulatory changes, and limited token liquidity during vesting periods. Cireta mitigates delivery risk through 105% credit risk insurance, but market risk remains. Always review the project white paper and consult an independent financial advisor before investing.",
   },
 ];
 
@@ -211,38 +211,35 @@ const WHY_CARDS = [
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
-    title: "Comprehensive Insurance",
-    desc: "Every commodity asset on Cireta carries full insurance coverage including transit, storage, and market risk protection, ensuring your investment is safeguarded at every stage.",
+    title: "105% Credit Risk Insurance",
+    desc: "Your capital is insured against delivery failure. Coverage is provided by MayFair and SIC Ghana, backed by reinsurers including Swiss Re, Munich Re, and Lloyd\u2019s.",
   },
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 6v6l4 2" />
+        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
       </svg>
     ),
     title: "Production-Stage Assets",
-    desc: "We only list commodities from active, production-stage operations, not speculative exploration. This means real output, real revenue, and lower risk for investors.",
+    desc: "Every project is operational or in verified production, not speculative. Gold reserves are certified to NI43-101 and JORC international standards.",
   },
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
-        <rect x="1" y="3" width="15" height="13" rx="2" />
-        <path d="M16 8h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-4" />
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
       </svg>
     ),
-    title: "Physical Delivery Option",
-    desc: "Token holders have the option to redeem their tokens for physical delivery of the underlying commodity, providing a tangible connection to your digital investment.",
+    title: "Physical Delivery Rights",
+    desc: "Tokens represent economic rights to real commodities. Gold delivery is available after a 12-month vesting period. Copper is priced FOB with international shipping terms.",
   },
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
+        <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
       </svg>
     ),
-    title: "SPV Legal Structure",
-    desc: "Each project is isolated in its own Special Purpose Vehicle, providing legal separation of assets. Your investment is ring-fenced and protected from platform-level risks.",
+    title: "Segregated SPV Structure",
+    desc: "Each project is ring-fenced in its own legal entity with independent trust accounts. Your investment is isolated from platform-level risk through KYC/KYB-compliant frameworks.",
   },
 ];
 
@@ -300,7 +297,7 @@ export default function HomePage() {
 
       {/* ── 1. Hero ── */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-black">
+        <div className="absolute inset-0">
           <video
             autoPlay
             muted
@@ -311,7 +308,7 @@ export default function HomePage() {
           >
             <source src="/images/hero-bg.mp4" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/45 to-black/75" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/60" />
         </div>
 
         <motion.div
@@ -326,12 +323,18 @@ export default function HomePage() {
           <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
             Access tokenized gold, copper, and infrastructure projects backed by verified physical reserves, institutional insurance, and blockchain-grade transparency.
           </p>
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <Link
               href="/projects"
               className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
             >
               Explore Live Projects <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-white/10 transition-colors text-sm"
+            >
+              Download a White Paper
             </Link>
           </div>
         </motion.div>
@@ -388,7 +391,7 @@ export default function HomePage() {
       <section className="py-16 px-4 bg-box">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-lg md:text-xl text-black/70 leading-relaxed">
-            Cireta is a real-world asset tokenization platform that connects verified investors to production-stage gold and copper projects. Every investment is backed by independently certified reserves, 105% credit risk insurance, and physical delivery rights. The platform operates through segregated SPV structures with full KYC/KYB compliance.
+            Cireta is a real-world asset <a href="https://www.cireta.com/tokenization" className="text-darkAqua font-semibold hover:underline">tokenization platform</a> that connects verified investors to production-stage gold and copper projects. Every investment is backed by independently certified reserves, 105% credit risk insurance, and <a href="https://www.cireta.com/tokenized-gold" className="text-darkAqua font-semibold hover:underline">physical delivery rights</a>. The platform operates through <a href="https://www.cireta.com/compliance" className="text-darkAqua font-semibold hover:underline">segregated SPV structures</a> with full KYC/KYB compliance.
           </p>
         </div>
       </section>
@@ -400,7 +403,7 @@ export default function HomePage() {
             <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Live Investment Opportunities</p>
             <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Projects</h2>
             <p className="text-gray-500 max-w-2xl mx-auto">
-              Real-time investment opportunities in tokenized commodities — fully regulated, transparent, and backed by verified issuers.
+              Browse active tokenized gold, copper, and mineral projects currently open for investment. Each is backed by independently verified physical reserves, structured through segregated SPVs, and protected by credit risk insurance.
             </p>
             <Link
               href="/projects"
@@ -435,8 +438,8 @@ export default function HomePage() {
           )}
 
           <p className="text-center text-xs text-black/30 mt-10 max-w-2xl mx-auto">
-            Investment in tokenized assets involves risk. Past performance is not indicative of future results.
-            Please read each project&apos;s documentation carefully before investing.
+            Investment involves risk, including possible loss of capital. Past performance is not indicative of future results.
+            Review each project&apos;s white paper and <a href="https://www.cireta.com/compliance" className="text-darkAqua hover:underline">risk disclosures</a> before investing.
           </p>
         </div>
       </section>
@@ -448,7 +451,7 @@ export default function HomePage() {
             <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Investor Protection</p>
             <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Why Investors Choose Cireta</h2>
             <p className="text-gray-500 max-w-2xl mx-auto">
-              Every layer of the Cireta platform is built to protect investors and ensure transparent, compliant access to real-world commodity assets.
+              Every tokenized commodity project on this platform is structured to protect investor capital. From <a href="https://www.cireta.com/compliance" className="text-darkAqua hover:underline">NI43-101 certified reserves</a> and insured delivery to ring-fenced legal entities that isolate your position from platform-level risk.
             </p>
           </div>
 
@@ -470,23 +473,30 @@ export default function HomePage() {
               </motion.div>
             ))}
           </div>
+
+          <div className="text-center mt-10">
+            <a href="https://www.cireta.com/compliance" className="text-sm font-semibold text-darkAqua hover:underline">
+              View our compliance framework &rarr;
+            </a>
+          </div>
         </div>
       </section>
 
       {/* ── 6. Track Record ── */}
       <section className="py-20 px-4 bg-white">
         <div className="max-w-inner mx-auto text-center">
+          <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Real Production. Real Results.</p>
           <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Proven Commodity Delivery Track Record</h2>
           <p className="text-black/50 max-w-2xl mx-auto mb-14">
-            Backed by A&M Development Group&apos;s extensive experience in physical commodity sourcing, logistics, and delivery across global markets.
+            Cireta&apos;s tokenized commodity model was first deployed with copper from Kolwezi, DRC. Over 14 months of continuous production and 3 months of verified international deliveries. Shipments on time, on spec, on budget. That working system is now scaling to Tanzania and Ghana.
           </p>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { value: "14", unit: "months", label: "Average delivery timeline from mine to market" },
-              { value: "3", unit: "months", label: "Fastest commodity delivery cycle achieved" },
-              { value: "3", unit: "countries", label: "Active sourcing operations across continents" },
-              { value: "99.99%", unit: "", label: "Purity verification rate on delivered gold" },
+              { value: "14", unit: "months", label: "Continuous copper production in Kolwezi, DRC" },
+              { value: "3", unit: "months", label: "Verified international commodity deliveries" },
+              { value: "3", unit: "countries", label: "Active or scaling operations: DRC, Tanzania, Ghana" },
+              { value: "99.99%", unit: "", label: "Copper cathode purity, production grade verified" },
             ].map((s, i) => (
               <motion.div
                 key={i}
@@ -693,19 +703,13 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── 11. Risk Disclosure ── */}
-      <section className="py-16 px-4 bg-box">
-        <div className="max-w-3xl mx-auto">
-          <div className="border border-black/10 rounded-2xl p-8 text-center">
-            <p className="text-sm font-bold text-text mb-3">Risk Disclosure</p>
-            <p className="text-xs text-black/50 leading-relaxed">
-              Investing in tokenized real-world assets involves significant risk, including the potential loss of your
-              entire investment. Commodity prices are volatile and influenced by factors beyond our control. Token
-              values may fluctuate and are not guaranteed to maintain their initial value. Past performance is not
-              indicative of future results. All investments on this platform are subject to the terms and conditions
-              of their respective Special Purpose Vehicle (SPV) structures. Please read all project documentation,
-              including risk factors, before making any investment decision. This platform does not provide financial
-              advice. Consult a qualified financial advisor before investing.
+      {/* ── 11. Risks and Considerations ── */}
+      <section className="py-14 px-4 bg-white">
+        <div className="max-w-[760px] mx-auto">
+          <div className="border border-[#F3D6D6] rounded-xl p-7 bg-[#FDF7F7]">
+            <p className="text-base font-bold text-text mb-3">Risks and Considerations</p>
+            <p className="text-sm text-gray-500 leading-[1.7]">
+              Tokenized commodity investments carry risks including commodity price fluctuation, operational delays in mining production, regulatory changes across jurisdictions, and token liquidity limitations during vesting periods. All projects on this platform include 105% credit risk insurance against delivery failure, but this does not eliminate market risk or guarantee returns. Investors should review individual project white papers and consult independent financial advisors before participating. Full risk disclosures are available on each <a href="https://www.cireta.com/compliance" className="text-darkAqua font-medium hover:underline">project compliance page</a>.
             </p>
           </div>
         </div>
@@ -742,25 +746,25 @@ export default function HomePage() {
 
       {/* ── 13. Final CTA ── */}
       <section className="relative py-24 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-black">
-          <video autoPlay muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover opacity-40">
+        <div className="absolute inset-0">
+          <video autoPlay muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover">
             <source src="/images/hero-bg.mp4" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70" />
+          <div className="absolute inset-0 bg-black/50" />
         </div>
         <div className="relative z-10 max-w-3xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">
             Ready to Invest in Tokenized Assets?
           </h2>
-          <p className="text-white/70 mb-10 max-w-xl mx-auto">
-            Join a growing community of investors accessing institutional-grade commodity investments through compliant blockchain technology.
+          <p className="text-white/80 mb-10 max-w-xl mx-auto text-[17px]">
+            Access gold, copper, and infrastructure projects through blockchain-secured tokens on the Cireta Launchpad.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/projects"
               className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
             >
-              Visit Launchpad <ArrowRight className="h-4 w-4" />
+              View Projects <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="mailto:info@cireta.com"
