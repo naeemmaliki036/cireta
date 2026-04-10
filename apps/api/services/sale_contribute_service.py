@@ -144,13 +144,28 @@ class SaleContributeService:
         contrib_wallet = on_chain_data["buyer"] if on_chain_data else wallet_address
         chain_phase_id = on_chain_data["phase_id"] if on_chain_data else None
 
-        # Find the matching phase
+        # Find the matching phase. Source of truth is the on-chain phaseId
+        # from the Purchase event. The contract's phase array is built by
+        # successive addPhase() calls, which enforce strictly-increasing
+        # start times — so sorting DB phases by start_time recovers the
+        # same indexing as the contract.
+        #
+        # Falls back to a time-based active-phase lookup only when no
+        # on-chain data was extracted (e.g. tx_hash from a draft test).
         active_phase = None
         if chain_phase_id is not None:
-            # Match on-chain phase index to DB phase
-            sorted_phases = sorted(sale.phases, key=lambda p: p.phase_number)
-            if chain_phase_id < len(sorted_phases):
+            sorted_phases = sorted(sale.phases, key=lambda p: p.start_time)
+            if 0 <= chain_phase_id < len(sorted_phases):
                 active_phase = sorted_phases[chain_phase_id]
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "INVALID_PHASE_INDEX",
+                        "message": f"On-chain phase index {chain_phase_id} is out of range "
+                        f"(sale has {len(sorted_phases)} phases)",
+                    },
+                )
         if not active_phase:
             for phase in sale.phases:
                 if phase.is_active:

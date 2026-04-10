@@ -418,6 +418,46 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
 
+                  {/* Global Sale Progress (gap #4) */}
+                  {!project.isComingSoon && hardCap > 0 && (() => {
+                    const raisedPct = Math.min(100, (raised / hardCap) * 100);
+                    const softCapPct = softCap > 0 ? Math.min(100, (softCap / hardCap) * 100) : 0;
+                    const softCapMet = raised >= softCap;
+                    return (
+                      <div className="bg-white border border-gray-100 rounded-2xl p-5">
+                        <div className="flex items-baseline justify-between mb-3">
+                          <h3 className="font-bold text-text text-sm">Sale Progress</h3>
+                          <span className="text-xs text-gray-500">{raisedPct.toFixed(1)}% of hard cap</span>
+                        </div>
+                        <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+                          <div
+                            className="h-full bg-darkAqua rounded-full transition-all"
+                            style={{ width: `${raisedPct}%` }}
+                          />
+                          {softCap > 0 && softCapPct > 0 && softCapPct < 100 && (
+                            <div
+                              className="absolute top-0 bottom-0 w-px bg-amber-500"
+                              style={{ left: `${softCapPct}%` }}
+                              title={`Soft cap: ${fmtUsdc(softCap)} USDC`}
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-text font-semibold">
+                            {fmtUsdc(raised)} <span className="text-gray-400 font-normal">/ {fmtUsdc(hardCap)} USDC raised</span>
+                          </span>
+                          {softCap > 0 && (
+                            <span className={cn("font-medium", softCapMet ? "text-emerald-600" : "text-amber-600")}>
+                              {softCapMet
+                                ? `Soft cap reached (${fmtUsdc(softCap)} USDC)`
+                                : `Refundable until soft cap (${fmtUsdc(softCap)} USDC)`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Sale Details */}
                   <h3 className="font-bold text-text text-sm">Sale Details</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
