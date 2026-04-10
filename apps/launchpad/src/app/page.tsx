@@ -323,18 +323,12 @@ export default function HomePage() {
           <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
             Access tokenized gold, copper, and infrastructure projects backed by verified physical reserves, institutional insurance, and blockchain-grade transparency.
           </p>
-          <div className="flex items-center justify-center gap-4 flex-wrap">
+          <div className="flex items-center justify-center">
             <Link
               href="/projects"
               className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
             >
               Explore Live Projects <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-white/10 transition-colors text-sm"
-            >
-              Download a White Paper
             </Link>
           </div>
         </motion.div>
@@ -382,7 +376,19 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-            <p className="text-center text-xs text-black/30 mt-8">Figures verified as of Q1 2026</p>
+            <p className="text-center text-xs text-black/30 mt-8">Figures verified as of {(() => {
+              const now = new Date();
+              const month = now.getMonth(); // 0-11
+              const day = now.getDate();
+              const year = now.getFullYear();
+              const currentQ = Math.floor(month / 3) + 1;
+              // If we're past the first 7 days of the quarter, show current; otherwise previous
+              const daysIntoQuarter = (month % 3) * 30 + day;
+              if (daysIntoQuarter > 7) return `Q${currentQ} ${year}`;
+              // Previous quarter
+              if (currentQ === 1) return `Q4 ${year - 1}`;
+              return `Q${currentQ - 1} ${year}`;
+            })()}</p>
           </div>
         </section>
       )}

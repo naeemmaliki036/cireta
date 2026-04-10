@@ -228,7 +228,7 @@ export function InvestSidebar({
       {/* Security Note */}
       <p className="text-xs text-gray-400 text-center mt-4 flex items-center justify-center gap-1">
         <Shield className="h-3 w-3" />
-        Secured by ERC-3643 compliant smart contracts
+        Secured by compliant smart contracts
       </p>
     </motion.div>
   );

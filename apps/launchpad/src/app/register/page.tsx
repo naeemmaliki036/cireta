@@ -150,7 +150,7 @@ function RegisterForm() {
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
               className="w-4 h-4 rounded border-gray-300 text-darkAqua focus:ring-darkAqua mt-0.5" />
             <span className="text-sm text-gray-500">
-              I&apos;ve read and agree to the <Link href="/terms" className="text-darkAqua hover:underline font-medium">Terms of Service</Link> and <Link href="/privacy" className="text-darkAqua hover:underline font-medium">Privacy Policy</Link>
+              I&apos;ve read and agree to the <a href="https://www.cireta.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:underline font-medium">Terms of Service</a> and <a href="https://www.cireta.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:underline font-medium">Privacy Policy</a>
             </span>
           </label>
           <Button type="submit" className="w-full btn-cta rounded-full" size="lg" isLoading={loading}>

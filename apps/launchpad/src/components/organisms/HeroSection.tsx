@@ -23,8 +23,8 @@ export function HeroSection() {
         </h1>
 
         <p className="text-sm md:text-base font-semibold text-white/75 mb-[60px] max-w-2xl animate-fade-in">
-          Fully regulated ERC-3643 security tokens for gold, copper, and commodity futures.
-          Institutional-grade compliance with ONCHAINID.
+          Fully regulated security tokens for gold, copper, and commodity futures.
+          Institutional-grade compliance and on-chain verification.
         </p>
 
         <div className="flex items-center gap-6">

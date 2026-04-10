@@ -6,7 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/atoms";
 
 const FEATURES = [
-  "KYC/AML via Sumsub + ONCHAINID",
+  "KYC/AML via Sumsub with on-chain verification",
   "Permissioned transfers with compliance modules",
   "Full audit trail on-chain",
   "Regulatory reporting capabilities",
@@ -29,7 +29,7 @@ export function ComplianceFeatures() {
               Institutional-Grade<span className="text-darkAqua"> Compliance</span>
             </h2>
             <p className="text-white/60 text-lg mb-8">
-              Every token on Cireta is a fully compliant ERC-3643 security token with
+              Every token on Cireta is a fully compliant security token with
               built-in transfer restrictions and identity verification.
             </p>
             <div className="space-y-4">
