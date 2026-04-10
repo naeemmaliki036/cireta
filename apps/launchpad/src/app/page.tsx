@@ -196,10 +196,10 @@ const FAQS = [
 /* ─── How It Works steps ─── */
 
 const STEPS = [
-  { num: 0, title: "Browse", desc: "Explore live tokenized commodity projects, each backed by verified physical assets and structured through regulated SPVs." },
-  { num: 1, title: "Connect", desc: "Connect your Web3 wallet (MetaMask, Coinbase Wallet, or WalletConnect) to the Base L2 network in one click." },
-  { num: 2, title: "Verify", desc: "Complete a quick KYC identity check powered by Sumsub. Most verifications are approved in under 5 minutes." },
-  { num: 3, title: "Invest", desc: "Choose your investment amount, approve USDC, and receive ERC-3643 security tokens directly to your wallet." },
+  { num: 1, title: "Browse", desc: "Explore live tokenized commodity projects, each backed by verified physical assets and structured through regulated SPVs." },
+  { num: 2, title: "Connect", desc: "Connect your Web3 wallet (MetaMask, Coinbase Wallet, or WalletConnect) to the Base L2 network in one click." },
+  { num: 3, title: "Verify", desc: "Complete a quick KYC identity check powered by Sumsub. Most verifications are approved in under 5 minutes." },
+  { num: 4, title: "Invest", desc: "Choose your investment amount, approve USDC, and receive ERC-3643 security tokens directly to your wallet." },
 ];
 
 /* ─── Why Cireta cards ─── */
@@ -251,21 +251,21 @@ const WHY_CARDS = [
 const PRESS = [
   {
     source: "Coinfomania",
-    badge: "Featured",
-    date: "March 2026",
+    badge: "Press",
+    date: "Jan 23, 2026",
     color: "bg-[#1a1a2e]",
-    title: "Cireta Launches Tokenized Gold Platform on Base L2",
-    excerpt: "Cireta, a new RWA tokenization launchpad, has launched on Coinbase's Base L2, offering investors access to tokenized gold and copper futures through compliant ERC-3643 security tokens.",
-    url: "https://coinfomania.com",
+    title: "Institutional Approaches to Commodity Tokenization in Real-World Assets: A Case Study Involving Cireta",
+    excerpt: "Cireta describes itself as an RWA tokenization platform supporting gold and copper projects with verified reserves and institutional insurance...",
+    url: "https://coinfomania.com/institutional-approaches-to-commodity-tokenization-in-real-world-assets-a-case-study-involving-cireta/",
   },
   {
     source: "MPOST",
     badge: "Press",
-    date: "February 2026",
+    date: "Jan 6, 2026",
     color: "bg-[#0d1117]",
-    title: "How Cireta is Bridging Physical Commodities and DeFi",
-    excerpt: "In an exclusive interview, the Cireta team discusses how their SPV-backed tokenization model brings institutional-grade commodity investments to retail investors through blockchain technology.",
-    url: "https://mpost.io",
+    title: "Cireta\u2019s Global Debut Puts Real Gold On-Chain With Delivery Rights",
+    excerpt: "Cireta has launched globally with Wassa Gold, a tokenized gold project providing fractional ownership backed by physical delivery rights...",
+    url: "https://mpost.io/ciretas-global-debut-puts-real-gold-on-chain-with-delivery-rights/",
   },
 ];
 
@@ -508,7 +508,7 @@ export default function HomePage() {
       </section>
 
       {/* ── 7. How It Works ── */}
-      <section className="py-20 px-4 bg-box" id="how-it-works">
+      <section className="py-20 px-4 bg-white" id="how-it-works">
         <div className="max-w-inner mx-auto">
           <div className="text-center mb-14">
             <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Getting Started</p>
@@ -520,8 +520,9 @@ export default function HomePage() {
 
           {/* Desktop horizontal timeline */}
           <div className="hidden md:block relative mb-12">
-            <div className="absolute top-6 left-[12.5%] right-[12.5%] h-0.5 bg-black/10" />
-            <div className="grid grid-cols-4 gap-6">
+            {/* Horizontal connecting line */}
+            <div className="absolute top-[30px] left-[50px] right-[50px] h-[3px] bg-box" />
+            <div className="grid grid-cols-4 gap-6 px-5">
               {STEPS.map((s, i) => (
                 <motion.div
                   key={s.num}
@@ -531,34 +532,35 @@ export default function HomePage() {
                   transition={{ delay: i * 0.12 }}
                   className="flex flex-col items-center text-center"
                 >
-                  <div className="w-12 h-12 rounded-full bg-darkAqua text-white flex items-center justify-center font-bold text-lg mb-6 relative z-10">
+                  <div className="w-[60px] h-[60px] rounded-full bg-white border-[3px] border-box flex items-center justify-center font-bold text-xl text-darkAqua mb-4 relative z-10">
                     {s.num}
                   </div>
-                  <h3 className="text-lg font-bold text-text mb-2">{s.title}</h3>
-                  <p className="text-sm text-black/50 leading-relaxed">{s.desc}</p>
+                  <h3 className="text-[17px] font-bold text-text mb-2">{s.title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed max-w-[200px]">{s.desc}</p>
                 </motion.div>
               ))}
             </div>
           </div>
 
           {/* Mobile vertical list */}
-          <div className="md:hidden space-y-8 mb-12">
+          <div className="md:hidden space-y-8 mb-12 pl-10 relative">
+            <div className="absolute left-[30px] top-0 bottom-0 w-[3px] bg-box" />
             {STEPS.map((s) => (
-              <div key={s.num} className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-darkAqua text-white flex items-center justify-center font-bold text-sm shrink-0">
+              <div key={s.num} className="relative">
+                <div className="absolute -left-10 w-[40px] h-[40px] rounded-full bg-white border-[3px] border-box flex items-center justify-center font-bold text-sm text-darkAqua z-10">
                   {s.num}
                 </div>
-                <div>
+                <div className="pl-2">
                   <h3 className="text-lg font-bold text-text mb-1">{s.title}</h3>
-                  <p className="text-sm text-black/50 leading-relaxed">{s.desc}</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="bg-box rounded-2xl p-6 text-center max-w-2xl mx-auto">
-            <p className="text-sm text-black/60">
-              <span className="font-semibold text-text">After investment:</span> Track your portfolio in real-time, receive yield distributions in USDC, and optionally redeem tokens for physical commodity delivery.
+          <div className="bg-box border-l-4 border-l-darkAqua rounded-r-xl p-5 max-w-[700px] mx-auto">
+            <p className="text-[15px] text-gray-500">
+              <span className="font-semibold text-text">After investing:</span> Following your 12-month vesting period, you can take <a href="https://www.cireta.com" className="text-darkAqua hover:underline">physical delivery</a> of your commodity, settle in USDC, or continue holding your position. Your tokens remain fully transferable on-chain.
             </p>
           </div>
         </div>
