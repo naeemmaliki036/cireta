@@ -357,9 +357,9 @@ export function StepDeploy({
           </div>
         </div>
       </div>
-      <div className="p-4 rounded-lg bg-gold/10 border border-gold/30 text-left">
+      <div className="p-4 rounded-lg bg-darkAqua/10 border border-darkAqua/30 text-left">
         <p className="text-sm text-gray-600">
-          <strong className="text-gold">Note:</strong>{" "}
+          <strong className="text-darkAqua">Note:</strong>{" "}
           Deploying will create the token contract on-chain.
           This action requires a transaction fee and cannot be undone.
         </p>

@@ -166,7 +166,7 @@ export function AddPhaseForm({
   };
 
   return (
-    <div className="rounded-lg bg-box border border-darkBlack/5">
+    <div className="rounded-lg bg-box border border-black/5">
       <button onClick={() => setExpanded(!expanded)}
         className="w-full p-4 flex items-center justify-between text-left">
         <h3 className="font-medium text-text flex items-center gap-2">
@@ -178,7 +178,7 @@ export function AddPhaseForm({
       {!expanded ? null : <div className="px-4 pb-4">
 
       {availableSupply !== undefined && availableSupply > 0 && (
-        <p className="text-xs text-darkBlack/40 mb-3">
+        <p className="text-xs text-black/40 mb-3">
           Available supply: <span className="font-semibold text-text">{availableSupply.toLocaleString()}</span> tokens
         </p>
       )}
@@ -225,7 +225,7 @@ export function AddPhaseForm({
             <p className="text-xs text-red-500 mt-1">Exceeds available supply ({availableSupply!.toLocaleString()})</p>
           )}
           {allocationNum > 0 && !allocationExceedsSupply && (
-            <p className="text-xs text-darkBlack/30 mt-1">{allocationNum.toLocaleString()} tokens</p>
+            <p className="text-xs text-black/30 mt-1">{allocationNum.toLocaleString()} tokens</p>
           )}
         </div>
         <div>

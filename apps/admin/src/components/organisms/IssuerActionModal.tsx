@@ -41,7 +41,7 @@ export function IssuerActionModal({
 
             {modalType === "approve" && (
               <div>
-                <p className="text-darkBlack/60 mb-6">Approve <strong>{issuerName}</strong> as a verified issuer?</p>
+                <p className="text-black/60 mb-6">Approve <strong>{issuerName}</strong> as a verified issuer?</p>
                 <div className="flex gap-4">
                   <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
                   <Button variant="primary" className="flex-1" onClick={onConfirm} disabled={isSubmitting} >Approve</Button>
@@ -51,10 +51,10 @@ export function IssuerActionModal({
 
             {modalType === "fee" && (
               <div>
-                <p className="text-sm text-darkBlack/60 mb-4">Current: {feeBps} bps ({(feeBps / 100).toFixed(2)}%)</p>
+                <p className="text-sm text-black/60 mb-4">Current: {feeBps} bps ({(feeBps / 100).toFixed(2)}%)</p>
                 <Input label="New Fee (basis points)" type="number" value={newFee}
                   onChange={(e) => onNewFeeChange(e.target.value)} placeholder="200" className="mb-4" />
-                <p className="text-xs text-darkBlack/40 mb-6">{newFee} bps = {(parseInt(newFee || "0") / 100).toFixed(2)}%</p>
+                <p className="text-xs text-black/40 mb-6">{newFee} bps = {(parseInt(newFee || "0") / 100).toFixed(2)}%</p>
                 <div className="flex gap-4">
                   <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
                   <Button variant="primary" className="flex-1" onClick={onConfirm} disabled={isSubmitting} >Update Fee</Button>
@@ -64,7 +64,7 @@ export function IssuerActionModal({
 
             {modalType === "revoke" && (
               <div>
-                <p className="text-darkBlack/60 mb-4">Revoke <strong>{issuerName}</strong>? This suspends all tokens.</p>
+                <p className="text-black/60 mb-4">Revoke <strong>{issuerName}</strong>? This suspends all tokens.</p>
                 <Textarea label="Reason" value={revokeReason}
                   onChange={(e) => onRevokeReasonChange(e.target.value)} placeholder="Reason for revocation…" className="mb-6" />
                 <div className="flex gap-4">

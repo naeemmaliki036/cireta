@@ -42,7 +42,7 @@ const emptyTeam = (): TeamMemberData => ({ name: "", title: "", bio: "", photo_u
 const emptyFAQ = (): FAQData => ({ question: "", answer: "" });
 const emptyDoc = (): DocumentData => ({ name: "", type: "legal", url: "" });
 const DOC_TYPES = [{ value: "legal", label: "Legal" }, { value: "audit", label: "Audit" }, { value: "whitepaper", label: "Whitepaper" }, { value: "other", label: "Other" }];
-const TA = "w-full rounded-lg border border-darkBlack/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua resize-y";
+const TA = "w-full rounded-lg border border-black/10 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua resize-y";
 
 export default function CreateSalePage() {
   const router = useRouter();
@@ -276,7 +276,7 @@ export default function CreateSalePage() {
       )}
 
       <div className="flex gap-5">
-      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-darkBlack/10 flex-1 min-w-0">
+      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-black/10 flex-1 min-w-0">
         {/* Step 1: Sale Info */}
         {step === 1 && (
           <div className="max-w-2xl mx-auto space-y-6">
@@ -284,7 +284,7 @@ export default function CreateSalePage() {
             <Input label="Sale Title" placeholder="e.g., Gold Reserve Token Sale" value={title} onChange={(e) => setTitle(e.target.value)} />
             <div><label className="input-label">Short Description</label>
               <textarea className={TA} rows={2} placeholder="Brief summary" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-            <div className="flex items-center gap-3 p-4 rounded-lg border border-darkBlack/10">
+            <div className="flex items-center gap-3 p-4 rounded-lg border border-black/10">
               <input type="checkbox" id="comingSoon" checked={isComingSoon} onChange={(e) => setIsComingSoon(e.target.checked)} className="h-5 w-5 rounded" />
               <label htmlFor="comingSoon" className="text-sm"><span className="font-semibold">Prelisting (coming soon)</span> — Publish as a preview without token or sale contract. You can convert to a live sale later.</label>
             </div>
@@ -296,8 +296,8 @@ export default function CreateSalePage() {
               { value: "price_tiered", label: "Price Tiered — 100% allocation shared, phases only change price" },
             ]} value={saleStructure} onChange={(e) => setSaleStructure(e.target.value)} />
             {/* OTC & Bank Transfer */}
-            <div className="border-t border-darkBlack/10 pt-6 mt-2">
-              <div className="flex items-center gap-3 p-4 rounded-lg border border-darkBlack/10">
+            <div className="border-t border-black/10 pt-6 mt-2">
+              <div className="flex items-center gap-3 p-4 rounded-lg border border-black/10">
                 <input type="checkbox" id="otcEnabled" checked={otcEnabled} onChange={(e) => handleOtcToggle(e.target.checked)} className="h-5 w-5 rounded" />
                 <label htmlFor="otcEnabled" className="text-sm"><span className="font-semibold">Enable OTC & Bank Transfer</span> — Allow investors to pay via wire transfer or OTC. An &quot;OTC &amp; Bank&quot; tab will be shown on the sale page.</label>
               </div>
@@ -350,7 +350,7 @@ export default function CreateSalePage() {
                 const isOpen = expandedTeam === i;
                 const label = m.name ? `${m.name}${m.title ? ` — ${m.title}` : ""}` : `Member ${i + 1} (empty)`;
                 return (
-                <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
+                <div key={i} className="border border-black/10 rounded-lg overflow-hidden">
                   <button type="button" onClick={() => setExpandedTeam(isOpen ? null : i)}
                     className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors">
                     {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />}
@@ -366,7 +366,7 @@ export default function CreateSalePage() {
                     {rmBtn(teamMembers, () => { setTeamMembers((t) => t.filter((_, idx) => idx !== i)); if (isOpen) setExpandedTeam(null); })}
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 space-y-3 border-t border-darkBlack/5 pt-3">
+                    <div className="px-4 pb-4 space-y-3 border-t border-black/5 pt-3">
                       <div className="grid grid-cols-2 gap-3">
                         <Input placeholder="Name" value={m.name} onChange={(e) => updTeam(i, "name", e.target.value)} />
                         <Input placeholder="Title (e.g. CEO)" value={m.title} onChange={(e) => updTeam(i, "title", e.target.value)} />
@@ -392,7 +392,7 @@ export default function CreateSalePage() {
                 const isOpen = expandedFAQ === i;
                 const preview = f.question || `FAQ ${i + 1} (empty)`;
                 return (
-                  <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
+                  <div key={i} className="border border-black/10 rounded-lg overflow-hidden">
                     <button type="button" onClick={() => setExpandedFAQ(isOpen ? null : i)}
                       className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-zinc-50 transition-colors">
                       {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 flex-shrink-0" />}
@@ -400,7 +400,7 @@ export default function CreateSalePage() {
                       {rmBtn(faqs, () => { setFaqs((fq) => fq.filter((_, idx) => idx !== i)); if (isOpen) setExpandedFAQ(null); })}
                     </button>
                     {isOpen && (
-                      <div className="px-5 pb-5 space-y-3 border-t border-darkBlack/5 pt-4">
+                      <div className="px-5 pb-5 space-y-3 border-t border-black/5 pt-4">
                         <div><label className="input-label">Question</label><textarea className={TA} rows={3} placeholder="Enter the question..." value={f.question} onChange={(e) => updFAQ(i, "question", e.target.value)} /></div>
                         <div><label className="input-label">Answer</label><textarea className={TA} rows={7} placeholder="Enter a detailed answer..." value={f.answer} onChange={(e) => updFAQ(i, "answer", e.target.value)} /></div>
                       </div>
@@ -423,7 +423,7 @@ export default function CreateSalePage() {
                 const label = d.name || `Document ${i + 1} (empty)`;
                 const typeLabel = DOC_TYPES.find((t) => t.value === d.type)?.label || d.type;
                 return (
-                <div key={i} className="border border-darkBlack/10 rounded-lg overflow-hidden">
+                <div key={i} className="border border-black/10 rounded-lg overflow-hidden">
                   <button type="button" onClick={() => setExpandedDoc(isOpen ? null : i)}
                     className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors">
                     {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />}
@@ -434,7 +434,7 @@ export default function CreateSalePage() {
                     {rmBtn(documents, () => { setDocuments((ds) => ds.filter((_, idx) => idx !== i)); if (isOpen) setExpandedDoc(null); })}
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 space-y-3 border-t border-darkBlack/5 pt-3">
+                    <div className="px-4 pb-4 space-y-3 border-t border-black/5 pt-3">
                       <div className="grid grid-cols-2 gap-3">
                         <Input label="Name" value={d.name} onChange={(e) => updDoc(i, "name", e.target.value)} />
                         <Select label="Type" options={DOC_TYPES} value={d.type} onChange={(e) => updDoc(i, "type", e.target.value)} />
@@ -832,8 +832,8 @@ export default function CreateSalePage() {
             </div>
           )}
           {step === 10 && (
-            <div className="bg-gold/10 border border-gold/30 rounded-lg p-4">
-              <h4 className="text-xs font-semibold text-gold uppercase tracking-wider mb-2">Next Steps</h4>
+            <div className="bg-darkAqua/10 border border-darkAqua/30 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-darkAqua uppercase tracking-wider mb-2">Next Steps</h4>
               <ul className="text-xs text-zinc-600 space-y-2">
                 {isComingSoon ? (
                   <>

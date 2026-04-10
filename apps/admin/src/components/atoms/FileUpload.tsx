@@ -85,7 +85,7 @@ export function FileUpload({
     return (
       <div>
         {label && <label className="input-label">{label}</label>}
-        <div className="relative rounded-lg border border-darkBlack/10 overflow-hidden">
+        <div className="relative rounded-lg border border-black/10 overflow-hidden">
           {previewType === "image" ? (
             <img src={value.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL || ""}${value}` : value} alt="Preview" className="w-full h-40 object-cover" />
           ) : (
@@ -123,7 +123,7 @@ export function FileUpload({
           "relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors",
           dragOver
             ? "border-darkAqua bg-darkAqua/5"
-            : "border-darkBlack/15 hover:border-darkAqua/50",
+            : "border-black/15 hover:border-darkAqua/50",
           disabled && "opacity-50 cursor-not-allowed",
         )}
       >

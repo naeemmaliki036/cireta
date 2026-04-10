@@ -253,7 +253,7 @@ export default function PortfolioPage() {
                   <p className="text-sm text-gray-400 mb-6">Connect your account to track holdings and investments</p>
                   <Link
                     href="/login"
-                    className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-darkBlack/90 transition-colors"
+                    className="inline-flex items-center gap-1.5 btn-cta text-sm px-6 py-2.5 rounded-full transition-colors"
                   >
                     Sign In <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
@@ -271,7 +271,7 @@ export default function PortfolioPage() {
                   <p className="text-sm text-gray-400 mb-6">Invest in a sale to start building your portfolio</p>
                   <Link
                     href="/projects"
-                    className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-darkBlack/90 transition-colors"
+                    className="inline-flex items-center gap-1.5 btn-cta text-sm px-6 py-2.5 rounded-full transition-colors"
                   >
                     Browse Sales <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>

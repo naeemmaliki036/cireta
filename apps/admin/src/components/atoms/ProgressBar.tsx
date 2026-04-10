@@ -38,7 +38,7 @@ const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
     const colors = {
       default: "bg-darkAqua",
       success: "bg-green-500",
-      warning: "bg-gold",
+      warning: "bg-darkAqua",
       danger: "bg-red-500",
     };
 

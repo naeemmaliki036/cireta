@@ -23,8 +23,8 @@ const statusConfig = {
   pending: {
     icon: ShieldAlert,
     label: "Pending",
-    color: "text-gold",
-    bgColor: "bg-gold/10",
+    color: "text-darkAqua",
+    bgColor: "bg-darkAqua/10",
   },
   approved: {
     icon: ShieldCheck,

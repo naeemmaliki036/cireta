@@ -5,10 +5,10 @@ import { motion } from "framer-motion";
 
 export function HeroSection() {
   return (
-    <section className="relative bg-darkBlack w-full overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-darkBlack via-darkBlack/90 to-darkAqua/30" />
+    <section className="relative bg-black w-full overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/90 to-darkAqua/30" />
       <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-darkAqua/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gold/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-darkAqua/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="relative z-10 flex items-center justify-center flex-col min-h-[75vh] mx-auto max-w-[990px] px-4 text-center text-white pt-28 pb-16">
         <motion.div initial={{ opacity: 1, scale: 1 }} animate={{ opacity: 1, scale: 1 }}

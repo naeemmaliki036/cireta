@@ -140,8 +140,8 @@ function ActiveProjectCard({ project }: { project: Project }) {
             <p className="text-xs text-gray-400 uppercase tracking-wide">Target</p>
             <p className="text-lg font-bold">{hardCap >= 1_000_000 ? `${(hardCap / 1_000_000).toFixed(hardCap % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${hardCap.toLocaleString()} USDC`}</p>
           </div>
-          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-darkBlack/90 transition-colors">
-            Invest <ArrowRight className="h-4 w-4" />
+          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-sm px-5 py-2.5 rounded-full transition-colors">
+            View Details <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </div>
@@ -165,7 +165,7 @@ function ComingSoonCard({ project }: { project: Project }) {
       </div>
       <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
         <p className="text-sm text-gray-500 line-clamp-2 flex-1">{project.description || "Upcoming investment opportunity — details coming soon."}</p>
-        <span className="w-full inline-flex items-center justify-center gap-2 bg-darkBlack text-white text-sm font-semibold px-5 py-3 rounded-full hover:bg-darkBlack/90 transition-colors mt-4">
+        <span className="w-full inline-flex items-center justify-center gap-2 btn-cta text-sm px-5 py-3 rounded-full transition-colors mt-4">
           View Details <ArrowRight className="h-4 w-4" />
         </span>
       </div>
@@ -229,9 +229,6 @@ export default function ExplorePage() {
             <div className="flex items-center gap-3 mb-1">
               <Radio className="h-6 w-6 text-darkAqua" />
               <h2 className="text-2xl font-bold text-text">Active Opportunities</h2>
-              <span className="text-sm font-medium bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
-                {activeProjects.length} available
-              </span>
             </div>
             <p className="text-sm text-gray-500 ml-9 mb-8">Live investment opportunities ready for funding</p>
 
@@ -268,9 +265,6 @@ export default function ExplorePage() {
             <div className="flex items-center gap-3 mb-1">
               <Sparkles className="h-6 w-6 text-gray-400" />
               <h2 className="text-2xl font-bold text-text">Coming Soon</h2>
-              <span className="text-sm font-medium bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
-                {comingSoonProjects.length} Projects
-              </span>
             </div>
             <p className="text-sm text-gray-500 ml-9 mb-8">Upcoming opportunities - be the first to know when to launch</p>
 

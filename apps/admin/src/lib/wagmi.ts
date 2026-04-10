@@ -48,7 +48,7 @@ export function getWagmiConfig(): Config {
         [base.id]: http(rpcUrl || undefined),
         [baseSepolia.id]: http(rpcUrl || undefined),
       },
-      multiInjectedProviderDiscovery: false,
+      multiInjectedProviderDiscovery: true,
       ssr: true,
     });
   }

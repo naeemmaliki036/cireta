@@ -9,6 +9,7 @@
   --color-text: #0C0C0C;
   --color-darkBlue: #01033C;
   --color-darkAqua: #13636F;
+  --color-cta: #13636F;
   --color-box: #ECF3F4;
   --color-gold: #C9913D;
   --color-transparent: transparent;
@@ -122,9 +123,24 @@ html, body { height: 100%; scroll-behavior: smooth; }
 .max-w-container { max-width: 1824px; }
 .max-w-inner { max-width: 1624px; }
 
+/* ── CTA button — single source of truth for primary action color ── */
+/* Change --color-cta in @theme above to update all CTAs globally */
+.btn-cta {
+  background-color: var(--color-cta);
+  color: #fff;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+.btn-cta:hover {
+  opacity: 0.9;
+}
+.btn-cta:disabled {
+  opacity: 0.6;
+}
+
 /* Input field base styles */
 .input-field {
-  @apply w-full px-4 py-3 rounded-xl border border-darkBlack/10 bg-box focus:border-darkAqua focus:ring-1 focus:ring-darkAqua outline-none transition-colors;
+  @apply w-full px-4 py-3 rounded-xl border border-black/10 bg-box focus:border-darkAqua focus:ring-1 focus:ring-darkAqua outline-none transition-colors;
 }
 
 .input-label {
@@ -148,6 +164,20 @@ html, body { height: 100%; scroll-behavior: smooth; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Seamless marquee — track contains 2 copies of logos, scrolls exactly half (one full set) */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 45s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 .animate-fade-in {

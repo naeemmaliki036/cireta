@@ -11,7 +11,15 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Add project root to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, project_root)
+
+# Load .env from project root
+try:
+    import dotenv
+    dotenv.load_dotenv(os.path.join(project_root, ".env"))
+except ImportError:
+    pass
 
 # Import all Cireta models for autogenerate
 from apps.api.models import *  # noqa: F401, F403, E402

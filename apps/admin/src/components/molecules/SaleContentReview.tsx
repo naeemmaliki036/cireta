@@ -52,7 +52,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
   };
 
   return (
-    <div className="bg-white rounded-lg border border-darkBlack/10 overflow-hidden">
+    <div className="bg-white rounded-lg border border-black/10 overflow-hidden">
       {/* Tab bar */}
       <div className="border-b border-zinc-100 px-6">
         <div className="flex gap-1 overflow-x-auto py-2">

@@ -283,12 +283,12 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : isAuthenticated ? (
                         <button onClick={handleSubscribe} disabled={subscribing}
-                          className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                          className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
                           <Bell className="h-4 w-4" /> {subscribing ? "Subscribing..." : "Notify Me"}
                         </button>
                       ) : !showEmailInput ? (
                         <button onClick={() => setShowEmailInput(true)}
-                          className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors flex items-center justify-center gap-2">
+                          className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
                           <Bell className="h-4 w-4" /> Notify Me
                         </button>
                       ) : (
@@ -296,7 +296,7 @@ export default function ProjectDetailPage() {
                           <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
                             placeholder="Enter your email" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30" />
                           <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
-                            className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors disabled:opacity-60">
+                            className="w-full btn-cta py-3 rounded-xl transition-colors disabled:opacity-60">
                             {subscribing ? "Subscribing..." : "Subscribe"}
                           </button>
                         </div>
@@ -306,9 +306,9 @@ export default function ProjectDetailPage() {
                       )}
                     </div>
                   ) : isAuthenticated ? (
-                    <Link href={`/invest/${project.slug}`} className="block w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors text-center">Buy Now</Link>
+                    <Link href={`/invest/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
                   ) : (
-                    <button onClick={() => setShowLoginDialog(true)} className="w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors">Buy Now</button>
+                    <button onClick={() => setShowLoginDialog(true)} className="w-full btn-cta py-3 rounded-xl transition-colors">Buy Now</button>
                   )}
                 </div>
               </div>
@@ -583,10 +583,10 @@ export default function ProjectDetailPage() {
               You need to be signed in and KYC-verified to purchase tokens. Create an account or sign in to continue.
             </p>
             <div className="space-y-3">
-              <Link href={`/login?redirect=/invest/${project.slug}`} className="block w-full bg-darkBlack text-white font-semibold py-3 rounded-xl hover:bg-darkBlack/90 transition-colors text-center">
+              <Link href={`/login?redirect=/invest/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">
                 Sign In
               </Link>
-              <Link href={`/register?redirect=/invest/${project.slug}`} className="block w-full bg-white text-darkBlack font-semibold py-3 rounded-xl border border-darkBlack/20 hover:bg-gray-50 transition-colors text-center">
+              <Link href={`/register?redirect=/invest/${project.slug}`} className="block w-full bg-white text-black font-semibold py-3 rounded-xl border border-black/20 hover:bg-gray-50 transition-colors text-center">
                 Create Account
               </Link>
               <button onClick={() => setShowLoginDialog(false)} className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-2">

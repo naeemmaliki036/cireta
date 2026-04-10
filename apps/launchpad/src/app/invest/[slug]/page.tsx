@@ -409,7 +409,7 @@ export default function InvestPage() {
       <div className="min-h-screen bg-box">
         <Navbar variant="light" />
         <div className="pt-32 text-center">
-          <p className="text-xl text-darkBlack/50">{error ?? "Project not found"}</p>
+          <p className="text-xl text-black/50">{error ?? "Project not found"}</p>
           <Link href="/projects" className="text-darkAqua underline mt-4 block">Back to Explore</Link>
         </div>
         <Footer />
@@ -427,7 +427,7 @@ export default function InvestPage() {
           {step !== "success" && (
             <Link
               href={`/project/${project.slug}`}
-              className="inline-flex items-center gap-2 text-darkBlack/50 hover:text-text transition-colors mb-6"
+              className="inline-flex items-center gap-2 text-black/50 hover:text-text transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" /> Back to Project
             </Link>
@@ -440,22 +440,22 @@ export default function InvestPage() {
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     step === s ? "bg-darkAqua text-white"
                       : i < STEPS.indexOf(step as (typeof STEPS)[number]) ? "bg-green-500 text-white"
-                      : "bg-darkBlack/10 text-darkBlack/50"
+                      : "bg-black/10 text-black/50"
                   }`}>
                     {i < STEPS.indexOf(step as (typeof STEPS)[number])
                       ? <CheckCircle2 className="h-5 w-5" /> : i + 1}
                   </div>
-                  <span className="text-xs mt-2 text-darkBlack/50 capitalize">{s}</span>
+                  <span className="text-xs mt-2 text-black/50 capitalize">{s}</span>
                 </div>
               ))}
-              <div className="absolute top-5 left-0 right-0 h-0.5 bg-darkBlack/10 -z-0">
+              <div className="absolute top-5 left-0 right-0 h-0.5 bg-black/10 -z-0">
                 <div className="h-full bg-green-500 transition-all"
                   style={{ width: `${STEPS.indexOf(step as (typeof STEPS)[number]) * 50}%` }}/>
               </div>
             </div>
           )}
           <motion.div key={paymentMethod ?? "choose"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+            className="bg-white rounded-3xl p-8 border border-black/10">
             {/* Payment Method Selector — shown when OTC is enabled and method not yet chosen */}
             {saleOtcEnabled && !paymentMethod && (
               <div className="space-y-6">
@@ -463,7 +463,7 @@ export default function InvestPage() {
                 <div className={`grid grid-cols-1 ${hasOtcBalance ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-4`}>
                   <button
                     onClick={() => setPaymentMethod("crypto")}
-                    className="p-6 rounded-2xl border-2 border-darkBlack/10 hover:border-darkAqua transition-colors text-left space-y-2"
+                    className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
                   >
                     <span className="text-2xl">&#x1F4B0;</span>
                     <h3 className="font-semibold text-text">On-Chain (USDC)</h3>
@@ -483,7 +483,7 @@ export default function InvestPage() {
                   )}
                   <button
                     onClick={() => setPaymentMethod("otc")}
-                    className="p-6 rounded-2xl border-2 border-darkBlack/10 hover:border-darkAqua transition-colors text-left space-y-2"
+                    className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
                   >
                     <span className="text-2xl">&#x1F3E6;</span>
                     <h3 className="font-semibold text-text">OTC & Bank Transfer</h3>
@@ -528,12 +528,12 @@ export default function InvestPage() {
             {paymentMethod === "otc_token" && step === "amount" && (
               <>
                 <h1 className="text-2xl font-semibold text-text mb-2">Invest with {otcTokenSymbol}</h1>
-                <p className="text-darkBlack/50 mb-4">
+                <p className="text-black/50 mb-4">
                   Use your OTC tokens to invest in {project.title}
                 </p>
                 <div className="bg-darkAqua/5 rounded-xl p-4 mb-6 border border-darkAqua/20">
                   <div className="flex justify-between text-sm">
-                    <span className="text-darkBlack/50">Your {otcTokenSymbol} Balance</span>
+                    <span className="text-black/50">Your {otcTokenSymbol} Balance</span>
                     <span className="font-semibold text-darkAqua">{otcBalanceFormatted.toLocaleString()} {otcTokenSymbol}</span>
                   </div>
                 </div>
@@ -548,7 +548,7 @@ export default function InvestPage() {
                       max={otcBalanceFormatted}
                       className="input-field text-2xl font-semibold pr-20"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-darkBlack/40 font-semibold">{otcTokenSymbol}</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">{otcTokenSymbol}</span>
                   </div>
                   <button
                     onClick={() => setAmount(otcBalanceFormatted.toString())}
@@ -565,11 +565,11 @@ export default function InvestPage() {
                 {numericAmount > 0 && numericAmount <= otcBalanceFormatted && (
                   <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
                     <div className="flex justify-between text-sm">
-                      <span className="text-darkBlack/50">You Pay</span>
+                      <span className="text-black/50">You Pay</span>
                       <span className="font-semibold">{numericAmount.toLocaleString()} {otcTokenSymbol}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-darkBlack/50">You Receive</span>
+                      <span className="text-black/50">You Receive</span>
                       <span className="font-semibold">{tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} {project.tokenSymbol}</span>
                     </div>
                   </div>
@@ -594,13 +594,13 @@ export default function InvestPage() {
             {paymentMethod === "otc_token" && step === "approve" && (
               <>
                 <h1 className="text-2xl font-semibold text-text mb-2">Approve {otcTokenSymbol}</h1>
-                <p className="text-darkBlack/50 mb-8">Allow the sale contract to spend your {otcTokenSymbol} tokens</p>
+                <p className="text-black/50 mb-8">Allow the sale contract to spend your {otcTokenSymbol} tokens</p>
                 <div className="bg-box rounded-xl p-6 mb-6 text-center">
                   <p className="font-semibold text-text mb-2">Approve {numericAmount.toLocaleString()} {otcTokenSymbol}</p>
-                  <p className="text-sm text-darkBlack/50">This is a one-time approval for this investment</p>
+                  <p className="text-sm text-black/50">This is a one-time approval for this investment</p>
                 </div>
-                <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 flex gap-3 mb-6">
-                  <p className="text-sm text-darkBlack/60">You will need to confirm this transaction in your wallet.</p>
+                <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
+                  <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet.</p>
                 </div>
                 {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
                 <Button variant="primary" className="w-full" size="lg" onClick={handleOtcApprove} isLoading={isOtcApproving}>
@@ -613,23 +613,23 @@ export default function InvestPage() {
             {paymentMethod === "otc_token" && step === "confirm" && (
               <>
                 <h1 className="text-2xl font-semibold text-text mb-2">Confirm OTC Investment</h1>
-                <p className="text-darkBlack/50 mb-8">Review and confirm your investment details</p>
+                <p className="text-black/50 mb-8">Review and confirm your investment details</p>
                 <div className="bg-box rounded-xl p-6 space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
-                    <span className="text-darkBlack/50">Project</span>
+                    <span className="text-black/50">Project</span>
                     <span className="font-semibold">{project.title}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-darkBlack/50">Payment</span>
+                    <span className="text-black/50">Payment</span>
                     <span className="font-semibold">{numericAmount.toLocaleString()} {otcTokenSymbol}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-darkBlack/50">Tokens</span>
+                    <span className="text-black/50">Tokens</span>
                     <span className="font-semibold">{tokensToReceive.toLocaleString()} {project.tokenSymbol}</span>
                   </div>
-                  <div className="pt-4 border-t border-darkBlack/10">
+                  <div className="pt-4 border-t border-black/10">
                     <div className="flex justify-between text-sm">
-                      <span className="text-darkBlack/50">Network Fee</span>
+                      <span className="text-black/50">Network Fee</span>
                       <span className="font-semibold">~$0.10</span>
                     </div>
                   </div>

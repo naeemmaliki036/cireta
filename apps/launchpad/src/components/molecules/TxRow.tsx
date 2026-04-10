@@ -32,7 +32,7 @@ const TYPE_CONFIG = {
   refund: {
     icon: ArrowDownLeft,
     label: "Refund",
-    color: "text-gold",
+    color: "text-darkAqua",
   },
   transfer: {
     icon: ArrowUpRight,
@@ -45,7 +45,7 @@ const STATUS_CONFIG = {
   pending: {
     icon: Clock,
     label: "Pending",
-    color: "text-gold",
+    color: "text-darkAqua",
   },
   confirmed: {
     icon: CheckCircle2,
@@ -98,7 +98,7 @@ export function TxRow({
   return (
     <div
       className={cn(
-        "flex items-center justify-between py-4 px-4 border-b border-darkBlack/5 hover:bg-box/50 transition-colors",
+        "flex items-center justify-between py-4 px-4 border-b border-black/5 hover:bg-box/50 transition-colors",
         className
       )}
     >

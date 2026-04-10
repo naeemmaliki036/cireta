@@ -88,24 +88,24 @@ export default function DividendsPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner size="lg" /></div>
         ) : error ? (
-          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
+          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
             <p className="text-red-500 mb-4">{error}</p>
             <Button variant="primary" size="sm" onClick={fetchData}>Retry</Button>
           </div>
         ) : dividends.length === 0 ? (
-          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
-            <Coins className="w-10 h-10 text-darkBlack/20 mx-auto mb-3" />
-            <p className="text-darkBlack/40 font-medium">No dividend distributions available</p>
-            <p className="text-darkBlack/20 text-sm mt-1">Dividends appear here when issuers distribute revenue to token holders.</p>
+          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
+            <Coins className="w-10 h-10 text-black/20 mx-auto mb-3" />
+            <p className="text-black/40 font-medium">No dividend distributions available</p>
+            <p className="text-black/20 text-sm mt-1">Dividends appear here when issuers distribute revenue to token holders.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {dividends.map((d, i) => (
-              <div key={i} className="bg-white rounded-xl border border-darkBlack/10 p-6 flex items-center justify-between">
+              <div key={i} className="bg-white rounded-xl border border-black/10 p-6 flex items-center justify-between">
                 <div>
                   <p className="text-text font-medium">{d.token_name}</p>
-                  <p className="text-darkBlack/40 text-sm">{d.token_symbol}</p>
-                  <p className="text-darkBlack/30 text-xs mt-1">Total earned: {d.total_earned} USDC</p>
+                  <p className="text-black/40 text-sm">{d.token_symbol}</p>
+                  <p className="text-black/30 text-xs mt-1">Total earned: {d.total_earned} USDC</p>
                 </div>
                 <div className="text-right">
                   {parseFloat(d.claimable_usdc) > 0 ? (
@@ -117,7 +117,7 @@ export default function DividendsPage() {
                       </Button>
                     </>
                   ) : (
-                    <div className="flex items-center gap-1 text-darkBlack/30">
+                    <div className="flex items-center gap-1 text-black/30">
                       <CheckCircle2 className="w-4 h-4" /><span className="text-sm">All claimed</span>
                     </div>
                   )}

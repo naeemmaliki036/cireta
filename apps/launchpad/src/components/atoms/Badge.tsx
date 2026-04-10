@@ -11,11 +11,11 @@ const badgeVariants = cva(
       variant: {
         default: "bg-darkAqua/10 text-darkAqua border border-darkAqua/30",
         active: "bg-darkAqua/10 text-darkAqua",
-        pending: "bg-gold/10 text-gold",
+        pending: "bg-darkAqua/10 text-darkAqua",
         success: "bg-green-100 text-green-700",
         error: "bg-red-100 text-red-700",
         glass: "bg-white/20 text-white border-[0.5px] border-white shadow-tag backdrop-blur-[10px]",
-        outline: "border border-darkBlack/20 text-text bg-transparent",
+        outline: "border border-black/20 text-text bg-transparent",
       },
       size: {
         sm: "py-0.5 px-2 text-xs",

@@ -164,27 +164,27 @@ export default function TransactionsPage() {
             <Spinner size="lg" />
           </div>
         ) : error ? (
-          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
+          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
             <p className="text-red-500 mb-4">{error}</p>
             <Button variant="primary" size="sm" onClick={fetchData}>
               Retry
             </Button>
           </div>
         ) : txs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
-            <Receipt className="w-10 h-10 text-darkBlack/20 mx-auto mb-3" />
-            <p className="text-darkBlack/40 font-medium">No transactions yet</p>
-            <p className="text-darkBlack/20 text-sm mt-1">
+          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
+            <Receipt className="w-10 h-10 text-black/20 mx-auto mb-3" />
+            <p className="text-black/40 font-medium">No transactions yet</p>
+            <p className="text-black/20 text-sm mt-1">
               Your transactions will appear here after you invest.
             </p>
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-xl border border-darkBlack/10 overflow-hidden">
+            <div className="bg-white rounded-xl border border-black/10 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-darkBlack/10 text-darkBlack/40 text-xs uppercase">
+                    <tr className="border-b border-black/10 text-black/40 text-xs uppercase">
                       <th className="text-left px-4 py-3">Date</th>
                       <th className="text-left px-4 py-3">Type</th>
                       <th className="text-left px-4 py-3">Token</th>
@@ -197,19 +197,19 @@ export default function TransactionsPage() {
                     {txs.map((tx) => (
                       <tr
                         key={tx.id}
-                        className="border-b border-darkBlack/5 last:border-0 hover:bg-gray-50/50 transition-colors"
+                        className="border-b border-black/5 last:border-0 hover:bg-gray-50/50 transition-colors"
                       >
                         {/* Date */}
                         <td className="px-4 py-3">
                           <p className="text-text text-sm">{formatDate(tx.created_at)}</p>
-                          <p className="text-darkBlack/30 text-xs">{formatTime(tx.created_at)}</p>
+                          <p className="text-black/30 text-xs">{formatTime(tx.created_at)}</p>
                         </td>
 
                         {/* Type */}
                         <td className="px-4 py-3">
                           <span
                             className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              TYPE_STYLES[tx.type] ?? "bg-darkBlack/5 text-darkBlack/50"
+                              TYPE_STYLES[tx.type] ?? "bg-black/5 text-black/50"
                             }`}
                           >
                             {TYPE_LABELS[tx.type] ?? tx.type}
@@ -221,7 +221,7 @@ export default function TransactionsPage() {
                           {tx.token_symbol ? (
                             <span className="text-text font-medium">{tx.token_symbol}</span>
                           ) : (
-                            <span className="text-darkBlack/30">{"\u2014"}</span>
+                            <span className="text-black/30">{"\u2014"}</span>
                           )}
                         </td>
 
@@ -232,12 +232,12 @@ export default function TransactionsPage() {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}{" "}
-                            <span className="text-darkBlack/40 font-normal text-xs">USDC</span>
+                            <span className="text-black/40 font-normal text-xs">USDC</span>
                           </p>
                           {tx.tokens_allocated &&
                             Number(tx.tokens_allocated) > 0 &&
                             tx.type === "investment" && (
-                              <p className="text-darkBlack/30 text-xs">
+                              <p className="text-black/30 text-xs">
                                 {Number(tx.tokens_allocated).toLocaleString()} tokens
                               </p>
                             )}
@@ -247,7 +247,7 @@ export default function TransactionsPage() {
                         <td className="px-4 py-3">
                           <span
                             className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-                              STATUS_STYLES[tx.status] ?? "bg-darkBlack/5 text-darkBlack/40"
+                              STATUS_STYLES[tx.status] ?? "bg-black/5 text-black/40"
                             }`}
                           >
                             {tx.status}
@@ -267,9 +267,9 @@ export default function TransactionsPage() {
                               <ArrowUpRight className="w-3.5 h-3.5" />
                             </a>
                           ) : tx.tx_hash?.startsWith("otc-") ? (
-                            <span className="text-darkBlack/30 text-xs">OTC</span>
+                            <span className="text-black/30 text-xs">OTC</span>
                           ) : (
-                            <span className="text-darkBlack/30 text-xs">{"\u2014"}</span>
+                            <span className="text-black/30 text-xs">{"\u2014"}</span>
                           )}
                         </td>
                       </tr>
@@ -282,7 +282,7 @@ export default function TransactionsPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
-                <p className="text-sm text-darkBlack/40">
+                <p className="text-sm text-black/40">
                   Showing {page * PAGE_SIZE + 1}
                   {"\u2013"}
                   {Math.min((page + 1) * PAGE_SIZE, total)} of {total}
@@ -296,7 +296,7 @@ export default function TransactionsPage() {
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <span className="text-sm text-darkBlack/50">
+                  <span className="text-sm text-black/50">
                     Page {page + 1} of {totalPages}
                   </span>
                   <Button

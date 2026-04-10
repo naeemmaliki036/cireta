@@ -126,12 +126,12 @@ export function QuickTourModal() {
             <div className="flex items-center justify-between mt-6">
               <div className="flex gap-1.5">
                 {STEPS.map((_, i) => (
-                  <div key={i} className={`h-1 rounded-full transition-all ${i === currentStep ? "w-6 bg-darkBlack" : "w-3 bg-gray-200"}`} />
+                  <div key={i} className={`h-1 rounded-full transition-all ${i === currentStep ? "w-6 bg-black" : "w-3 bg-gray-200"}`} />
                 ))}
               </div>
               <button
                 onClick={handleNext}
-                className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-darkBlack/90 transition-colors"
+                className="inline-flex items-center gap-1.5 bg-black text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-black/90 transition-colors"
               >
                 {currentStep < STEPS.length - 1 ? "Next" : "Get Started"}
                 <ArrowRight className="h-3.5 w-3.5" />

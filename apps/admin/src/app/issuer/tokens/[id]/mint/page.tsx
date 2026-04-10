@@ -189,7 +189,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
   if (!token) {
     return (
       <IssuerDashboardLayout title="Mint Tokens" description="">
-        <p className="text-center text-darkBlack/40 py-24">Token not found</p>
+        <p className="text-center text-black/40 py-24">Token not found</p>
       </IssuerDashboardLayout>
     );
   }
@@ -217,50 +217,50 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10"
+          className="bg-white rounded-lg p-6 border border-black/10"
         >
           <div className="flex items-center gap-2 mb-2">
             <Coins className="h-5 w-5 text-darkAqua" />
-            <h3 className="text-sm font-medium text-darkBlack/50">Total Supply</h3>
+            <h3 className="text-sm font-medium text-black/50">Total Supply</h3>
           </div>
           <p className="text-2xl font-semibold text-text">
             {totalSupply !== null
               ? parseFloat(totalSupply).toLocaleString()
               : parseFloat(token.total_supply).toLocaleString()}
           </p>
-          <p className="text-xs text-darkBlack/40 mt-1">{token.symbol}</p>
+          <p className="text-xs text-black/40 mt-1">{token.symbol}</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10"
+          className="bg-white rounded-lg p-6 border border-black/10"
         >
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="h-5 w-5 text-darkAqua" />
-            <h3 className="text-sm font-medium text-darkBlack/50">Your Balance</h3>
+            <h3 className="text-sm font-medium text-black/50">Your Balance</h3>
           </div>
           <p className="text-2xl font-semibold text-text">
             {walletBalance !== null
               ? parseFloat(walletBalance).toLocaleString()
               : "--"}
           </p>
-          <p className="text-xs text-darkBlack/40 mt-1">{token.symbol}</p>
+          <p className="text-xs text-black/40 mt-1">{token.symbol}</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10"
+          className="bg-white rounded-lg p-6 border border-black/10"
         >
           <div className="flex items-center gap-2 mb-2">
             <Coins className="h-5 w-5 text-darkAqua" />
-            <h3 className="text-sm font-medium text-darkBlack/50">Token Info</h3>
+            <h3 className="text-sm font-medium text-black/50">Token Info</h3>
           </div>
           <p className="text-lg font-semibold text-text">{token.name}</p>
-          <p className="text-xs text-darkBlack/40 mt-1">
+          <p className="text-xs text-black/40 mt-1">
             {token.symbol} &middot; {decimals} decimals &middot; {token.asset_type}
           </p>
         </motion.div>
@@ -271,7 +271,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="bg-white rounded-lg p-6 border border-darkBlack/10"
+        className="bg-white rounded-lg p-6 border border-black/10"
       >
         <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
           <Coins className="h-5 w-5" /> Mint Tokens
@@ -298,7 +298,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
             {recipient && !isAddress(recipient) ? (
               <p className="text-xs text-red-500 mt-1">Invalid EVM address — must be 42 characters starting with 0x</p>
             ) : (
-              <p className="text-xs text-darkBlack/40 mt-1">Defaults to your connected wallet address.</p>
+              <p className="text-xs text-black/40 mt-1">Defaults to your connected wallet address.</p>
             )}
 
             {/* Whitelist status — informational only (mint doesn't require it, but transfers do) */}
@@ -356,7 +356,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
               return <p className="text-sm font-medium text-darkAqua mt-1.5">{formatted}{word ? ` (${word})` : ""} tokens</p>;
             })()}
             {!amount && (
-              <p className="text-xs text-darkBlack/40 mt-1">Enter the number of tokens to mint.</p>
+              <p className="text-xs text-black/40 mt-1">Enter the number of tokens to mint.</p>
             )}
           </div>
 

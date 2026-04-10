@@ -27,7 +27,7 @@ export interface AuditLogRowProps {
 const actionConfig: Record<ComplianceAction, { icon: React.ElementType; label: string; color: string }> = {
   freeze: { icon: Lock, label: "Freeze", color: "text-red-600" },
   unfreeze: { icon: Unlock, label: "Unfreeze", color: "text-green-600" },
-  forced_transfer: { icon: ArrowRightLeft, label: "Forced Transfer", color: "text-gold" },
+  forced_transfer: { icon: ArrowRightLeft, label: "Forced Transfer", color: "text-darkAqua" },
   recover: { icon: RefreshCw, label: "Recover", color: "text-purple-600" },
   pause: { icon: Pause, label: "Pause Token", color: "text-red-600" },
   unpause: { icon: Play, label: "Unpause Token", color: "text-green-600" },

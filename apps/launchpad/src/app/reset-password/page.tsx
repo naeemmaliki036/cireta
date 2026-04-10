@@ -96,7 +96,7 @@ export default function ResetPasswordPage() {
             <Image src="/images/logo/cireta-colored.png" alt="Cireta" width={120} height={32} className="h-8 w-auto mx-auto" />
           </Link>
         </div>
-        <div className="bg-white rounded-3xl p-8 border border-darkBlack/10 shadow-card">
+        <div className="bg-white rounded-3xl p-8 border border-black/10 shadow-card">
           <Suspense fallback={<p className="text-center text-gray-500">Loading...</p>}>
             <ResetForm />
           </Suspense>

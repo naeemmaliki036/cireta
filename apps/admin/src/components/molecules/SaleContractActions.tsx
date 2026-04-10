@@ -84,7 +84,7 @@ export function SaleContractActions({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg p-6 border border-darkBlack/10 mb-6"
+      className="bg-white rounded-lg p-6 border border-black/10 mb-6"
     >
       <h2 className="text-lg font-semibold text-text mb-4 flex items-center gap-2">
         <Wallet className="h-5 w-5" /> On-Chain Actions
@@ -97,7 +97,7 @@ export function SaleContractActions({
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="font-medium text-text">Withdraw USDC Proceeds</p>
-                <p className="text-sm text-darkBlack/50">
+                <p className="text-sm text-black/50">
                   Withdraw all raised USDC to your issuer wallet.
                 </p>
               </div>
@@ -130,7 +130,7 @@ export function SaleContractActions({
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="font-medium text-text">Withdraw Project Tokens</p>
-                <p className="text-sm text-darkBlack/50">
+                <p className="text-sm text-black/50">
                   Recover deposited project tokens from the sale contract.
                 </p>
               </div>
@@ -159,7 +159,7 @@ export function SaleContractActions({
 
         {/* Pause / Finalize (Active sales) */}
         {showPauseFinalize && (
-          <div className="p-4 rounded-lg bg-box border border-darkBlack/5">
+          <div className="p-4 rounded-lg bg-box border border-black/5">
             <p className="font-medium text-text mb-3">Sale Controls</p>
             <div className="flex items-center gap-3 mb-2">
               <Button

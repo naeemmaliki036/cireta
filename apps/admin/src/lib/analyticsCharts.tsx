@@ -42,7 +42,7 @@ const chartTooltipStyle = { backgroundColor: "white", border: "1px solid #e5e7eb
 export function TVLChart({ delay = 0.2 }: { delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-lg p-6 border border-darkBlack/10">
+      className="bg-white rounded-lg p-6 border border-black/10">
       <div className="flex items-center justify-between mb-6">
         <div><h3 className="text-lg font-semibold text-text">Total Value Locked</h3>
           <p className="text-sm text-gray-500">Historical TVL trend</p></div>
@@ -70,7 +70,7 @@ export function TVLChart({ delay = 0.2 }: { delay?: number }) {
 export function FeeRevenueChart({ delay = 0.3 }: { delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-lg p-6 border border-darkBlack/10">
+      className="bg-white rounded-lg p-6 border border-black/10">
       <div className="flex items-center justify-between mb-6">
         <div><h3 className="text-lg font-semibold text-text">Fee Revenue</h3>
           <p className="text-sm text-gray-500">Monthly platform fees</p></div>
@@ -96,7 +96,7 @@ export function KYCFunnelChart({ delay = 0.4 }: { delay?: number }) {
   const convRate = first && last ? ((last.count / first.count) * 100).toFixed(1) : "0.0";
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-lg p-6 pb-10 border border-darkBlack/10 overflow-visible">
+      className="bg-white rounded-lg p-6 pb-10 border border-black/10 overflow-visible">
       <h3 className="text-lg font-semibold text-text mb-1">KYC Funnel</h3>
       <p className="text-sm text-gray-500 mb-6">User verification progress</p>
       <div className="space-y-4">
@@ -128,7 +128,7 @@ export function KYCFunnelChart({ delay = 0.4 }: { delay?: number }) {
 export function TokenDistributionChart({ delay = 0.5 }: { delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-      className="bg-white rounded-lg p-6 border border-darkBlack/10">
+      className="bg-white rounded-lg p-6 border border-black/10">
       <h3 className="text-lg font-semibold text-text mb-1">TVL by Token</h3>
       <p className="text-sm text-gray-500 mb-6">Distribution across tokens</p>
       <ResponsiveContainer width="100%" height={200}>

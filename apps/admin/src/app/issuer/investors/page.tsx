@@ -15,7 +15,7 @@ const columns: Column<Investor>[] = [
     render: (row) => (
       <div>
         <p className="font-medium text-text">{(row as Investor & { display_name?: string }).display_name || row.email}</p>
-        <p className="text-xs text-darkBlack/40">{row.email}</p>
+        <p className="text-xs text-black/40">{row.email}</p>
       </div>
     ),
   },
@@ -27,12 +27,12 @@ const columns: Column<Investor>[] = [
   {
     key: "wallet_address",
     header: "Wallet",
-    render: (row) => row.wallet_address ? <WalletBadge address={row.wallet_address} /> : <span className="text-darkBlack/30 text-sm">—</span>,
+    render: (row) => row.wallet_address ? <WalletBadge address={row.wallet_address} /> : <span className="text-black/30 text-sm">—</span>,
   },
   {
     key: "created_at",
     header: "Joined",
-    render: (row) => <span className="text-sm text-darkBlack/60">{row.created_at.slice(0, 10)}</span>,
+    render: (row) => <span className="text-sm text-black/60">{row.created_at.slice(0, 10)}</span>,
   },
 ];
 
@@ -68,15 +68,15 @@ export default function InvestorsPage() {
           { label: "Pending KYC", value: investors.filter((i) => i.kyc_status === "pending").length, icon: null },
         ].map((stat) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg p-6 border border-darkBlack/10">
-            <p className="text-sm text-darkBlack/50 mb-2">{stat.label}</p>
+            className="bg-white rounded-lg p-6 border border-black/10">
+            <p className="text-sm text-black/50 mb-2">{stat.label}</p>
             <p className="text-2xl font-bold text-text">{stat.value}</p>
           </motion.div>
         ))}
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg p-6 border border-darkBlack/10">
+        className="bg-white rounded-lg p-6 border border-black/10">
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1">
             <Input placeholder="Search by email or wallet…"

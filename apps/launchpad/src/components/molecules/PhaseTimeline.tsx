@@ -30,7 +30,7 @@ function formatDate(dateStr: string): string {
 export function PhaseTimeline({ phases, className }: PhaseTimelineProps) {
   if (!phases || phases.length === 0) {
     return (
-      <div className="text-center py-8 text-darkBlack/40">
+      <div className="text-center py-8 text-black/40">
         No sale phases available.
       </div>
     );
@@ -44,7 +44,7 @@ export function PhaseTimeline({ phases, className }: PhaseTimelineProps) {
       <div className="hidden md:block">
         <div className="relative flex items-start justify-between">
           {/* Connector line */}
-          <div className="absolute top-5 left-[5%] right-[5%] h-0.5 bg-darkBlack/10" />
+          <div className="absolute top-5 left-[5%] right-[5%] h-0.5 bg-black/10" />
           {sorted.map((phase) => {
             const status = getPhaseStatus(phase);
             return (
@@ -82,7 +82,7 @@ function PhaseNode({ phase, status }: { phase: ProjectPhase; status: PhaseStatus
           "w-10 h-10 rounded-full flex items-center justify-center mb-3",
           status === "active" && "bg-darkAqua text-white shadow-lg shadow-darkAqua/30",
           status === "completed" && "bg-green-500 text-white",
-          status === "upcoming" && "bg-darkBlack/10 text-darkBlack/40"
+          status === "upcoming" && "bg-black/10 text-black/40"
         )}
       >
         {status === "completed" && <CheckCircle2 className="h-5 w-5" />}
@@ -95,8 +95,8 @@ function PhaseNode({ phase, status }: { phase: ProjectPhase; status: PhaseStatus
         className={cn(
           "bg-white rounded-xl p-4 border w-full max-w-[220px]",
           status === "active" && "border-darkAqua shadow-md",
-          status === "completed" && "border-darkBlack/10 opacity-70",
-          status === "upcoming" && "border-darkBlack/10"
+          status === "completed" && "border-black/10 opacity-70",
+          status === "upcoming" && "border-black/10"
         )}
       >
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -108,8 +108,8 @@ function PhaseNode({ phase, status }: { phase: ProjectPhase; status: PhaseStatus
         <p className="text-lg font-bold text-darkAqua mb-1">
           {formatCurrency(parseFloat(phase.price_per_token))}
         </p>
-        <p className="text-xs text-darkBlack/40 mb-2">per token</p>
-        <div className="text-xs text-darkBlack/50 space-y-1">
+        <p className="text-xs text-black/40 mb-2">per token</p>
+        <div className="text-xs text-black/50 space-y-1">
           <p>{formatDate(phase.start_time)} — {formatDate(phase.end_time)}</p>
           <p>Allocation: {formatCurrency(allocation)}</p>
         </div>
@@ -137,14 +137,14 @@ function PhaseStackItem({
             "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
             status === "active" && "bg-darkAqua text-white",
             status === "completed" && "bg-green-500 text-white",
-            status === "upcoming" && "bg-darkBlack/10 text-darkBlack/40"
+            status === "upcoming" && "bg-black/10 text-black/40"
           )}
         >
           {status === "completed" && <CheckCircle2 className="h-4 w-4" />}
           {status === "active" && <Clock className="h-4 w-4" />}
           {status === "upcoming" && <Lock className="h-4 w-4" />}
         </div>
-        {!isLast && <div className="w-0.5 flex-1 bg-darkBlack/10 my-1" />}
+        {!isLast && <div className="w-0.5 flex-1 bg-black/10 my-1" />}
       </div>
 
       {/* Card */}
@@ -152,8 +152,8 @@ function PhaseStackItem({
         className={cn(
           "flex-1 bg-white rounded-xl p-4 border mb-1",
           status === "active" && "border-darkAqua shadow-md",
-          status === "completed" && "border-darkBlack/10 opacity-70",
-          status === "upcoming" && "border-darkBlack/10"
+          status === "completed" && "border-black/10 opacity-70",
+          status === "upcoming" && "border-black/10"
         )}
       >
         <div className="flex items-center gap-2 mb-1">
@@ -162,8 +162,8 @@ function PhaseStackItem({
           {status === "upcoming" && <Badge variant="pending" size="sm">Upcoming</Badge>}
           {status === "completed" && <Badge variant="success" size="sm">Sold</Badge>}
         </div>
-        <p className="text-darkAqua font-bold">{formatCurrency(parseFloat(phase.price_per_token))}<span className="text-xs text-darkBlack/40 font-normal ml-1">per token</span></p>
-        <div className="flex gap-4 mt-2 text-xs text-darkBlack/50">
+        <p className="text-darkAqua font-bold">{formatCurrency(parseFloat(phase.price_per_token))}<span className="text-xs text-black/40 font-normal ml-1">per token</span></p>
+        <div className="flex gap-4 mt-2 text-xs text-black/50">
           <span>{formatDate(phase.start_time)} — {formatDate(phase.end_time)}</span>
           <span>Allocation: {formatCurrency(allocation)}</span>
         </div>

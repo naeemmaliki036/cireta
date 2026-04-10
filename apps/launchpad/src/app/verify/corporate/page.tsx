@@ -96,14 +96,14 @@ export default function CorporateVerifyPage() {
       <Navbar variant="light" />
       <div className="pt-32 pb-20 px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl mx-auto bg-white rounded-3xl p-8 border border-darkBlack/10">
+          className="max-w-2xl mx-auto bg-white rounded-3xl p-8 border border-black/10">
 
           {step === "form" && (
             <div>
               <div className="text-center mb-8">
                 <Building2 className="w-12 h-12 text-darkAqua mx-auto mb-4" />
                 <h2 className="text-2xl font-semibold text-text mb-2">Corporate Verification</h2>
-                <p className="text-darkBlack/50">Submit your company details for KYB verification</p>
+                <p className="text-black/50">Submit your company details for KYB verification</p>
               </div>
               <div className="space-y-4">
                 {field("Company Name", "company_name", "Cireta Ltd.")}
@@ -124,9 +124,9 @@ export default function CorporateVerifyPage() {
               <div className="text-center mb-8">
                 <Building2 className="w-12 h-12 text-darkAqua mx-auto mb-4" />
                 <h2 className="text-2xl font-semibold text-text mb-2">Document Upload</h2>
-                <p className="text-darkBlack/50">Upload required corporate documents</p>
+                <p className="text-black/50">Upload required corporate documents</p>
               </div>
-              <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[500px]">
+              <div className="rounded-2xl overflow-hidden border border-black/10 min-h-[500px]">
                 <SumsubWebSdk
                   accessToken={accessToken}
                   expirationHandler={async () => {
@@ -145,11 +145,11 @@ export default function CorporateVerifyPage() {
 
           {step === "processing" && (
             <div className="text-center py-16">
-              <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="w-10 h-10 text-gold animate-spin" />
+              <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
+                <Loader2 className="w-10 h-10 text-darkAqua animate-spin" />
               </div>
               <h2 className="text-2xl font-semibold text-text mb-2">Under Review</h2>
-              <p className="text-darkBlack/50 mb-8">Your corporate documents are being reviewed.</p>
+              <p className="text-black/50 mb-8">Your corporate documents are being reviewed.</p>
               <Button variant="outline" onClick={() => router.push("/projects")}>Continue Browsing</Button>
             </div>
           )}
@@ -160,7 +160,7 @@ export default function CorporateVerifyPage() {
                 <CheckCircle2 className="w-10 h-10 text-green-600" />
               </div>
               <h2 className="text-2xl font-semibold text-text mb-2">Corporate KYB Verified</h2>
-              <p className="text-darkBlack/50 mb-8">Your company has been verified (Level 4)</p>
+              <p className="text-black/50 mb-8">Your company has been verified (Level 4)</p>
               <Button variant="primary" onClick={() => router.push("/projects")}>Start Investing</Button>
             </div>
           )}
@@ -171,7 +171,7 @@ export default function CorporateVerifyPage() {
                 <AlertCircle className="w-10 h-10 text-red-500" />
               </div>
               <h2 className="text-2xl font-semibold text-text mb-2">Something Went Wrong</h2>
-              <p className="text-darkBlack/50 mb-8">{error ?? "Unable to start verification"}</p>
+              <p className="text-black/50 mb-8">{error ?? "Unable to start verification"}</p>
               <Button variant="primary" onClick={() => window.location.reload()}>Try Again</Button>
             </div>
           )}

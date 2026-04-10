@@ -52,7 +52,7 @@ export function ProjectCard({
       <Link
         href={`/project/${slug}`}
         className={cn(
-          "relative group block bg-box p-1 rounded-3xl border-[1.5px] border-darkBlack/10 h-full cursor-pointer overflow-hidden transition-shadow duration-300 hover:shadow-tooltip",
+          "relative group block bg-box p-1 rounded-3xl border-[1.5px] border-black/10 h-full cursor-pointer overflow-hidden transition-shadow duration-300 hover:shadow-tooltip",
           className
         )}
         aria-label={title}

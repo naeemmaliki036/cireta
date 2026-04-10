@@ -30,7 +30,7 @@ interface SummaryRowProps {
 export function SummaryRow({ label, value }: SummaryRowProps) {
   return (
     <div className="flex justify-between text-sm">
-      <span className="text-darkBlack/50">{label}</span>
+      <span className="text-black/50">{label}</span>
       <span className="font-semibold">{value}</span>
     </div>
   );
@@ -78,7 +78,7 @@ export function InvestAmountStep({
           <Wallet className="w-10 h-10 text-darkAqua" />
         </div>
         <h1 className="text-2xl font-semibold text-text mb-2">Connect Your Wallet</h1>
-        <p className="text-darkBlack/50 mb-8">You need to connect your wallet before investing</p>
+        <p className="text-black/50 mb-8">You need to connect your wallet before investing</p>
         <Button variant="primary" className="w-full" size="lg" onClick={onConnect}>
           Connect Wallet
         </Button>
@@ -89,7 +89,7 @@ export function InvestAmountStep({
   return (
     <>
       <h1 className="text-2xl font-semibold text-text mb-2">Invest in {project.title}</h1>
-      <p className="text-darkBlack/50 mb-8">Enter the amount you wish to invest in USDC</p>
+      <p className="text-black/50 mb-8">Enter the amount you wish to invest in USDC</p>
       <div className="mb-6">
         <label className="block text-sm font-semibold text-text mb-2">Investment Amount (USDC)</label>
         <div className="relative">
@@ -100,7 +100,7 @@ export function InvestAmountStep({
             placeholder="0.00"
             className="input-field text-2xl font-semibold pr-20"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-darkBlack/40 font-semibold">USDC</span>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">USDC</span>
         </div>
         <div className="flex gap-2 mt-3">
           {QUICK_AMOUNTS.map((v) => (
@@ -130,7 +130,7 @@ export function InvestAmountStep({
           <SummaryRow label="Price per Token" value={formatCurrency(pricePerToken)} />
         </div>
       )}
-      <p className="text-xs text-darkBlack/40 mb-6">
+      <p className="text-xs text-black/40 mb-6">
         Min: {formatCurrency(minContrib)} &bull; Max:{" "}
         {isFinite(maxContrib) ? formatCurrency(maxContrib) : "Unlimited"}
       </p>
@@ -177,7 +177,7 @@ export function InvestApproveStep({
   return (
     <>
       <h1 className="text-2xl font-semibold text-text mb-2">Approve USDC</h1>
-      <p className="text-darkBlack/50 mb-8">Allow the smart contract to spend your USDC</p>
+      <p className="text-black/50 mb-8">Allow the smart contract to spend your USDC</p>
 
       {/* Show existing allowance */}
       {currentAllowance > 0 && (
@@ -198,7 +198,7 @@ export function InvestApproveStep({
                 : `Current allowance: ${formatCurrency(currentAllowance)}`
               }
             </p>
-            <p className="text-xs text-darkBlack/50">
+            <p className="text-xs text-black/50">
               {hasEnoughAllowance
                 ? `${formatCurrency(currentAllowance)} USDC approved — you can proceed directly.`
                 : `You need ${formatCurrency(amount)} but only ${formatCurrency(currentAllowance)} is approved.`
@@ -213,7 +213,7 @@ export function InvestApproveStep({
         <div className="mb-6">
           {/* Compliance acknowledgment */}
           <div className="bg-box rounded-xl p-5 mb-4 space-y-4">
-            <p className="text-sm text-darkBlack/60">
+            <p className="text-sm text-black/60">
               This investment involves tokenized securities which may be subject to transfer restrictions and lock-up periods.
             </p>
             <label className="flex items-start gap-3 cursor-pointer">
@@ -221,7 +221,7 @@ export function InvestApproveStep({
                 type="checkbox"
                 checked={jurisdictionConfirmed}
                 onChange={(e) => { setJurisdictionConfirmed(e.target.checked); setRiskAcknowledged(e.target.checked); }}
-                className="mt-0.5 w-4 h-4 rounded border-darkBlack/20 text-darkAqua focus:ring-darkAqua"
+                className="mt-0.5 w-4 h-4 rounded border-black/20 text-darkAqua focus:ring-darkAqua"
                 data-testid="jurisdiction-checkbox"
               />
               <span className="text-sm text-text">
@@ -233,7 +233,7 @@ export function InvestApproveStep({
           <Button variant="primary" className="w-full" size="lg" onClick={onSkip} disabled={!complianceMet}>
             Continue to Purchase
           </Button>
-          <button onClick={onApprove} className="mt-3 text-sm text-darkBlack/40 hover:text-darkBlack/60 underline block mx-auto">
+          <button onClick={onApprove} className="mt-3 text-sm text-black/40 hover:text-black/60 underline block mx-auto">
             Re-approve with new amount
           </button>
         </div>
@@ -245,12 +245,12 @@ export function InvestApproveStep({
           <div className="bg-box rounded-xl p-6 mb-6 text-center">
             <Shield className="h-12 w-12 text-darkAqua mx-auto mb-4" />
             <p className="font-semibold text-text mb-2">Approve {formatCurrency(amount)} USDC</p>
-            <p className="text-sm text-darkBlack/50">This is a one-time approval for this investment</p>
+            <p className="text-sm text-black/50">This is a one-time approval for this investment</p>
           </div>
 
           {/* Compliance acknowledgment */}
           <div className="bg-box rounded-xl p-5 mb-6 space-y-4">
-            <p className="text-sm text-darkBlack/60">
+            <p className="text-sm text-black/60">
               This investment involves tokenized securities which may be subject to transfer restrictions and lock-up periods.
               Please ensure you are eligible to participate and that your local laws permit such investments.
             </p>
@@ -259,7 +259,7 @@ export function InvestApproveStep({
                 type="checkbox"
                 checked={jurisdictionConfirmed}
                 onChange={(e) => { setJurisdictionConfirmed(e.target.checked); setRiskAcknowledged(e.target.checked); }}
-                className="mt-0.5 w-4 h-4 rounded border-darkBlack/20 text-darkAqua focus:ring-darkAqua"
+                className="mt-0.5 w-4 h-4 rounded border-black/20 text-darkAqua focus:ring-darkAqua"
                 data-testid="jurisdiction-checkbox"
               />
               <span className="text-sm text-text">
@@ -268,9 +268,9 @@ export function InvestApproveStep({
             </label>
           </div>
 
-          <div className="p-4 rounded-xl bg-gold/10 border border-gold/30 flex gap-3 mb-6">
-            <AlertCircle className="w-5 h-5 text-gold flex-shrink-0" />
-            <p className="text-sm text-darkBlack/60">You will need to confirm this transaction in your wallet</p>
+          <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
+            <AlertCircle className="w-5 h-5 text-darkAqua flex-shrink-0" />
+            <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet</p>
           </div>
           {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
           <Button variant="primary" className="w-full" size="lg" onClick={onApprove} isLoading={isLoading} disabled={!complianceMet || isLoading}>
@@ -306,12 +306,12 @@ export function InvestConfirmStep({
   return (
     <>
       <h1 className="text-2xl font-semibold text-text mb-2">Confirm Investment</h1>
-      <p className="text-darkBlack/50 mb-8">Review and confirm your investment details</p>
+      <p className="text-black/50 mb-8">Review and confirm your investment details</p>
       <div className="bg-box rounded-xl p-6 space-y-4 mb-6">
         <SummaryRow label="Project" value={project.title} />
         <SummaryRow label="Amount" value={formatCurrency(amount)} />
         <SummaryRow label="Tokens" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
-        <div className="pt-4 border-t border-darkBlack/10">
+        <div className="pt-4 border-t border-black/10">
           <SummaryRow label="Network Fee" value="~$0.10" />
         </div>
       </div>
@@ -344,7 +344,7 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
         <CheckCircle2 className="w-10 h-10 text-green-600" />
       </div>
       <h1 className="text-2xl font-semibold text-text mb-2">Investment Successful!</h1>
-      <p className="text-darkBlack/50 mb-8">
+      <p className="text-black/50 mb-8">
         You have successfully invested {formatCurrency(amount)} in {project.title}
       </p>
       <div className="bg-box rounded-xl p-6 text-left mb-8 space-y-3 text-sm">

@@ -80,9 +80,9 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
 
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-8 border border-darkBlack/10">
+          className="bg-white rounded-3xl p-8 border border-black/10">
           <h2 className="text-xl font-semibold text-text mb-2">Redeem {holding.token_name}</h2>
-          <p className="text-sm text-darkBlack/50 mb-6">{holding.token_symbol} · Balance: {balance.toLocaleString()}</p>
+          <p className="text-sm text-black/50 mb-6">{holding.token_symbol} · Balance: {balance.toLocaleString()}</p>
 
           <Input label="Amount to Redeem" type="number" value={amount}
             onChange={(e) => setAmount(e.target.value)} placeholder="0" className="mb-2" />
@@ -97,7 +97,7 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
               {(["cash", "physical"] as const).map((m) => (
                 <button key={m} onClick={() => setMethod(m)}
                   className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-colors ${
-                    method === m ? "border-darkAqua bg-darkAqua/10 text-darkAqua" : "border-darkBlack/10 text-darkBlack/50"
+                    method === m ? "border-darkAqua bg-darkAqua/10 text-darkAqua" : "border-black/10 text-black/50"
                   }`}>
                   {m === "cash" ? "Cash Settlement" : "Physical Delivery"}
                 </button>
@@ -108,11 +108,11 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
           {numericAmount > 0 && (
             <div className="bg-box rounded-xl p-4 mb-6">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-darkBlack/50">Tokens to Burn</span>
+                <span className="text-black/50">Tokens to Burn</span>
                 <span className="font-medium text-text">{numericAmount.toLocaleString()} {holding.token_symbol}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-darkBlack/50">Method</span>
+                <span className="text-black/50">Method</span>
                 <span className="font-medium text-text">{method === "cash" ? "Cash" : "Physical"}</span>
               </div>
             </div>

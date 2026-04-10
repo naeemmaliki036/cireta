@@ -44,11 +44,11 @@ export default function TokenRecoveryPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <Link href="/issuer/compliance" className="flex items-center gap-2 text-darkBlack/40 hover:text-text text-sm mb-6">
+      <Link href="/issuer/compliance" className="flex items-center gap-2 text-black/40 hover:text-text text-sm mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Compliance
       </Link>
       <h1 className="text-2xl font-bold text-text mb-2">Token Recovery</h1>
-      <p className="text-darkBlack/40 text-sm mb-8">
+      <p className="text-black/40 text-sm mb-8">
         Move tokens from a lost wallet to a new verified wallet. All actions are logged in the audit trail.
       </p>
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
@@ -63,7 +63,7 @@ export default function TokenRecoveryPage() {
           {message}
         </p>
       )}
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-darkBlack/10 p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-black/10 p-6 space-y-4">
         {[
           { key: "lost_wallet", label: "Lost Wallet Address", placeholder: "0x...", isAddr: true },
           { key: "new_wallet", label: "New Wallet Address", placeholder: "0x...", isAddr: true },
@@ -75,13 +75,13 @@ export default function TokenRecoveryPage() {
           const showErr = isAddr && val && !isAddress(val);
           return (
             <div key={key}>
-              <label className="block text-sm text-darkBlack/60 mb-1">{label}</label>
+              <label className="block text-sm text-black/60 mb-1">{label}</label>
               <input
                 value={val}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 placeholder={placeholder}
                 maxLength={isAddr ? 42 : undefined}
-                className={`w-full bg-box border rounded-lg px-3 py-2 text-text text-sm ${showErr ? "border-red-300 bg-red-50/30" : "border-darkBlack/10"}`}
+                className={`w-full bg-box border rounded-lg px-3 py-2 text-text text-sm ${showErr ? "border-red-300 bg-red-50/30" : "border-black/10"}`}
                 required={key !== "onchain_id"}
               />
               {showErr && <p className="text-xs text-red-500 mt-1">Invalid EVM address</p>}

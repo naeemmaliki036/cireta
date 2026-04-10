@@ -52,7 +52,7 @@ export function WalletBadge({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-box border border-darkBlack/10",
+        "inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-box border border-black/10",
         isPrimary && "border-darkAqua bg-darkAqua/5",
         className
       )}
@@ -73,7 +73,7 @@ export function WalletBadge({
       {showCopy && (
         <button
           onClick={copyToClipboard}
-          className="p-1 hover:bg-darkBlack/5 rounded transition-colors"
+          className="p-1 hover:bg-black/5 rounded transition-colors"
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-green-600" />
@@ -86,7 +86,7 @@ export function WalletBadge({
       {showExplorer && (
         <button
           onClick={openExplorer}
-          className="p-1 hover:bg-darkBlack/5 rounded transition-colors"
+          className="p-1 hover:bg-black/5 rounded transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
         </button>

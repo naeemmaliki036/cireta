@@ -202,7 +202,7 @@ export function ImageGallery({
             </div>
           ) : (
             <button type="button" onClick={() => setShowVideoInput(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-lg border border-darkBlack/10 p-3 text-sm text-zinc-500 hover:border-darkAqua/50 transition-colors">
+              className="w-full flex items-center justify-center gap-2 rounded-lg border border-black/10 p-3 text-sm text-zinc-500 hover:border-darkAqua/50 transition-colors">
               <LinkIcon className="h-4 w-4" /> Add YouTube / Vimeo URL
             </button>
           )}

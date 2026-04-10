@@ -22,7 +22,7 @@ export function SplitAuthLayout({
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Brand */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-darkAqua to-darkBlack relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-darkAqua to-black relative overflow-hidden">
         {/* Subtle background shapes */}
         <div className="absolute inset-0">
           <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-white/5 rounded-full blur-[100px]" />

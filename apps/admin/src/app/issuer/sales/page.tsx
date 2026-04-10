@@ -46,7 +46,7 @@ function SaleCard({ sale }: { sale: Sale }) {
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-text text-sm truncate">{sale.title || sale.token_name || "Untitled Sale"}</h3>
-            <p className="text-xs text-darkBlack/40 mt-0.5">
+            <p className="text-xs text-black/40 mt-0.5">
               {sale.token_symbol ? `${sale.token_symbol} · ` : ""}
               {sale.is_coming_soon ? "Coming Soon" : sale.sale_mode === "vested" ? "Vested" : "Direct"}
             </p>
@@ -57,7 +57,7 @@ function SaleCard({ sale }: { sale: Sale }) {
         {!sale.is_coming_soon && cap > 0 && (
           <div className="mb-3">
             <ProgressBar value={pct} size="sm" />
-            <div className="flex justify-between text-xs text-darkBlack/40 mt-1">
+            <div className="flex justify-between text-xs text-black/40 mt-1">
               <span>{formatCurrency(raised)}</span>
               <span>{pct}% of {formatCurrency(cap)}</span>
             </div>
@@ -65,7 +65,7 @@ function SaleCard({ sale }: { sale: Sale }) {
         )}
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs text-darkBlack/30">
+          <div className="flex items-center gap-3 text-xs text-black/30">
             {sale.contract_address && (
               <span className="flex items-center gap-1"><Rocket className="h-3 w-3" /> Deployed</span>
             )}
@@ -76,7 +76,7 @@ function SaleCard({ sale }: { sale: Sale }) {
               <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> OTC</span>
             )}
           </div>
-          <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors" />
+          <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors" />
         </div>
       </div>
     </Link>
@@ -95,12 +95,12 @@ function SaleRow({ sale }: { sale: Sale }) {
       className="flex items-center gap-4 px-4 py-3 bg-white border border-zinc-100 rounded-lg hover:border-darkAqua/30 hover:shadow-sm transition-all group">
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold text-text text-sm truncate">{sale.title || sale.token_name || "Untitled Sale"}</h3>
-        <p className="text-xs text-darkBlack/40 mt-0.5">
+        <p className="text-xs text-black/40 mt-0.5">
           {sale.token_symbol ? `${sale.token_symbol} · ` : ""}
           {sale.is_coming_soon ? "Coming Soon" : sale.sale_mode === "vested" ? "Vested" : "Direct"}
         </p>
       </div>
-      <div className="flex items-center gap-3 text-xs text-darkBlack/30 shrink-0">
+      <div className="flex items-center gap-3 text-xs text-black/30 shrink-0">
         {sale.contract_address && <span className="flex items-center gap-1"><Rocket className="h-3 w-3" /> Deployed</span>}
         {sale.phases.length > 0 && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {sale.phases.length} phase{sale.phases.length > 1 ? "s" : ""}</span>}
         {sale.otc_enabled && <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> OTC</span>}
@@ -108,11 +108,11 @@ function SaleRow({ sale }: { sale: Sale }) {
       {!sale.is_coming_soon && cap > 0 && (
         <div className="w-32 shrink-0">
           <ProgressBar value={pct} size="sm" />
-          <p className="text-[10px] text-darkBlack/30 mt-0.5 text-right">{formatCurrency(raised)} / {formatCurrency(cap)}</p>
+          <p className="text-[10px] text-black/30 mt-0.5 text-right">{formatCurrency(raised)} / {formatCurrency(cap)}</p>
         </div>
       )}
       <Badge variant={variant} size="sm" className="shrink-0">{statusLabel}</Badge>
-      <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors shrink-0" />
+      <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors shrink-0" />
     </Link>
   );
 }
@@ -173,7 +173,7 @@ export default function SalesPage() {
             className="bg-white rounded-lg px-4 py-3.5 border border-zinc-100">
             <div className="flex items-center gap-2 mb-1.5">
               <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>{s.icon}</div>
-              <p className="text-[11px] font-medium text-darkBlack/40 uppercase tracking-wide">{s.label}</p>
+              <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide">{s.label}</p>
             </div>
             <p className="text-xl font-bold text-text">{s.value}</p>
           </motion.div>
@@ -187,9 +187,9 @@ export default function SalesPage() {
             <button key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                statusFilter === tab.key ? "bg-white text-text shadow-sm" : "text-darkBlack/50 hover:text-text"
+                statusFilter === tab.key ? "bg-white text-text shadow-sm" : "text-black/50 hover:text-text"
               }`}>
-              {tab.label} <span className="text-darkBlack/30 ml-0.5">{tab.count}</span>
+              {tab.label} <span className="text-black/30 ml-0.5">{tab.count}</span>
             </button>
           ))}
         </div>
@@ -199,11 +199,11 @@ export default function SalesPage() {
           </div>
           <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
             <button onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-darkBlack/40 hover:text-text"}`}>
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
               <LayoutGrid className="h-4 w-4" />
             </button>
             <button onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-darkBlack/40 hover:text-text"}`}>
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
               <List className="h-4 w-4" />
             </button>
           </div>
@@ -218,8 +218,8 @@ export default function SalesPage() {
           <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
             <TrendingUp className="h-7 w-7 text-zinc-300" />
           </div>
-          <p className="text-darkBlack/40 text-sm mb-1">{sales.length === 0 ? "No sales yet" : "No matching sales"}</p>
-          <p className="text-darkBlack/25 text-xs mb-4">
+          <p className="text-black/40 text-sm mb-1">{sales.length === 0 ? "No sales yet" : "No matching sales"}</p>
+          <p className="text-black/25 text-xs mb-4">
             {sales.length === 0 ? "Create your first token sale to get started" : "Try adjusting your search or filters"}
           </p>
           {sales.length === 0 && (

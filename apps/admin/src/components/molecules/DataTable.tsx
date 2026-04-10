@@ -42,7 +42,7 @@ export function DataTable<T extends object>({
   React.useEffect(() => { setPage(0); }, [data.length]);
 
   return (
-    <div className={cn("bg-white rounded-lg border border-darkBlack/10 overflow-visible", className)}>
+    <div className={cn("bg-white rounded-lg border border-black/10 overflow-visible", className)}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -102,15 +102,15 @@ export function DataTable<T extends object>({
       </div>
       {/* Pagination */}
       {data.length > pageSize && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-darkBlack/5">
-          <p className="text-sm text-darkBlack/50">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-black/5">
+          <p className="text-sm text-black/50">
             Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, data.length)} of {data.length}
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="p-1.5 rounded-lg hover:bg-darkBlack/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -120,7 +120,7 @@ export function DataTable<T extends object>({
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="p-1.5 rounded-lg hover:bg-darkBlack/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-lg hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

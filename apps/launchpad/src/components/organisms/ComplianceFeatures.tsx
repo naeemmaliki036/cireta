@@ -21,7 +21,7 @@ const FEATURE_STATS = [
 
 export function ComplianceFeatures() {
   return (
-    <section className="py-20 px-4 bg-darkBlack text-white">
+    <section className="py-20 px-4 bg-black text-white">
       <div className="max-w-inner mx-auto">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
@@ -49,7 +49,7 @@ export function ComplianceFeatures() {
 
           <div className="relative">
             <div className="absolute inset-0 bg-darkAqua/20 rounded-3xl blur-[60px]" />
-            <div className="relative bg-darkBlack/50 border border-white/10 rounded-3xl p-8">
+            <div className="relative bg-black/50 border border-white/10 rounded-3xl p-8">
               <div className="grid grid-cols-2 gap-6">
                 {FEATURE_STATS.map((s) => (
                   <div key={s.label} className="text-center p-4">

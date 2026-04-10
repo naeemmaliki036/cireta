@@ -137,7 +137,7 @@ export default function FAQPage() {
           <div className="mt-12 text-center bg-gray-50 rounded-2xl p-8">
             <h3 className="font-semibold text-text mb-2">Still have questions?</h3>
             <p className="text-sm text-gray-500 mb-4">Our team is here to help.</p>
-            <a href="mailto:support@cireta.com" className="inline-flex items-center gap-2 bg-darkBlack text-white text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-darkBlack/90 transition-colors">
+            <a href="mailto:support@cireta.com" className="inline-flex items-center gap-2 btn-cta text-sm px-6 py-2.5 rounded-full transition-colors">
               Contact Support
             </a>
           </div>

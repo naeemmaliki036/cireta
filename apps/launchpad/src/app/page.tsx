@@ -3,17 +3,20 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowRight, Star, HeartHandshake, ShieldCheck, Users, TrendingUp, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronDown, Linkedin } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Navbar, Footer } from "@/components/organisms";
 import { getProjects, type Project } from "@/lib/api/repositories/projects.repository";
+import {
+  getPlatformStats,
+  getPartners,
+  getTeamMembers,
+  type PlatformStat,
+  type Partner,
+  type TeamMember,
+} from "@/lib/api/repositories/platform.repository";
 
-
-const FEATURES = [
-  { icon: Star, title: "Highly Curated Portfolio", description: "Browse our highly curated selection of high-value commodities\u2014each verified and backed by A&M Development Group\u2019s 189+ years of expertise." },
-  { icon: HeartHandshake, title: "White-Glove Support", description: "From selection to final delivery, our team is with you every step\u2014handling logistics, legal documentation, and updates with concierge-level care." },
-  { icon: ShieldCheck, title: "Fully Verified Partnerships", description: "We work with leading banks, auditors, and legal firms to ensure every transaction is transparent, compliant, and verifiable\u2014so you can invest with complete confidence." },
-];
+/* ─── Project card helpers (UNCHANGED) ─── */
 
 function ProjectCardSkeleton() {
   return (
@@ -108,7 +111,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               <p className="text-[10px] text-gray-400 uppercase">Target</p>
               <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(p.targetAmount / 1_000_000).toFixed(1)}M USDC`}</p>
             </div>
-            <span className="inline-flex items-center gap-1.5 bg-darkBlack text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-darkBlack/90 transition-colors">
+            <span className="inline-flex items-center gap-1.5 btn-cta text-xs px-4 py-2 rounded-full transition-colors">
               View Details <ArrowRight className="h-3 w-3" />
             </span>
           </div>
@@ -118,76 +121,251 @@ function LiveProjectCard({ project: p }: { project: Project }) {
   );
 }
 
+/* ─── FAQ data ─── */
+
+const FAQS = [
+  {
+    q: "What is Cireta?",
+    a: "Cireta is a regulated real-world asset (RWA) tokenization launchpad built on Base L2. We enable investors to participate in tokenized gold, copper, and commodity futures through compliant ERC-3643 security tokens with full KYC/AML verification.",
+  },
+  {
+    q: "How are investments structured?",
+    a: "Each investment opportunity is structured through a dedicated Special Purpose Vehicle (SPV). The SPV holds the underlying commodity assets, and tokenized shares of the SPV are issued on-chain as ERC-3643 compliant security tokens, giving investors fractional ownership.",
+  },
+  {
+    q: "What commodities can I invest in?",
+    a: "Currently, Cireta offers tokenized gold and copper investments sourced from production-stage mines. We are expanding into additional commodity futures and precious metals as regulatory approvals are obtained.",
+  },
+  {
+    q: "Is KYC required?",
+    a: "Yes. All investors must complete identity verification (KYC) through our Sumsub-powered verification flow before they can participate in any token sale. This ensures full regulatory compliance and protects all participants on the platform.",
+  },
+  {
+    q: "How do I receive returns?",
+    a: "Returns are distributed based on the terms of each specific project. This may include periodic yield distributions in USDC, token appreciation tied to commodity price movements, or physical delivery options depending on the project structure.",
+  },
+  {
+    q: "What blockchain does Cireta use?",
+    a: "Cireta is built on Base, a secure and low-cost Layer 2 blockchain built on Ethereum. All token contracts follow the ERC-3643 standard for compliant security tokens, with on-chain identity verification via ONCHAINID.",
+  },
+  {
+    q: "Is there insurance on investments?",
+    a: "Yes. All commodity assets backing Cireta tokens carry comprehensive insurance coverage including transit, storage, and market risk protection. Insurance details are disclosed in each project's documentation before investment.",
+  },
+];
+
+/* ─── How It Works steps ─── */
+
+const STEPS = [
+  { num: 0, title: "Browse", desc: "Explore live tokenized commodity projects, each backed by verified physical assets and structured through regulated SPVs." },
+  { num: 1, title: "Connect", desc: "Connect your Web3 wallet (MetaMask, Coinbase Wallet, or WalletConnect) to the Base L2 network in one click." },
+  { num: 2, title: "Verify", desc: "Complete a quick KYC identity check powered by Sumsub. Most verifications are approved in under 5 minutes." },
+  { num: 3, title: "Invest", desc: "Choose your investment amount, approve USDC, and receive ERC-3643 security tokens directly to your wallet." },
+];
+
+/* ─── Why Cireta cards ─── */
+
+const WHY_CARDS = [
+  {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
+    title: "Comprehensive Insurance",
+    desc: "Every commodity asset on Cireta carries full insurance coverage including transit, storage, and market risk protection, ensuring your investment is safeguarded at every stage.",
+  },
+  {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v6l4 2" />
+      </svg>
+    ),
+    title: "Production-Stage Assets",
+    desc: "We only list commodities from active, production-stage operations, not speculative exploration. This means real output, real revenue, and lower risk for investors.",
+  },
+  {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
+        <rect x="1" y="3" width="15" height="13" rx="2" />
+        <path d="M16 8h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-4" />
+      </svg>
+    ),
+    title: "Physical Delivery Option",
+    desc: "Token holders have the option to redeem their tokens for physical delivery of the underlying commodity, providing a tangible connection to your digital investment.",
+  },
+  {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6 text-white">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+    title: "SPV Legal Structure",
+    desc: "Each project is isolated in its own Special Purpose Vehicle, providing legal separation of assets. Your investment is ring-fenced and protected from platform-level risks.",
+  },
+];
+
+/* ─── Press articles ─── */
+
+const PRESS = [
+  {
+    source: "Coinfomania",
+    badge: "Featured",
+    date: "March 2026",
+    color: "bg-[#1a1a2e]",
+    title: "Cireta Launches Tokenized Gold Platform on Base L2",
+    excerpt: "Cireta, a new RWA tokenization launchpad, has launched on Coinbase's Base L2, offering investors access to tokenized gold and copper futures through compliant ERC-3643 security tokens.",
+    url: "https://coinfomania.com",
+  },
+  {
+    source: "MPOST",
+    badge: "Press",
+    date: "February 2026",
+    color: "bg-[#0d1117]",
+    title: "How Cireta is Bridging Physical Commodities and DeFi",
+    excerpt: "In an exclusive interview, the Cireta team discusses how their SPV-backed tokenization model brings institutional-grade commodity investments to retail investors through blockchain technology.",
+    url: "https://mpost.io",
+  },
+];
+
+/* ─── Main page component ─── */
+
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [stats, setStats] = useState<PlatformStat[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const data = await getProjects({ size: 4 });
-        // Live sales first, coming soon last
         const sorted = [...data.items].sort((a, b) => (a.isComingSoon ? 1 : 0) - (b.isComingSoon ? 1 : 0));
         setProjects(sorted);
       } catch { /* empty */ }
       finally { setLoadingProjects(false); }
     })();
+
+    getPlatformStats().then(setStats).catch(() => {});
+    getPartners().then(setPartners).catch(() => {});
+    getTeamMembers().then(setTeam).catch(() => {});
   }, []);
 
   return (
     <div className="min-h-screen">
       <Navbar variant="dark" />
 
-      {/* ── Hero ── */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        {/* Video Background */}
-        <div className="absolute inset-0 bg-darkBlack">
+      {/* ── 1. Hero ── */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-black">
           <video
             autoPlay
             muted
             loop
             playsInline
             preload="none"
-            className="absolute inset-0 w-full h-full object-cover opacity-50"
+            className="absolute inset-0 w-full h-full object-cover"
           >
             <source src="/images/hero-bg.mp4" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-darkBlack/40 via-darkAqua/10 to-darkBlack/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/45 to-black/75" />
         </div>
 
-        {/* Content */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative z-10 text-center px-4"
+          className="relative z-10 text-center px-4 max-w-4xl mx-auto"
         >
-          <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6">
-            Build Unshakeable Wealth
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight mb-6 leading-tight">
+            Invest in Real World Assets<br className="hidden md:block" /> Through Tokenization
           </h1>
-          <p className="text-lg md:text-xl text-white/70 mb-10">
-            Invest in Assets that stand the test of time!
+          <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
+            Access tokenized gold, copper, and infrastructure projects backed by verified physical reserves, institutional insurance, and blockchain-grade transparency.
           </p>
-          <Link
-            href="/projects"
-            className="inline-flex items-center gap-2 bg-white text-darkBlack font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
-          >
-            Explore Projects <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="flex items-center justify-center">
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
+            >
+              Explore Live Projects <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </motion.div>
+
+        {/* Partner logo carousel — overlays bottom of hero */}
+        {partners.length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 z-10 overflow-hidden py-5 bg-gradient-to-t from-black/60 via-black/30 to-transparent backdrop-blur-[2px]">
+            <div className="relative">
+              <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-black/40 to-transparent z-10 pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black/40 to-transparent z-10 pointer-events-none" />
+              <div className="marquee-track">
+                {[...partners, ...partners].map((p, i) => (
+                  <div key={`${p.id}-${i}`} className="shrink-0 flex items-center justify-center mx-10" style={{ minWidth: "140px" }}>
+                    {p.logo_url ? (
+                      <img
+                        src={p.logo_url}
+                        alt={p.name}
+                        className="h-10 md:h-12 w-auto max-w-[160px] object-contain brightness-0 invert opacity-50 hover:opacity-80 transition-opacity"
+                      />
+                    ) : (
+                      <span className="text-white/40 text-base font-semibold tracking-wide whitespace-nowrap">
+                        {p.name}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* ── Our Projects ── */}
+      {/* ── 2. Trust Bar ── */}
+      {stats.length > 0 && (
+        <section className="py-16 px-4 bg-white">
+          <div className="max-w-inner mx-auto">
+            <div className="flex flex-wrap items-center justify-center gap-y-8">
+              {stats.sort((a, b) => a.sort_order - b.sort_order).map((s, i) => (
+                <div key={s.key} className="flex items-center">
+                  {i > 0 && <div className="hidden md:block w-px h-12 bg-black/10 mx-8" />}
+                  <div className="text-center px-4">
+                    <p className="text-3xl md:text-4xl font-bold text-darkAqua">{s.value}</p>
+                    <p className="text-sm text-black/50 mt-1">{s.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-black/30 mt-8">Figures verified as of Q1 2026</p>
+          </div>
+        </section>
+      )}
+
+      {/* ── 3. Intro Definition ── */}
+      <section className="py-16 px-4 bg-box">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-lg md:text-xl text-black/70 leading-relaxed">
+            Cireta is a real-world asset tokenization platform that connects verified investors to production-stage gold and copper projects. Every investment is backed by independently certified reserves, 105% credit risk insurance, and physical delivery rights. The platform operates through segregated SPV structures with full KYC/KYB compliance.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 4. Projects (EXISTING CODE) ── */}
       <section className="py-20 px-4 bg-white">
         <div className="max-w-inner mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Our Projects</h2>
+            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Live Investment Opportunities</p>
+            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Projects</h2>
             <p className="text-gray-500 max-w-2xl mx-auto">
-              We take pride in crafting digital products that combine strategy, creativity, and precision. Each project reflects our focus on delivering user-centered design and impactful experiences that drive real results for businesses and users alike.
+              Real-time investment opportunities in tokenized commodities — fully regulated, transparent, and backed by verified issuers.
             </p>
             <Link
               href="/projects"
-              className="inline-flex items-center gap-2 bg-darkBlack text-white font-semibold px-6 py-2.5 rounded-full mt-6 text-sm hover:bg-darkBlack/90 transition-colors"
+              className="inline-flex items-center gap-2 btn-cta px-6 py-2.5 rounded-full mt-6 text-sm transition-colors"
             >
               Explore All Projects <ArrowRight className="h-4 w-4" />
             </Link>
@@ -216,36 +394,181 @@ export default function HomePage() {
           ) : (
             <p className="text-center text-gray-400 py-12">No projects available yet. Check back soon.</p>
           )}
+
+          <p className="text-center text-xs text-black/30 mt-10 max-w-2xl mx-auto">
+            Investment in tokenized assets involves risk. Past performance is not indicative of future results.
+            Please read each project&apos;s documentation carefully before investing.
+          </p>
         </div>
       </section>
 
-      {/* ── More Projects (if more than 4) ── */}
-      {projects.length > 4 && (
-        <section className="py-20 px-4 bg-box">
-          <div className="max-w-inner mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">More Opportunities</h2>
-              <p className="text-gray-500 max-w-2xl mx-auto">
-                Real-time investment opportunities in tokenized commodities — fully regulated, transparent, and backed by verified issuers.
-              </p>
-              <Link
-                href="/projects"
-                className="inline-flex items-center gap-2 bg-darkBlack text-white font-semibold px-6 py-2.5 rounded-full mt-6 text-sm hover:bg-darkBlack/90 transition-colors"
-              >
-                View All <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+      {/* ── 5. Why Cireta ── */}
+      <section className="py-20 px-4 bg-box">
+        <div className="max-w-inner mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Investor Protection</p>
+            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Why Investors Choose Cireta</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">
+              Every layer of the Cireta platform is built to protect investors and ensure transparent, compliant access to real-world commodity assets.
+            </p>
+          </div>
 
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {projects.slice(4, 8).map((p, i) => (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {WHY_CARDS.map((card, i) => (
+              <motion.div
+                key={card.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-box rounded-2xl p-8"
+              >
+                <div className="w-12 h-12 rounded-xl bg-darkAqua flex items-center justify-center mb-6">
+                  {card.icon}
+                </div>
+                <h3 className="text-lg font-bold text-text mb-3">{card.title}</h3>
+                <p className="text-sm text-black/50 leading-relaxed">{card.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. Track Record ── */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-inner mx-auto text-center">
+          <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Proven Commodity Delivery Track Record</h2>
+          <p className="text-black/50 max-w-2xl mx-auto mb-14">
+            Backed by A&M Development Group&apos;s extensive experience in physical commodity sourcing, logistics, and delivery across global markets.
+          </p>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { value: "14", unit: "months", label: "Average delivery timeline from mine to market" },
+              { value: "3", unit: "months", label: "Fastest commodity delivery cycle achieved" },
+              { value: "3", unit: "countries", label: "Active sourcing operations across continents" },
+              { value: "99.99%", unit: "", label: "Purity verification rate on delivered gold" },
+            ].map((s, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-box rounded-2xl p-8 border border-black/5"
+              >
+                <p className="text-4xl font-bold text-darkAqua">
+                  {s.value}
+                  {s.unit && <span className="text-lg font-medium text-black/40 ml-1">{s.unit}</span>}
+                </p>
+                <p className="text-sm text-black/50 mt-2">{s.label}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 7. How It Works ── */}
+      <section className="py-20 px-4 bg-box" id="how-it-works">
+        <div className="max-w-inner mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Getting Started</p>
+            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">How Tokenized Commodity Investment Works</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">
+              From browsing tokenized gold and copper projects to making your first blockchain-settled investment, the process is straightforward. No prior crypto experience required.
+            </p>
+          </div>
+
+          {/* Desktop horizontal timeline */}
+          <div className="hidden md:block relative mb-12">
+            <div className="absolute top-6 left-[12.5%] right-[12.5%] h-0.5 bg-black/10" />
+            <div className="grid grid-cols-4 gap-6">
+              {STEPS.map((s, i) => (
                 <motion.div
-                  key={p.id}
+                  key={s.num}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
+                  transition={{ delay: i * 0.12 }}
+                  className="flex flex-col items-center text-center"
                 >
-                  <LiveProjectCard project={p} />
+                  <div className="w-12 h-12 rounded-full bg-darkAqua text-white flex items-center justify-center font-bold text-lg mb-6 relative z-10">
+                    {s.num}
+                  </div>
+                  <h3 className="text-lg font-bold text-text mb-2">{s.title}</h3>
+                  <p className="text-sm text-black/50 leading-relaxed">{s.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile vertical list */}
+          <div className="md:hidden space-y-8 mb-12">
+            {STEPS.map((s) => (
+              <div key={s.num} className="flex gap-4">
+                <div className="w-10 h-10 rounded-full bg-darkAqua text-white flex items-center justify-center font-bold text-sm shrink-0">
+                  {s.num}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-text mb-1">{s.title}</h3>
+                  <p className="text-sm text-black/50 leading-relaxed">{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-box rounded-2xl p-6 text-center max-w-2xl mx-auto">
+            <p className="text-sm text-black/60">
+              <span className="font-semibold text-text">After investment:</span> Track your portfolio in real-time, receive yield distributions in USDC, and optionally redeem tokens for physical commodity delivery.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 8. Leadership ── */}
+      {team.length > 0 && (
+        <section className="py-20 px-4 bg-white">
+          <div className="max-w-inner mx-auto">
+            <div className="text-center mb-14">
+              <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Who Is Behind Cireta</p>
+              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Leadership &amp; Governance</h2>
+              <p className="text-gray-500 max-w-2xl mx-auto">
+                Cireta operates under A&amp;M Development Group, an organization with over 189 years of combined legacy across mining, infrastructure, and commodity trade.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-8">
+              {team.sort((a, b) => a.sort_order - b.sort_order).map((m, i) => (
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  className="text-center w-full sm:w-80"
+                >
+                  <div className="relative w-24 h-24 rounded-full mx-auto mb-4 overflow-hidden bg-box flex items-center justify-center">
+                    {m.photo_url ? (
+                      <Image src={m.photo_url} alt={m.name} width={96} height={96} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-2xl font-bold text-darkAqua">
+                        {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold text-text">{m.name}</h3>
+                  <p className="text-sm text-darkAqua font-medium mb-2">{m.title}</p>
+                  {m.bio && <p className="text-xs text-black/50 leading-relaxed mb-3">{m.bio}</p>}
+                  {m.linkedin_url && (
+                    <Link
+                      href={m.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-darkAqua hover:text-black transition-colors border border-darkAqua/30 rounded-md px-3 py-1.5 hover:bg-darkAqua/5"
+                    >
+                      <Linkedin className="w-3.5 h-3.5" /> LinkedIn
+                    </Link>
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -253,132 +576,142 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── What Makes Us Different ── */}
+      {/* ── 9. Press & Media ── */}
       <section className="py-20 px-4 bg-box">
         <div className="max-w-inner mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">What Makes Us Different?</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-              We blend strategy with creativity to craft designs that deliver real impact. Our focus is on purposeful experiences that drive results and stand out with clarity.
-            </p>
+          <div className="text-center mb-14">
+            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">In The News</p>
+            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Press & Media</h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {FEATURES.map((f, i) => (
+          <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
+            {PRESS.map((article, i) => (
               <motion.div
-                key={f.title}
+                key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="relative bg-white rounded-2xl p-8 border border-gray-100 hover:shadow-card hover:border-darkAqua/20 transition-all group overflow-hidden"
+                className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-card transition-shadow"
               >
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-darkAqua to-darkAqua/40 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
-                <div className="w-12 h-12 rounded-xl bg-darkAqua/10 flex items-center justify-center mb-6">
-                  <f.icon className="h-6 w-6 text-darkAqua" />
+                <div className={`${article.color} px-6 py-4`}>
+                  <p className="text-white font-bold text-lg">{article.source}</p>
                 </div>
-                <h3 className="text-lg font-bold text-text mb-3">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-xs font-semibold text-darkAqua bg-box px-2.5 py-1 rounded-full">{article.badge}</span>
+                    <span className="text-xs text-black/40">{article.date}</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-text mb-2">{article.title}</h3>
+                  <p className="text-sm text-black/50 leading-relaxed mb-4">{article.excerpt}</p>
+                  <Link href={article.url} target="_blank" className="text-sm font-semibold text-darkAqua hover:underline inline-flex items-center gap-1">
+                    Read more <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── How It Works ── */}
-      <section className="py-20 px-4 bg-white" id="how-it-works">
-        <div className="max-w-inner mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Jump on board. It&apos;s simple.</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-              Three straightforward steps to start investing in tokenized real-world assets backed by verified issuers.
+      {/* ── 10. Partners ── */}
+      {partners.length > 0 && (
+        <section className="py-20 px-4 bg-white">
+          <div className="max-w-inner mx-auto">
+            <div className="text-center mb-14">
+              <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Trusted By</p>
+              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Institutional &amp; Strategic Partners</h2>
+            </div>
+
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-y-10 gap-x-8 items-center justify-items-center">
+              {partners.sort((a, b) => a.sort_order - b.sort_order).map((p) => (
+                <div key={p.id} className="flex items-center justify-center">
+                  {p.logo_url ? (
+                    <Image src={p.logo_url} alt={p.name} width={140} height={48} className="h-10 md:h-12 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
+                  ) : (
+                    <span className="text-sm font-semibold text-black/40">{p.name}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── 11. Risk Disclosure ── */}
+      <section className="py-16 px-4 bg-box">
+        <div className="max-w-3xl mx-auto">
+          <div className="border border-black/10 rounded-2xl p-8 text-center">
+            <p className="text-sm font-bold text-text mb-3">Risk Disclosure</p>
+            <p className="text-xs text-black/50 leading-relaxed">
+              Investing in tokenized real-world assets involves significant risk, including the potential loss of your
+              entire investment. Commodity prices are volatile and influenced by factors beyond our control. Token
+              values may fluctuate and are not guaranteed to maintain their initial value. Past performance is not
+              indicative of future results. All investments on this platform are subject to the terms and conditions
+              of their respective Special Purpose Vehicle (SPV) structures. Please read all project documentation,
+              including risk factors, before making any investment decision. This platform does not provide financial
+              advice. Consult a qualified financial advisor before investing.
             </p>
           </div>
+        </div>
+      </section>
 
-          <div className="grid gap-8 md:grid-cols-3">
-            {[
-              {
-                num: "01",
-                title: "Sign Up",
-                desc: "Create your account in seconds with just your email. No passwords needed — we use secure one-time codes.",
-                icon: Users,
-                iconBg: "bg-darkAqua/10",
-                iconColor: "text-darkAqua",
-              },
-              {
-                num: "02",
-                title: "Verify",
-                desc: "Complete a quick identity check (KYC) to comply with regulations. It usually takes under 5 minutes.",
-                icon: ShieldCheck,
-                iconBg: "bg-emerald-50",
-                iconColor: "text-emerald-600",
-              },
-              {
-                num: "03",
-                title: "Invest",
-                desc: "Browse curated commodity-backed tokens and invest on-chain with crypto or via bank transfer.",
-                icon: TrendingUp,
-                iconBg: "bg-amber-50",
-                iconColor: "text-amber-600",
-              },
-            ].map((s, i) => (
-              <motion.div
-                key={s.num}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.12 }}
-                className="relative bg-white rounded-2xl p-8 border border-gray-100 group hover:shadow-card hover:border-gray-200 transition-all overflow-hidden"
-              >
-                <span className="absolute top-5 right-6 text-6xl font-black text-gray-50 group-hover:text-darkAqua/5 transition-colors select-none">{s.num}</span>
-                <div className={`w-12 h-12 rounded-xl ${s.iconBg} flex items-center justify-center mb-6`}>
-                  <s.icon className={`h-6 w-6 ${s.iconColor}`} />
-                </div>
-                <h3 className="text-xl font-bold text-text mb-3">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-              </motion.div>
-            ))}
+      {/* ── 12. FAQ ── */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Support</p>
+            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Tokenized Commodity Investment FAQ</h2>
           </div>
 
-          <div className="text-center mt-10">
+          <div className="space-y-3">
+            {FAQS.map((faq, i) => (
+              <div key={i} className="border border-black/10 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-box/50 transition-colors"
+                >
+                  <span className="font-semibold text-text pr-4">{faq.q}</span>
+                  <ChevronDown className={`w-5 h-5 text-black/40 shrink-0 transition-transform ${openFaq === i ? "rotate-180" : ""}`} />
+                </button>
+                {openFaq === i && (
+                  <div className="px-6 pb-4">
+                    <p className="text-sm text-black/60 leading-relaxed">{faq.a}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 13. Final CTA ── */}
+      <section className="py-20 px-4 bg-box">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-text tracking-tight mb-6">
+            Ready to Invest in Tokenized Assets?
+          </h2>
+          <p className="text-black/50 mb-10 max-w-xl mx-auto">
+            Join a growing community of investors accessing institutional-grade commodity investments through compliant blockchain technology.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/register"
-              className="inline-flex items-center gap-2 bg-darkBlack text-white font-semibold px-8 py-3 rounded-full text-sm hover:bg-darkBlack/90 transition-colors"
+              href="/projects"
+              className="inline-flex items-center gap-2 btn-cta px-8 py-3.5 rounded-full text-sm"
             >
-              Get Started <ArrowRight className="h-4 w-4" />
+              Visit Launchpad <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="mailto:info@cireta.com"
+              className="inline-flex items-center gap-2 border border-black/20 text-text font-semibold px-8 py-3.5 rounded-full hover:bg-black/5 transition-colors text-sm"
+            >
+              Contact Us
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Funding The Future ── */}
-      <section className="relative py-32 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-darkBlack">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover opacity-30"
-          >
-            <source src="/images/hero-bg.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-darkAqua/30 via-darkBlack/60 to-darkBlack/90" />
-        </div>
-        <div className="relative z-10 max-w-3xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">Funding The Future</h2>
-            <p className="text-white/60 leading-relaxed">
-              If you are interested in tokenizing your assets and exploring the benefits of this innovative technology, please contact us to discuss your specific needs. Our team can provide guidance on the tokenization process, platform selection and regulatory considerations.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
+      {/* ── 14. Footer ── */}
       <Footer />
     </div>
   );

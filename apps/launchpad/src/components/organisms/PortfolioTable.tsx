@@ -30,7 +30,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-col items-center justify-center py-16 text-center bg-box rounded-3xl border border-darkBlack/10"
+        className="flex flex-col items-center justify-center py-16 text-center bg-box rounded-3xl border border-black/10"
       >
         <div className="w-20 h-20 mb-6 rounded-full bg-darkAqua/10 flex items-center justify-center">
           <Coins className="w-10 h-10 text-darkAqua" />
@@ -69,7 +69,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="table-row border-b border-darkBlack/5"
+              className="table-row border-b border-black/5"
             >
               {/* Asset */}
               <td className="px-6 py-4">

@@ -46,7 +46,7 @@ export function TokenCard({
       <Link
         href={`/issuer/tokens/${id}`}
         className={cn(
-          "block bg-white rounded-lg p-6 border border-darkBlack/10 hover:shadow-card transition-shadow duration-300",
+          "block bg-white rounded-lg p-6 border border-black/10 hover:shadow-card transition-shadow duration-300",
           className
         )}
       >

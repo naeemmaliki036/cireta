@@ -109,7 +109,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
     return (
       <div className={`flex flex-col items-center justify-center py-16 ${className}`}>
         <Spinner size="lg" />
-        <p className="mt-4 text-darkBlack/50">Preparing verification...</p>
+        <p className="mt-4 text-black/50">Preparing verification...</p>
       </div>
     );
   }
@@ -121,7 +121,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Identity Verified</h2>
-        <p className="text-darkBlack/50 mb-8">Your KYC verification has been approved</p>
+        <p className="text-black/50 mb-8">Your KYC verification has been approved</p>
         <Button variant="primary" onClick={() => router.push("/projects")}>
           Start Investing
         </Button>
@@ -132,11 +132,11 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
   if (state === "processing") {
     return (
       <div className={`text-center py-16 ${className}`}>
-        <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-6">
-          <Loader2 className="w-10 h-10 text-gold animate-spin" />
+        <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
+          <Loader2 className="w-10 h-10 text-darkAqua animate-spin" />
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Under Review</h2>
-        <p className="text-darkBlack/50 mb-8">
+        <p className="text-black/50 mb-8">
           Your documents are being reviewed. This usually takes a few minutes but can take up to 24 hours.
           <br />In case of delay, contact <a href="https://cireta.com" target="_blank" rel="noopener noreferrer" className="text-darkAqua underline hover:text-darkAqua/80">compliance@cireta.com</a>.
         </p>
@@ -154,7 +154,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
           <AlertCircle className="w-10 h-10 text-red-500" />
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Something Went Wrong</h2>
-        <p className="text-darkBlack/50 mb-8">{error ?? "Unable to load verification"}</p>
+        <p className="text-black/50 mb-8">{error ?? "Unable to load verification"}</p>
         <Button variant="primary" onClick={() => window.location.reload()}>
           Try Again
         </Button>
@@ -164,7 +164,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="rounded-2xl overflow-hidden border border-darkBlack/10 min-h-[600px]">
+      <div className="rounded-2xl overflow-hidden border border-black/10 min-h-[600px]">
         <SumsubWebSdk
           accessToken={accessToken}
           expirationHandler={() => initiateKYC("").then((r) => r.access_token)}

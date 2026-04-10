@@ -146,7 +146,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
   if (!token) {
     return (
       <IssuerDashboardLayout title="Token Details" description="">
-        <p className="text-center text-darkBlack/40 py-24">Token not found</p>
+        <p className="text-center text-black/40 py-24">Token not found</p>
       </IssuerDashboardLayout>
     );
   }
@@ -170,14 +170,14 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
       }
     >
       <div className="mb-6">
-        <Link href="/issuer/tokens" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text">
+        <Link href="/issuer/tokens" className="flex items-center gap-2 text-sm text-black/50 hover:text-text">
           <ArrowLeft className="h-4 w-4" /> Back to Tokens
         </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10">
+          className="bg-white rounded-lg p-6 border border-black/10">
           <h2 className="text-lg font-semibold text-text mb-4">Token Info</h2>
           <div className="space-y-3">
             {[
@@ -187,8 +187,8 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
               { label: "Total Supply", value: parseFloat(token.total_supply).toLocaleString() },
               { label: "Status", value: <Badge variant={token.is_paused ? "pending" : "active"} size="sm">{token.is_paused ? "Paused" : "Active"}</Badge> },
             ].map(({ label, value }) => (
-              <div key={label} className="flex justify-between py-2 border-b border-darkBlack/5 last:border-0">
-                <span className="text-sm text-darkBlack/50">{label}</span>
+              <div key={label} className="flex justify-between py-2 border-b border-black/5 last:border-0">
+                <span className="text-sm text-black/50">{label}</span>
                 <span className="text-sm font-medium text-text">{value}</span>
               </div>
             ))}
@@ -196,25 +196,25 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10">
+          className="bg-white rounded-lg p-6 border border-black/10">
           <h2 className="text-lg font-semibold text-text mb-4">Contract</h2>
           {token.contract_address ? (
             <div className="space-y-2">
               <WalletBadge address={token.contract_address} />
               {token.identity_registry_address && (
-                <div className="text-xs text-darkBlack/50">
+                <div className="text-xs text-black/50">
                   Identity Registry: <code className="font-mono bg-zinc-100 px-1 rounded">{token.identity_registry_address.slice(0, 10)}...{token.identity_registry_address.slice(-8)}</code>
                 </div>
               )}
               {token.compliance_address && (
-                <div className="text-xs text-darkBlack/50">
+                <div className="text-xs text-black/50">
                   Compliance: <code className="font-mono bg-zinc-100 px-1 rounded">{token.compliance_address.slice(0, 10)}...{token.compliance_address.slice(-8)}</code>
                 </div>
               )}
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-darkBlack/40">Not yet deployed on-chain</p>
+              <p className="text-sm text-black/40">Not yet deployed on-chain</p>
               <Button
                 variant="primary"
                 size="sm"
@@ -247,7 +247,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t border-darkBlack/10">
+          <div className="mt-6 pt-4 border-t border-black/10">
             <h3 className="text-sm font-semibold text-text mb-3">Actions</h3>
             <div className="flex gap-3">
               <Button variant={token.is_paused ? "primary" : "outline"} size="sm"

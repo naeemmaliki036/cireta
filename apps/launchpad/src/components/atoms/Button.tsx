@@ -10,12 +10,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-darkAqua text-white",
+        primary: "bg-[var(--color-cta)] text-white",
         secondary: "bg-white text-text",
         outline: "border border-darkAqua text-darkAqua bg-transparent",
         outlineWhite: "border border-white text-white bg-transparent",
-        gold: "bg-gold text-white",
-        dark: "bg-darkBlack text-white",
+        gold: "bg-darkAqua text-white",
+        dark: "bg-[var(--color-cta)] text-white",
         ghost: "bg-transparent text-darkAqua hover:bg-darkAqua/10",
       },
       size: {

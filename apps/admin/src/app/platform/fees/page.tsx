@@ -214,7 +214,7 @@ export default function FeesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* On-Chain Config */}
-        <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
+        <div className="bg-white rounded-lg p-6 border border-black/10">
           <h2 className="text-lg font-semibold text-text mb-4">On-Chain Configuration</h2>
 
           {/* Current fee receiver */}
@@ -295,7 +295,7 @@ export default function FeesPage() {
         </div>
 
         {/* Per-Issuer Fee Override */}
-        <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
+        <div className="bg-white rounded-lg p-6 border border-black/10">
           <h2 className="text-lg font-semibold text-text mb-4">Per-Issuer Fee Override</h2>
 
           {issuerOverrides.length > 0 ? (
@@ -346,7 +346,7 @@ export default function FeesPage() {
       </div>
 
       {/* Recent Fee Events / Audit Logs */}
-      <div className="bg-white rounded-lg p-6 border border-darkBlack/10">
+      <div className="bg-white rounded-lg p-6 border border-black/10">
         <h2 className="text-lg font-semibold text-text mb-4">Recent Fee Activity</h2>
         {loading ? (
           <div className="flex justify-center py-8"><Spinner /></div>

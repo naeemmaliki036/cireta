@@ -348,7 +348,7 @@ export default function IssuerOverviewPage() {
             className="bg-white rounded-lg p-5 border border-zinc-100 hover:shadow-sm transition-shadow">
             <div className="flex items-center gap-3 mb-3">
               <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center ${s.color}`}>{s.icon}</div>
-              <p className="text-xs font-medium text-darkBlack/50 uppercase tracking-wide">{s.label}</p>
+              <p className="text-xs font-medium text-black/50 uppercase tracking-wide">{s.label}</p>
             </div>
             <p className="text-2xl font-bold text-text tracking-tight">{s.value}</p>
           </motion.div>
@@ -359,11 +359,11 @@ export default function IssuerOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status Breakdown */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10">
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">Sale Pipeline</h2>
+          className="bg-white rounded-lg p-6 border border-black/10">
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide mb-4">Sale Pipeline</h2>
           {sales.length === 0 ? (
             <div className="text-center py-6">
-              <p className="text-darkBlack/30 text-sm mb-3">No sales created yet</p>
+              <p className="text-black/30 text-sm mb-3">No sales created yet</p>
               <Link href="/issuer/sales/new">
                 <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create First Sale</Button>
               </Link>
@@ -380,7 +380,7 @@ export default function IssuerOverviewPage() {
                 </div>
               ))}
               <div className="pt-3 border-t border-zinc-100 flex items-center justify-between">
-                <span className="text-sm font-medium text-darkBlack/60">Total</span>
+                <span className="text-sm font-medium text-black/60">Total</span>
                 <span className="text-sm font-bold text-text">{sales.length}</span>
               </div>
             </div>
@@ -389,12 +389,12 @@ export default function IssuerOverviewPage() {
 
         {/* Quick Actions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="bg-white rounded-lg p-6 border border-darkBlack/10">
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">Quick Actions</h2>
+          className="bg-white rounded-lg p-6 border border-black/10">
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide mb-4">Quick Actions</h2>
           <div className="space-y-3">
             {[
               { href: "/issuer/tokens/new", icon: <Plus className="h-5 w-5 text-darkAqua" />, bg: "bg-darkAqua/10", label: "Create Token", sub: "Deploy a new ERC-3643 security token" },
-              { href: "/issuer/sales/new", icon: <TrendingUp className="h-5 w-5 text-gold" />, bg: "bg-gold/10", label: "Create Sale", sub: "Set up a token sale with phases and pricing" },
+              { href: "/issuer/sales/new", icon: <TrendingUp className="h-5 w-5 text-darkAqua" />, bg: "bg-darkAqua/10", label: "Create Sale", sub: "Set up a token sale with phases and pricing" },
               { href: "/issuer/compliance", icon: <Coins className="h-5 w-5 text-purple-600" />, bg: "bg-purple-50", label: "Compliance", sub: "Freeze, forced transfer, recover tokens" },
               { href: "/issuer/tokens", icon: <Wallet className="h-5 w-5 text-blue-600" />, bg: "bg-blue-50", label: "Manage Tokens", sub: "View tokens, mint, manage compliance" },
             ].map((a) => (
@@ -403,9 +403,9 @@ export default function IssuerOverviewPage() {
                 <div className={`w-10 h-10 rounded-lg ${a.bg} flex items-center justify-center shrink-0`}>{a.icon}</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-text">{a.label}</p>
-                  <p className="text-xs text-darkBlack/40 truncate">{a.sub}</p>
+                  <p className="text-xs text-black/40 truncate">{a.sub}</p>
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-darkBlack/20 group-hover:text-darkAqua transition-colors shrink-0" />
+                <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-darkAqua transition-colors shrink-0" />
               </Link>
             ))}
           </div>
@@ -414,9 +414,9 @@ export default function IssuerOverviewPage() {
 
       {/* Recent Sales */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="bg-white rounded-lg p-6 border border-darkBlack/10">
+        className="bg-white rounded-lg p-6 border border-black/10">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Recent Sales</h2>
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Recent Sales</h2>
           <Link href="/issuer/sales">
             <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" />}>View All</Button>
           </Link>
@@ -426,8 +426,8 @@ export default function IssuerOverviewPage() {
             <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="h-7 w-7 text-zinc-300" />
             </div>
-            <p className="text-darkBlack/40 text-sm mb-1">No sales yet</p>
-            <p className="text-darkBlack/25 text-xs mb-4">Create a token first, then set up your first sale</p>
+            <p className="text-black/40 text-sm mb-1">No sales yet</p>
+            <p className="text-black/25 text-xs mb-4">Create a token first, then set up your first sale</p>
             <Link href="/issuer/sales/new">
               <Button variant="primary" size="sm">Create Sale</Button>
             </Link>
@@ -453,18 +453,18 @@ export default function IssuerOverviewPage() {
                   className="flex items-center gap-4 px-4 py-3.5 rounded-lg hover:bg-box transition-colors group">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-text truncate">{sale.title || sale.token_name || "Untitled Sale"}</p>
-                    <p className="text-xs text-darkBlack/40">
+                    <p className="text-xs text-black/40">
                       {sale.token_symbol ? `${sale.token_symbol} · ` : ""}{sale.is_coming_soon ? "Coming Soon" : target > 0 ? `${formatCurrency(raised)} / ${formatCurrency(target)}` : "No cap set"}
                     </p>
                   </div>
                   {!sale.is_coming_soon && target > 0 && (
                     <div className="w-20 shrink-0">
                       <ProgressBar value={pct} size="sm" />
-                      <p className="text-[10px] text-darkBlack/30 mt-0.5 text-right">{pct}%</p>
+                      <p className="text-[10px] text-black/30 mt-0.5 text-right">{pct}%</p>
                     </div>
                   )}
                   <Badge variant={statusVariant as "active" | "pending"} size="sm" className="shrink-0">{statusLabel}</Badge>
-                  <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors shrink-0" />
+                  <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors shrink-0" />
                 </Link>
               );
             })}

@@ -139,7 +139,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
   if (!sale) {
     return (
       <IssuerDashboardLayout title="OTC Token Minting" description="">
-        <p className="text-center text-darkBlack/40 py-24">Sale not found</p>
+        <p className="text-center text-black/40 py-24">Sale not found</p>
       </IssuerDashboardLayout>
     );
   }
@@ -157,7 +157,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
       <div className="mb-6">
         <Link
           href={`/issuer/sales/${id}`}
-          className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors"
+          className="flex items-center gap-2 text-sm text-black/50 hover:text-text transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Sale
         </Link>
@@ -173,21 +173,21 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
       {/* Supply Overview */}
       {validOtcAddress && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-5 border border-darkBlack/10">
-            <p className="text-xs uppercase tracking-wider text-darkBlack/40 mb-1">Token</p>
+          <div className="bg-white rounded-lg p-5 border border-black/10">
+            <p className="text-xs uppercase tracking-wider text-black/40 mb-1">Token</p>
             <p className="text-lg font-bold text-text">{tokenSymbol}</p>
-            <p className="text-xs text-darkBlack/30 font-mono mt-1 truncate">{validOtcAddress}</p>
+            <p className="text-xs text-black/30 font-mono mt-1 truncate">{validOtcAddress}</p>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-darkBlack/10">
-            <p className="text-xs uppercase tracking-wider text-darkBlack/40 mb-1">Total Supply</p>
+          <div className="bg-white rounded-lg p-5 border border-black/10">
+            <p className="text-xs uppercase tracking-wider text-black/40 mb-1">Total Supply</p>
             <p className="text-lg font-bold text-text">
               {totalSupply !== undefined
                 ? Number(formatUnits(totalSupply as bigint, tokenDecimals)).toLocaleString()
                 : "---"}
             </p>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-darkBlack/10">
-            <p className="text-xs uppercase tracking-wider text-darkBlack/40 mb-1">OTC Allocations</p>
+          <div className="bg-white rounded-lg p-5 border border-black/10">
+            <p className="text-xs uppercase tracking-wider text-black/40 mb-1">OTC Allocations</p>
             <p className="text-lg font-bold text-text">{records.length}</p>
           </div>
         </div>
@@ -205,11 +205,11 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Mint Form */}
-        <div className="bg-white rounded-lg border border-darkBlack/10 p-6">
+        <div className="bg-white rounded-lg border border-black/10 p-6">
           <h2 className="text-lg font-semibold text-text mb-1 flex items-center gap-2">
             <Coins className="h-5 w-5 text-darkAqua" /> Mint OTC Tokens
           </h2>
-          <p className="text-xs text-darkBlack/40 mb-5">
+          <p className="text-xs text-black/40 mb-5">
             Mint OTC receipt tokens to an investor or operator wallet after receiving off-chain payment.
           </p>
 
@@ -265,12 +265,12 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Recent Mints */}
-        <div className="bg-white rounded-lg border border-darkBlack/10 p-6">
+        <div className="bg-white rounded-lg border border-black/10 p-6">
           <h2 className="text-lg font-semibold text-text mb-4">Recent OTC Allocations</h2>
           {records.length === 0 ? (
             <div className="text-center py-8">
-              <Coins className="h-8 w-8 text-darkBlack/20 mx-auto mb-2" />
-              <p className="text-darkBlack/30 text-sm">No OTC allocations yet.</p>
+              <Coins className="h-8 w-8 text-black/20 mx-auto mb-2" />
+              <p className="text-black/30 text-sm">No OTC allocations yet.</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -278,7 +278,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
                 <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 border border-zinc-100">
                   <div className="min-w-0">
                     <p className="text-sm font-mono text-text truncate">{r.wallet_address}</p>
-                    <p className="text-xs text-darkBlack/40 mt-0.5">
+                    <p className="text-xs text-black/40 mt-0.5">
                       {new Date(r.created_at).toLocaleDateString()}
                     </p>
                   </div>

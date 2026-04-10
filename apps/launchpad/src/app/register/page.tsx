@@ -153,7 +153,7 @@ function RegisterForm() {
               I&apos;ve read and agree to the <Link href="/terms" className="text-darkAqua hover:underline font-medium">Terms of Service</Link> and <Link href="/privacy" className="text-darkAqua hover:underline font-medium">Privacy Policy</Link>
             </span>
           </label>
-          <Button type="submit" className="w-full bg-darkBlack text-white rounded-full hover:bg-darkBlack/90" size="lg" isLoading={loading}>
+          <Button type="submit" className="w-full btn-cta rounded-full" size="lg" isLoading={loading}>
             {loading ? "Sending verification code..." : "Continue"}
           </Button>
         </form>
@@ -168,7 +168,7 @@ function RegisterForm() {
               placeholder="000000" required autoFocus
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-2xl tracking-[0.3em] font-bold text-text placeholder:text-gray-400 focus:border-darkAqua focus:outline-none focus:ring-1 focus:ring-darkAqua transition-colors" />
           </div>
-          <Button type="submit" className="w-full bg-darkBlack text-white rounded-full hover:bg-darkBlack/90" size="lg"
+          <Button type="submit" className="w-full btn-cta rounded-full" size="lg"
             isLoading={loading} disabled={otp.length < 6}>
             {loading ? "Verifying..." : "Verify & Create Account"}
           </Button>

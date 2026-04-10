@@ -209,7 +209,7 @@ export default function TransferPage() {
       <div className="max-w-lg mx-auto py-4">
         <Link
           href="/portfolio"
-          className="inline-flex items-center gap-2 text-darkBlack/50 hover:text-text transition-colors mb-6 text-sm"
+          className="inline-flex items-center gap-2 text-black/50 hover:text-text transition-colors mb-6 text-sm"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Portfolio
         </Link>
@@ -226,7 +226,7 @@ export default function TransferPage() {
               <CheckCircle2 className="w-10 h-10 text-green-600" />
             </div>
             <h2 className="text-2xl font-semibold text-text mb-2">Transfer Successful</h2>
-            <p className="text-darkBlack/50 mb-6">
+            <p className="text-black/50 mb-6">
               {numericAmount.toLocaleString()} {selectedToken?.symbol} sent to {recipient.slice(0, 8)}...{recipient.slice(-6)}
             </p>
             <div className="space-y-3">
@@ -245,15 +245,15 @@ export default function TransferPage() {
             <h2 className="text-xl font-semibold text-text mb-6">Confirm Transfer</h2>
             <div className="bg-gray-50 rounded-xl p-5 space-y-3 mb-6">
               <div className="flex justify-between text-sm">
-                <span className="text-darkBlack/50">Token</span>
+                <span className="text-black/50">Token</span>
                 <span className="font-semibold">{selectedToken?.name} ({selectedToken?.symbol})</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-darkBlack/50">Amount</span>
+                <span className="text-black/50">Amount</span>
                 <span className="font-semibold">{numericAmount.toLocaleString()} {selectedToken?.symbol}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-darkBlack/50">Recipient</span>
+                <span className="text-black/50">Recipient</span>
                 <span className="font-semibold font-mono text-xs">{recipient}</span>
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function TransferPage() {
           /* Form step */
           <div className="bg-white rounded-2xl p-8 border border-gray-100">
             <h2 className="text-xl font-semibold text-text mb-1">Transfer Tokens</h2>
-            <p className="text-sm text-darkBlack/40 mb-6">Send security tokens to another KYC-verified wallet.</p>
+            <p className="text-sm text-black/40 mb-6">Send security tokens to another KYC-verified wallet.</p>
 
             {/* Warning */}
             <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex gap-3 mb-6">
@@ -303,7 +303,7 @@ export default function TransferPage() {
             </div>
 
             {tokenOptions.length === 0 ? (
-              <div className="text-center py-8 text-darkBlack/40 text-sm">
+              <div className="text-center py-8 text-black/40 text-sm">
                 <p>No transferable tokens found in your portfolio.</p>
                 <p className="text-xs mt-1">Tokens need a deployed contract address to be transferable.</p>
               </div>
@@ -333,10 +333,10 @@ export default function TransferPage() {
                 {selectedToken && (
                   <div className="bg-gray-50 rounded-xl p-4">
                     <div className="flex justify-between text-sm">
-                      <span className="text-darkBlack/50">On-Chain Balance</span>
+                      <span className="text-black/50">On-Chain Balance</span>
                       <span className="font-semibold">{onChainBalanceFormatted.toLocaleString()} {selectedToken.symbol}</span>
                     </div>
-                    <p className="text-xs text-darkBlack/30 mt-1 font-mono truncate">{selectedToken.contractAddress}</p>
+                    <p className="text-xs text-black/30 mt-1 font-mono truncate">{selectedToken.contractAddress}</p>
                   </div>
                 )}
 
@@ -369,7 +369,7 @@ export default function TransferPage() {
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua pr-16"
                     />
                     {selectedToken && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-darkBlack/40 font-semibold text-sm">
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold text-sm">
                         {selectedToken.symbol}
                       </span>
                     )}

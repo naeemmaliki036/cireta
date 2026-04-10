@@ -17,6 +17,8 @@ import {
   UserCog,
   Mail,
   DollarSign,
+  BarChart3,
+  Handshake,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button, Badge } from "@/components/atoms";
@@ -30,6 +32,9 @@ const PLATFORM_LINKS = [
   { href: "/platform/sales", label: "Sales", icon: ShoppingCart },
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
   { href: "/platform/fees", label: "Fees", icon: DollarSign },
+  { href: "/platform/stats", label: "Stats", icon: BarChart3 },
+  { href: "/platform/partners", label: "Partners", icon: Handshake },
+  { href: "/platform/team", label: "Team", icon: Users },
 ];
 
 const MANAGE_LINKS = [

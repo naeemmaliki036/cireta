@@ -138,7 +138,7 @@ function LoginForm() {
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 pl-11 text-sm text-text placeholder:text-gray-400 focus:border-darkAqua focus:outline-none focus:ring-1 focus:ring-darkAqua transition-colors" />
             </div>
           </div>
-          <Button type="submit" className="w-full bg-darkBlack text-white rounded-full hover:bg-darkBlack/90" size="lg" isLoading={loading}>
+          <Button type="submit" className="w-full btn-cta rounded-full" size="lg" isLoading={loading}>
             {loading ? "Sending verification code..." : "Send Verification Code"}
           </Button>
         </form>
@@ -153,7 +153,7 @@ function LoginForm() {
               placeholder="000000" required autoFocus
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-2xl tracking-[0.3em] font-bold text-text placeholder:text-gray-400 focus:border-darkAqua focus:outline-none focus:ring-1 focus:ring-darkAqua transition-colors" />
           </div>
-          <Button type="submit" className="w-full bg-darkBlack text-white rounded-full hover:bg-darkBlack/90" size="lg"
+          <Button type="submit" className="w-full btn-cta rounded-full" size="lg"
             isLoading={loading} disabled={otp.length < 6}>
             {loading ? "Verifying..." : "Verify & Sign In"}
           </Button>

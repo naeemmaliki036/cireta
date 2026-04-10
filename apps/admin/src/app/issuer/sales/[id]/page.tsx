@@ -104,8 +104,8 @@ function SubscribersSection({ saleId }: { saleId: string }) {
       className="bg-white rounded-lg border border-zinc-100 p-6 mt-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Interested Investors</h2>
-          <p className="text-xs text-darkBlack/30 mt-0.5">{subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}{unnotified > 0 ? ` · ${unnotified} not yet notified` : ""}</p>
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Interested Investors</h2>
+          <p className="text-xs text-black/30 mt-0.5">{subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}{unnotified > 0 ? ` · ${unnotified} not yet notified` : ""}</p>
         </div>
         {unnotified > 0 && (
           <Button variant="primary" size="sm" onClick={handleNotify} isLoading={notifying}>
@@ -119,9 +119,9 @@ function SubscribersSection({ saleId }: { saleId: string }) {
           <div key={s.email} className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-50 text-sm">
             <div>
               <p className="font-medium text-text">{s.display_name || s.email}</p>
-              {s.display_name && <p className="text-xs text-darkBlack/40">{s.email}</p>}
+              {s.display_name && <p className="text-xs text-black/40">{s.email}</p>}
             </div>
-            <div className="text-xs text-darkBlack/30 text-right">
+            <div className="text-xs text-black/30 text-right">
               <p>{new Date(s.subscribed_at).toLocaleDateString()}</p>
               {s.notified_at && <p className="text-green-600">Notified</p>}
             </div>
@@ -504,7 +504,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   };
 
   if (loading) return <IssuerDashboardLayout title="Sale Details" description=""><div className="flex justify-center py-24"><Spinner /></div></IssuerDashboardLayout>;
-  if (!sale) return <IssuerDashboardLayout title="Sale Details" description=""><p className="text-center text-darkBlack/40 py-24">Sale not found</p></IssuerDashboardLayout>;
+  if (!sale) return <IssuerDashboardLayout title="Sale Details" description=""><p className="text-center text-black/40 py-24">Sale not found</p></IssuerDashboardLayout>;
 
   const raised = parseFloat(sale.total_raised || "0");
   const cap = parseFloat(sale.hard_cap || "0");
@@ -541,7 +541,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       }
     >
       <div className="mb-6 flex items-center justify-between">
-        <Link href="/issuer/sales" className="flex items-center gap-2 text-sm text-darkBlack/50 hover:text-text transition-colors">
+        <Link href="/issuer/sales" className="flex items-center gap-2 text-sm text-black/50 hover:text-text transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Sales
         </Link>
         <div className="flex items-center gap-3">
@@ -727,7 +727,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Phases</h2>
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Phases</h2>
           {sale.contract_address && sale.phases.length > chainPhases && (
             <Button variant="outline" size="sm" onClick={handleDeployAllPhases}
               disabled={phaseDeployAction.isPending || phaseDeployAction.isConfirming}
@@ -737,7 +737,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           )}
         </div>
         {sale.contract_address && (
-          <div className="mb-3 text-xs text-darkBlack/40">
+          <div className="mb-3 text-xs text-black/40">
             {chainPhases} of {sale.phases.length} phase{sale.phases.length !== 1 ? "s" : ""} deployed on-chain
           </div>
         )}
@@ -748,7 +748,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           successMessage="Phase deployed on-chain."
         />
         {sale.phases.length === 0 ? (
-          <p className="text-darkBlack/30 text-center py-6 text-sm">No phases configured yet</p>
+          <p className="text-black/30 text-center py-6 text-sm">No phases configured yet</p>
         ) : (
           <div className="space-y-3">
             {sale.phases.map((phase, idx) => {
@@ -775,14 +775,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                           Deploy On-Chain
                         </Button>
                       )}
-                      <div className="flex items-center gap-1.5 text-xs text-darkBlack/40">
+                      <div className="flex items-center gap-1.5 text-xs text-black/40">
                         <Clock className="h-3 w-3" />
                         <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
                       </div>
                     </div>
                   </div>
                   <ProgressBar value={phasePct} size="sm" />
-                  <div className="flex justify-between text-xs mt-2 text-darkBlack/40">
+                  <div className="flex justify-between text-xs mt-2 text-black/40">
                     <span>Price: <span className="text-text font-medium">${parseFloat(phase.price_per_token).toLocaleString()}</span></span>
                     <span>{phaseSold.toLocaleString()} / {phaseAlloc.toLocaleString()}</span>
                   </div>
@@ -811,7 +811,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide flex items-center gap-2">
             <ImageIcon className="h-4 w-4" /> Media Gallery
           </h2>
           <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
@@ -872,7 +872,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide">Funding Progress</h2>
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Funding Progress</h2>
           <Badge variant={isActive ? "active" : isDraft ? "pending" : "default"} size="sm" className="capitalize">
             {sale.status === "approved_coming_soon" ? "Coming Soon" : sale.status === "pending_approval" ? "Pending" : sale.status.replace(/_/g, " ")}
           </Badge>
@@ -885,14 +885,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             { label: "Soft Cap", value: formatCurrency(soft), color: "text-amber-600", bg: "bg-amber-50" },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <p className="text-[11px] font-medium text-darkBlack/40 uppercase tracking-wide mb-1">{s.label}</p>
+              <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide mb-1">{s.label}</p>
               <p className="text-lg font-bold text-text">{s.value}</p>
             </div>
           ))}
         </div>
 
         <ProgressBar value={pct} size="md" />
-        <div className="flex justify-between text-xs mt-2 text-darkBlack/40">
+        <div className="flex justify-between text-xs mt-2 text-black/40">
           <span>{formatCurrency(raised)} raised</span>
           <span>{pct.toFixed(1)}% of {formatCurrency(cap)}</span>
         </div>

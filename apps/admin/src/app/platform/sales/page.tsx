@@ -28,7 +28,7 @@ function PlatformSaleCard({ sale }: { sale: Sale }) {
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-text text-sm truncate">{sale.title || sale.token_name || "Untitled Sale"}</h3>
-            <p className="text-xs text-darkBlack/40 mt-0.5">
+            <p className="text-xs text-black/40 mt-0.5">
               {sale.issuer_name || sale.issuer_id.slice(0, 8) + "..."}
               {sale.token_symbol ? ` · ${sale.token_symbol}` : ""}
             </p>
@@ -41,19 +41,19 @@ function PlatformSaleCard({ sale }: { sale: Sale }) {
         {cap > 0 && (
           <div className="mb-3">
             <ProgressBar value={pct} size="sm" />
-            <div className="flex justify-between text-xs text-darkBlack/40 mt-1">
+            <div className="flex justify-between text-xs text-black/40 mt-1">
               <span>{formatCurrency(raised)}</span>
               <span>{pct}% of {formatCurrency(cap)}</span>
             </div>
           </div>
         )}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs text-darkBlack/30">
+          <div className="flex items-center gap-3 text-xs text-black/30">
             {sale.contract_address && <span className="flex items-center gap-1"><Rocket className="h-3 w-3" /> Deployed</span>}
             {sale.is_coming_soon && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Coming Soon</span>}
             {sale.is_visible && <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> Visible</span>}
           </div>
-          <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors" />
+          <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors" />
         </div>
       </div>
     </Link>
@@ -103,11 +103,11 @@ export default function PlatformSalesPage() {
       <div className="flex items-center justify-end mb-4">
         <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
           <button onClick={() => setViewMode("list")}
-            className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-darkBlack/40 hover:text-text"}`}>
+            className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
             <List className="h-4 w-4" />
           </button>
           <button onClick={() => setViewMode("grid")}
-            className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-darkBlack/40 hover:text-text"}`}>
+            className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
             <LayoutGrid className="h-4 w-4" />
           </button>
         </div>

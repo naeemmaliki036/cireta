@@ -30,12 +30,12 @@ const columns: Column<WithdrawalRecord>[] = [
     header: "Tx Hash",
     render: (row) => row.tx_hash
       ? <code className="text-xs bg-box px-2 py-1 rounded">{row.tx_hash.slice(0, 10)}…</code>
-      : <span className="text-darkBlack/30 text-sm">—</span>,
+      : <span className="text-black/30 text-sm">—</span>,
   },
   {
     key: "requested_at",
     header: "Date",
-    render: (row) => <span className="text-sm text-darkBlack/60">{row.requested_at.slice(0, 10)}</span>,
+    render: (row) => <span className="text-sm text-black/60">{row.requested_at.slice(0, 10)}</span>,
   },
 ];
 
@@ -72,10 +72,10 @@ export default function WithdrawalsPage() {
       </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg p-6 border border-darkBlack/10 mb-6">
+        className="bg-white rounded-lg p-6 border border-black/10 mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-darkBlack/50">Available to withdraw</p>
+            <p className="text-sm text-black/50">Available to withdraw</p>
             <p className="text-2xl font-bold text-darkAqua">{formatCurrency(available)}</p>
           </div>
           <Button variant="primary" onClick={() => setShowModal(true)} disabled={available === 0}>
@@ -85,12 +85,12 @@ export default function WithdrawalsPage() {
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg p-6 border border-darkBlack/10">
+        className="bg-white rounded-lg p-6 border border-black/10">
         <h2 className="text-lg font-semibold text-text mb-6">Withdrawal History</h2>
         {loading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : records.length === 0 ? (
-          <p className="text-center text-darkBlack/40 py-8">No finalized sales yet</p>
+          <p className="text-center text-black/40 py-8">No finalized sales yet</p>
         ) : (
           <DataTable columns={columns} data={records} />
         )}
@@ -104,7 +104,7 @@ export default function WithdrawalsPage() {
               <h2 className="text-xl font-semibold text-text">Withdraw Funds</h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-box rounded-lg"><X className="h-5 w-5" /></button>
             </div>
-            <p className="text-sm text-darkBlack/50 mb-4">Available: {formatCurrency(available)} USDC</p>
+            <p className="text-sm text-black/50 mb-4">Available: {formatCurrency(available)} USDC</p>
             {withdrawError && <p className="text-sm text-red-600 mb-4">{withdrawError}</p>}
             <Input label="Amount (USDC)" type="number" value={withdrawAmount}
               onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" className="mb-2" />

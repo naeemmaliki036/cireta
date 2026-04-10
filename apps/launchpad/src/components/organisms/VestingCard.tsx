@@ -73,7 +73,7 @@ export function VestingCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "bg-box rounded-3xl p-6 border border-darkBlack/10",
+        "bg-box rounded-3xl p-6 border border-black/10",
         className
       )}
     >
@@ -143,7 +143,7 @@ export function VestingCard({
           </div>
           <p className="font-semibold text-sm">{formatDate(cliffEnd)}</p>
           {!isCliffPassed && (
-            <p className="text-xs text-gold">{getTimeRemaining(cliffEnd)}</p>
+            <p className="text-xs text-darkAqua">{getTimeRemaining(cliffEnd)}</p>
           )}
         </div>
         <div className="bg-white rounded-xl p-4">
@@ -153,7 +153,7 @@ export function VestingCard({
           </div>
           <p className="font-semibold text-sm">{formatDate(vestingEnd)}</p>
           {!isVestingComplete && (
-            <p className="text-xs text-gold">{getTimeRemaining(vestingEnd)}</p>
+            <p className="text-xs text-darkAqua">{getTimeRemaining(vestingEnd)}</p>
           )}
         </div>
       </div>

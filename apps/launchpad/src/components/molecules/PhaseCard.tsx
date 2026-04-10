@@ -54,7 +54,7 @@ export function PhaseCard({
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
       className={cn(
-        "bg-box rounded-3xl p-6 border border-darkBlack/10 transition-all duration-300",
+        "bg-box rounded-3xl p-6 border border-black/10 transition-all duration-300",
         isActive && "border-darkAqua shadow-tooltip",
         className
       )}

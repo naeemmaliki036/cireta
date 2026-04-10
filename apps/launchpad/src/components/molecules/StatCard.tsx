@@ -30,8 +30,8 @@ export function StatCard({
   decimals = 0,
 }: StatCardProps) {
   const variants = {
-    default: "bg-box border-darkBlack/10",
-    dark: "bg-darkBlack border-darkBlack text-white",
+    default: "bg-box border-black/10",
+    dark: "bg-black border-black text-white",
     teal: "bg-darkAqua border-darkAqua text-white",
   };
 

@@ -31,7 +31,7 @@ function TokenCard({ token }: { token: Token }) {
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-text text-sm">{token.name}</h3>
-            <p className="text-xs text-darkBlack/40 mt-0.5">{token.symbol} · {token.asset_type} · {token.decimals} decimals</p>
+            <p className="text-xs text-black/40 mt-0.5">{token.symbol} · {token.asset_type} · {token.decimals} decimals</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
             {token.is_paused ? (
@@ -46,27 +46,27 @@ function TokenCard({ token }: { token: Token }) {
 
         <div className="grid grid-cols-2 gap-3 text-xs mb-3">
           <div className="bg-zinc-50 rounded-md px-3 py-2">
-            <p className="text-darkBlack/40 mb-0.5">Total Supply</p>
+            <p className="text-black/40 mb-0.5">Total Supply</p>
             <p className="font-semibold text-text font-mono">{parseFloat(token.total_supply).toLocaleString()}</p>
           </div>
           <div className="bg-zinc-50 rounded-md px-3 py-2">
-            <p className="text-darkBlack/40 mb-0.5">Contract</p>
+            <p className="text-black/40 mb-0.5">Contract</p>
             {masked ? (
               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(addr!); }}
                 className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
-                {masked} <Copy className="h-3 w-3 text-darkBlack/20" />
+                {masked} <Copy className="h-3 w-3 text-black/20" />
               </button>
             ) : (
-              <p className="font-semibold text-darkBlack/30">—</p>
+              <p className="font-semibold text-black/30">—</p>
             )}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-darkBlack/30">
+          <div className="flex items-center gap-2 text-xs text-black/30">
             {deployed && <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> ERC-3643</span>}
           </div>
-          <ArrowUpRight className="h-4 w-4 text-darkBlack/15 group-hover:text-darkAqua transition-colors" />
+          <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors" />
         </div>
       </div>
     </Link>
@@ -89,24 +89,24 @@ function OTCTokenCard({ address: otcAddr }: { address: string }) {
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-semibold text-text text-sm">{(name as string) || "OTC Token"}</h3>
-          <p className="text-xs text-darkBlack/40">{(symbol as string) || "OTC"}</p>
+          <p className="text-xs text-black/40">{(symbol as string) || "OTC"}</p>
         </div>
         <Badge variant="active" size="sm"><Coins className="h-3 w-3 mr-1" />Deployed</Badge>
       </div>
       <div className="grid grid-cols-2 gap-3 text-xs mb-3">
         <div className="bg-zinc-50 rounded-md px-3 py-2">
-          <p className="text-darkBlack/40 mb-0.5">Total Minted</p>
+          <p className="text-black/40 mb-0.5">Total Minted</p>
           <p className="font-semibold text-text font-mono">{parseFloat(totalSupply).toLocaleString()}</p>
         </div>
         <div className="bg-zinc-50 rounded-md px-3 py-2">
-          <p className="text-darkBlack/40 mb-0.5">Contract</p>
+          <p className="text-black/40 mb-0.5">Contract</p>
           <button onClick={() => navigator.clipboard.writeText(otcAddr)}
             className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
-            {otcAddr.slice(0, 6)}...{otcAddr.slice(-4)} <Copy className="h-3 w-3 text-darkBlack/20" />
+            {otcAddr.slice(0, 6)}...{otcAddr.slice(-4)} <Copy className="h-3 w-3 text-black/20" />
           </button>
         </div>
       </div>
-      <p className="text-[11px] text-darkBlack/30 mb-3">Link to a sale via OTC config, then mint from the sale page.</p>
+      <p className="text-[11px] text-black/30 mb-3">Link to a sale via OTC config, then mint from the sale page.</p>
     </div>
   );
 }
@@ -152,7 +152,7 @@ function OTCTokenSection() {
   };
 
   if (!factoryAddr || !walletAddress) {
-    return <p className="text-center py-6 text-sm text-darkBlack/30">Connect your wallet to manage OTC tokens.</p>;
+    return <p className="text-center py-6 text-sm text-black/30">Connect your wallet to manage OTC tokens.</p>;
   }
 
   return (
@@ -169,7 +169,7 @@ function OTCTokenSection() {
           {otcList.map((addr) => <OTCTokenCard key={addr} address={addr} />)}
         </div>
       ) : (
-        <p className="text-sm text-darkBlack/30 py-2">No OTC tokens deployed yet.</p>
+        <p className="text-sm text-black/30 py-2">No OTC tokens deployed yet.</p>
       )}
 
       {/* Deploy new */}
@@ -180,12 +180,12 @@ function OTCTokenSection() {
       ) : (
         <div className="bg-white rounded-lg border border-zinc-100 p-5 space-y-3">
           <h3 className="font-semibold text-text text-sm">Deploy New OTC Token</h3>
-          <p className="text-xs text-darkBlack/40">Deploy one OTC receipt token per sale. Link it to the sale via OTC configuration.</p>
+          <p className="text-xs text-black/40">Deploy one OTC receipt token per sale. Link it to the sale via OTC configuration.</p>
           <div className="grid grid-cols-2 gap-3">
             <Input label="OTC Token Name" value={otcName} onChange={(e) => setOtcName(e.target.value)} placeholder="e.g. Gold OTC Receipt" />
             <Input label="Symbol" value={otcSymbol} onChange={(e) => setOtcSymbol(e.target.value)} placeholder="e.g. gOTC" />
           </div>
-          <p className="text-xs text-darkBlack/30">OTC tokens are minted on-demand to individual investors after receiving off-platform payment — no initial supply needed. Uses the Cireta platform identity registry.</p>
+          <p className="text-xs text-black/30">OTC tokens are minted on-demand to individual investors after receiving off-platform payment — no initial supply needed. Uses the Cireta platform identity registry.</p>
           <div className="flex items-center gap-2">
             <Button variant="primary" size="sm" onClick={handleDeploy}
               disabled={!otcName || !otcSymbol || !platformIR || deployAction.isPending || deployAction.isConfirming}
@@ -248,7 +248,7 @@ export default function TokensPage() {
               <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>
                 <Coins className="h-4 w-4" />
               </div>
-              <p className="text-[11px] font-medium text-darkBlack/40 uppercase tracking-wide">{s.label}</p>
+              <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide">{s.label}</p>
             </div>
             <p className="text-xl font-bold text-text">{s.value}</p>
           </motion.div>
@@ -270,8 +270,8 @@ export default function TokensPage() {
           <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
             <Coins className="h-7 w-7 text-zinc-300" />
           </div>
-          <p className="text-darkBlack/40 text-sm mb-1">{tokens.length === 0 ? "No tokens yet" : "No matching tokens"}</p>
-          <p className="text-darkBlack/25 text-xs mb-4">
+          <p className="text-black/40 text-sm mb-1">{tokens.length === 0 ? "No tokens yet" : "No matching tokens"}</p>
+          <p className="text-black/25 text-xs mb-4">
             {tokens.length === 0 ? "Create your first ERC-3643 security token" : "Try adjusting your search"}
           </p>
           {tokens.length === 0 && (
@@ -292,7 +292,7 @@ export default function TokensPage() {
 
       {/* OTC Token Section — independent of sales */}
       <div className="mt-8">
-        <h2 className="text-sm font-semibold text-darkBlack/60 uppercase tracking-wide mb-4">OTC Receipt Token</h2>
+        <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide mb-4">OTC Receipt Token</h2>
         <OTCTokenSection />
       </div>
     </IssuerDashboardLayout>

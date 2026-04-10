@@ -74,15 +74,15 @@ export default function PortfolioVestingPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner size="lg" /></div>
         ) : error ? (
-          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
+          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
             <p className="text-red-500 mb-4">{error}</p>
             <Button variant="primary" size="sm" onClick={fetchData}>Retry</Button>
           </div>
         ) : schedules.length === 0 ? (
-          <div className="bg-white rounded-xl border border-darkBlack/10 p-12 text-center">
-            <Clock className="w-10 h-10 text-darkBlack/20 mx-auto mb-3" />
-            <p className="text-darkBlack/40 font-medium">No vesting schedules</p>
-            <p className="text-darkBlack/20 text-sm mt-1">Vested investments will appear here after purchase.</p>
+          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
+            <Clock className="w-10 h-10 text-black/20 mx-auto mb-3" />
+            <p className="text-black/40 font-medium">No vesting schedules</p>
+            <p className="text-black/20 text-sm mt-1">Vested investments will appear here after purchase.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -94,11 +94,11 @@ export default function PortfolioVestingPage() {
               const cliffPassed = new Date(s.cliff_end) <= new Date();
 
               return (
-                <div key={s.id} className="bg-white rounded-xl border border-darkBlack/10 p-6">
+                <div key={s.id} className="bg-white rounded-xl border border-black/10 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-text font-semibold">{s.token_name}</p>
-                      <p className="text-darkBlack/40 text-sm">{s.token_symbol} — {s.sale_mode}</p>
+                      <p className="text-black/40 text-sm">{s.token_symbol} — {s.sale_mode}</p>
                     </div>
                     <Badge variant={cliffPassed ? "success" : "pending"} size="sm">
                       {cliffPassed ? "Cliff passed" : "Cliff pending"}
@@ -107,7 +107,7 @@ export default function PortfolioVestingPage() {
 
                   <div className="mb-4">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-darkBlack/50">Claimed</span>
+                      <span className="text-black/50">Claimed</span>
                       <span className="font-semibold">{claimed.toLocaleString()} / {total.toLocaleString()}</span>
                     </div>
                     <ProgressBar value={progress} size="sm" />
@@ -115,19 +115,19 @@ export default function PortfolioVestingPage() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
                     <div>
-                      <p className="text-darkBlack/40">Total</p>
+                      <p className="text-black/40">Total</p>
                       <p className="font-semibold">{total.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-darkBlack/40">Claimed</p>
+                      <p className="text-black/40">Claimed</p>
                       <p className="font-semibold">{claimed.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-darkBlack/40">Claimable Now</p>
+                      <p className="text-black/40">Claimable Now</p>
                       <p className="font-semibold text-green-600">{claimable.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-darkBlack/40">Vesting End</p>
+                      <p className="text-black/40">Vesting End</p>
                       <p className="font-semibold">{new Date(s.vesting_end).toLocaleDateString()}</p>
                     </div>
                   </div>

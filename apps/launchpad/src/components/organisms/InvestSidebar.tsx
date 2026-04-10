@@ -90,7 +90,7 @@ export function InvestSidebar({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       className={cn(
-        "bg-white rounded-3xl border border-darkBlack/10 shadow-tooltip p-6 sticky top-24",
+        "bg-white rounded-3xl border border-black/10 shadow-tooltip p-6 sticky top-24",
         className
       )}
     >
@@ -127,7 +127,7 @@ export function InvestSidebar({
       {!isWalletConnected ? (
         <div className="bg-box rounded-xl p-4 mb-6">
           <div className="flex items-center gap-3 mb-3">
-            <AlertCircle className="h-5 w-5 text-gold" />
+            <AlertCircle className="h-5 w-5 text-darkAqua" />
             <span className="font-medium">Connect Wallet</span>
           </div>
           <p className="text-sm text-gray-500 mb-3">
@@ -140,7 +140,7 @@ export function InvestSidebar({
       ) : !isKYCVerified || kycLevel < requiredKYCLevel ? (
         <div className="bg-box rounded-xl p-4 mb-6">
           <div className="flex items-center gap-3 mb-3">
-            <Shield className="h-5 w-5 text-gold" />
+            <Shield className="h-5 w-5 text-darkAqua" />
             <span className="font-medium">KYC Required</span>
           </div>
           <p className="text-sm text-gray-500 mb-3">

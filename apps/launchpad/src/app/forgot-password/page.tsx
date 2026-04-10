@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
           </Link>
         </div>
 
-        <div className="bg-white rounded-3xl p-8 border border-darkBlack/10 shadow-card">
+        <div className="bg-white rounded-3xl p-8 border border-black/10 shadow-card">
           {sent ? (
             <div className="text-center py-4">
               <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
