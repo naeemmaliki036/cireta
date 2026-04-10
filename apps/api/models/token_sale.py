@@ -69,6 +69,10 @@ class TokenSale(BaseModel):
     )
     soft_cap: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
     hard_cap: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18), default=Decimal("0"))
+    # Round-5: explicit total token supply (token-decimal units), set at sale creation.
+    total_token_supply: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=18), default=Decimal("0")
+    )
     status: Mapped[SaleStatus] = mapped_column(String(30), default=SaleStatus.DRAFT)
     total_raised: Mapped[Decimal] = mapped_column(
         Numeric(precision=78, scale=18), default=Decimal("0")
@@ -89,10 +93,41 @@ class TokenSale(BaseModel):
     )
     platform_fee_bps: Mapped[int] = mapped_column(Integer, default=250)
     sale_mode: Mapped[SaleMode] = mapped_column(String(20), default=SaleMode.VESTED)
+    # Round-5: sale_structure is DEPRECATED at the contract level (replaced by
+    # per-phase allocation_mode), but kept here for the migration window so old
+    # rows still load. New code should ignore it.
     sale_structure: Mapped[SaleStructure] = mapped_column(String(20), default=SaleStructure.PHASE_ALLOCATED)
     vault_address: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
     fraction_token_address: Mapped[str | None] = mapped_column(
         String(42), nullable=True, default=None
+    )
+
+    # Round-5: sale window — sale_end_time NULL = open-ended
+    sale_start_time: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    sale_end_time: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    is_open_ended: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Round-5: two-step activation timestamps
+    approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+    # Round-5: refund + finalization gates
+    refunds_activated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    finalization_pending: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Round-5: for inactivity timeout on open-ended sales
+    last_phase_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
     )
 
     # Relationships

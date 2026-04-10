@@ -40,12 +40,13 @@ const ERC20_ABI = [
 ];
 
 const SALE_INIT_ABI = [
-  "function initialize(address token, address paymentToken, address identityRegistry, address issuer, address factory, address feeManager, uint256 softCap, uint256 hardCap, uint256 feeBasisPoints, uint256 feeCapUsdc, address otcToken, uint256 saleStartTime, uint256 saleEndTime) external",
+  "function initialize(address token, address paymentToken, address identityRegistry, address issuer, address factory, address feeManager, uint256 softCap, uint256 hardCap, uint256 feeBasisPoints, uint256 feeCapUsdc, address otcToken, uint256 saleStartTime, uint256 saleEndTime, uint256 totalTokenSupply) external",
 ];
 
 const SALE_ABI = [
   ...SALE_INIT_ABI,
-  "function addPhase(string, uint256, uint256, uint256, uint256, uint256, uint256, bool) external",
+  "function addPhase(string, uint256, uint256, uint256, uint256, uint256, uint256, uint256, bool, uint8) external",
+  "function approveSale() external",
   "function activate() external",
   "function buy(uint256, uint256) external",
   "function buyOTC(uint256, uint256) external",
@@ -269,12 +270,14 @@ async function main() {
   const nowTs = Math.floor(Date.now() / 1000);
   const saleStart = nowTs + 60;          // start in 1 minute
   const saleEnd = nowTs + 30 * 24 * 3600; // end 30 days out
+  const totalSupply = ethers.parseUnits("100000", 6); // 100k tokens (6 dec)
   const initData = saleIface.encodeFunctionData("initialize", [
     tokenAddr, usdcAddr, irAddr, issuer.address,
     addr.saleFactory, addr.platformFeeManager,
     softCap, hardCap, 200, 0, // 2% fee, no cap
     otcAddr, // OTC token linked at creation
     saleStart, saleEnd,
+    totalSupply,
   ]);
 
   const tx7 = await saleFactory.deploySale(tokenAddr, initData, { gasLimit: 3_000_000 });
@@ -293,14 +296,21 @@ async function main() {
   // For 6-decimal token at 1 USDC per token:
   //   amount=200e6, pricePerToken=1e18 → tokensToAllocate=200e6 (correct for 6-dec token)
   // allocation must also be in raw token units (6 dec)
-  const now = Math.floor(Date.now() / 1000);
+  // Approve sale (admin) before issuer activates — round 5 two-step activation
+  // (Simplified: in this test the admin == factory owner. Skip if already approved.)
+  // const adminWallet = ...; await sale.connect(adminWallet).approveSale();
+
+  const phaseStart = saleStart + 30;          // 30s after sale start
+  const phaseEnd = phaseStart + 86400;
   await (await sale.addPhase(
     "Public Sale",
-    ethers.parseUnits("1", 18),     // 1 USDC per token
-    ethers.parseUnits("10000", 6),  // 10K allocation in token units (6 dec)
-    ethers.parseUnits("10", 6),     // min 10 USDC
-    ethers.parseUnits("5000", 6),   // max 5K USDC
-    now + 15, now + 86400, false,
+    ethers.parseUnits("1", 18),                  // 1 USDC per token
+    ethers.parseUnits("10000", 6),               // 10K allocation in token units (6 dec)
+    ethers.parseUnits("10", 6),                  // min 10 USDC (first-time)
+    ethers.parseUnits("5000", 6),                // max 5K USDC per investor
+    ethers.parseUnits("1000", 6),                // topUpMin (must be ≥ TOP_UP_MIN_FLOOR = 1000 USDC)
+    phaseStart, phaseEnd, false,
+    0,                                            // AllocationMode.Fixed
   )).wait();
   log("7", "Phase added: 1 USDC/token, 10K allocation");
 
@@ -315,15 +325,17 @@ async function main() {
   log("7", "Transferred 10,000 eTST to sale");
 
   // ════════════════════════════════════════════
-  // STEP 8: Admin Activates Sale
+  // STEP 8: Round-5 — Admin approves, Issuer activates
   // ════════════════════════════════════════════
-  console.log("\n=== Step 8: Admin Activates Sale ===");
+  console.log("\n=== Step 8: Admin approves + Issuer activates ===");
   const saleAdmin = new ethers.Contract(saleAddr, SALE_ABI, admin);
-  await (await saleAdmin.activate()).wait();
+  await (await saleAdmin.approveSale()).wait();
+  log("8", "Admin approved sale");
+  await (await sale.activate()).wait(); // issuer signs
   log("8", `Sale activated! Status: ${await sale.status()}`);
 
   // Wait for phase start
-  const wait1 = (now + 15) - Math.floor(Date.now() / 1000) + 5;
+  const wait1 = phaseStart - Math.floor(Date.now() / 1000) + 5;
   if (wait1 > 0) {
     log("8", `Waiting ${wait1}s for phase start...`);
     await new Promise(r => setTimeout(r, wait1 * 1000));
@@ -414,6 +426,7 @@ async function main() {
     200, 0,
     ethers.ZeroAddress, // no OTC for vested
     saleStart, saleEnd,
+    ethers.parseUnits("50000", 6), // total supply 50k tokens
   ]);
 
   try {
@@ -448,21 +461,26 @@ async function main() {
     log("12", "Whitelisted sale/vault/fraction contracts");
 
     // Add phase
-    const now2 = Math.floor(Date.now() / 1000);
+    const phaseStart2 = saleStart + 30;
+    const phaseEnd2 = phaseStart2 + 86400;
     await (await vestedSale.addPhase(
       "Vested Round",
-      ethers.parseUnits("1", 18),    // 1 USDC per token
-      ethers.parseUnits("5000", 6),  // 5K allocation (6 dec)
-      ethers.parseUnits("10", 6),    // min 10 USDC
-      ethers.parseUnits("5000", 6),  // max 5K USDC
-      now2 + 10, now2 + 86400, false,
+      ethers.parseUnits("1", 18),     // 1 USDC per token
+      ethers.parseUnits("5000", 6),   // 5K allocation (6 dec)
+      ethers.parseUnits("10", 6),     // min 10 USDC (first-time)
+      ethers.parseUnits("5000", 6),   // max 5K USDC
+      ethers.parseUnits("1000", 6),   // topUpMin
+      phaseStart2, phaseEnd2, false,
+      0, // AllocationMode.Fixed
     )).wait();
     log("12", "Phase added");
 
-    // Admin activates
+    // Round-5: admin approves, then issuer activates
     const vestedSaleAdmin = new ethers.Contract(vestedSaleAddr, SALE_ABI, admin);
-    await (await vestedSaleAdmin.activate()).wait();
-    log("12", "Vested sale activated");
+    await (await vestedSaleAdmin.approveSale()).wait();
+    log("12", "Admin approved");
+    await (await vestedSale.activate()).wait(); // issuer
+    log("12", "Issuer activated");
 
     // Wait for phase
     const wait2 = (now2 + 5) - Math.floor(Date.now() / 1000) + 3;

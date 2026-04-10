@@ -35,6 +35,14 @@ class Contribution(BaseModel):
         PG_UUID(as_uuid=True), ForeignKey("sale_phases.id", ondelete="CASCADE"), index=True
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18))
+    # Round-5: split USDC and OTC contribution amounts. Refund eligibility is
+    # determined by usdc_amount only — OTC refunds are off-chain.
+    usdc_amount: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=18), default=Decimal("0")
+    )
+    otc_amount: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=18), default=Decimal("0")
+    )
     tokens_allocated: Mapped[Decimal] = mapped_column(Numeric(precision=78, scale=18))
     tx_hash: Mapped[str] = mapped_column(String(66), unique=True, index=True)
     status: Mapped[ContributionStatus] = mapped_column(

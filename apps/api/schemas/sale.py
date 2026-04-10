@@ -11,29 +11,33 @@ class SalePhaseCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100)
     price_per_token: Decimal = Field(..., gt=0)
-    allocation: Decimal = Field(..., gt=0)
+    allocation: Decimal = Field(..., ge=0)  # Round-5: 0 allowed for "remaining" mode
     # Required > 0. Setting min_contribution = 0 disables the first-time-buyer
     # floor on-chain entirely and is almost always a configuration mistake.
     # Mirrored by the Sale.addPhase() ZeroMinContribution() revert.
     min_contribution: Decimal = Field(..., gt=0)
     max_contribution: Decimal = Field(default=Decimal("0"))  # 0 = unlimited
+    # Round-5: minimum top-up for repeat buyers — contract enforces ≥ 1000 USDC.
+    top_up_min: Decimal = Field(..., ge=Decimal("1000"))
     start_time: datetime
     end_time: datetime
     whitelist_only: bool = False
+    # Round-5: per-phase allocation strategy. "fixed" or "remaining".
+    allocation_mode: str = Field(default="fixed", pattern="^(fixed|remaining)$")
 
     @model_validator(mode="after")
     def validate_phase(self) -> "SalePhaseCreate":
-        # end_time must be after start_time
         if self.end_time <= self.start_time:
             raise ValueError("Phase end_time must be after start_time")
-        # end_time must be in the future (phase can't already be over at create time)
         if self.end_time.tzinfo and self.end_time <= datetime.now(timezone.utc):
             raise ValueError("Phase end_time must be in the future")
-        # min_contribution <= max_contribution (when max > 0)
         if self.max_contribution > 0 and self.min_contribution > self.max_contribution:
             raise ValueError(
                 "Phase min_contribution cannot exceed max_contribution"
             )
+        # Round-5: Fixed mode requires allocation > 0
+        if self.allocation_mode == "fixed" and self.allocation <= 0:
+            raise ValueError("Fixed allocation_mode requires allocation > 0")
         return self
 
 
@@ -68,6 +72,11 @@ class SaleCreateRequest(BaseModel):
     payment_token: str = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     soft_cap: Decimal = Field(default=Decimal("0"), ge=0)
     hard_cap: Decimal = Field(default=Decimal("0"), ge=0)
+    # Round-5: explicit total token supply (token-decimal units)
+    total_token_supply: Decimal = Field(default=Decimal("0"), ge=0)
+    # Round-5: sale window. sale_end_time = None → open-ended sale.
+    sale_start_time: datetime | None = None
+    sale_end_time: datetime | None = None
     # Phases (Step 5, optional for coming soon)
     phases: list[SalePhaseCreate] = Field(default_factory=list)
 

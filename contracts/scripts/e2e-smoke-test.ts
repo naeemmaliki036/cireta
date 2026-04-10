@@ -195,7 +195,7 @@ async function main() {
       const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy");
 
       const saleInitAbi = new ethers.Interface([
-        "function initialize(address _token, address _paymentToken, address _identityRegistry, address _issuer, address _factory, address _feeManager, uint256 _softCap, uint256 _hardCap, uint256 _feeBasisPoints, uint256 _feeCapUsdc, address _otcToken, uint256 _saleStartTime, uint256 _saleEndTime)",
+        "function initialize(address _token, address _paymentToken, address _identityRegistry, address _issuer, address _factory, address _feeManager, uint256 _softCap, uint256 _hardCap, uint256 _feeBasisPoints, uint256 _feeCapUsdc, address _otcToken, uint256 _saleStartTime, uint256 _saleEndTime, uint256 _totalTokenSupply)",
       ]);
 
       const softCap = ethers.parseUnits("10", 6);
@@ -218,6 +218,7 @@ async function main() {
         ethers.ZeroAddress,
         BigInt(saleStart),
         BigInt(saleEnd),
+        ethers.parseUnits("1000", 6), // totalTokenSupply
       ]);
 
       await wait(3000);
@@ -298,16 +299,17 @@ async function main() {
   } else {
     try {
       const saleAbi = [
-        "function addPhase(string name, uint256 pricePerToken, uint256 allocation, uint256 minContribution, uint256 maxContribution, uint256 startTime, uint256 endTime, bool whitelistOnly) external",
+        "function addPhase(string name, uint256 pricePerToken, uint256 allocation, uint256 minContribution, uint256 maxContribution, uint256 topUpMin, uint256 startTime, uint256 endTime, bool whitelistOnly, uint8 allocationMode) external",
+        "function approveSale() external",
         "function activate() external",
-        "function contribute(uint256 phaseId, uint256 amount) external",
-        "function getContribution(address) view returns (tuple(uint256 amount, uint256 tokensAllocated, bool claimed, bool refunded, bool isOtc))",
+        "function buy(uint256 phaseId, uint256 amount) external",
+        "function getContribution(address) view returns (tuple(uint256 amount, uint256 tokensAllocated, bool claimed, bool refunded))",
         "function totalRaised() view returns (uint256)",
         "function getPhaseCount() view returns (uint256)",
       ];
       const sale = new ethers.Contract(saleAddress, saleAbi, deployer);
 
-      // Add phase
+      // Add phase (round 5)
       const now = Math.floor(Date.now() / 1000);
       await wait(3000);
       console.log(`  Adding 'Seed' phase (nonce ${nonce})...`);
@@ -317,9 +319,11 @@ async function main() {
         ethers.parseUnits("1000", 18),
         ethers.parseUnits("1", 6),
         ethers.parseUnits("100", 6),
-        now - 120,
+        ethers.parseUnits("1000", 6), // topUpMin
+        now + 30,                      // start in future (round-5 PhaseInPast check)
         now + 86400 * 30,
         false,
+        0, // AllocationMode.Fixed
         { gasLimit: 500_000, nonce: nonce++ }
       );
       await addTx.wait();

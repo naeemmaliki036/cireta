@@ -70,6 +70,19 @@ class SalePhase(BaseModel):
         default=Decimal("0"),  # 0 = unlimited
     )
 
+    # Round-5: minimum top-up for repeat buyers (USDC raw, ≥ 1000 USDC contract floor).
+    top_up_min: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=18),
+        default=Decimal("1000"),  # human units; backend normalizes to raw
+    )
+
+    # Round-5: per-phase allocation strategy. "fixed" = phase has its own cap;
+    # "remaining" = phase can sell any unsold tokens up to totalTokenSupply.
+    allocation_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="fixed",
+    )
+
     start_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
     )

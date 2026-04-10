@@ -99,7 +99,7 @@ async function main() {
   console.log("\nAttempting deploySaleVested...");
 
   const SALE_INIT_ABI = [
-    "function initialize(address, address, address, address, address, address, uint256, uint256, uint256, uint256, address, uint256, uint256) external",
+    "function initialize(address, address, address, address, address, address, uint256, uint256, uint256, uint256, address, uint256, uint256, uint256) external",
   ];
   const saleIface = new ethers.Interface(SALE_INIT_ABI);
   const usdcAddr = addr.ciretaUSDC;
@@ -115,6 +115,7 @@ async function main() {
     200, 0,                       // feeBps, feeCap
     ethers.ZeroAddress,           // no OTC
     saleStart, saleEnd,
+    ethers.parseUnits("50000", 6), // totalTokenSupply
   ]);
 
   const saleFactoryIssuer = new ethers.Contract(addr.saleFactory, [
@@ -166,12 +167,13 @@ async function main() {
     "function vault() view returns (address)",
     "function fractionToken() view returns (address)",
     "function status() view returns (uint8)",
-    "function addPhase(string, uint256, uint256, uint256, uint256, uint256, uint256, bool) external",
+    "function addPhase(string, uint256, uint256, uint256, uint256, uint256, uint256, uint256, bool, uint8) external",
+    "function approveSale() external",
     "function activate() external",
     "function buy(uint256, uint256) external",
     "function finalizeSale() external",
     "function depositProjectTokens(uint256) external",
-    "function getContribution(address) view returns (tuple(uint256, uint256, bool, bool, bool))",
+    "function getContribution(address) view returns (tuple(uint256, uint256, bool, bool))",
   ], issuer);
 
   console.log("Mode:", await vestedSale.saleMode(), "(1=Vested)");
@@ -189,24 +191,28 @@ async function main() {
   console.log("Whitelisted sale/vault/fraction contracts");
 
   // Add phase
-  const now = Math.floor(Date.now() / 1000);
+  const phaseStart = saleStart + 30;
+  const phaseEnd = phaseStart + 86400;
   await (await vestedSale.addPhase(
     "Vested Round",
     ethers.parseUnits("1", 18),
     ethers.parseUnits("5000", 6),
     ethers.parseUnits("10", 6),
     ethers.parseUnits("5000", 6),
-    now + 10, now + 86400, false,
+    ethers.parseUnits("1000", 6), // topUpMin
+    phaseStart, phaseEnd, false,
+    0, // AllocationMode.Fixed
   )).wait();
   console.log("Phase added");
 
-  // Admin activates
-  const vestedSaleAdmin = new ethers.Contract(vestedSaleAddr, ["function activate() external"], admin);
-  await (await vestedSaleAdmin.activate()).wait();
+  // Round-5: admin approves, then issuer activates
+  const vestedSaleAdmin = new ethers.Contract(vestedSaleAddr, ["function approveSale() external"], admin);
+  await (await vestedSaleAdmin.approveSale()).wait();
+  await (await vestedSale.activate()).wait();
   console.log("Activated");
 
   // Wait
-  const wait = (now + 10) - Math.floor(Date.now() / 1000) + 3;
+  const wait = phaseStart - Math.floor(Date.now() / 1000) + 3;
   if (wait > 0) { console.log(`Waiting ${wait}s...`); await new Promise(r => setTimeout(r, wait * 1000)); }
 
   // Investor buys

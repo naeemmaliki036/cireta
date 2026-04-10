@@ -49,6 +49,7 @@ async function main() {
     softCap, hardCap, 250, 0,
     ethers.ZeroAddress, // no OTC
     saleStart, saleEnd,
+    ethers.parseUnits("10000", 18), // totalTokenSupply
   ]);
   
   console.log("\nSimulating deploySaleVested...");

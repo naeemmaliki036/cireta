@@ -398,19 +398,35 @@ async def deploy_sale(
     soft = int(sale.soft_cap * 10**6)
     hard = int(sale.hard_cap * 10**6)
 
-    # Sale window is derived from the configured phases. The contract enforces
-    # that every phase added later must fall inside [saleStartTime, saleEndTime].
-    if not sale.phases:
+    # Round-5: total token supply is now an explicit field on the sale.
+    if sale.total_token_supply <= 0:
         raise HTTPException(
             status_code=400,
             detail={
-                "code": "NO_PHASES",
-                "message": "Sale must have at least one phase configured before deployment.",
+                "code": "ZERO_TOKEN_SUPPLY",
+                "message": "Sale total_token_supply must be greater than zero.",
             },
         )
-    sorted_phases = sorted(sale.phases, key=lambda p: p.start_time)
-    sale_start_ts = int(sorted_phases[0].start_time.timestamp())
-    sale_end_ts = int(max(p.end_time for p in sale.phases).timestamp())
+    # Project token decimals — assume 6 if not on the token row, otherwise use it
+    project_decimals = getattr(sale.token, "decimals", 18) or 18
+    total_supply_raw = int(sale.total_token_supply * (10 ** project_decimals))
+
+    # Round-5: sale_end_time = NULL → open-ended (encoded as 0 on-chain).
+    # sale_start_time defaults to "now + 60s" if not set.
+    from datetime import datetime, timezone, timedelta
+    if sale.sale_start_time:
+        sale_start_ts = int(sale.sale_start_time.timestamp())
+    else:
+        sale_start_ts = int((datetime.now(timezone.utc) + timedelta(seconds=60)).timestamp())
+    sale_end_ts = int(sale.sale_end_time.timestamp()) if sale.sale_end_time else 0
+
+    # If phases exist, derive a sane window from them when not explicitly set.
+    if sale.phases:
+        sorted_phases = sorted(sale.phases, key=lambda p: p.start_time)
+        if not sale.sale_start_time:
+            sale_start_ts = int(sorted_phases[0].start_time.timestamp())
+        if not sale.sale_end_time and not sale.is_open_ended:
+            sale_end_ts = int(max(p.end_time for p in sale.phases).timestamp())
 
     mode = sale.sale_mode.value if hasattr(sale.sale_mode, 'value') else str(sale.sale_mode)
     if mode == "vested":
@@ -427,6 +443,7 @@ async def deploy_sale(
             fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
             sale_start_time=sale_start_ts,
             sale_end_time=sale_end_ts,
+            total_token_supply=total_supply_raw,
             fraction_name=f"c{sale.token.symbol}",
             fraction_symbol=f"c{sale.token.symbol}",
             cliff_duration=request.cliff_duration if hasattr(request, 'cliff_duration') else 0,
@@ -442,12 +459,14 @@ async def deploy_sale(
             identity_registry=identity_reg,
             issuer_wallet=issuer_addr,
             fee_manager=fee_mgr,
+            sale_factory_address=_settings.sale_factory_address or web3_sale.tx_svc._account.address,
             soft_cap=soft,
             hard_cap=hard,
             fee_basis_points=request.fee_basis_points,
             fee_cap_usdc=int(request.fee_cap_usdc * 10**6),
             sale_start_time=sale_start_ts,
             sale_end_time=sale_end_ts,
+            total_token_supply=total_supply_raw,
         )
 
     # Persist sale address to DB
@@ -566,9 +585,13 @@ class PhaseCreateRequest(BaseModel):
     allocation: str
     min_contribution: str  # required, must parse to Decimal > 0 — see add_phase()
     max_contribution: str = "0"
+    # Round-5: per-phase min top-up for repeat buyers — must be ≥ 1000 USDC
+    top_up_min: str = "1000"
     start_time: str
     end_time: str
     whitelist_only: bool = False
+    # Round-5: per-phase allocation strategy
+    allocation_mode: str = "fixed"
 
 
 @router.post("/{sale_id}/phases", status_code=201)
@@ -663,6 +686,27 @@ async def add_phase(
                         f"Sale window: {sale_window_start.isoformat()} to {sale_window_end.isoformat()}.",
                     },
                 )
+    # Round-5: top_up_min and allocation_mode validation
+    top_up_min = Decimal(request.top_up_min)
+    if top_up_min < Decimal("1000"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "TOP_UP_BELOW_FLOOR",
+                "message": "Phase top_up_min must be at least 1000 USDC.",
+            },
+        )
+    if request.allocation_mode not in ("fixed", "remaining"):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_ALLOCATION_MODE", "message": "allocation_mode must be 'fixed' or 'remaining'."},
+        )
+    if request.allocation_mode == "fixed" and allocation_dec <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "ZERO_PHASE_ALLOCATION", "message": "Fixed allocation_mode requires allocation > 0."},
+        )
+
     phase = SalePhase()
     phase.sale_id = sale_id
     phase.phase_number = len(sale.phases) + 1
@@ -671,9 +715,15 @@ async def add_phase(
     phase.allocation = allocation_dec
     phase.min_contribution = min_contribution
     phase.max_contribution = max_contribution
+    phase.top_up_min = top_up_min
+    phase.allocation_mode = request.allocation_mode
     phase.start_time = request.start_time
     phase.end_time = request.end_time
     phase.whitelist_only = request.whitelist_only
+
+    # Round-5: update parent sale's lastPhaseAddedAt for inactivity tracking
+    from datetime import datetime as _dt, timezone as _tz
+    sale.last_phase_added_at = _dt.now(_tz.utc)
 
     db.add(phase)
     await db.commit()
@@ -857,6 +907,107 @@ async def finalize_sale(
     """
     sale = await sale_service.finalize_sale(user_id, sale_id)
     return _sale_to_response(sale)
+
+
+# ── Round-5 lifecycle endpoints ─────────────────────────────────────────────
+
+
+@router.post("/{sale_id}/approve", status_code=200)
+async def approve_sale(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Round-5: admin approves a sale (compliance gate). Issuer can then activate.
+
+    Requires: admin role.
+    """
+    from datetime import datetime, timezone
+
+    from apps.api.models.user import User
+
+    # Verify caller is admin
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user or not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=403, detail={"code": "NOT_ADMIN", "message": "Admin role required"})
+
+    sale_result = await db.execute(select(TokenSale).where(TokenSale.id == sale_id))
+    sale = sale_result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+
+    if sale.approved_at is not None:
+        raise HTTPException(status_code=400, detail={"code": "ALREADY_APPROVED", "message": "Sale is already approved"})
+
+    sale.approved_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"sale_id": str(sale_id), "approved_at": sale.approved_at.isoformat()}
+
+
+@router.post("/{sale_id}/unapprove", status_code=200)
+async def unapprove_sale(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Round-5: admin revokes approval before issuer activates. Admin only."""
+    from apps.api.models.user import User
+
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user or not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=403, detail={"code": "NOT_ADMIN", "message": "Admin role required"})
+
+    sale_result = await db.execute(select(TokenSale).where(TokenSale.id == sale_id))
+    sale = sale_result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+
+    if sale.activated_at is not None:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "ALREADY_ACTIVE", "message": "Cannot revoke approval after activation"},
+        )
+
+    sale.approved_at = None
+    await db.commit()
+    return {"sale_id": str(sale_id), "approved": False}
+
+
+@router.post("/{sale_id}/activate-refunds", status_code=200)
+async def activate_refunds(
+    sale_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Round-5: issuer or admin activates the refund window after a failed sale.
+    Mirrors Sale.activateRefunds() on-chain. One-way switch.
+    """
+    from datetime import datetime, timezone
+
+    sale_result = await db.execute(
+        select(TokenSale).options(selectinload(TokenSale.issuer)).where(TokenSale.id == sale_id)
+    )
+    sale = sale_result.scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
+
+    # Authorization: issuer-or-admin
+    is_issuer = sale.issuer.user_id == user_id
+    if not is_issuer:
+        from apps.api.models.user import User
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if not user or not getattr(user, "is_admin", False):
+            raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Issuer or admin only"})
+
+    if sale.refunds_activated_at is not None:
+        raise HTTPException(status_code=400, detail={"code": "ALREADY_ACTIVE", "message": "Refunds already active"})
+
+    sale.refunds_activated_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"sale_id": str(sale_id), "refunds_activated_at": sale.refunds_activated_at.isoformat()}
 
 
 @router.post("/{sale_id}/claim", response_model=list[ContributionResponse])
