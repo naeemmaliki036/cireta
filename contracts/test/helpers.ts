@@ -44,7 +44,7 @@ export async function deployToken(
 ) {
   const TF = await ethers.getContractFactory("CiretaToken");
   const token = (await upgrades.deployProxy(TF, [
-    "Test Token", "TST", 18,
+    "Test Token", "TST", 6,
     await registry.getAddress(),
     await compliance.getAddress(),
     owner,

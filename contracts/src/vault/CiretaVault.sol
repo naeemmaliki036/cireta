@@ -53,8 +53,13 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     // Round-5: identity registry reference for KYC re-verification at claim time
     IIdentityRegistry public identityRegistry;
 
+    // Round-5: running counter of outstanding fractions across BOTH ids,
+    // used by withdrawExcess to compute the issuer's claimable surplus.
+    // Incremented in recordAllocation, decremented in claim.
+    uint256 public totalOutstandingFractions;
+
     /// @dev Reserved storage gap for future upgrades
-    uint256[49] private __gap;
+    uint256[48] private __gap;
 
     // --- Events ---
     event TokensLocked(uint256 amount);
@@ -146,6 +151,7 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         } else {
             revert InvalidId();
         }
+        totalOutstandingFractions += fractionAmount;
     }
 
     /// @notice Mark sale as finalized, start vesting clock for all investors.
@@ -178,31 +184,18 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     }
 
     /// @notice Issuer withdraws excess tokens after all fractions are settled.
+    /// Round-5: uses totalOutstandingFractions counter (tracked across both
+    /// ids in recordAllocation/claim) instead of querying the ERC-1155 supply.
     function withdrawExcess() external onlyIssuer nonReentrant {
         if (!finalized) revert NotFinalized();
 
-        // Total outstanding fractions = id-1 supply + id-2 supply on the ERC-1155
-        uint256 outstandingFractions =
-            _totalIdSupply(fractionToken.ID_USDC()) +
-            _totalIdSupply(fractionToken.ID_OTC());
         uint256 remainingLocked = totalLocked - totalReleased;
-
-        if (remainingLocked <= outstandingFractions) revert NothingToClaim();
-        uint256 excess = remainingLocked - outstandingFractions;
+        if (remainingLocked <= totalOutstandingFractions) revert NothingToClaim();
+        uint256 excess = remainingLocked - totalOutstandingFractions;
 
         totalLocked -= excess;
         projectToken.safeTransfer(issuer, excess);
         emit IssuerExcessWithdrawn(issuer, excess);
-    }
-
-    /// @dev ERC-1155 doesn't expose totalSupply per id by default. We track it
-    /// implicitly by summing investor allocations — for the vault's purposes
-    /// this is "totalLocked - totalReleased" minus whatever the issuer hasn't
-    /// claimed back. For now, return 0 as a conservative placeholder; the
-    /// withdraw check uses totalLocked - totalReleased which is the right
-    /// number for "what's still owed to investors".
-    function _totalIdSupply(uint256 /*id*/) internal pure returns (uint256) {
-        return 0;
     }
 
     // ──────────────────────────────────────────────
@@ -240,6 +233,7 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         iv.claimedUsdc += claimableUsdc;
         iv.claimedOtc  += claimableOtc;
         totalReleased  += total;
+        totalOutstandingFractions -= total;
 
         // Interactions: burn fractions, release project tokens
         if (claimableUsdc > 0) {

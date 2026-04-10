@@ -31,22 +31,22 @@ describe("VestingVault", () => {
     await registerIdentity(infra.registry, vaultAddr);
 
     // Mint tokens to owner and approve vault to pull from owner
-    await token.mint(owner.address, ethers.parseEther("100000"));
-    await token.approve(vaultAddr, ethers.parseEther("100000"));
+    await token.mint(owner.address, ethers.parseUnits("100000", 6));
+    await token.approve(vaultAddr, ethers.parseUnits("100000", 6));
   });
 
   it("owner can create vesting schedule", async () => {
     const now = await time.latest();
     await vault.createSchedule(
       beneficiary.address,
-      ethers.parseEther("10000"),
+      ethers.parseUnits("10000", 6),
       now,           // startTime
       30 * 86400,    // cliffDuration (30 days)
       365 * 86400,   // vestingDuration (1 year)
     );
     const schedule = await vault.getSchedule(beneficiary.address, 0);
     // Schedule struct has totalAmount, claimedAmount, startTime, cliffEnd, vestingEnd, revoked
-    expect(schedule.totalAmount).to.equal(ethers.parseEther("10000"));
+    expect(schedule.totalAmount).to.equal(ethers.parseUnits("10000", 6));
     expect(schedule.claimedAmount).to.equal(0n);
     expect(schedule.revoked).to.be.false;
   });
@@ -55,7 +55,7 @@ describe("VestingVault", () => {
     const now = await time.latest();
     await vault.createSchedule(
       beneficiary.address,
-      ethers.parseEther("10000"),
+      ethers.parseUnits("10000", 6),
       now,           // startTime
       30 * 86400,    // cliffDuration (30 days)
       365 * 86400,   // vestingDuration (1 year)
@@ -70,7 +70,7 @@ describe("VestingVault", () => {
     const cliffDuration = 30 * 86400;
     await vault.createSchedule(
       beneficiary.address,
-      ethers.parseEther("10000"),
+      ethers.parseUnits("10000", 6),
       now,             // startTime
       cliffDuration,   // cliffDuration
       365 * 86400,     // vestingDuration

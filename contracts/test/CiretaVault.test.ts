@@ -35,7 +35,7 @@ describe("CiretaVault", () => {
     projectToken = await ERC20.deploy("Wassa Gold", "WMAU", 18);
 
     // Deploy CiretaFractionToken
-    const FractionToken = await ethers.getContractFactory("CiretaFractionToken");
+    const FractionToken = await ethers.getContractFactory("CiretaFractionToken1155");
     fractionToken = await upgrades.deployProxy(
       FractionToken,
       [
@@ -55,6 +55,7 @@ describe("CiretaVault", () => {
       [
         await projectToken.getAddress(),
         await fractionToken.getAddress(),
+        await mockRegistry.getAddress(),
         CLIFF,
         VESTING,
         saleAccount.address,
@@ -90,6 +91,7 @@ describe("CiretaVault", () => {
       await expect(
         upgrades.deployProxy(Vault, [
           ethers.ZeroAddress, await fractionToken.getAddress(),
+          await mockRegistry.getAddress(),
           CLIFF, VESTING, saleAccount.address, issuerAccount.address, 0, owner.address,
         ], { unsafeAllow: ["constructor"] }),
       ).to.be.revertedWithCustomError(Vault, "ZeroAddress");
@@ -117,20 +119,20 @@ describe("CiretaVault", () => {
   describe("recordAllocation", () => {
     it("tracks investor fractions", async () => {
       const amount = ethers.parseEther("100");
-      await vault.connect(saleAccount).recordAllocation(investor1.address, amount);
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, amount);
       const vesting = await vault.investorVesting(investor1.address);
-      expect(vesting.totalFractions).to.equal(amount);
+      expect(vesting.totalUsdcFractions).to.equal(amount);
     });
 
     it("accumulates multiple allocations", async () => {
-      await vault.connect(saleAccount).recordAllocation(investor1.address, ethers.parseEther("50"));
-      await vault.connect(saleAccount).recordAllocation(investor1.address, ethers.parseEther("30"));
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("50"));
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("30"));
       const vesting = await vault.investorVesting(investor1.address);
-      expect(vesting.totalFractions).to.equal(ethers.parseEther("80"));
+      expect(vesting.totalUsdcFractions).to.equal(ethers.parseEther("80"));
     });
 
     it("reverts if not sale", async () => {
-      await expect(vault.connect(other).recordAllocation(investor1.address, 100))
+      await expect(vault.connect(other).recordAllocation(investor1.address, 1, 100))
         .to.be.revertedWithCustomError(vault, "OnlySale");
     });
   });
@@ -161,8 +163,8 @@ describe("CiretaVault", () => {
     beforeEach(async () => {
       // Deposit, allocate, mint fractions, start vesting
       await vault.connect(saleAccount).depositTokens(TOKENS_LOCKED);
-      await vault.connect(saleAccount).recordAllocation(investor1.address, INVESTOR_AMOUNT);
-      await fractionToken.connect(saleAccount).mint(investor1.address, INVESTOR_AMOUNT);
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, INVESTOR_AMOUNT);
+      await fractionToken.connect(saleAccount).mint(investor1.address, 1, INVESTOR_AMOUNT, '0x');
       await vault.connect(saleAccount).startVesting();
     });
 
@@ -171,6 +173,7 @@ describe("CiretaVault", () => {
       const Vault = await ethers.getContractFactory("CiretaVault");
       const freshVault = await upgrades.deployProxy(Vault, [
         await projectToken.getAddress(), await fractionToken.getAddress(),
+        await mockRegistry.getAddress(),
         CLIFF, VESTING, saleAccount.address, issuerAccount.address, 0, owner.address,
       ], { unsafeAllow: ["constructor"] });
       await expect(freshVault.connect(investor1).claim())
@@ -194,7 +197,7 @@ describe("CiretaVault", () => {
       expect(claimed).to.be.gt(0);
       expect(claimed).to.be.lt(INVESTOR_AMOUNT);
       // Fraction balance reduced by what was claimed
-      expect(await fractionToken.balanceOf(investor1.address)).to.equal(INVESTOR_AMOUNT - claimed);
+      expect(await fractionToken.balanceOf(investor1.address, 1)).to.equal(INVESTOR_AMOUNT - claimed);
     });
 
     it("allows full claim after vesting period", async () => {
@@ -208,7 +211,7 @@ describe("CiretaVault", () => {
         .withArgs(investor1.address, INVESTOR_AMOUNT, INVESTOR_AMOUNT);
 
       expect(await projectToken.balanceOf(investor1.address)).to.equal(INVESTOR_AMOUNT);
-      expect(await fractionToken.balanceOf(investor1.address)).to.equal(0);
+      expect(await fractionToken.balanceOf(investor1.address, 1)).to.equal(0);
     });
 
     it("allows multiple partial claims", async () => {
@@ -298,8 +301,8 @@ describe("CiretaVault", () => {
 
     beforeEach(async () => {
       await vault.connect(saleAccount).depositTokens(TOKENS_LOCKED);
-      await vault.connect(saleAccount).recordAllocation(investor1.address, INVESTOR_AMOUNT);
-      await fractionToken.connect(saleAccount).mint(investor1.address, INVESTOR_AMOUNT);
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, INVESTOR_AMOUNT);
+      await fractionToken.connect(saleAccount).mint(investor1.address, 1, INVESTOR_AMOUNT, '0x');
       await vault.connect(saleAccount).startVesting();
     });
 
@@ -316,6 +319,7 @@ describe("CiretaVault", () => {
       const Vault = await ethers.getContractFactory("CiretaVault");
       const freshVault = await upgrades.deployProxy(Vault, [
         await projectToken.getAddress(), await fractionToken.getAddress(),
+        await mockRegistry.getAddress(),
         CLIFF, VESTING, saleAccount.address, issuerAccount.address, 0, owner.address,
       ], { unsafeAllow: ["constructor"] });
       await expect(freshVault.connect(issuerAccount).withdrawExcess())
@@ -330,8 +334,8 @@ describe("CiretaVault", () => {
     it("reverts when no excess (all tokens allocated)", async () => {
       // Allocate the remaining 900 to investor2
       const remaining = ethers.parseEther("900");
-      await vault.connect(saleAccount).recordAllocation(investor2.address, remaining);
-      await fractionToken.connect(saleAccount).mint(investor2.address, remaining);
+      await vault.connect(saleAccount).recordAllocation(investor2.address, 1, remaining);
+      await fractionToken.connect(saleAccount).mint(investor2.address, 1, remaining, '0x');
 
       await expect(vault.connect(issuerAccount).withdrawExcess())
         .to.be.revertedWithCustomError(vault, "NothingToClaim");
@@ -343,6 +347,7 @@ describe("CiretaVault", () => {
       const Vault = await ethers.getContractFactory("CiretaVault");
       const freshVault = await upgrades.deployProxy(Vault, [
         await projectToken.getAddress(), ethers.ZeroAddress,
+        await mockRegistry.getAddress(),
         CLIFF, VESTING, saleAccount.address, issuerAccount.address, 0, owner.address,
       ], { unsafeAllow: ["constructor"] });
 
@@ -359,6 +364,7 @@ describe("CiretaVault", () => {
       const Vault = await ethers.getContractFactory("CiretaVault");
       const freshVault = await upgrades.deployProxy(Vault, [
         await projectToken.getAddress(), ethers.ZeroAddress,
+        await mockRegistry.getAddress(),
         CLIFF, VESTING, saleAccount.address, issuerAccount.address, 0, owner.address,
       ], { unsafeAllow: ["constructor"] });
       await expect(freshVault.setFractionToken(ethers.ZeroAddress))
@@ -366,18 +372,14 @@ describe("CiretaVault", () => {
     });
   });
 
-  describe("getBackingRatio", () => {
-    it("returns correct ratio", async () => {
-      await vault.connect(saleAccount).depositTokens(TOKENS_LOCKED);
-      const [locked, supply] = await vault.getBackingRatio();
-      expect(locked).to.equal(TOKENS_LOCKED);
-      expect(supply).to.equal(0); // No fractions minted yet
-    });
-  });
+  // Round-5: getBackingRatio removed (relied on ERC-20 totalSupply, but the
+  // round-5 ERC-1155 fraction token doesn't expose a per-id totalSupply).
+  // The off-chain indexer / admin UI now compute backing from totalLocked vs
+  // totalReleased + outstanding fractions per id directly.
 
   describe("getVested", () => {
     it("returns 0 before finalization", async () => {
-      await vault.connect(saleAccount).recordAllocation(investor1.address, ethers.parseEther("100"));
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("100"));
       expect(await vault.getVested(investor1.address)).to.equal(0);
     });
   });

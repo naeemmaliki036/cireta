@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import type { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("CiretaSaleFactory", () => {
@@ -24,23 +25,26 @@ describe("CiretaSaleFactory", () => {
   const FEE_CAP = ethers.parseUnits("50000", 6);
 
   /**
-   * Encode Sale.initialize() calldata.
-   * New signature: (token, paymentToken, identityRegistry, issuer, admin, feeManager, softCap, hardCap, feeBps, feeCap)
+   * Encode Sale.initialize() calldata — round 5 (14 args).
+   * Signature: (token, paymentToken, identityRegistry, issuer, factory, feeManager,
+   *             softCap, hardCap, feeBps, feeCap, otcToken, saleStartTime, saleEndTime, totalTokenSupply)
    */
-  /**
-   * Encode Sale.initialize() calldata.
-   * Signature: (token, paymentToken, identityRegistry, issuer, factory, feeManager, softCap, hardCap, feeBps, feeCap)
-   */
-  function encodeSaleInit(
+  async function encodeSaleInit(
     token: string, paymentToken: string, registry: string,
     iss: string, factoryAddr: string, fm: string,
     soft: bigint, hard: bigint, feeBps?: bigint,
   ) {
     const iface = new ethers.Interface([
-      "function initialize(address,address,address,address,address,address,uint256,uint256,uint256,uint256)",
+      "function initialize(address,address,address,address,address,address,uint256,uint256,uint256,uint256,address,uint256,uint256,uint256)",
     ]);
+    const now = await time.latest();
     return iface.encodeFunctionData("initialize", [
-      token, paymentToken, registry, iss, factoryAddr, fm, soft, hard, feeBps ?? FEE_BPS, FEE_CAP,
+      token, paymentToken, registry, iss, factoryAddr, fm,
+      soft, hard, feeBps ?? FEE_BPS, FEE_CAP,
+      ethers.ZeroAddress,                 // otcToken (none)
+      now + 60,                            // saleStartTime
+      now + 30 * 24 * 3600,                // saleEndTime
+      ethers.parseUnits("100000", 6),      // totalTokenSupply
     ]);
   }
 
@@ -75,7 +79,7 @@ describe("CiretaSaleFactory", () => {
     // Deploy implementations
     const SaleContract = await ethers.getContractFactory("Sale");
     saleImpl = await SaleContract.deploy();
-    const FT = await ethers.getContractFactory("CiretaFractionToken");
+    const FT = await ethers.getContractFactory("CiretaFractionToken1155");
     fractionImpl = await FT.deploy();
     const V = await ethers.getContractFactory("CiretaVault");
     vaultImpl = await V.deploy();
@@ -105,7 +109,7 @@ describe("CiretaSaleFactory", () => {
 
   describe("deploySale (Direct mode — issuer-initiated)", () => {
     it("active issuer deploys a Direct mode sale", async () => {
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -137,7 +141,7 @@ describe("CiretaSaleFactory", () => {
     });
 
     it("emits SaleDeployed event", async () => {
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -149,7 +153,7 @@ describe("CiretaSaleFactory", () => {
     });
 
     it("reverts when called by non-issuer", async () => {
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), other.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -162,7 +166,7 @@ describe("CiretaSaleFactory", () => {
 
     it("reverts when issuer mismatch in initData", async () => {
       // initData encodes other.address as issuer, but msg.sender is issuer
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), other.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -175,7 +179,7 @@ describe("CiretaSaleFactory", () => {
 
     it("reverts when factory mismatch in initData", async () => {
       // initData encodes other.address as factory, but should be saleFactory address
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, other.address,
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -188,7 +192,7 @@ describe("CiretaSaleFactory", () => {
 
     it("reverts when fee mismatch", async () => {
       // initData encodes 0 fee, but PlatformFeeManager says 250
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP, 0n,
@@ -203,7 +207,7 @@ describe("CiretaSaleFactory", () => {
   describe("deploySaleVested (issuer-initiated)", () => {
     it("deploys a Vested mode sale with vault and fraction token", async () => {
       // For vested mode, factory must be admin in initData to call setVestedMode
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address,
         await saleFactory.getAddress(), // factory as temporary admin
@@ -253,7 +257,7 @@ describe("CiretaSaleFactory", () => {
       );
       await sfNoFF.setIssuerRegistry(await issuerRegistry.getAddress());
 
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address,
         await sfNoFF.getAddress(),
@@ -273,7 +277,7 @@ describe("CiretaSaleFactory", () => {
     let sale: any;
 
     beforeEach(async () => {
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -283,29 +287,55 @@ describe("CiretaSaleFactory", () => {
       sale = await ethers.getContractAt("Sale", sales[0]);
     });
 
-    it("admin can activate", async () => {
-      await sale.connect(admin).activate();
+    it("issuer can activate after admin approves (round-5 two-step)", async () => {
+      // Round-5: requires phases first
+      const now2 = await time.latest();
+      await sale.connect(issuer).addPhase(
+        "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
+        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        now2 + 60, now2 + 86400, false, 0,
+      );
+      // Direct mode: deposit tokens before activate
+      await mockToken.mint(await sale.getAddress(), ethers.parseUnits("100", 18));
+      await sale.connect(admin).approveSale();
+      await sale.connect(issuer).activate();
       expect(await sale.status()).to.equal(1); // Active
     });
 
-    it("issuer cannot activate", async () => {
-      await expect(sale.connect(issuer).activate()).to.be.revertedWithCustomError(sale, "NotAdmin");
+    it("admin cannot activate (round-5: only issuer)", async () => {
+      await sale.connect(admin).approveSale();
+      await expect(sale.connect(admin).activate()).to.be.revertedWithCustomError(sale, "NotIssuer");
     });
 
-    it("issuer can add phases", async () => {
-      const now = Math.floor(Date.now() / 1000);
-      await sale.connect(issuer).addPhase("Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000000", 18), 0, 0, now, now + 86400, false);
+    it("issuer can add phases (round-5 10-arg signature)", async () => {
+      const now = await time.latest();
+      await sale.connect(issuer).addPhase(
+        "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
+        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        now + 60, now + 86400, false, 0,
+      );
       expect(await sale.getPhaseCount()).to.equal(1);
     });
 
     it("admin cannot add phases", async () => {
-      const now = Math.floor(Date.now() / 1000);
-      await expect(sale.connect(admin).addPhase("Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000000", 18), 0, 0, now, now + 86400, false))
-        .to.be.revertedWithCustomError(sale, "NotIssuer");
+      const now = await time.latest();
+      await expect(sale.connect(admin).addPhase(
+        "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
+        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        now + 60, now + 86400, false, 0,
+      )).to.be.revertedWithCustomError(sale, "NotIssuer");
     });
 
     it("both can pause, only admin can unpause", async () => {
-      await sale.connect(admin).activate();
+      const now3 = await time.latest();
+      await sale.connect(issuer).addPhase(
+        "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
+        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        now3 + 60, now3 + 86400, false, 0,
+      );
+      await mockToken.mint(await sale.getAddress(), ethers.parseUnits("100", 18));
+      await sale.connect(admin).approveSale();
+      await sale.connect(issuer).activate();
 
       // Issuer can pause
       await sale.connect(issuer).pause();
@@ -329,7 +359,7 @@ describe("CiretaSaleFactory", () => {
     let sale: any;
 
     beforeEach(async () => {
-      const initData = encodeSaleInit(
+      const initData = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,
@@ -357,11 +387,19 @@ describe("CiretaSaleFactory", () => {
       // Sale now reflects new admin — no migration needed
       expect(await sale.admin()).to.equal(other.address);
 
-      // Old admin can no longer activate
-      await expect(sale.connect(admin).activate()).to.be.revertedWithCustomError(sale, "NotAdmin");
+      // Old admin can no longer call admin-only functions like approveSale
+      await expect(sale.connect(admin).approveSale()).to.be.revertedWithCustomError(sale, "NotAdmin");
 
-      // New admin can activate
-      await sale.connect(other).activate();
+      // New admin can approve, then issuer activates
+      const now4 = await time.latest();
+      await sale.connect(issuer).addPhase(
+        "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
+        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        now4 + 60, now4 + 86400, false, 0,
+      );
+      await mockToken.mint(await sale.getAddress(), ethers.parseUnits("100", 18));
+      await sale.connect(other).approveSale();
+      await sale.connect(issuer).activate();
       expect(await sale.status()).to.equal(1); // Active
     });
 
@@ -380,7 +418,7 @@ describe("CiretaSaleFactory", () => {
 
     it("multiple sales share the same admin via factory", async () => {
       // Deploy a second sale
-      const initData2 = encodeSaleInit(
+      const initData2 = await encodeSaleInit(
         await mockToken.getAddress(), await mockUsdc.getAddress(),
         await mockRegistry.getAddress(), issuer.address, await saleFactory.getAddress(),
         feeReceiver.address, SOFT_CAP, HARD_CAP,

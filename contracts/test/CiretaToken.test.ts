@@ -9,6 +9,8 @@ describe("CiretaToken", () => {
   let owner: Awaited<ReturnType<typeof ethers.getSigners>>[0];
   let user1: Awaited<ReturnType<typeof ethers.getSigners>>[0];
 
+  const parseToken = (n: string) => ethers.parseUnits(n, 6);
+
   beforeEach(async () => {
     [owner, user1] = await ethers.getSigners();
     const infra = await deployInfra(owner.address);
@@ -22,12 +24,12 @@ describe("CiretaToken", () => {
   it("has correct name and symbol", async () => {
     expect(await token.name()).to.equal("Test Token");
     expect(await token.symbol()).to.equal("TST");
-    expect(await token.decimals()).to.equal(18);
+    expect(await token.decimals()).to.equal(6);
   });
 
   it("owner can mint tokens", async () => {
-    await token.mint(owner.address, ethers.parseEther("1000"));
-    expect(await token.balanceOf(owner.address)).to.equal(ethers.parseEther("1000"));
+    await token.mint(owner.address, parseToken("1000"));
+    expect(await token.balanceOf(owner.address)).to.equal(parseToken("1000"));
   });
 
   it("owner can pause and unpause", async () => {
@@ -38,10 +40,10 @@ describe("CiretaToken", () => {
   });
 
   it("cannot transfer when paused", async () => {
-    await token.mint(owner.address, ethers.parseEther("100"));
+    await token.mint(owner.address, parseToken("100"));
     await token.pause();
     await expect(
-      token.transfer(user1.address, ethers.parseEther("10"))
+      token.transfer(user1.address, parseToken("10"))
     ).to.be.reverted;
   });
 });
