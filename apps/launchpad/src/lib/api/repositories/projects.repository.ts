@@ -32,7 +32,7 @@ export interface Project {
   currentRaised: number;
   targetAmount: number;
   investorCount: number;
-  status: "active" | "upcoming" | "completed" | "paused" | "coming_soon";
+  status: "active" | "upcoming" | "completed" | "paused" | "coming_soon" | "finalized_success" | "finalized_failed" | "finalized" | "failed" | "approved" | "pending_approval" | "rejected";
   tokenSymbol: string;
   description: string;
   fullDescription: string | null;
@@ -114,6 +114,16 @@ export interface SaleRaw {
   cliff_duration_days?: number;
   vesting_duration_days?: number;
   sale_structure?: "phase_allocated" | "price_tiered" | string;
+  // Round-5 fields
+  is_open_ended?: boolean;
+  total_token_supply?: string | null;
+  sale_start_time?: string | null;
+  sale_end_time?: string | null;
+  approved_at?: string | null;
+  activated_at?: string | null;
+  refunds_activated_at?: string | null;
+  finalization_pending?: boolean;
+  sale_mode?: string;
 }
 
 interface SaleListRaw {

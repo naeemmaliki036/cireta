@@ -193,7 +193,19 @@ export default function ProjectDetailPage() {
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
   const fmtUsdc = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M` : n.toLocaleString();
-  const statusColor: Record<string, string> = { active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500", paused: "text-amber-600" };
+  const statusColor: Record<string, string> = {
+    active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500",
+    paused: "text-amber-600", finalized_success: "text-green-600", finalized_failed: "text-red-600",
+    failed: "text-red-600", approved: "text-blue-600", pending_approval: "text-amber-600",
+  };
+  const isOpenEnded = saleRaw?.is_open_ended;
+  const statusLabel = project.isComingSoon ? "Coming Soon"
+    : project.status === "active" && isOpenEnded ? "Active — Open-Ended"
+    : project.status === "finalized_failed" || project.status === "failed"
+      ? saleRaw?.refunds_activated_at ? "Closed — Refund Available" : "Closed — Failed"
+    : project.status === "finalized_success" || project.status === "finalized" ? "Completed"
+    : project.status === "approved" ? "Pending Launch"
+    : project.status;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -265,7 +277,7 @@ export default function ProjectDetailPage() {
                     <div className="flex items-center gap-1.5">
                       <span className={cn("w-2 h-2 rounded-full", project.status === "active" ? "bg-green-500" : project.isComingSoon ? "bg-amber-400" : "bg-gray-400")} />
                       <span className={cn("text-xs font-semibold capitalize", project.isComingSoon ? "text-amber-600" : statusColor[project.status] ?? "text-gray-500")}>
-                        {project.isComingSoon ? "Coming Soon" : project.status}
+                        {statusLabel}
                       </span>
                     </div>
                   </div>
@@ -299,7 +311,13 @@ export default function ProjectDetailPage() {
                   )}
                   {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
                   <div className="space-y-2.5 text-sm mb-4">
-                    {!project.isComingSoon && endTime && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
+                    {!project.isComingSoon && endTime && !isOpenEnded && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
+                    {!project.isComingSoon && isOpenEnded && ap && getPhaseStatus(ap) === "active" && (
+                      <div className="flex justify-between"><span className="text-gray-500">Phase Ends</span><span className="font-medium">{fmtDate(new Date(ap.end_time))}</span></div>
+                    )}
+                    {isOpenEnded && !project.isComingSoon && (
+                      <div className="flex justify-between"><span className="text-gray-500">Sale Type</span><span className="font-medium text-blue-600">Open-Ended</span></div>
+                    )}
                     <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minContrib.toLocaleString()} USDC`}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Max. Allocation</span><span className="font-medium">{project.isComingSoon ? "TBD" : maxContrib > 0 ? `${maxContrib.toLocaleString()} USDC` : "No Limit"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
