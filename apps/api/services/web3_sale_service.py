@@ -206,6 +206,7 @@ class Web3SaleService:
             "amount_raw": event["amount"],
             "tokens_allocated": Decimal(str(event["tokensAllocated"])) / Decimal(10**18),
             "tokens_allocated_raw": event["tokensAllocated"],
+            "is_otc": bool(event.get("isOTC", False)),
             "sale_address": sale_address,
             "block_number": receipt["blockNumber"],
         }

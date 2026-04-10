@@ -263,6 +263,8 @@ class SaleContributeService:
         contribution.tx_hash = tx_hash
         contribution.wallet_address = contrib_wallet
         contribution.status = ContributionStatus.CONFIRMED if on_chain_data else ContributionStatus.PENDING
+        if on_chain_data and on_chain_data.get("is_otc"):
+            contribution.is_otc = True
 
         self.db.add(contribution)
 

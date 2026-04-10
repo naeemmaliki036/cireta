@@ -358,6 +358,7 @@ async def get_transactions(
                     "token_id": sale_token_id,
                     "tx_hash": c.claim_tx_hash if c_type == "claim" else c.tx_hash,
                     "status": c_status,
+                    "is_otc": bool(getattr(c, "is_otc", False)),
                     "created_at": c.created_at.isoformat() if c.created_at else None,
                 }
             )
@@ -391,6 +392,7 @@ async def get_transactions(
                     "token_id": str(r.token_id),
                     "tx_hash": r.tx_hash,
                     "status": r_status,
+                    "is_otc": False,
                     "created_at": r.created_at.isoformat() if r.created_at else None,
                 }
             )

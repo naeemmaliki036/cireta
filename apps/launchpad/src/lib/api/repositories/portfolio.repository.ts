@@ -100,6 +100,7 @@ export interface Transaction {
   token_id: string | null;
   tx_hash: string | null;
   status: string;
+  is_otc?: boolean;
   created_at: string | null;
 }
 

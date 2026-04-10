@@ -617,7 +617,8 @@ export default function ProjectDetailPage() {
                         </thead>
                         <tbody>
                           {txs.map((tx) => {
-                            const isOtc = tx.tx_hash?.startsWith("otc-") ?? false;
+                            const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
+                            const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
                             const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
                             const typeStyle: Record<string, string> = {
                               investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
@@ -648,7 +649,7 @@ export default function ProjectDetailPage() {
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
-                                  {isOtc ? (
+                                  {isOffPlatform ? (
                                     <>
                                       <p className="text-text font-semibold">
                                         {Number(tx.tokens_allocated).toLocaleString()}{" "}
@@ -660,7 +661,7 @@ export default function ProjectDetailPage() {
                                     <>
                                       <p className="text-text font-semibold">
                                         {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
-                                        <span className="text-gray-400 font-normal text-xs">USDC</span>
+                                        <span className="text-gray-400 font-normal text-xs">{isOtc ? "OTC" : "USDC"}</span>
                                       </p>
                                       {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && (
                                         <p className="text-gray-400 text-xs">{Number(tx.tokens_allocated).toLocaleString()} tokens</p>
