@@ -776,14 +776,23 @@ export default function InvestPage() {
                   <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet.</p>
                 </div>
                 {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-                <Button
-                  variant="primary" className="w-full" size="lg"
-                  onClick={handleOtcApprove}
-                  isLoading={isOtcApproving}
-                  disabled={!otcComplianceMet || !otcMetadataReady || isOtcApproving}
-                >
-                  {isOtcApproving ? "Approving..." : `Approve ${otcTokenSymbol}`}
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline" className="flex-1" size="lg"
+                    onClick={() => setStep("amount")}
+                    disabled={isOtcApproving}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="primary" className="flex-1" size="lg"
+                    onClick={handleOtcApprove}
+                    isLoading={isOtcApproving}
+                    disabled={!otcComplianceMet || !otcMetadataReady || isOtcApproving}
+                  >
+                    {isOtcApproving ? "Approving..." : `Approve ${otcTokenSymbol}`}
+                  </Button>
+                </div>
               </>
             )}
 
@@ -854,6 +863,7 @@ export default function InvestPage() {
                 currentAllowance={existingAllowance != null ? Number(formatUnits(existingAllowance as bigint, 6)) : 0}
                 hasEnoughAllowance={hasEnoughAllowance}
                 onSkip={() => setStep("confirm")}
+                onBack={() => setStep("amount")}
               />
             )}
             {paymentMethod === "crypto" && step === "confirm" && (

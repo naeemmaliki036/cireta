@@ -313,6 +313,8 @@ interface InvestApproveStepProps {
   hasEnoughAllowance?: boolean;
   /** Called when user wants to skip approve (allowance already sufficient) */
   onSkip?: () => void;
+  /** Optional back button handler — returns to the amount step */
+  onBack?: () => void;
 }
 
 export function InvestApproveStep({
@@ -323,6 +325,7 @@ export function InvestApproveStep({
   currentAllowance = 0,
   hasEnoughAllowance = false,
   onSkip,
+  onBack,
 }: InvestApproveStepProps) {
   const [complianceMet, setComplianceMet] = useState(false);
 
@@ -365,9 +368,16 @@ export function InvestApproveStep({
         <div className="mb-6">
           <ComplianceAcknowledgment checked={complianceMet} onChange={setComplianceMet} />
           {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-          <Button variant="primary" className="w-full" size="lg" onClick={onSkip} disabled={!complianceMet}>
-            Continue to Purchase
-          </Button>
+          <div className="flex gap-3">
+            {onBack && (
+              <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
+                Back
+              </Button>
+            )}
+            <Button variant="primary" className="flex-1" size="lg" onClick={onSkip} disabled={!complianceMet}>
+              Continue to Purchase
+            </Button>
+          </div>
           <button onClick={onApprove} className="mt-3 text-sm text-black/40 hover:text-black/60 underline block mx-auto">
             Re-approve with new amount
           </button>
@@ -390,9 +400,16 @@ export function InvestApproveStep({
             <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet</p>
           </div>
           {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-          <Button variant="primary" className="w-full" size="lg" onClick={onApprove} isLoading={isLoading} disabled={!complianceMet || isLoading}>
-            {isLoading ? "Approving..." : "Approve USDC"}
-          </Button>
+          <div className="flex gap-3">
+            {onBack && (
+              <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
+                Back
+              </Button>
+            )}
+            <Button variant="primary" className="flex-1" size="lg" onClick={onApprove} isLoading={isLoading} disabled={!complianceMet || isLoading}>
+              {isLoading ? "Approving..." : "Approve USDC"}
+            </Button>
+          </div>
         </>
       )}
     </>
