@@ -1,9 +1,11 @@
 {
   "identityMode": "simple",
   "issuerRegistry": "0x7278011896b1f7Ca51477538afD85225099b6912",
+  "issuerRegistryImplementation": "0xBBC25771B4104C3dC1c535c0e5Bb4A35db13F24d",
+  "simpleIdentityRegistry": "0x390F619D7C7d2e87E674Db36E0FD27a9402B517a",
   "platformFeeManager": "0x1ad2143e752520F8A6ACe8c172Ca67883f476a1f",
   "tokenImplementation": "0x1aeB8A49A3266b328CAbB95537315d12DCBd0355",
-  "simpleIdentityRegistryImplementation": "0x3F36F7f528567Ada31d28092463152f950D37Aa1",
+  "simpleIdentityRegistryImplementation": "0xe19E32fbD567724775abEd5777738677aaF2c823",
   "complianceImplementation": "0x6Ab573e1f83e3731ce2cCd77C3a9086191dD7fdE",
   "saleImplementation": "0x51d759B0E98f4b12E7A18A77e020Cd4a71637183",
   "fractionTokenImplementation": "0xbaB007f497ABf971bE37685fa2F6117F1e1854fC",
