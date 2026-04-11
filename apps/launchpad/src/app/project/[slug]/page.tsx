@@ -181,8 +181,11 @@ export default function ProjectDetailPage() {
     return _now.getTime() >= start && _now.getTime() < end;
   }) ?? project.phases?.[0] ?? null;
   const pricePerToken = ap ? parseFloat(ap.price_per_token) : 0;
-  const minContrib = ap ? parseFloat(ap.min_contribution) : 0;
-  const maxContrib = ap ? parseFloat(ap.max_contribution) : 0;
+  const minTokens = ap ? parseInt(ap.min_tokens || "1", 10) : 1;
+  const maxTokensInvestor = ap ? parseInt(ap.max_tokens || "0", 10) : 0;
+  const totalSupply = project.totalTokenSupply ?? 0;
+  const soldTotal = project.tokensSoldTotal ?? 0;
+  const availableTokens = Math.max(0, totalSupply - soldTotal);
   const startTime = ap?.start_time ? new Date(ap.start_time) : null;
   const endTime = ap?.end_time ? new Date(ap.end_time) : null;
   const hardCap = parseFloat(saleRaw?.hard_cap ?? String(project.targetAmount));
@@ -318,8 +321,11 @@ export default function ProjectDetailPage() {
                     {isOpenEnded && !project.isComingSoon && (
                       <div className="flex justify-between"><span className="text-gray-500">Sale Type</span><span className="font-medium text-blue-600">Open-Ended</span></div>
                     )}
-                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minContrib.toLocaleString()} USDC`}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Max. Allocation</span><span className="font-medium">{project.isComingSoon ? "TBD" : maxContrib > 0 ? `${maxContrib.toLocaleString()} USDC` : "No Limit"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minTokens} ${project.tokenSymbol}`}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Available</span><span className="font-medium">{project.isComingSoon ? "TBD" : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}</span></div>
+                    {maxTokensInvestor > 0 && !project.isComingSoon && (
+                      <div className="flex justify-between"><span className="text-gray-500">Per-investor cap</span><span className="font-medium">{maxTokensInvestor.toLocaleString()} {project.tokenSymbol}</span></div>
+                    )}
                     <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
                   </div>
@@ -610,15 +616,11 @@ export default function ProjectDetailPage() {
                                       )}
                                       <div>
                                         <p className="text-gray-500 text-xs mb-0.5">Min Buy</p>
-                                        <p className="font-semibold">{formatCurrency(parseFloat(phase.min_contribution))}</p>
+                                        <p className="font-semibold">{parseInt(phase.min_tokens || "1", 10)} {project.tokenSymbol}</p>
                                       </div>
                                       <div>
-                                        <p className="text-gray-500 text-xs mb-0.5">Max. Allocation</p>
-                                        <p className="font-semibold">
-                                          {parseFloat(phase.max_contribution) > 0
-                                            ? formatCurrency(parseFloat(phase.max_contribution))
-                                            : "No Limit"}
-                                        </p>
+                                        <p className="text-gray-500 text-xs mb-0.5">Top-Up Min</p>
+                                        <p className="font-semibold">{parseInt(phase.top_up_min_tokens || "1", 10)} {project.tokenSymbol}</p>
                                       </div>
                                     </div>
 

@@ -45,6 +45,9 @@ export interface Project {
   issuer: ProjectIssuer;
   phases: ProjectPhase[];
   contract_address?: string | null;
+  // Whole-token buy metadata
+  totalTokenSupply?: number;
+  tokensSoldTotal?: number;
 }
 
 export interface ProjectFilters {
@@ -163,6 +166,11 @@ function mapSaleToProject(sale: SaleRaw): Project {
     },
     phases: sale.phases ?? [],
     contract_address: sale.contract_address ?? null,
+    totalTokenSupply: sale.total_token_supply ? parseFloat(sale.total_token_supply) : undefined,
+    tokensSoldTotal: (sale.phases ?? []).reduce(
+      (sum: number, p: SalePhaseRaw) => sum + (parseFloat(p.tokens_sold ?? "0") || 0),
+      0,
+    ),
   };
 }
 

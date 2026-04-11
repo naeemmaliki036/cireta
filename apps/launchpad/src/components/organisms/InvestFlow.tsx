@@ -147,7 +147,15 @@ export function InvestAmountStep({
 
   // Minimum applied to THIS buy: first-time uses minTokens, repeat uses topUpMinTokens
   const effectiveMin = isRepeatBuyer ? topUpMinTokens : minTokens;
-  const remainingMax = maxTokens > 0 ? Math.max(0, maxTokens - investorWholeTokens) : Infinity;
+
+  // Available tokens remaining in the whole sale (from total supply)
+  const totalSupply = project.totalTokenSupply ?? 0;
+  const soldTotal = project.tokensSoldTotal ?? 0;
+  const availableTokens = Math.max(0, totalSupply - soldTotal);
+
+  // Effective per-buy ceiling: min of (investor cap, sale remaining supply)
+  const investorMaxRemaining = maxTokens > 0 ? Math.max(0, maxTokens - investorWholeTokens) : Infinity;
+  const remainingMax = Math.min(investorMaxRemaining, availableTokens || Infinity);
 
   // Inline validation error
   let validationError: string | null = null;
@@ -158,9 +166,13 @@ export function InvestAmountStep({
       ? `Top-up minimum is ${topUpMinTokens} tokens`
       : `Minimum is ${minTokens} tokens for first-time buyers`;
   } else if (tokenQty > 0 && tokenQty > remainingMax) {
-    validationError = isFinite(remainingMax)
-      ? `Maximum remaining for your wallet is ${remainingMax} tokens`
-      : `Amount exceeds the maximum`;
+    if (availableTokens > 0 && tokenQty > availableTokens) {
+      validationError = `Only ${availableTokens.toLocaleString()} ${project.tokenSymbol} available`;
+    } else if (maxTokens > 0) {
+      validationError = `Per-investor cap: ${investorMaxRemaining.toLocaleString()} ${project.tokenSymbol} remaining for your wallet`;
+    } else {
+      validationError = `Amount exceeds the maximum`;
+    }
   } else if (tokenQty > 0 && maxPerBlock && usdcRequired > maxPerBlock) {
     validationError = `Per-block USDC limit is ${formatCurrency(maxPerBlock)}. Buy fewer tokens at a time.`;
   }
@@ -190,19 +202,19 @@ export function InvestAmountStep({
         </label>
         <div className="relative">
           <input
-            type="number"
-            min="1"
-            step="1"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={amount}
             onChange={(e) => {
-              // Strip decimals — whole tokens only
+              // Whole tokens only, strip any non-digit
               const v = e.target.value.replace(/[^\d]/g, "");
               onAmountChange(v);
             }}
             placeholder="0"
             className="input-field text-2xl font-semibold pr-24"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold pointer-events-none">
             {project.tokenSymbol}
           </span>
         </div>
@@ -237,8 +249,13 @@ export function InvestAmountStep({
         ) : (
           <>Min: {minTokens} tokens</>
         )}
-        {" "}&bull; Max:{" "}
-        {maxTokens > 0 ? `${maxTokens} tokens per investor` : "No Limit"}
+        {" "}&bull; Available:{" "}
+        {availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}
+        {maxTokens > 0 && (
+          <>
+            {" "}&bull; Per-investor cap: {maxTokens.toLocaleString()} {project.tokenSymbol}
+          </>
+        )}
       </p>
       {investorWholeTokens > 0 && (
         <p className="text-xs text-black/50 mb-4">

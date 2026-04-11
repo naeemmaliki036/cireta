@@ -592,7 +592,7 @@ export default function InvestPage() {
                   >
                     <span className="text-2xl">&#x1F4B0;</span>
                     <h3 className="font-semibold text-text">On-Chain (USDC)</h3>
-                    <p className="text-sm text-gray-500">Pay with USDC from your connected wallet. Instant settlement on Base.</p>
+                    <p className="text-sm text-gray-500">Pay with USDC from your connected wallet. Instant on-chain settlement.</p>
                   </button>
                   {saleHasOtcToken && hasOtcBalance ? (
                     <button
