@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useAccount, useBalance, useChainId, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits, formatUnits, zeroAddress } from "viem";
 import { Button } from "@/components/atoms";
@@ -38,7 +38,18 @@ export default function InvestPage() {
   const params = useParams<{ slug: string }>();
   const { isConnected, address: connectedAddress } = useAccount();
   const chainId = useChainId();
+  const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
+
+  // Expected chain from env (defaults to Base Sepolia 84532 if unset)
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 84532);
+  const isWrongChain = isConnected && chainId !== expectedChainId;
+  const expectedChainName =
+    expectedChainId === 8453 ? "Base"
+    : expectedChainId === 84532 ? "Base Sepolia"
+    : expectedChainId === 11155111 ? "Ethereum Sepolia"
+    : expectedChainId === 1 ? "Ethereum Mainnet"
+    : `Chain ${expectedChainId}`;
   const { user, isAuthenticated } = useAuth();
   const { isVerified: isWalletLinkedToProfile } = useWeb3();
 
@@ -352,6 +363,10 @@ export default function InvestPage() {
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0] ?? null;
 
   const handleApprove = useCallback(() => {
+    if (isWrongChain) {
+      setError(`Wrong network. Switch to ${expectedChainName} first.`);
+      return;
+    }
     if (!saleContractAddress) {
       setError("Sale contract not deployed yet.");
       return;
@@ -377,9 +392,13 @@ export default function InvestPage() {
       console.error("[invest] Approve error:", err);
       setError(err instanceof Error ? err.message : "Approval failed");
     }
-  }, [writeApprove, saleContractAddress, usdcAddress, tokenQty, usdcRequired, existingAllowance]);
+  }, [writeApprove, saleContractAddress, usdcAddress, tokenQty, usdcRequired, existingAllowance, isWrongChain, expectedChainName]);
 
   const handleConfirm = useCallback(() => {
+    if (isWrongChain) {
+      setError(`Wrong network. Switch to ${expectedChainName} first.`);
+      return;
+    }
     if (!saleContractAddress || !activePhase) return;
     setError(null);
     setIsContributing(true);
@@ -406,10 +425,14 @@ export default function InvestPage() {
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, tokenQty, usdcRequired]);
+  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, tokenQty, usdcRequired, isWrongChain, expectedChainName]);
 
   // OTC Token: Approve OTC tokens for spending by sale contract (exact USDC amount)
   const handleOtcApprove = useCallback(() => {
+    if (isWrongChain) {
+      setError(`Wrong network. Switch to ${expectedChainName} first.`);
+      return;
+    }
     if (!saleContractAddress || !otcTokenAddress) {
       setError("Sale or OTC token contract not available.");
       return;
@@ -425,10 +448,14 @@ export default function InvestPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "OTC approval failed");
     }
-  }, [writeOtcApprove, saleContractAddress, otcTokenAddress, usdcRequired, otcTokenDecimals]);
+  }, [writeOtcApprove, saleContractAddress, otcTokenAddress, usdcRequired, otcTokenDecimals, isWrongChain, expectedChainName]);
 
   // OTC Token: Call sale.buyOTC() with token quantity
   const handleOtcConfirm = useCallback(() => {
+    if (isWrongChain) {
+      setError(`Wrong network. Switch to ${expectedChainName} first.`);
+      return;
+    }
     if (!saleContractAddress || !activePhase) return;
     setError(null);
     setIsContributing(true);
@@ -447,7 +474,7 @@ export default function InvestPage() {
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeBuyOtc, saleContractAddress, activePhase, activePhaseIndex, tokenQty]);
+  }, [writeBuyOtc, saleContractAddress, activePhase, activePhaseIndex, tokenQty, isWrongChain, expectedChainName]);
 
   const otcConfirmLoading = isContributing || isBuyOtcPending || isBuyOtcConfirming;
 
@@ -512,8 +539,27 @@ export default function InvestPage() {
           <motion.div key={paymentMethod ?? "choose"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl p-8 border border-black/10">
 
+            {/* Wrong network — highest priority banner */}
+            {isWrongChain && (
+              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
+                <p className="text-sm font-semibold text-red-700 mb-1">Wrong network</p>
+                <p className="text-sm text-red-600 mb-3">
+                  Your wallet is connected to the wrong network. Switch to <span className="font-semibold">{expectedChainName}</span> to continue.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  isLoading={isSwitchingChain}
+                  disabled={isSwitchingChain}
+                  onClick={() => switchChain({ chainId: expectedChainId })}
+                >
+                  Switch to {expectedChainName}
+                </Button>
+              </div>
+            )}
+
             {/* Logged-out state — show sign in / register prompt, no KYC/wallet messaging */}
-            {!isAuthenticated && (
+            {!isWrongChain && !isAuthenticated && (
               <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
                 <p className="text-sm font-semibold text-amber-800 mb-1">Sign in to invest</p>
                 <p className="text-sm text-amber-700 mb-3">
@@ -537,7 +583,7 @@ export default function InvestPage() {
             )}
 
             {/* Wallet verification status — priority: KYC first, then wallet linking */}
-            {isAuthenticated && isConnected && isWalletVerified === false && (() => {
+            {!isWrongChain && isAuthenticated && isConnected && isWalletVerified === false && (() => {
               const kyc = user?.kycStatus ?? "none";
               const kycIncomplete = kyc !== "approved";
 
@@ -605,7 +651,7 @@ export default function InvestPage() {
             })()}
 
             {/* Verified confirmation badge */}
-            {isAuthenticated && isConnected && isWalletVerified === true && user?.kycStatus === "approved" && (
+            {!isWrongChain && isAuthenticated && isConnected && isWalletVerified === true && user?.kycStatus === "approved" && (
               <div className="mb-6 p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                 <p className="text-sm font-medium text-green-700">
