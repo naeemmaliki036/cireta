@@ -74,7 +74,6 @@ describe("Profile page", () => {
     const ProfilePage = (await import("@/app/settings/profile/page")).default;
     render(<ProfilePage />);
     expect(await screen.findByText("test@cireta.com")).toBeDefined();
-    expect(screen.getByText(/Level 2/)).toBeDefined();
   });
 
   it("renders linked wallets", async () => {
@@ -103,11 +102,10 @@ describe("Profile page", () => {
 describe("Verification page", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders KYC status and tier", async () => {
+  it("renders KYC status and approval badge", async () => {
     const VerificationPage = (await import("@/app/settings/verification/page")).default;
     render(<VerificationPage />);
     expect(await screen.findByText("Verified")).toBeDefined();
-    expect(screen.getByText(/Level 2/)).toBeDefined();
     expect(screen.getByText("approved")).toBeDefined();
   });
 

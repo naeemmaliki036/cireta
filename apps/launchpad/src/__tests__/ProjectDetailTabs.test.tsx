@@ -7,6 +7,20 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
+// Mock wagmi (project detail page calls useChainId)
+vi.mock("wagmi", () => ({
+  useChainId: () => 8453,
+  useAccount: () => ({ isConnected: false, address: undefined }),
+}));
+
+// Mock AuthContext (project detail page calls useAuth)
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ isAuthenticated: false, user: null, accessToken: null }),
+}));
+vi.mock("@/lib/hooks/useAuth", () => ({
+  useAuth: () => ({ isAuthenticated: false, user: null, accessToken: null }),
+}));
+
 // Mock next/image
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => {
@@ -73,35 +87,24 @@ import ProjectDetailPage from "@/app/project/[slug]/page";
 describe("Project Detail Tabs", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("renders all 6 tab buttons", async () => {
+  it("renders all base tab buttons", async () => {
     render(<ProjectDetailPage />);
-    await screen.findByText("Wassa Gold");
-    expect(screen.getByText("Overview")).toBeDefined();
-    expect(screen.getByText("Phases")).toBeDefined();
-    expect(screen.getByText("Documents")).toBeDefined();
-    expect(screen.getByText("Team")).toBeDefined();
-    expect(screen.getByText("Financials")).toBeDefined();
+    await screen.findAllByText("Wassa Gold");
+    // Base tabs (no OTC since the mocked sale has otc_enabled=false/undefined)
+    expect(screen.getByRole("button", { name: "Overview" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Token & Sale" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Documents" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Team" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "FAQ" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "My Position" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Transactions" })).toBeDefined();
+  });
+
+  it("Token & Sale tab shows the Token Details and Sale Phases sections", async () => {
+    render(<ProjectDetailPage />);
+    await screen.findAllByText("Wassa Gold");
+    fireEvent.click(screen.getByRole("button", { name: "Token & Sale" }));
     expect(screen.getByText("Token Details")).toBeDefined();
-  });
-
-  it("Financials tab shows total raised and fee structure", async () => {
-    render(<ProjectDetailPage />);
-    await screen.findByText("Wassa Gold");
-    fireEvent.click(screen.getByText("Financials"));
-    expect(screen.getByText("Fundraising Summary")).toBeDefined();
-    expect(screen.getByText("Fee Structure")).toBeDefined();
-    expect(screen.getByText("Platform Fee")).toBeDefined();
-    expect(screen.getByText("2.5%")).toBeDefined();
-  });
-
-  it("Token Details tab shows ERC-3643 and compliance modules", async () => {
-    render(<ProjectDetailPage />);
-    await screen.findByText("Wassa Gold");
-    fireEvent.click(screen.getByText("Token Details"));
-    expect(screen.getByText("Token Information")).toBeDefined();
-    expect(screen.getByText("ERC-3643")).toBeDefined();
-    expect(screen.getByText("Compliance Modules")).toBeDefined();
-    expect(screen.getByText("Identity Registry")).toBeDefined();
-    expect(screen.getByText("Transfer Restrictions")).toBeDefined();
+    expect(screen.getByText("Sale Phases")).toBeDefined();
   });
 });

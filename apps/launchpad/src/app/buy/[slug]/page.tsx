@@ -72,6 +72,11 @@ export default function InvestPage() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isContributing, setIsContributing] = useState(false);
   const [otcComplianceMet, setOtcComplianceMet] = useState(false);
+  // After on-chain confirm, the success card is gated on the backend POST
+  // /sales/:id/contribute completing so the buyer's tx shows up in their
+  // portfolio + transaction history immediately.
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingFailed, setRecordingFailed] = useState(false);
 
   // Payment token from the sale (e.g. cUSDC, USDT) — validated as a 0x hex address.
   // Falls back to the chain-wide default when the DB has a label (e.g. "USDC") or is null.
@@ -293,23 +298,28 @@ export default function InvestPage() {
     }
   }, [approveConfirmed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When on-chain contribute confirms, record in backend then show success
+  // When on-chain contribute confirms, record in backend then show success.
+  // The success card is gated on the backend POST so the buyer's purchase
+  // appears in their portfolio + transaction history immediately.
   useEffect(() => {
     if (!contributeConfirmed || !contributeTxHash || !saleId) return;
     const hash = contributeTxHash;
     setTxHash(hash);
+    setIsRecording(true);
+    setRecordingFailed(false);
 
-    // Record contribution in backend (non-blocking for UX — tx is already on-chain).
-    // Send the USDC value (not the token quantity) — backend `amount` is the
-    // payment-token amount and is used as the fallback when on-chain verification
-    // can't extract event data.
     (async () => {
       try {
+        // Send the USDC value (not the token quantity) — backend `amount`
+        // is the payment-token amount and is used as the fallback when
+        // on-chain verification can't extract event data.
         await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
       } catch (err) {
         console.error("[invest] Backend recording failed:", err);
+        setRecordingFailed(true);
       }
       setIsContributing(false);
+      setIsRecording(false);
       setStep("success");
     })();
   }, [contributeConfirmed, contributeTxHash, saleId, usdcRequired, activePhase?.id]);
@@ -327,17 +337,23 @@ export default function InvestPage() {
     if (otcApproveConfirmed && paymentMethod === "otc_token") { refetchOtcAllowance(); setStep("confirm"); }
   }, [otcApproveConfirmed, paymentMethod]);
 
-  // OTC: When buyOTC confirms, record in backend then show success
+  // OTC: When buyOTC confirms, record in backend then show success.
   useEffect(() => {
     if (!buyOtcConfirmed || !buyOtcTxHash || !saleId) return;
     const hash = buyOtcTxHash;
     setTxHash(hash);
+    setIsRecording(true);
+    setRecordingFailed(false);
     (async () => {
       try {
         // OTC buys: send USDC-equivalent value as the amount field for backend fallback.
         await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
-      } catch (err) { console.error("[invest] OTC backend recording failed:", err); }
+      } catch (err) {
+        console.error("[invest] OTC backend recording failed:", err);
+        setRecordingFailed(true);
+      }
       setIsContributing(false);
+      setIsRecording(false);
       refetchOtcBalance();
       setStep("success");
     })();
@@ -973,13 +989,18 @@ export default function InvestPage() {
                   Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
                 </p>
                 {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+                {isRecording && (
+                  <div className="mb-4 p-3 rounded-xl bg-darkAqua/10 border border-darkAqua/30 text-sm text-darkAqua text-center">
+                    On-chain confirmed. Saving your purchase to your portfolio… please don&apos;t close this tab.
+                  </div>
+                )}
                 <Button
                   variant="primary" className="w-full" size="lg"
                   onClick={handleOtcConfirm}
-                  isLoading={otcConfirmLoading}
-                  disabled={!otcMetadataReady || otcConfirmLoading}
+                  isLoading={otcConfirmLoading || isRecording}
+                  disabled={!otcMetadataReady || otcConfirmLoading || isRecording}
                 >
-                  {otcConfirmLoading ? "Confirming..." : "Confirm Purchase"}
+                  {isRecording ? "Saving to portfolio…" : otcConfirmLoading ? "Confirming..." : "Confirm Purchase"}
                 </Button>
               </>
             )}
@@ -1022,27 +1043,34 @@ export default function InvestPage() {
             {paymentMethod === "crypto" && step === "confirm" && (
               <InvestConfirmStep
                 project={project} amount={numericAmount}
-                tokensToReceive={tokensToReceive} isLoading={confirmLoading}
+                tokensToReceive={tokensToReceive} isLoading={confirmLoading || isRecording}
+                isRecording={isRecording}
                 error={error} onConfirm={handleConfirm}
                 onBack={() => setStep("amount")}
               />
             )}
             {step === "success" && (
-              <InvestSuccessStep
-                project={project} amount={numericAmount}
-                tokensToReceive={tokensToReceive} txHash={txHash}
-              />
+              <>
+                <InvestSuccessStep
+                  project={project} amount={numericAmount}
+                  tokensToReceive={tokensToReceive} txHash={txHash}
+                />
+                {recordingFailed && (
+                  <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900 text-center">
+                    Your purchase is confirmed on-chain, but we couldn&apos;t sync it to your portfolio just now. It will appear automatically within a few minutes.
+                  </div>
+                )}
+              </>
             )}
           </motion.div>
           {step === "success" && (
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-xl mx-auto">
-              {txHash && (
-                <a href={getTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" size="sm">View Transaction</Button>
-                </a>
-              )}
-              <Link href="/portfolio"><Button variant="primary" size="sm">View Portfolio</Button></Link>
-              <Link href="/projects"><Button variant="outline" size="sm">Explore More</Button></Link>
+            <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-xl mx-auto">
+              <Link href="/portfolio" className="flex-1">
+                <Button variant="primary" size="lg" className="w-full">View Portfolio</Button>
+              </Link>
+              <Link href="/projects" className="flex-1">
+                <Button variant="outline" size="lg" className="w-full">View Projects</Button>
+              </Link>
             </div>
           )}
         </div>

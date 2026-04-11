@@ -419,6 +419,12 @@ interface InvestConfirmStepProps {
   isSafe?: boolean;
   onConfirm: () => void;
   onBack?: () => void;
+  /**
+   * When true, the on-chain tx is already confirmed and we are saving the
+   * purchase to the buyer's portfolio in the backend. Used to show a clear
+   * "Saving to your portfolio…" status instead of an ambiguous "Confirming…".
+   */
+  isRecording?: boolean;
 }
 
 export function InvestConfirmStep({
@@ -430,6 +436,7 @@ export function InvestConfirmStep({
   isSafe = false,
   onConfirm,
   onBack,
+  isRecording = false,
 }: InvestConfirmStepProps) {
   return (
     <>
@@ -437,13 +444,18 @@ export function InvestConfirmStep({
       <p className="text-black/50 mb-8">Review and confirm your purchase details</p>
       <div className="bg-box rounded-xl p-6 space-y-4 mb-6">
         <SummaryRow label="Project" value={project.title} />
-        <SummaryRow label="Amount" value={formatCurrency(amount)} />
-        <SummaryRow label="Tokens" value={`${tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${project.tokenSymbol}`} />
+        <SummaryRow label="Amount" value={`${amount.toLocaleString()} USDC`} />
+        <SummaryRow label="Tokens" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
       </div>
       <p className="text-xs text-black/40 mb-4 text-center">
         Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
       </p>
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {isRecording && (
+        <div className="mb-4 p-3 rounded-xl bg-darkAqua/10 border border-darkAqua/30 text-sm text-darkAqua text-center">
+          On-chain confirmed. Saving your purchase to your portfolio… please don&apos;t close this tab.
+        </div>
+      )}
       <div className="flex gap-3">
         {onBack && (
           <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
@@ -451,7 +463,11 @@ export function InvestConfirmStep({
           </Button>
         )}
         <Button variant="primary" className="flex-1" size="lg" onClick={onConfirm} isLoading={isLoading}>
-          {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming...") : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
+          {isRecording
+            ? "Saving to portfolio…"
+            : isLoading
+              ? (isSafe ? "Proposing to Safe..." : "Confirming…")
+              : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
         </Button>
       </div>
     </>
@@ -472,14 +488,14 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
         <CheckCircle2 className="w-10 h-10 text-green-600" />
       </div>
-      <h1 className="text-2xl font-semibold text-text mb-2">Purchase Successful!</h1>
+      <h1 className="text-2xl font-semibold text-text mb-2">Purchase Complete</h1>
       <p className="text-black/50 mb-8">
-        You have successfully bought {formatCurrency(amount)} in {project.title}
+        Your purchase of {tokensToReceive.toLocaleString()} {project.tokenSymbol} in {project.title} is confirmed on-chain.
       </p>
       <div className="bg-box rounded-xl p-6 text-left mb-8 space-y-3 text-sm">
         <h3 className="font-semibold text-text text-base mb-2">Transaction Summary</h3>
-        <SummaryRow label="Amount Bought" value={formatCurrency(amount)} />
-        <SummaryRow label="Tokens Allocated" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
+        <SummaryRow label="Tokens Received" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
+        <SummaryRow label="Amount Paid" value={`${amount.toLocaleString()} USDC`} />
         {txHash && (
           <SummaryRow
             label="Tx Hash"

@@ -81,10 +81,10 @@ describe("PhaseTimeline", () => {
 
   it("displays price per token for each phase", () => {
     render(<PhaseTimeline phases={phases} />);
-    // $85.00, $100.00, $115.00 - check at least that the prices appear
-    expect(screen.getAllByText(/\$85\.00/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/\$100\.00/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/\$115\.00/).length).toBeGreaterThanOrEqual(1);
+    // formatCurrency drops .00 for whole numbers, so $85 / $100 / $115
+    expect(screen.getAllByText(/\$85\b/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/\$100\b/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/\$115\b/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders empty state when no phases", () => {

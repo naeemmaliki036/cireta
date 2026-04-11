@@ -11,52 +11,38 @@ describe("InvestApproveStep — Compliance Acknowledgment", () => {
     onApprove: () => {},
   };
 
-  it("renders both compliance checkboxes", () => {
+  it("renders the jurisdiction compliance checkbox", () => {
     render(<InvestApproveStep {...defaultProps} />);
-    expect(screen.getByTestId("risk-checkbox")).toBeDefined();
     expect(screen.getByTestId("jurisdiction-checkbox")).toBeDefined();
-    expect(
-      screen.getByText(/I understand and accept the risks/)
-    ).toBeDefined();
     expect(
       screen.getByText(/I confirm I am not a resident of a restricted jurisdiction/)
     ).toBeDefined();
   });
 
-  it("displays risk acknowledgment text", () => {
+  it("displays the tokenized-securities disclosure text", () => {
     render(<InvestApproveStep {...defaultProps} />);
     expect(
-      screen.getByText(/This investment involves regulated securities/)
+      screen.getByText(/This purchase involves tokenized securities/)
     ).toBeDefined();
   });
 
-  it("approve button is disabled when checkboxes are unchecked", () => {
+  it("approve button is disabled when checkbox is unchecked", () => {
     render(<InvestApproveStep {...defaultProps} />);
     const btn = screen.getByRole("button", { name: /approve usdc/i });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("approve button remains disabled with only one checkbox checked", async () => {
+  it("approve button is enabled when the checkbox is checked", async () => {
     const user = userEvent.setup();
     render(<InvestApproveStep {...defaultProps} />);
 
-    await user.click(screen.getByTestId("risk-checkbox"));
-    const btn = screen.getByRole("button", { name: /approve usdc/i });
-    expect((btn as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it("approve button is enabled when both checkboxes are checked", async () => {
-    const user = userEvent.setup();
-    render(<InvestApproveStep {...defaultProps} />);
-
-    await user.click(screen.getByTestId("risk-checkbox"));
     await user.click(screen.getByTestId("jurisdiction-checkbox"));
 
     const btn = screen.getByRole("button", { name: /approve usdc/i });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("calls onApprove when both checked and button clicked", async () => {
+  it("calls onApprove when checked and button clicked", async () => {
     const user = userEvent.setup();
     let approved = false;
     render(
@@ -68,7 +54,6 @@ describe("InvestApproveStep — Compliance Acknowledgment", () => {
       />
     );
 
-    await user.click(screen.getByTestId("risk-checkbox"));
     await user.click(screen.getByTestId("jurisdiction-checkbox"));
     await user.click(screen.getByRole("button", { name: /approve usdc/i }));
 
