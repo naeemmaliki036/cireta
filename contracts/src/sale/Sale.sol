@@ -112,8 +112,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     uint256 public lastPhaseAddedAt;         // For inactivity timeout in open-ended sales
 
     /// @notice Per-block contribution limit to mitigate front-running attacks.
-    uint256 public maxPerBlock;
-    mapping(uint256 => uint256) private _blockContributions;
+    // Deprecated: was maxPerBlock + _blockContributions (per-block anti-flash-loan cap).
+    // Removed — per-investor maxTokens cap, phase whitelist, pause(), and KYC gating
+    // provide stronger protection without the UX cost. Slots reserved to keep storage
+    // layout consistent for any future upgrade of pre-existing sales.
+    uint256 private __deprecated_maxPerBlock;
+    mapping(uint256 => uint256) private __deprecated_blockContributions;
 
     // ── Vested mode state ─────────────────────────────────────────────────────
     SaleMode public saleMode;
@@ -144,7 +148,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     event RefundClaimed(address indexed contributor, uint256 amount);
     event SaleFinalized(bool success, uint256 totalRaised, uint256 platformFee);
     event SaleStatusChanged(SaleStatus newStatus);
-    event MaxPerBlockUpdated(uint256 newMax);
     event WhitelistUpdated(uint256 indexed phaseId, uint256 count, bool allow);
     event EmergencyWithdraw(address indexed recipient, uint256 amount);
     event ProjectTokensDeposited(uint256 amount);
@@ -172,13 +175,11 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error BelowMinContribution();
     error ExceedsMaxContribution();
     error ExceedsHardCap();
-    error ExceedsBlockLimit();
     error KYCRequired();
     error NotWhitelisted();
     error ExceedsAllocation();
     error CannotAddPhase();
     error ZeroMinContribution();
-    error ZeroMaxPerBlock();
     error InvalidCaps();
     error InvalidFeeBps();
     error InvalidSaleWindow();
@@ -191,7 +192,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error PhaseAllocationExceedsHardCap();
     error IssuerNotVerified();
     error VaultEmpty();
-    error MaxPerBlockTooLow();
     error SaleNotActive();
     error InvestorNotVerified();
     error CannotFinalize();
@@ -325,7 +325,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         }
 
         if (_otcToken != address(0)) otcToken = IssuerOTCToken(_otcToken);
-        maxPerBlock = 50_000 * 1e6; // 50,000 USDC default per-block cap
         status = SaleStatus.Draft;
     }
 
@@ -526,19 +525,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit WhitelistUpdated(phaseId, addresses.length, allow);
     }
 
-    /// @notice Set per-block contribution limit. Only issuer.
-    /// @dev Floor of 1 USDC (1e6 raw) prevents accidentally setting a
-    ///      sub-USDC value that would brick the sale (every buy would revert
-    ///      with ExceedsBlockLimit). Issuers wanting effectively unlimited
-    ///      should set hardCap or higher.
-    function setMaxPerBlock(uint256 _maxPerBlock) external onlyIssuer {
-        if (status == SaleStatus.Rejected) revert InvalidStatus();
-        if (_maxPerBlock == 0) revert ZeroMaxPerBlock();
-        if (_maxPerBlock < 1e6) revert MaxPerBlockTooLow();
-        maxPerBlock = _maxPerBlock;
-        emit MaxPerBlockUpdated(_maxPerBlock);
-    }
-
     /// @notice Set or update the OTC token address. Only issuer.
     function setOTCToken(address _otcToken) external onlyIssuer {
         if (status == SaleStatus.Rejected) revert InvalidStatus();
@@ -687,7 +673,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             if (investorWholeTokens + tokenQty > phase.maxTokens) revert ExceedsMaxContribution();
         }
         if (totalRaised + usdcRequired > hardCap) revert ExceedsHardCap();
-        if (_blockContributions[block.number] + usdcRequired > maxPerBlock) revert ExceedsBlockLimit();
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
         return phase;
@@ -724,7 +709,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         totalContributed[msg.sender] += usdcRequired;
         paymentContributed[msg.sender] += usdcRequired;
         paymentContributedTotal += usdcRequired;
-        _blockContributions[block.number] += usdcRequired;
         contributions[msg.sender].amount += usdcRequired;
         contributions[msg.sender].tokensAllocated += tokensRaw;
 
@@ -779,7 +763,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         totalTokenSold += tokensRaw;
         totalContributed[msg.sender] += otcRequired;
         otcContributed[msg.sender] += otcRequired;
-        _blockContributions[block.number] += otcRequired;
         contributions[msg.sender].amount += otcRequired;
         contributions[msg.sender].tokensAllocated += tokensRaw;
 

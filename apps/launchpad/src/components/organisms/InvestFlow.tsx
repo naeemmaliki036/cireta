@@ -106,8 +106,6 @@ interface InvestAmountStepProps {
   onContinue: () => void;
   isConnected: boolean;
   onConnect: () => void;
-  /** Per-block contribution limit, in human units (e.g. 50_000_000 USDC). */
-  maxPerBlock?: number;
   /** This investor's existing cumulative contribution to the sale, human units. */
   userTotalContributed?: number;
   /** Low-gas warning: investor's native ETH balance, in ETH (null = unknown). */
@@ -138,7 +136,6 @@ export function InvestAmountStep({
   onContinue,
   isConnected,
   onConnect,
-  maxPerBlock,
   userTotalContributed = 0,
   ethBalance = null,
 }: InvestAmountStepProps) {
@@ -187,8 +184,6 @@ export function InvestAmountStep({
     } else {
       validationError = `Amount exceeds the maximum`;
     }
-  } else if (tokenQty > 0 && maxPerBlock && usdcRequired > maxPerBlock) {
-    validationError = `Per-block USDC limit is ${formatCurrency(maxPerBlock)}. Buy fewer tokens at a time.`;
   }
 
   if (!isConnected) {
@@ -291,7 +286,6 @@ export function InvestAmountStep({
           tokenQty <= 0 ||
           tokenQty < effectiveMin ||
           tokenQty > remainingMax ||
-          (maxPerBlock != null && usdcRequired > maxPerBlock) ||
           !activePhase
         }
         onClick={onContinue}

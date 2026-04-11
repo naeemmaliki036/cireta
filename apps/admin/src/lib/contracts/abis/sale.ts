@@ -169,13 +169,6 @@ export const SALE_ABI = [
     inputs: [{ name: "_otcToken", type: "address" }],
     outputs: [],
   },
-  {
-    name: "setMaxPerBlock",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "_maxPerBlock", type: "uint256" }],
-    outputs: [],
-  },
   // View functions
   { name: "status", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint8" }] },
   { name: "totalRaised", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },

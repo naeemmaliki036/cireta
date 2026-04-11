@@ -82,15 +82,7 @@ export default function InvestPage() {
   });
   const ethBalance = nativeBalance ? Number(formatUnits(nativeBalance.value, 18)) : null;
 
-  // Read sale.maxPerBlock() and sale.totalContributed[wallet] for amount-step display
-  const { data: saleMaxPerBlock } = useReadContract({
-    address: saleContractAddress ?? undefined,
-    abi: [{ name: "maxPerBlock", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }] as const,
-    functionName: "maxPerBlock",
-    query: { enabled: !!saleContractAddress },
-  });
-  const maxPerBlockUsdc = saleMaxPerBlock != null ? Number(formatUnits(saleMaxPerBlock as bigint, 6)) : undefined;
-
+  // Read sale.totalContributed[wallet] for amount-step display
   const { data: userTotalContributedRaw } = useReadContract({
     address: saleContractAddress ?? undefined,
     abi: [{ name: "totalContributed", type: "function", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ type: "uint256" }] }] as const,
@@ -751,11 +743,6 @@ export default function InvestPage() {
                     Amount exceeds your {otcTokenSymbol} balance.
                   </div>
                 )}
-                {maxPerBlockUsdc != null && numericAmount > maxPerBlockUsdc && (
-                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
-                    Per-block limit is {maxPerBlockUsdc.toLocaleString()} {otcTokenSymbol}. Split into smaller transactions.
-                  </div>
-                )}
                 {numericAmount > 0 && numericAmount <= otcBalanceFormatted && (
                   <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
                     <div className="flex justify-between text-sm">
@@ -767,11 +754,6 @@ export default function InvestPage() {
                       <span className="font-semibold">{tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} {project.tokenSymbol}</span>
                     </div>
                   </div>
-                )}
-                {maxPerBlockUsdc != null && (
-                  <p className="text-xs text-black/40 mb-2">
-                    Per-block limit: {maxPerBlockUsdc.toLocaleString()} {otcTokenSymbol}
-                  </p>
                 )}
                 {userTotalContributed > 0 && (
                   <p className="text-xs text-black/50 mb-3">
@@ -790,7 +772,6 @@ export default function InvestPage() {
                     !otcMetadataReady ||
                     numericAmount <= 0 ||
                     numericAmount > otcBalanceFormatted ||
-                    (maxPerBlockUsdc != null && numericAmount > maxPerBlockUsdc) ||
                     !activePhase
                   }
                   onClick={() => {
@@ -904,7 +885,6 @@ export default function InvestPage() {
                     .catch(() => setStep("approve"));
                 }}
                 isConnected={isConnected} onConnect={() => openConnectModal?.()}
-                maxPerBlock={maxPerBlockUsdc}
                 userTotalContributed={userTotalContributed}
                 ethBalance={ethBalance}
               />
