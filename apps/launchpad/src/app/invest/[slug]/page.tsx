@@ -41,8 +41,14 @@ export default function InvestPage() {
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
 
-  // Expected chain from env (defaults to Base Sepolia 84532 if unset)
-  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 84532);
+  // Expected chain from env — required, no default. Misconfiguration must fail loudly.
+  if (!process.env.NEXT_PUBLIC_CHAIN_ID) {
+    throw new Error("NEXT_PUBLIC_CHAIN_ID is not set. Configure it in the launchpad environment.");
+  }
+  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
+  if (!Number.isFinite(expectedChainId) || expectedChainId <= 0) {
+    throw new Error(`NEXT_PUBLIC_CHAIN_ID is invalid: "${process.env.NEXT_PUBLIC_CHAIN_ID}"`);
+  }
   const isWrongChain = isConnected && chainId !== expectedChainId;
   const expectedChainName =
     expectedChainId === 8453 ? "Base"
