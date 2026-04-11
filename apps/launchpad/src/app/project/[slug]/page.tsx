@@ -48,9 +48,14 @@ function getTimeRemaining(endTime: string): string {
   if (diff <= 0) return "Ended";
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  if (days > 0) return `${days}d ${hours}h remaining`;
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return hours > 0 ? `${hours}h ${mins}m remaining` : `${mins}m remaining`;
+  // > 2 days: just show days (e.g. "60 days remaining")
+  if (days > 2) return `${days} days remaining`;
+  // 1-2 days: show days + hours (e.g. "1d 14h remaining")
+  if (days >= 1) return `${days}d ${hours}h remaining`;
+  // < 1 day: show hours + minutes, or just minutes if under an hour
+  if (hours > 0) return `${hours}h ${mins}m remaining`;
+  return `${mins}m remaining`;
 }
 
 function getTimeUntilStart(startTime: string): string {

@@ -585,7 +585,7 @@ export default function InvestPage() {
             {saleOtcEnabled && !paymentMethod && activePhase && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-text text-center">How would you like to invest?</h2>
-                <div className={`grid grid-cols-1 gap-4 ${saleHasOtcToken ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                <div className={`grid grid-cols-1 gap-4 ${saleHasOtcToken && hasOtcBalance ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                   <button
                     onClick={() => setPaymentMethod("crypto")}
                     className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
@@ -594,7 +594,7 @@ export default function InvestPage() {
                     <h3 className="font-semibold text-text">On-Chain (USDC)</h3>
                     <p className="text-sm text-gray-500">Pay with USDC from your connected wallet. Instant on-chain settlement.</p>
                   </button>
-                  {saleHasOtcToken && hasOtcBalance ? (
+                  {saleHasOtcToken && hasOtcBalance && (
                     <button
                       onClick={() => setPaymentMethod("otc_token")}
                       disabled={!otcMetadataReady}
@@ -606,18 +606,7 @@ export default function InvestPage() {
                         Use your {otcTokenSymbol} balance: {otcBalanceFormatted.toLocaleString()} tokens available.
                       </p>
                     </button>
-                  ) : saleHasOtcToken ? (
-                    <div className="p-6 rounded-2xl border-2 border-dashed border-black/10 text-left space-y-2 opacity-70 cursor-not-allowed">
-                      <span className="text-2xl">&#x1F3AB;</span>
-                      <h3 className="font-semibold text-text">OTC Token{otcSymbolLoaded ? ` (${otcTokenSymbol})` : ""}</h3>
-                      <p className="text-sm text-gray-500">
-                        You don&apos;t have any OTC vouchers in this wallet.
-                      </p>
-                      <p className="text-xs text-darkAqua">
-                        Contact <a href="mailto:otc@cireta.com" className="underline">otc@cireta.com</a> to request an allocation.
-                      </p>
-                    </div>
-                  ) : null}
+                  )}
                   <button
                     onClick={() => setPaymentMethod("otc")}
                     className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
