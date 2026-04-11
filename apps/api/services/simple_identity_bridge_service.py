@@ -134,7 +134,11 @@ class SimpleIdentityBridgeService:
             user_id: The user whose wallets to whitelist.
 
         Returns:
-            dict with registered_wallets list and count.
+            dict with:
+              - registered_wallets: list of address strings
+              - already_provisioned: bool
+              - tx_hash: the on-chain tx hash (None if no write was
+                needed, i.e. all wallets were already whitelisted)
         """
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
@@ -177,6 +181,7 @@ class SimpleIdentityBridgeService:
             return {
                 "registered_wallets": [w.address_checksum for w in wallets],
                 "already_provisioned": True,
+                "tx_hash": None,
             }
 
         registry_address = settings.identity_registry_address
@@ -188,18 +193,19 @@ class SimpleIdentityBridgeService:
         country_code = self._get_country_code(user)
 
         registered = []
+        tx_hash: str | None = None
 
         if len(to_register) == 1:
             # Single wallet — direct call
             wallet = to_register[0]
-            await self._add_to_whitelist(w3, signer, registry, wallet.address_checksum, country_code)
+            tx_hash = await self._add_to_whitelist(w3, signer, registry, wallet.address_checksum, country_code)
             wallet.registered_on_chain = True
             registered.append(wallet.address_checksum)
         else:
             # Multiple wallets — batch call (saves gas)
             addresses = [w.address_checksum for w in to_register]
             countries = [country_code] * len(addresses)
-            await self._batch_add(w3, signer, registry, addresses, countries)
+            tx_hash = await self._batch_add(w3, signer, registry, addresses, countries)
             for w in to_register:
                 w.registered_on_chain = True
                 registered.append(w.address_checksum)
@@ -207,16 +213,17 @@ class SimpleIdentityBridgeService:
         await self.db.commit()
 
         logger.info(
-            "Whitelisted %d wallet(s) for user %s",
-            len(registered), user_id,
+            "Whitelisted %d wallet(s) for user %s (tx=%s)",
+            len(registered), user_id, tx_hash,
         )
 
         return {
             "registered_wallets": registered,
             "already_provisioned": False,
+            "tx_hash": tx_hash,
         }
 
-    async def register_wallet(self, user: User, wallet_address: str) -> None:
+    async def register_wallet(self, user: User, wallet_address: str) -> dict:
         """Register a single wallet on-chain for an already-verified user.
 
         Called by WalletService when a verified user links a new wallet.
@@ -228,6 +235,10 @@ class SimpleIdentityBridgeService:
         ALSO no-ops on a duplicate add via the ``if (!_whitelist[wallet])``
         guard inside addToWhitelist, but we'd rather skip the gas + tx
         round-trip when we can.
+
+        Returns:
+            dict with ``tx_hash`` (None if the wallet was already
+            whitelisted on chain and no write was needed).
         """
         registry_address = settings.identity_registry_address
         if not registry_address:
@@ -242,15 +253,16 @@ class SimpleIdentityBridgeService:
                 wallet_address,
             )
             await self._reconcile_wallet_flag(wallet_address, registered=True)
-            return
+            return {"tx_hash": None, "already_whitelisted": True}
 
         w3, signer = self._get_w3_and_signer()
         registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
         country_code = self._get_country_code(user)
 
-        await self._add_to_whitelist(w3, signer, registry, wallet_address, country_code)
+        tx_hash = await self._add_to_whitelist(w3, signer, registry, wallet_address, country_code)
         await self._reconcile_wallet_flag(wallet_address, registered=True)
-        logger.info("Whitelisted wallet %s for user %s", wallet_address, user.id)
+        logger.info("Whitelisted wallet %s for user %s (tx=%s)", wallet_address, user.id, tx_hash)
+        return {"tx_hash": tx_hash, "already_whitelisted": False}
 
     async def _reconcile_wallet_flag(
         self, wallet_address: str, *, registered: bool
@@ -275,11 +287,15 @@ class SimpleIdentityBridgeService:
             wallet.registered_on_chain = registered
             await self.db.commit()
 
-    async def revoke_wallet(self, wallet_address: str) -> None:
+    async def revoke_wallet(self, wallet_address: str) -> dict:
         """Remove a wallet from the whitelist (KYC revoked or wallet unlinked).
 
         Pre-flight on-chain check: if the wallet isn't whitelisted right
         now, the call is a no-op and we just reconcile the DB flag.
+
+        Returns:
+            dict with ``tx_hash`` (None if the wallet was already not on
+            the whitelist).
         """
         registry_address = settings.identity_registry_address
         if not registry_address:
@@ -291,7 +307,7 @@ class SimpleIdentityBridgeService:
                 wallet_address,
             )
             await self._reconcile_wallet_flag(wallet_address, registered=False)
-            return
+            return {"tx_hash": None, "already_revoked": True}
 
         w3, signer = self._get_w3_and_signer()
         registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
@@ -309,8 +325,10 @@ class SimpleIdentityBridgeService:
         if receipt["status"] != 1:
             raise RuntimeError(f"removeFromWhitelist failed: {tx_hash.hex()}")
 
+        tx_hash_str = f"0x{tx_hash.hex()}" if not tx_hash.hex().startswith("0x") else tx_hash.hex()
         await self._reconcile_wallet_flag(wallet_address, registered=False)
-        logger.info("Removed wallet %s from whitelist", wallet_address)
+        logger.info("Removed wallet %s from whitelist (tx=%s)", wallet_address, tx_hash_str)
+        return {"tx_hash": tx_hash_str, "already_revoked": False}
 
     async def revoke_all_wallets(self, user_id: UUID) -> None:
         """Remove all of a user's wallets from the whitelist."""
@@ -352,7 +370,8 @@ class SimpleIdentityBridgeService:
 
     async def _add_to_whitelist(
         self, w3: Web3, signer: Account, registry, wallet_address: str, country_code: int
-    ) -> None:
+    ) -> str:
+        """Sign + send addToWhitelist. Returns the tx hash as 0x-prefixed hex."""
         tx = registry.functions.addToWhitelist(wallet_address, country_code).build_transaction({
             "from": signer.address,
             "nonce": w3.eth.get_transaction_count(signer.address),
@@ -365,11 +384,13 @@ class SimpleIdentityBridgeService:
 
         if receipt["status"] != 1:
             raise RuntimeError(f"addToWhitelist failed: {tx_hash.hex()}")
+        return f"0x{tx_hash.hex()}" if not tx_hash.hex().startswith("0x") else tx_hash.hex()
 
     async def _batch_add(
         self, w3: Web3, signer: Account, registry,
         addresses: list[str], countries: list[int],
-    ) -> None:
+    ) -> str:
+        """Sign + send batchAddToWhitelist. Returns the tx hash as 0x-prefixed hex."""
         tx = registry.functions.batchAddToWhitelist(addresses, countries).build_transaction({
             "from": signer.address,
             "nonce": w3.eth.get_transaction_count(signer.address),
@@ -382,3 +403,4 @@ class SimpleIdentityBridgeService:
 
         if receipt["status"] != 1:
             raise RuntimeError(f"batchAddToWhitelist failed: {tx_hash.hex()}")
+        return f"0x{tx_hash.hex()}" if not tx_hash.hex().startswith("0x") else tx_hash.hex()
