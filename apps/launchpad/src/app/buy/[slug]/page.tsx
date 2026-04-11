@@ -120,6 +120,51 @@ export default function InvestPage() {
   });
   const userTotalContributed = userTotalContributedRaw != null ? Number(formatUnits(userTotalContributedRaw as bigint, 6)) : 0;
 
+  // Read on-chain token decimals (Sale.tokenDecimals()) so we can convert
+  // raw phase.allocation / phase.sold (scaled by 10**tokenDecimals) into
+  // whole-token counts for client-side validation.
+  const { data: saleTokenDecimalsRaw } = useReadContract({
+    address: saleContractAddress ?? undefined,
+    abi: SALE_ABI,
+    functionName: "tokenDecimals",
+    query: { enabled: !!saleContractAddress },
+  });
+  const saleTokenDecimals = typeof saleTokenDecimalsRaw === "number" ? saleTokenDecimalsRaw : 6;
+
+  // Compute the current active phase index from the loaded project so the
+  // getPhase() hook below stays referentially stable. Safe inside render —
+  // the hook below is called unconditionally with a derived bigint arg.
+  const _now = new Date();
+  const _activePhaseIdx = project?.phases.findIndex((p) => {
+    const start = new Date(p.start_time);
+    const end = new Date(p.end_time);
+    return _now >= start && _now < end;
+  }) ?? -1;
+
+  // Read on-chain phase struct so we can validate against the *real* remaining
+  // allocation. The DB-side SalePhase has no tokens_sold column, so the previous
+  // client-side max check (project.tokensSoldTotal) was always 0 → users could
+  // submit a buy that exceeds phase allocation and the tx would revert on-chain.
+  const { data: onChainPhase } = useReadContract({
+    address: saleContractAddress ?? undefined,
+    abi: SALE_ABI,
+    functionName: "getPhase",
+    args: _activePhaseIdx >= 0 ? [BigInt(_activePhaseIdx)] : undefined,
+    query: { enabled: !!saleContractAddress && _activePhaseIdx >= 0 },
+  });
+
+  // Phase remaining = (allocation - sold) / 10**tokenDecimals (whole tokens).
+  // `getPhase` returns a tuple-like object indexed by component name.
+  const phaseAllocationRaw = onChainPhase
+    ? BigInt((onChainPhase as { allocation: bigint }).allocation ?? 0n)
+    : 0n;
+  const phaseSoldRaw = onChainPhase
+    ? BigInt((onChainPhase as { sold: bigint }).sold ?? 0n)
+    : 0n;
+  const phaseRemainingTokens = phaseAllocationRaw > phaseSoldRaw && saleTokenDecimals >= 0
+    ? Number((phaseAllocationRaw - phaseSoldRaw) / BigInt(10 ** saleTokenDecimals))
+    : 0;
+
   // Read existing USDC allowance — skip approve step if sufficient
   const amountWei = amount ? parseUnits(amount, 6) : BigInt(0);
   const { data: existingAllowance, refetch: refetchAllowance } = useReadContract({
@@ -816,7 +861,12 @@ export default function InvestPage() {
                   const exceedsOtcBalance = otcRequired > otcBalanceFormatted;
                   const totalSupply = project.totalTokenSupply ?? 0;
                   const tokensSold = project.tokensSoldTotal ?? 0;
-                  const availableTokens = Math.max(0, totalSupply - tokensSold);
+                  const saleLevelAvailable = Math.max(0, totalSupply - tokensSold);
+                  // Use the on-chain phase remaining when present (authoritative)
+                  // and fall back to sale-level remaining only if the contract
+                  // read isn't ready yet.
+                  const availableTokens =
+                    phaseRemainingTokens > 0 ? phaseRemainingTokens : saleLevelAvailable;
                   const maxAffordableTokens = pricePerToken > 0
                     ? Math.floor(otcBalanceFormatted / pricePerToken)
                     : 0;
@@ -1019,6 +1069,7 @@ export default function InvestPage() {
                 isConnected={isConnected} onConnect={() => openConnectModal?.()}
                 userTotalContributed={userTotalContributed}
                 ethBalance={ethBalance}
+                phaseRemainingTokens={phaseRemainingTokens}
               />
             )}
             {paymentMethod === "crypto" && step === "approve" && (

@@ -50,6 +50,13 @@ export const SALE_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    name: "tokenDecimals",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+  },
+  {
     // Round-5: Phase struct gained topUpMin + allocationMode (uint8 enum)
     name: "getPhase",
     type: "function",

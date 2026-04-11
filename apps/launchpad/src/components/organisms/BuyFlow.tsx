@@ -106,10 +106,16 @@ interface InvestAmountStepProps {
   onContinue: () => void;
   isConnected: boolean;
   onConnect: () => void;
-  /** This investor's existing cumulative contribution to the sale, human units. */
+  /** This buyer's existing cumulative contribution to the sale, human units. */
   userTotalContributed?: number;
-  /** Low-gas warning: investor's native ETH balance, in ETH (null = unknown). */
+  /** Low-gas warning: buyer's native ETH balance, in ETH (null = unknown). */
   ethBalance?: number | null;
+  /**
+   * On-chain whole-token allocation remaining in the active phase
+   * (allocation - sold). Used to client-side block buys that would revert.
+   * Falls back to the sale-level remaining when undefined.
+   */
+  phaseRemainingTokens?: number;
 }
 
 /**
@@ -138,6 +144,7 @@ export function InvestAmountStep({
   onConnect,
   userTotalContributed = 0,
   ethBalance = null,
+  phaseRemainingTokens,
 }: InvestAmountStepProps) {
   // Whole-token buy: `amount` is token quantity (integer, not USDC)
   const tokenQty = parseInt(amount || "0", 10) || 0;
@@ -162,9 +169,15 @@ export function InvestAmountStep({
   // Available tokens remaining in the whole sale (from total supply)
   const totalSupply = project.totalTokenSupply ?? 0;
   const soldTotal = project.tokensSoldTotal ?? 0;
-  const availableTokens = Math.max(0, totalSupply - soldTotal);
+  const saleAvailable = Math.max(0, totalSupply - soldTotal);
+  // Phase-level remaining is authoritative when present (read on-chain). Fall
+  // back to sale-level if the parent didn't supply it.
+  const availableTokens =
+    phaseRemainingTokens != null && phaseRemainingTokens > 0
+      ? phaseRemainingTokens
+      : saleAvailable;
 
-  // Effective per-buy ceiling: min of (investor cap, sale remaining supply)
+  // Effective per-buy ceiling: min of (buyer cap, phase/sale remaining)
   const investorMaxRemaining = maxTokens > 0 ? Math.max(0, maxTokens - investorWholeTokens) : Infinity;
   const remainingMax = Math.min(investorMaxRemaining, availableTokens || Infinity);
 
@@ -178,7 +191,7 @@ export function InvestAmountStep({
       : `Minimum is ${minTokens} tokens for first-time buyers`;
   } else if (tokenQty > 0 && tokenQty > remainingMax) {
     if (availableTokens > 0 && tokenQty > availableTokens) {
-      validationError = `Only ${availableTokens.toLocaleString()} ${project.tokenSymbol} available`;
+      validationError = `Only ${availableTokens.toLocaleString()} ${project.tokenSymbol} available in this phase`;
     } else if (maxTokens > 0) {
       validationError = `Per-buyer cap: ${investorMaxRemaining.toLocaleString()} ${project.tokenSymbol} remaining for your wallet`;
     } else {
