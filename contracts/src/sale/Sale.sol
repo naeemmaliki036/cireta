@@ -765,7 +765,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (IERC20(address(otcToken)).balanceOf(msg.sender) < otcRequired) revert InsufficientOTCBalance();
         if (IERC20(address(otcToken)).allowance(msg.sender, address(this)) < otcRequired) revert OTCNotApproved();
 
-        _checkMinTokens(phase, tokenQty);
+        // NOTE: OTC buys intentionally bypass _checkMinTokens (minTokens/topUpMinTokens).
+        // Rationale: OTC vouchers are minted by the issuer via MINTER_ROLE to specific
+        // pre-vetted investors. The per-phase minimums exist as a public-sale protection;
+        // they don't apply to pre-negotiated off-platform allocations. All other
+        // protections remain: KYC, whitelist, hard cap, block limit, per-investor
+        // maxTokens cap, supply cap, and whole-token enforcement via the math.
         _checkAllocationAndSupply(phase, tokensRaw);
 
         // ── Effects ──
