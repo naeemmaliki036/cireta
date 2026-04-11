@@ -151,7 +151,9 @@ class SalePhaseResponse(BaseModel):
     whitelist_only: bool
     is_active: bool
     # Round-5 fields
-    top_up_min: str = "0"
+    min_tokens: str = "0"
+    max_tokens: str = "0"
+    top_up_min_tokens: str = "0"
     allocation_mode: str = "fixed"
     # Aggregated from confirmed contributions in this phase. Always present;
     # zero when no contributions have been recorded.

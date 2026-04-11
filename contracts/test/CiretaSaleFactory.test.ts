@@ -292,7 +292,7 @@ describe("CiretaSaleFactory", () => {
       const now2 = await time.latest();
       await sale.connect(issuer).addPhase(
         "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
-        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        10n, 0n, 5n,
         now2 + 60, now2 + 86400, false, 0,
       );
       // Direct mode: deposit tokens before activate
@@ -311,7 +311,7 @@ describe("CiretaSaleFactory", () => {
       const now = await time.latest();
       await sale.connect(issuer).addPhase(
         "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
-        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        10n, 0n, 5n,
         now + 60, now + 86400, false, 0,
       );
       expect(await sale.getPhaseCount()).to.equal(1);
@@ -321,7 +321,7 @@ describe("CiretaSaleFactory", () => {
       const now = await time.latest();
       await expect(sale.connect(admin).addPhase(
         "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
-        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        10n, 0n, 5n,
         now + 60, now + 86400, false, 0,
       )).to.be.revertedWithCustomError(sale, "NotIssuer");
     });
@@ -330,7 +330,7 @@ describe("CiretaSaleFactory", () => {
       const now3 = await time.latest();
       await sale.connect(issuer).addPhase(
         "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
-        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        10n, 0n, 5n,
         now3 + 60, now3 + 86400, false, 0,
       );
       await mockToken.mint(await sale.getAddress(), ethers.parseUnits("100", 18));
@@ -394,7 +394,7 @@ describe("CiretaSaleFactory", () => {
       const now4 = await time.latest();
       await sale.connect(issuer).addPhase(
         "Phase 1", ethers.parseUnits("1", 6), ethers.parseUnits("1000", 6),
-        ethers.parseUnits("1", 6), 0, ethers.parseUnits("1000", 6),
+        10n, 0n, 5n,
         now4 + 60, now4 + 86400, false, 0,
       );
       await mockToken.mint(await sale.getAddress(), ethers.parseUnits("100", 18));

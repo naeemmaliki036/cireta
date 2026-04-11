@@ -231,9 +231,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     if (!sale?.contract_address) return;
     const pricePerToken = parseUnits(phase.price_per_token, 18);
     const allocation = parseUnits(phase.allocation, tokenDecimals);
-    const minContribution = parseUnits(phase.min_contribution || "1000", 6);
-    const maxContribution = parseUnits(phase.max_contribution || "0", 6);
-    const topUpMin = parseUnits(phase.top_up_min || "1000", 6);
+    const minTokens = BigInt(phase.min_tokens || "1");
+    const maxTokens = BigInt(phase.max_tokens || "0");
+    const topUpMinTokens = BigInt(phase.top_up_min_tokens || "1");
     const startTimestamp = BigInt(Math.floor(new Date(phase.start_time).getTime() / 1000));
     const endTimestamp = BigInt(Math.floor(new Date(phase.end_time).getTime() / 1000));
     const allocationMode = (phase.allocation_mode === "remaining") ? 1 : 0;
@@ -241,7 +241,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       address: sale.contract_address as `0x${string}`,
       abi: SALE_ABI as unknown as Abi,
       functionName: "addPhase",
-      args: [phase.name, pricePerToken, allocation, minContribution, maxContribution, topUpMin, startTimestamp, endTimestamp, phase.whitelist_only ?? false, allocationMode],
+      args: [phase.name, pricePerToken, allocation, minTokens, maxTokens, topUpMinTokens, startTimestamp, endTimestamp, phase.whitelist_only ?? false, allocationMode],
     });
     if (receipt) {
       refetchPhaseCount();

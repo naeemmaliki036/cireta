@@ -33,12 +33,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     struct Phase {
         string name;
-        uint256 pricePerToken;
-        uint256 allocation;        // Fixed mode only — hard cap in token units
+        uint256 pricePerToken;     // Payment-token raw units for 1 whole token
+        uint256 allocation;        // Fixed mode only — hard cap in raw token units
         uint256 sold;
-        uint256 minContribution;   // First-time buyer minimum (USDC raw)
-        uint256 maxContribution;   // Per-investor cumulative cap (0 = unlimited)
-        uint256 topUpMin;          // Repeat-buyer minimum per buy (≥ TOP_UP_MIN_FLOOR)
+        uint256 minTokens;         // First-time buyer minimum (whole tokens)
+        uint256 maxTokens;         // Per-investor cumulative cap (whole tokens, 0 = unlimited)
+        uint256 topUpMinTokens;    // Repeat-buyer minimum per buy (whole tokens)
         uint256 startTime;
         uint256 endTime;
         bool whitelistOnly;
@@ -85,7 +85,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     // Round-5: open-ended sale safety constants.
     uint256 public constant MAX_SALE_DURATION = 730 days;
     uint256 public constant INACTIVITY_TIMEOUT = 180 days;
-    uint256 public constant TOP_UP_MIN_FLOOR = 1000 * 1e6; // 1000 USDC raw
 
     uint256 public totalRaised;              // Total raised across payment-token + OTC (mixed units, kept for hardcap math)
     uint256 public paymentContributedTotal;  // Sum of payment-token (USDC/USDT/etc.) buys only — used for fee calc
@@ -209,7 +208,6 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error CannotExtendEnded();
     error ExtensionTooEarly();
     error ExtensionOverlap();
-    error TopUpBelowFloor();
     error TopUpBelowMin();
     error PhaseStillActive();
     error NotApproved();
@@ -409,19 +407,17 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     // ── Issuer-Only Functions ───────────────────────────────────────────────
 
     /// @notice Add a sale phase. Only issuer configures their own sale.
-    /// Round-5 changes:
-    /// - allocationMode replaces the global SaleStructure flag
-    /// - topUpMin enforced for repeat buyers (≥ TOP_UP_MIN_FLOOR = 1000 USDC)
-    /// - phase overlap with existing phases is rejected
-    /// - phase allocation (Fixed mode) is bounded by totalTokenSupply, not hardCap
-    /// - lastPhaseAddedAt updated for inactivity timeout (open-ended sales)
+    /// Whole-token buy: min/max/topUp are in whole token units (not USDC).
+    /// @param minTokens First-time buyer minimum (whole tokens, e.g. 100)
+    /// @param maxTokens Per-investor cumulative cap (whole tokens, 0 = unlimited)
+    /// @param topUpMinTokens Repeat-buyer minimum per buy (whole tokens, e.g. 10)
     function addPhase(
         string calldata name,
         uint256 pricePerToken,
         uint256 allocation,
-        uint256 minContribution,
-        uint256 maxContribution,
-        uint256 topUpMin,
+        uint256 minTokens,
+        uint256 maxTokens,
+        uint256 topUpMinTokens,
         uint256 startTime,
         uint256 endTime,
         bool whitelistOnly,
@@ -429,9 +425,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     ) external onlyIssuer {
         if (status != SaleStatus.Draft && status != SaleStatus.Active) revert CannotAddPhase();
         if (pricePerToken == 0) revert ZeroPricePerToken();
-        if (minContribution == 0) revert ZeroMinContribution();
-        if (maxContribution != 0 && maxContribution < minContribution) revert InvalidContributionRange();
-        if (topUpMin < TOP_UP_MIN_FLOOR) revert TopUpBelowFloor();
+        if (minTokens == 0) revert ZeroMinContribution();
+        if (maxTokens != 0 && maxTokens < minTokens) revert InvalidContributionRange();
+        if (topUpMinTokens == 0) revert ZeroMinContribution();
         if (startTime >= endTime) revert InvalidPhaseTimeRange();
         if (endTime <= block.timestamp) revert PhaseInPast();
         if (startTime < saleStartTime) revert PhaseOutsideSaleWindow();
@@ -454,21 +450,18 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         // Per-phase allocation mode
         if (allocationMode == AllocationMode.Fixed) {
             if (allocation == 0) revert ZeroPhaseAllocation();
-            // Sum of all Fixed phase allocations + this one must fit in supply
             uint256 fixedSum = _totalFixedAllocations() + allocation;
             if (fixedSum > totalTokenSupply) revert TokenSupplyExceeded();
         }
-        // Remaining mode: `allocation` is informational; runtime check at buy time
-        // bounds the phase to (totalTokenSupply - totalTokenSold).
 
         phases.push(Phase({
             name: name,
             pricePerToken: pricePerToken,
             allocation: allocation,
             sold: 0,
-            minContribution: minContribution,
-            maxContribution: maxContribution,
-            topUpMin: topUpMin,
+            minTokens: minTokens,
+            maxTokens: maxTokens,
+            topUpMinTokens: topUpMinTokens,
             startTime: startTime,
             endTime: endTime,
             whitelistOnly: whitelistOnly,
@@ -656,31 +649,45 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ── Buy ─────────────────────────────────────────────────────────────────
 
-    /// @dev Shared min/topup check. First-time buyers must clear minContribution;
-    /// repeat buyers must clear topUpMin. The "last chunk" exception lets a
-    /// first-time buyer purchase below minContribution if doing so would consume
-    /// all remaining supply.
-    function _checkMinContribution(Phase storage phase, uint256 amount, uint256 tokensToAllocate) internal view {
-        if (totalContributed[msg.sender] == 0) {
-            if (amount < phase.minContribution) {
-                // Last-chunk exception: allow buying remaining supply even below min
-                uint256 remaining = totalTokenSupply - totalTokenSold;
-                if (tokensToAllocate < remaining) revert BelowMinContribution();
+    /// @dev Shared min/topup check in whole-token units.
+    /// First-time buyers must meet minTokens; repeat buyers must meet topUpMinTokens.
+    /// Last-chunk exception: if remaining supply < min, buyer can purchase exactly
+    /// the remaining amount regardless of min.
+    function _checkMinTokens(Phase storage phase, uint256 tokenQty) internal view {
+        uint256 remainingWholeTokens = (totalTokenSupply - totalTokenSold) / (10 ** tokenDecimals);
+        // Investor's cumulative whole tokens across all phases
+        uint256 investorWholeTokens = contributions[msg.sender].tokensAllocated / (10 ** tokenDecimals);
+
+        if (investorWholeTokens == 0) {
+            // First-time buyer
+            if (tokenQty < phase.minTokens) {
+                // Last-chunk exception: allow buying exactly the remaining supply
+                if (tokenQty != remainingWholeTokens) revert BelowMinContribution();
             }
         } else {
-            if (amount < phase.topUpMin) revert TopUpBelowMin();
+            // Repeat buyer (top-up)
+            if (tokenQty < phase.topUpMinTokens) {
+                // Last-chunk exception for top-ups too
+                if (tokenQty != remainingWholeTokens) revert TopUpBelowMin();
+            }
         }
     }
 
     /// @dev Shared phase + buyer eligibility checks.
-    function _checkBuyEligibility(uint256 phaseId, uint256 amount) internal view returns (Phase storage) {
+    /// @param tokenQty Whole tokens the buyer wants to purchase.
+    /// @param usdcRequired Calculated USDC cost for the purchase.
+    function _checkBuyEligibility(uint256 phaseId, uint256 tokenQty, uint256 usdcRequired) internal view returns (Phase storage) {
         if (phaseId >= phases.length) revert InvalidPhase();
         Phase storage phase = phases[phaseId];
         if (block.timestamp < phase.startTime) revert PhaseNotStarted();
         if (block.timestamp > phase.endTime) revert PhaseEnded();
-        if (phase.maxContribution > 0 && totalContributed[msg.sender] + amount > phase.maxContribution) revert ExceedsMaxContribution();
-        if (totalRaised + amount > hardCap) revert ExceedsHardCap();
-        if (_blockContributions[block.number] + amount > maxPerBlock) revert ExceedsBlockLimit();
+        // Max tokens per investor (cumulative across all phases)
+        if (phase.maxTokens > 0) {
+            uint256 investorWholeTokens = contributions[msg.sender].tokensAllocated / (10 ** tokenDecimals);
+            if (investorWholeTokens + tokenQty > phase.maxTokens) revert ExceedsMaxContribution();
+        }
+        if (totalRaised + usdcRequired > hardCap) revert ExceedsHardCap();
+        if (_blockContributions[block.number] + usdcRequired > maxPerBlock) revert ExceedsBlockLimit();
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
         return phase;
@@ -694,40 +701,44 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (totalTokenSold + tokensToAllocate > totalTokenSupply) revert TokenSupplyExceeded();
     }
 
-    function buy(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
+    /// @notice Buy whole tokens. Investor specifies token quantity (1, 2, 100 — never fractional).
+    /// USDC cost is calculated exactly: usdcRequired = tokenQty * pricePerToken. Zero rounding.
+    /// @param phaseId Index of the active phase.
+    /// @param tokenQty Number of whole tokens to buy.
+    function buy(uint256 phaseId, uint256 tokenQty) external nonReentrant onlyStatus(SaleStatus.Active) {
+        if (tokenQty == 0) revert AmountTooSmall();
+
+        // Calculate exact cost and raw token amount
+        uint256 usdcRequired = tokenQty * phases[phaseId].pricePerToken;
+        uint256 tokensRaw = tokenQty * (10 ** tokenDecimals);
+
         // ── Checks ──
-        Phase storage phase = _checkBuyEligibility(phaseId, amount);
-
-        uint256 tokensToAllocate = (amount * (10 ** tokenDecimals)) / phase.pricePerToken;
-        if (tokensToAllocate == 0) revert AmountTooSmall();
-
-        _checkMinContribution(phase, amount, tokensToAllocate);
-        _checkAllocationAndSupply(phase, tokensToAllocate);
+        Phase storage phase = _checkBuyEligibility(phaseId, tokenQty, usdcRequired);
+        _checkMinTokens(phase, tokenQty);
+        _checkAllocationAndSupply(phase, tokensRaw);
 
         // ── Effects ──
-        phase.sold += tokensToAllocate;
-        totalRaised += amount;
-        totalTokenSold += tokensToAllocate;
-        totalContributed[msg.sender] += amount;
-        paymentContributed[msg.sender] += amount;     // Round-5: payment-token-strict tracking (USDC/USDT/...)
-        paymentContributedTotal += amount;
-        _blockContributions[block.number] += amount;
-        contributions[msg.sender].amount += amount;
-        contributions[msg.sender].tokensAllocated += tokensToAllocate;
+        phase.sold += tokensRaw;
+        totalRaised += usdcRequired;
+        totalTokenSold += tokensRaw;
+        totalContributed[msg.sender] += usdcRequired;
+        paymentContributed[msg.sender] += usdcRequired;
+        paymentContributedTotal += usdcRequired;
+        _blockContributions[block.number] += usdcRequired;
+        contributions[msg.sender].amount += usdcRequired;
+        contributions[msg.sender].tokensAllocated += tokensRaw;
 
         // ── Interactions (CEI) ──
-        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
+        paymentToken.safeTransferFrom(msg.sender, address(this), usdcRequired);
 
         if (saleMode == SaleMode.Direct) {
-            IERC20(token).safeTransfer(msg.sender, tokensToAllocate);
+            IERC20(token).safeTransfer(msg.sender, tokensRaw);
             contributions[msg.sender].claimed = true;
         } else {
-            fractionToken.mint(msg.sender, FRACTION_ID_USDC, tokensToAllocate, "");
-            vault.recordAllocation(msg.sender, FRACTION_ID_USDC, tokensToAllocate);
+            fractionToken.mint(msg.sender, FRACTION_ID_USDC, tokensRaw, "");
+            vault.recordAllocation(msg.sender, FRACTION_ID_USDC, tokensRaw);
         }
 
-        // Round-5: defer-finalize. Don't call _finalize() inline; just flag it
-        // and emit so the issuer/admin can call finalizeSale() in a separate tx.
         if (totalRaised >= hardCap || totalTokenSold >= totalTokenSupply) {
             if (!finalizationPending) {
                 finalizationPending = true;
@@ -735,47 +746,48 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             }
         }
 
-        emit Purchase(msg.sender, phaseId, amount, tokensToAllocate, false);
+        emit Purchase(msg.sender, phaseId, usdcRequired, tokensRaw, false);
     }
 
     // ── OTC Token Purchase ──────────────────────────────────────────────────
 
-    function buyOTC(uint256 phaseId, uint256 amount) external nonReentrant onlyStatus(SaleStatus.Active) {
-        // ── Checks ──
+    /// @notice Buy whole tokens with OTC voucher. Same whole-token semantics as buy().
+    /// @param tokenQty Number of whole tokens to buy.
+    function buyOTC(uint256 phaseId, uint256 tokenQty) external nonReentrant onlyStatus(SaleStatus.Active) {
         if (address(otcToken) == address(0)) revert OTCNotEnabled();
-        if (amount == 0) revert AmountTooSmall();
+        if (tokenQty == 0) revert AmountTooSmall();
 
-        Phase storage phase = _checkBuyEligibility(phaseId, amount);
+        uint256 otcRequired = tokenQty * phases[phaseId].pricePerToken;
+        uint256 tokensRaw = tokenQty * (10 ** tokenDecimals);
 
-        if (IERC20(address(otcToken)).balanceOf(msg.sender) < amount) revert InsufficientOTCBalance();
-        if (IERC20(address(otcToken)).allowance(msg.sender, address(this)) < amount) revert OTCNotApproved();
+        Phase storage phase = _checkBuyEligibility(phaseId, tokenQty, otcRequired);
 
-        uint256 tokensToAllocate = (amount * (10 ** tokenDecimals)) / phase.pricePerToken;
-        if (tokensToAllocate == 0) revert AmountTooSmall();
+        if (IERC20(address(otcToken)).balanceOf(msg.sender) < otcRequired) revert InsufficientOTCBalance();
+        if (IERC20(address(otcToken)).allowance(msg.sender, address(this)) < otcRequired) revert OTCNotApproved();
 
-        _checkMinContribution(phase, amount, tokensToAllocate);
-        _checkAllocationAndSupply(phase, tokensToAllocate);
+        _checkMinTokens(phase, tokenQty);
+        _checkAllocationAndSupply(phase, tokensRaw);
 
         // ── Effects ──
-        phase.sold += tokensToAllocate;
-        totalRaised += amount;       // OTC counts toward hard cap (1:1 by convention)
-        totalTokenSold += tokensToAllocate;
-        totalContributed[msg.sender] += amount;
-        otcContributed[msg.sender] += amount;       // Round-5: OTC-strict tracking
-        _blockContributions[block.number] += amount;
-        contributions[msg.sender].amount += amount;
-        contributions[msg.sender].tokensAllocated += tokensToAllocate;
+        phase.sold += tokensRaw;
+        totalRaised += otcRequired;
+        totalTokenSold += tokensRaw;
+        totalContributed[msg.sender] += otcRequired;
+        otcContributed[msg.sender] += otcRequired;
+        _blockContributions[block.number] += otcRequired;
+        contributions[msg.sender].amount += otcRequired;
+        contributions[msg.sender].tokensAllocated += tokensRaw;
 
         // ── Interactions (CEI) ──
-        IERC20(address(otcToken)).safeTransferFrom(msg.sender, address(this), amount);
-        otcToken.burn(address(this), amount);
+        IERC20(address(otcToken)).safeTransferFrom(msg.sender, address(this), otcRequired);
+        otcToken.burn(address(this), otcRequired);
 
         if (saleMode == SaleMode.Direct) {
-            IERC20(token).safeTransfer(msg.sender, tokensToAllocate);
+            IERC20(token).safeTransfer(msg.sender, tokensRaw);
             contributions[msg.sender].claimed = true;
         } else {
-            fractionToken.mint(msg.sender, FRACTION_ID_OTC, tokensToAllocate, "");
-            vault.recordAllocation(msg.sender, FRACTION_ID_OTC, tokensToAllocate);
+            fractionToken.mint(msg.sender, FRACTION_ID_OTC, tokensRaw, "");
+            vault.recordAllocation(msg.sender, FRACTION_ID_OTC, tokensRaw);
         }
 
         if (totalRaised >= hardCap || totalTokenSold >= totalTokenSupply) {
@@ -785,7 +797,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             }
         }
 
-        emit Purchase(msg.sender, phaseId, amount, tokensToAllocate, true);
+        emit Purchase(msg.sender, phaseId, otcRequired, tokensRaw, true);
     }
 
     // ── Finalization (internal) ─────────────────────────────────────────────

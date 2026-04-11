@@ -26,12 +26,12 @@ const FEE_BPS = 250n; // 2.5%
 const FEE_CAP = ethers.parseUnits("50000", 6);
 const TOTAL_SUPPLY = ethers.parseUnits("100000", 6); // 100k tokens (6-dec test token)
 
-// Phase params (raw 6-dec USDC)
-const PRICE_RAW = ethers.parseUnits("1", 6); // 1 USDC per token (6-dec token)
-const ALLOCATION = ethers.parseUnits("10000", 6); // 10k tokens
-const MIN_C = ethers.parseUnits("10", 6);
-const MAX_C = ethers.parseUnits("5000", 6);
-const TOP_UP_MIN = ethers.parseUnits("1000", 6); // contract floor
+// Phase params — whole-token buy model
+const PRICE_RAW = ethers.parseUnits("1", 6); // 1 USDC per token (payment-token raw for 1 whole token)
+const ALLOCATION = ethers.parseUnits("10000", 6); // 10k tokens (raw token units)
+const MIN_TOKENS = 10n;       // whole tokens
+const MAX_TOKENS = 5000n;     // whole tokens (cumulative per investor)
+const TOP_UP_MIN_TOKENS = 5n; // whole tokens
 
 const SALE_DURATION = 30 * 24 * 3600;
 
@@ -220,7 +220,7 @@ describe("Sale.sol — round 5", () => {
       // Add at least one phase before activation
       const start = (await sale.saleStartTime()).valueOf() as bigint;
       await sale.connect(issuer).addPhase(
-        "Phase 1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "Phase 1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         Number(start), Number(start) + 86400, false, FIXED,
       );
 
@@ -237,7 +237,7 @@ describe("Sale.sol — round 5", () => {
       const { sale } = await deployBaseSale({ owner, issuer, feeManager });
       const start = await sale.saleStartTime();
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         Number(start), Number(start) + 86400, false, FIXED,
       );
       await expect(sale.connect(issuer).activate())
@@ -248,7 +248,7 @@ describe("Sale.sol — round 5", () => {
       const { sale } = await deployBaseSale({ owner, issuer, feeManager });
       const start = await sale.saleStartTime();
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         Number(start), Number(start) + 86400, false, FIXED,
       );
       await sale.connect(owner).approveSale();
@@ -267,7 +267,7 @@ describe("Sale.sol — round 5", () => {
       const { sale } = await deployBaseSale({ owner, issuer, feeManager });
       const start = await sale.saleStartTime();
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         Number(start), Number(start) + 86400, false, FIXED,
       );
       await sale.connect(owner).approveSale();
@@ -302,7 +302,7 @@ describe("Sale.sol — round 5", () => {
     it("adds a valid phase", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "Phase 1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "Phase 1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart, saleStart + 86400, false, FIXED,
         ),
       ).to.emit(sale, "PhaseAdded");
@@ -312,7 +312,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts ZeroPricePerToken", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", 0, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", 0, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart, saleStart + 86400, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "ZeroPricePerToken");
@@ -321,7 +321,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts ZeroMinContribution", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, 0, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, ALLOCATION, 0, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart, saleStart + 86400, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "ZeroMinContribution");
@@ -330,25 +330,25 @@ describe("Sale.sol — round 5", () => {
     it("reverts InvalidContributionRange (max < min)", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, MAX_C, MIN_C, TOP_UP_MIN, // swapped
+          "P", PRICE_RAW, ALLOCATION, MAX_TOKENS, MIN_TOKENS, TOP_UP_MIN_TOKENS, // swapped
           saleStart, saleStart + 86400, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "InvalidContributionRange");
     });
 
-    it("reverts TopUpBelowFloor when topUpMin < 1000 USDC", async () => {
+    it("reverts ZeroMinContribution when topUpMinTokens = 0", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, ethers.parseUnits("999", 6),
+          "P", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, 0n,
           saleStart, saleStart + 86400, false, FIXED,
         ),
-      ).to.be.revertedWithCustomError(sale, "TopUpBelowFloor");
+      ).to.be.revertedWithCustomError(sale, "ZeroMinContribution");
     });
 
     it("reverts InvalidPhaseTimeRange", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart + 86400, saleStart, false, FIXED, // start > end
         ),
       ).to.be.revertedWithCustomError(sale, "InvalidPhaseTimeRange");
@@ -383,7 +383,7 @@ describe("Sale.sol — round 5", () => {
       // both inside [saleStart, saleEnd] but end is in past
       await expect(
         sale2.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           earliestStart, inPastEnd, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale2, "PhaseInPast");
@@ -392,7 +392,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts PhaseOutsideSaleWindow (start before sale start)", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart - 100, saleStart + 86400, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "PhaseOutsideSaleWindow");
@@ -401,7 +401,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts PhaseOutsideSaleWindow (end after sale end, fixed-end sale)", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart, saleEnd + 1000, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "PhaseOutsideSaleWindow");
@@ -409,13 +409,13 @@ describe("Sale.sol — round 5", () => {
 
     it("reverts PhaseOverlap when adding an overlapping phase", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       // Overlapping window
       await expect(
         sale.connect(issuer).addPhase(
-          "P2", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+          "P2", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart + 1000, saleStart + 90000, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "PhaseOverlap");
@@ -423,11 +423,11 @@ describe("Sale.sol — round 5", () => {
 
     it("allows non-overlapping consecutive phases", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await sale.connect(issuer).addPhase(
-        "P2", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P2", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart + 86400, saleStart + 172800, false, FIXED,
       );
       expect(await sale.getPhaseCount()).to.equal(2);
@@ -436,7 +436,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts ZeroPhaseAllocation in Fixed mode", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, 0, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, 0, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart, saleStart + 86400, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "ZeroPhaseAllocation");
@@ -445,7 +445,7 @@ describe("Sale.sol — round 5", () => {
     it("allows zero allocation in Remaining mode", async () => {
       await expect(
         sale.connect(issuer).addPhase(
-          "P", PRICE_RAW, 0, MIN_C, MAX_C, TOP_UP_MIN,
+          "P", PRICE_RAW, 0, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart, saleStart + 86400, false, REMAINING,
         ),
       ).to.not.be.reverted;
@@ -453,13 +453,13 @@ describe("Sale.sol — round 5", () => {
 
     it("reverts TokenSupplyExceeded when cumulative Fixed allocations > totalTokenSupply", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, TOTAL_SUPPLY, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, TOTAL_SUPPLY, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       // Adding any more Fixed-mode allocation should overflow
       await expect(
         sale.connect(issuer).addPhase(
-          "P2", PRICE_RAW, ethers.parseUnits("1", 6), MIN_C, MAX_C, TOP_UP_MIN,
+          "P2", PRICE_RAW, ethers.parseUnits("1", 6), MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
           saleStart + 86400, saleStart + 172800, false, FIXED,
         ),
       ).to.be.revertedWithCustomError(sale, "TokenSupplyExceeded");
@@ -480,7 +480,7 @@ describe("Sale.sol — round 5", () => {
       saleStart = fixture.saleStart;
       saleEnd = fixture.saleEnd;
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
     });
@@ -500,7 +500,7 @@ describe("Sale.sol — round 5", () => {
 
     it("reverts ExtensionOverlap when extending into next phase", async () => {
       await sale.connect(issuer).addPhase(
-        "P2", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P2", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart + 90000, saleStart + 180000, false, FIXED,
       );
       await expect(sale.connect(issuer).extendPhase(0, saleStart + 100000))
@@ -538,7 +538,7 @@ describe("Sale.sol — round 5", () => {
       saleStart = fixture.saleStart;
 
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -548,52 +548,53 @@ describe("Sale.sol — round 5", () => {
       await mockUsdc.mint(investor2.address, ethers.parseUnits("50000", 6));
     });
 
-    it("buys with correct token math (1 USDC → 1 token, 6/6 decimals)", async () => {
-      const amount = ethers.parseUnits("100", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await sale.connect(investor1).buy(0, amount);
-      // Direct mode: investor receives the project tokens directly
-      expect(await mockToken.balanceOf(investor1.address)).to.equal(amount);
-      expect(await sale.totalRaised()).to.equal(amount);
-      expect(await sale.paymentContributed(investor1.address)).to.equal(amount);
+    it("buys whole tokens (100 tokens at $1 each = $100 USDC)", async () => {
+      const tokenQty = 100n; // whole tokens
+      const expectedUsdc = tokenQty * PRICE_RAW; // 100 * 1e6 = 100 USDC
+      const expectedTokensRaw = tokenQty * BigInt(1e6); // 100 * 1e6 raw
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), expectedUsdc);
+      await sale.connect(investor1).buy(0, tokenQty);
+      expect(await mockToken.balanceOf(investor1.address)).to.equal(expectedTokensRaw);
+      expect(await sale.totalRaised()).to.equal(expectedUsdc);
+      expect(await sale.paymentContributed(investor1.address)).to.equal(expectedUsdc);
     });
 
-    it("reverts BelowMinContribution for first-time buyer below min", async () => {
-      const amount = ethers.parseUnits("5", 6); // below MIN_C = 10
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await expect(sale.connect(investor1).buy(0, amount))
+    it("reverts BelowMinContribution for first-time buyer below minTokens", async () => {
+      const tokenQty = 5n; // below MIN_TOKENS = 10
+      const usdc = tokenQty * PRICE_RAW;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), usdc);
+      await expect(sale.connect(investor1).buy(0, tokenQty))
         .to.be.revertedWithCustomError(sale, "BelowMinContribution");
     });
 
-    it("repeat buyer must clear topUpMin (1000 USDC)", async () => {
-      // First buy: 100 USDC (clears the 10-USDC minContribution)
-      const first = ethers.parseUnits("100", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), first);
+    it("repeat buyer must clear topUpMinTokens", async () => {
+      // First buy: 10 tokens (meets MIN_TOKENS = 10)
+      const first = 10n;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), first * PRICE_RAW);
       await sale.connect(investor1).buy(0, first);
 
-      // Second buy: 500 USDC — clears minContribution but BELOW topUpMin (1000)
-      const small = ethers.parseUnits("500", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), small);
+      // Second buy: 3 tokens — below topUpMinTokens (5)
+      const small = 3n;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), small * PRICE_RAW);
       await expect(sale.connect(investor1).buy(0, small))
         .to.be.revertedWithCustomError(sale, "TopUpBelowMin");
 
-      // Third buy: 1000 USDC — clears topUpMin
-      const ok = ethers.parseUnits("1000", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), ok);
+      // Third buy: 5 tokens — meets topUpMinTokens
+      const ok = 5n;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), ok * PRICE_RAW);
       await expect(sale.connect(investor1).buy(0, ok)).to.not.be.reverted;
     });
 
     it("auto-sets finalizationPending on hardcap (does NOT inline finalize)", async () => {
-      // Drain the hardcap with multiple small buys
-      // Hard cap is 10000, each investor capped at MAX_C = 5000
-      const buyAmt = MAX_C;
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), buyAmt);
-      await sale.connect(investor1).buy(0, buyAmt);
-      await mockUsdc.connect(investor2).approve(await sale.getAddress(), buyAmt);
-      await sale.connect(investor2).buy(0, buyAmt);
+      // Hard cap is 10000 USDC. At $1/token, that's 10000 tokens.
+      // Each investor capped at MAX_TOKENS = 5000
+      const buyQty = 5000n;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), buyQty * PRICE_RAW);
+      await sale.connect(investor1).buy(0, buyQty);
+      await mockUsdc.connect(investor2).approve(await sale.getAddress(), buyQty * PRICE_RAW);
+      await sale.connect(investor2).buy(0, buyQty);
 
       expect(await sale.totalRaised()).to.equal(HARD_CAP);
-      // Round-5: status should still be Active, not finalized inline
       expect(await sale.status()).to.equal(STATUS_ACTIVE);
       expect(await sale.finalizationPending()).to.be.true;
     });
@@ -611,7 +612,7 @@ describe("Sale.sol — round 5", () => {
       });
 
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, tinySupply, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, tinySupply, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -619,11 +620,11 @@ describe("Sale.sol — round 5", () => {
 
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50", 6));
 
-      // Buyer wants to spend 5 USDC = below min (10 USDC) — but it would consume
-      // all 5 remaining supply, so the last-chunk exception lets it through.
-      const amount = ethers.parseUnits("5", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await expect(sale.connect(investor1).buy(0, amount)).to.not.be.reverted;
+      // Buyer wants 5 tokens — below minTokens (10) — but it's the entire
+      // remaining supply, so the last-chunk exception lets it through.
+      const tokenQty = 5n;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), tokenQty * PRICE_RAW);
+      await expect(sale.connect(investor1).buy(0, tokenQty)).to.not.be.reverted;
       // Investor got the 5 tokens, supply is now exhausted
       expect(await mockToken.balanceOf(investor1.address)).to.equal(tinySupply);
     });
@@ -636,7 +637,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts CannotFinalize when neither finalizationPending nor window expired", async () => {
       const { sale, mockUsdc, saleStart } = await deployBaseSale({ owner, issuer, feeManager });
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -645,7 +646,7 @@ describe("Sale.sol — round 5", () => {
       // Make a small buy that doesn't hit hardcap
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50000", 6));
       await mockUsdc.connect(investor1).approve(await sale.getAddress(), ethers.parseUnits("100", 6));
-      await sale.connect(investor1).buy(0, ethers.parseUnits("100", 6));
+      await sale.connect(investor1).buy(0, 100n);
 
       await expect(sale.connect(issuer).finalizeSale())
         .to.be.revertedWithCustomError(sale, "CannotFinalize");
@@ -654,7 +655,7 @@ describe("Sale.sol — round 5", () => {
     it("finalizes successfully after sale window expires", async () => {
       const { sale, mockUsdc, saleStart, saleEnd } = await deployBaseSale({ owner, issuer, feeManager });
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -662,9 +663,9 @@ describe("Sale.sol — round 5", () => {
 
       // Buy enough to clear soft cap
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50000", 6));
-      const amount = SOFT_CAP + ethers.parseUnits("10", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await sale.connect(investor1).buy(0, amount);
+      const tokenQty = 510n; // enough to clear soft cap ($500) at $1/token
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), tokenQty * PRICE_RAW);
+      await sale.connect(investor1).buy(0, tokenQty);
 
       // Move past sale end
       await time.increaseTo(saleEnd + 100);
@@ -676,7 +677,7 @@ describe("Sale.sol — round 5", () => {
     it("finalizes failed when soft cap not met", async () => {
       const { sale, mockUsdc, saleStart, saleEnd } = await deployBaseSale({ owner, issuer, feeManager });
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -684,7 +685,7 @@ describe("Sale.sol — round 5", () => {
 
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50000", 6));
       await mockUsdc.connect(investor1).approve(await sale.getAddress(), ethers.parseUnits("100", 6));
-      await sale.connect(investor1).buy(0, ethers.parseUnits("100", 6));
+      await sale.connect(investor1).buy(0, 100n);
 
       await time.increaseTo(saleEnd + 100);
       await sale.connect(issuer).finalizeSale();
@@ -707,16 +708,16 @@ describe("Sale.sol — round 5", () => {
       saleEnd = fixture.saleEnd;
 
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
       await time.increaseTo(saleStart + 10);
 
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50000", 6));
-      const amount = ethers.parseUnits("100", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await sale.connect(investor1).buy(0, amount);
+      const buyTokens = 100n;
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), buyTokens * PRICE_RAW);
+      await sale.connect(investor1).buy(0, buyTokens);
 
       // Force the sale into FinalizedFailed by expiring the window
       await time.increaseTo(saleEnd + 100);
@@ -787,7 +788,7 @@ describe("Sale.sol — round 5", () => {
 
     it("reverts PhaseStillActive when a phase is currently in its window", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -798,7 +799,7 @@ describe("Sale.sol — round 5", () => {
 
     it("issuer closes the sale after the phase ends", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -806,9 +807,9 @@ describe("Sale.sol — round 5", () => {
 
       // Buy enough to clear soft cap
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50000", 6));
-      const amount = SOFT_CAP + ethers.parseUnits("10", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await sale.connect(investor1).buy(0, amount);
+      const tokenQty = 510n; // enough to clear soft cap ($500) at $1/token
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), tokenQty * PRICE_RAW);
+      await sale.connect(investor1).buy(0, tokenQty);
 
       // Move past phase end
       await time.increaseTo(saleStart + 86401);
@@ -818,16 +819,16 @@ describe("Sale.sol — round 5", () => {
 
     it("issuer can force-fail close even if soft cap met", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
       await time.increaseTo(saleStart + 10);
 
       await mockUsdc.mint(investor1.address, ethers.parseUnits("50000", 6));
-      const amount = SOFT_CAP + ethers.parseUnits("10", 6);
-      await mockUsdc.connect(investor1).approve(await sale.getAddress(), amount);
-      await sale.connect(investor1).buy(0, amount);
+      const tokenQty = 510n; // enough to clear soft cap ($500) at $1/token
+      await mockUsdc.connect(investor1).approve(await sale.getAddress(), tokenQty * PRICE_RAW);
+      await sale.connect(investor1).buy(0, tokenQty);
 
       await time.increaseTo(saleStart + 86401);
       await sale.connect(issuer).closeSale(true); // force failed
@@ -836,7 +837,7 @@ describe("Sale.sol — round 5", () => {
 
     it("anyone can close after MAX_SALE_DURATION (730 days)", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -849,7 +850,7 @@ describe("Sale.sol — round 5", () => {
 
     it("anyone can close after INACTIVITY_TIMEOUT (180 days, below soft cap)", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -861,7 +862,7 @@ describe("Sale.sol — round 5", () => {
 
     it("non-issuer cannot close before timeouts/floor", async () => {
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, false, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);
@@ -878,7 +879,7 @@ describe("Sale.sol — round 5", () => {
     it("issuer can update whitelist before phase starts", async () => {
       const { sale, saleStart } = await deployBaseSale({ owner, issuer, feeManager });
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, true, FIXED,
       );
       await sale.connect(issuer).setWhitelist(0, [investor1.address], true);
@@ -888,7 +889,7 @@ describe("Sale.sol — round 5", () => {
     it("reverts PhaseStillActive once the phase has started", async () => {
       const { sale, saleStart } = await deployBaseSale({ owner, issuer, feeManager });
       await sale.connect(issuer).addPhase(
-        "P1", PRICE_RAW, ALLOCATION, MIN_C, MAX_C, TOP_UP_MIN,
+        "P1", PRICE_RAW, ALLOCATION, MIN_TOKENS, MAX_TOKENS, TOP_UP_MIN_TOKENS,
         saleStart, saleStart + 86400, true, FIXED,
       );
       await approveAndActivate(sale, owner, issuer);

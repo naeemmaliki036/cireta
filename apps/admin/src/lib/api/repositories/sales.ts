@@ -12,8 +12,10 @@ export interface SalePhase {
   start_time: string;
   end_time: string;
   whitelist_only?: boolean;
-  // Round-5 fields
-  top_up_min: string;
+  // Whole-token buy fields
+  min_tokens: string;
+  max_tokens: string;
+  top_up_min_tokens: string;
   allocation_mode: string;
 }
 
