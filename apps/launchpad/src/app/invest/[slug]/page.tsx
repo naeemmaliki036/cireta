@@ -30,6 +30,7 @@ import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
 import { parseRevertReason } from "@/lib/contracts/revertReasons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3 } from "@/contexts/Web3Context";
+import { formatCurrency } from "@/lib/utils";
 
 // Steps shown in the progress bar (success is rendered separately).
 const STEPS_BAR = ["amount", "approve", "confirm"] as const;
@@ -238,6 +239,20 @@ export default function InvestPage() {
   const otcAmountWei = amount ? parseUnits(amount, otcTokenDecimals) : BigInt(0);
   const hasEnoughOtcAllowance = otcAllowance != null && otcAmountWei > 0 && (otcAllowance as bigint) >= otcAmountWei;
 
+  // Whole-token buy: `amount` represents token quantity (whole tokens).
+  // Declared here so it's available to the useEffects below.
+  const tokenQty = parseInt(amount || "0", 10) || 0;
+  const now = new Date();
+  const activePhase = project?.phases.find((p) => {
+    const start = new Date(p.start_time);
+    const end = new Date(p.end_time);
+    return now >= start && now < end;
+  }) ?? null;
+  const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
+  const usdcRequired = tokenQty * pricePerToken;
+  const tokensToReceive = tokenQty;
+  const numericAmount = usdcRequired;
+
   // Load project data
   useEffect(() => {
     if (!params.slug) return;
@@ -284,17 +299,20 @@ export default function InvestPage() {
     const hash = contributeTxHash;
     setTxHash(hash);
 
-    // Record contribution in backend (non-blocking for UX — tx is already on-chain)
+    // Record contribution in backend (non-blocking for UX — tx is already on-chain).
+    // Send the USDC value (not the token quantity) — backend `amount` is the
+    // payment-token amount and is used as the fallback when on-chain verification
+    // can't extract event data.
     (async () => {
       try {
-        await buy(saleId, { phase_id: activePhase?.id || "", amount, tx_hash: hash });
+        await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
       } catch (err) {
         console.error("[invest] Backend recording failed:", err);
       }
       setIsContributing(false);
       setStep("success");
     })();
-  }, [contributeConfirmed, contributeTxHash, saleId, amount]);
+  }, [contributeConfirmed, contributeTxHash, saleId, usdcRequired, activePhase?.id]);
 
   // Handle contribute error
   useEffect(() => {
@@ -316,13 +334,14 @@ export default function InvestPage() {
     setTxHash(hash);
     (async () => {
       try {
-        await buy(saleId, { phase_id: activePhase?.id || "", amount, tx_hash: hash });
+        // OTC buys: send USDC-equivalent value as the amount field for backend fallback.
+        await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
       } catch (err) { console.error("[invest] OTC backend recording failed:", err); }
       setIsContributing(false);
       refetchOtcBalance();
       setStep("success");
     })();
-  }, [buyOtcConfirmed, buyOtcTxHash, saleId, amount, refetchOtcBalance]);
+  }, [buyOtcConfirmed, buyOtcTxHash, saleId, usdcRequired, activePhase?.id, refetchOtcBalance]);
 
   // OTC: Handle buyOTC error
   useEffect(() => {
@@ -332,22 +351,7 @@ export default function InvestPage() {
     }
   }, [buyOtcError]);
 
-  // Whole-token buy: `amount` now represents token quantity (whole tokens)
-  const tokenQty = parseInt(amount || "0", 10) || 0;
-
-  // Time-based active phase: only the phase whose window contains "now" is active
-  const now = new Date();
-  const activePhase = project?.phases.find((p) => {
-    const start = new Date(p.start_time);
-    const end = new Date(p.end_time);
-    return now >= start && now < end;
-  }) ?? null;
-
-  const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
-  const usdcRequired = tokenQty * pricePerToken; // exact, no rounding
-  const tokensToReceive = tokenQty; // whole tokens, what you enter is what you get
-  // Legacy name for back-compat with existing code paths
-  const numericAmount = usdcRequired;
+  // (tokenQty / activePhase / usdcRequired declared above for useEffect access)
 
   // Determine the active phase index (0-based, for on-chain call)
   const rawPhaseIndex = project?.phases.findIndex((p) => {
@@ -791,71 +795,103 @@ export default function InvestPage() {
               <>
                 <h1 className="text-2xl font-semibold text-text mb-2">Invest with {otcTokenSymbol}</h1>
                 <p className="text-black/50 mb-4">
-                  Use your OTC tokens to invest in {project.title}
+                  Use your {otcTokenSymbol} balance to buy {project.tokenSymbol} tokens
                 </p>
-                <div className="bg-darkAqua/5 rounded-xl p-4 mb-6 border border-darkAqua/20">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-black/50">Your {otcTokenSymbol} Balance</span>
-                    <span className="font-semibold text-darkAqua">{otcBalanceFormatted.toLocaleString()} {otcTokenSymbol}</span>
-                  </div>
-                </div>
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-text mb-2">Amount ({otcTokenSymbol})</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0"
-                      max={otcBalanceFormatted}
-                      className="input-field text-2xl font-semibold pr-20"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">{otcTokenSymbol}</span>
-                  </div>
-                  <button
-                    onClick={() => setAmount(otcBalanceFormatted.toString())}
-                    className="mt-2 text-sm text-darkAqua hover:underline"
-                  >
-                    Use max balance
-                  </button>
-                </div>
-                {numericAmount > otcBalanceFormatted && (
-                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
-                    Amount exceeds your {otcTokenSymbol} balance.
-                  </div>
-                )}
-                {numericAmount > 0 && numericAmount <= otcBalanceFormatted && (
-                  <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-black/50">You Pay</span>
-                      <span className="font-semibold">{numericAmount.toLocaleString()} {otcTokenSymbol}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-black/50">You Receive</span>
-                      <span className="font-semibold">{tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} {project.tokenSymbol}</span>
-                    </div>
-                  </div>
-                )}
-                {userTotalContributed > 0 && (
-                  <p className="text-xs text-black/50 mb-3">
-                    You&apos;ve already contributed{" "}
-                    <span className="font-semibold text-text">{userTotalContributed.toLocaleString()}</span> to this sale.
-                  </p>
-                )}
-                {ethBalance != null && ethBalance < 0.0005 && (
-                  <div className="mb-4 p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
-                    Low ETH for gas: you have {ethBalance.toFixed(5)} ETH. Top up before continuing.
-                  </div>
-                )}
-                <Button
-                  variant="primary" className="w-full" size="lg"
-                  disabled={
-                    !otcMetadataReady ||
-                    numericAmount <= 0 ||
-                    numericAmount > otcBalanceFormatted ||
-                    !activePhase
-                  }
-                  onClick={() => {
+                {(() => {
+                  // OTC tokens are pegged 1:1 to the payment token (USDC), so the
+                  // OTC required = USDC required.
+                  const otcRequired = usdcRequired;
+                  const exceedsOtcBalance = otcRequired > otcBalanceFormatted;
+                  const totalSupply = project.totalTokenSupply ?? 0;
+                  const tokensSold = project.tokensSoldTotal ?? 0;
+                  const availableTokens = Math.max(0, totalSupply - tokensSold);
+                  const maxAffordableTokens = pricePerToken > 0
+                    ? Math.floor(otcBalanceFormatted / pricePerToken)
+                    : 0;
+                  const maxBuyableTokens = Math.min(maxAffordableTokens, availableTokens);
+                  return (
+                    <>
+                      <div className="bg-darkAqua/5 rounded-xl p-4 mb-3 border border-darkAqua/20 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-black/50">Your {otcTokenSymbol} Balance</span>
+                          <span className="font-semibold text-darkAqua">{otcBalanceFormatted.toLocaleString()} {otcTokenSymbol}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-black/50">Available {project.tokenSymbol} for Purchase</span>
+                          <span className="font-semibold text-darkAqua">
+                            {availableTokens.toLocaleString()} {project.tokenSymbol}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-black/50">Price per {project.tokenSymbol}</span>
+                          <span className="font-semibold">{formatCurrency(pricePerToken)}</span>
+                        </div>
+                      </div>
+                      <div className="mb-6">
+                        <label className="block text-sm font-semibold text-text mb-2">Amount ({project.tokenSymbol})</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="0"
+                            min={0}
+                            step={1}
+                            className="input-field text-2xl font-semibold pr-24"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">{project.tokenSymbol}</span>
+                        </div>
+                        <button
+                          onClick={() => setAmount(maxBuyableTokens.toString())}
+                          className="mt-2 text-sm text-darkAqua hover:underline"
+                          disabled={maxBuyableTokens <= 0}
+                        >
+                          Use max ({maxBuyableTokens.toLocaleString()} {project.tokenSymbol})
+                        </button>
+                      </div>
+                      {exceedsOtcBalance && (
+                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
+                          You need {otcRequired.toLocaleString()} {otcTokenSymbol} but only have {otcBalanceFormatted.toLocaleString()}.
+                        </div>
+                      )}
+                      {tokenQty > availableTokens && availableTokens > 0 && (
+                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
+                          Only {availableTokens.toLocaleString()} {project.tokenSymbol} are available for purchase.
+                        </div>
+                      )}
+                      {tokenQty > 0 && !exceedsOtcBalance && tokenQty <= availableTokens && (
+                        <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-black/50">You Pay</span>
+                            <span className="font-semibold">{otcRequired.toLocaleString()} {otcTokenSymbol}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-black/50">You Receive</span>
+                            <span className="font-semibold">{tokenQty.toLocaleString()} {project.tokenSymbol}</span>
+                          </div>
+                        </div>
+                      )}
+                      {userTotalContributed > 0 && (
+                        <p className="text-xs text-black/50 mb-3">
+                          You&apos;ve already contributed{" "}
+                          <span className="font-semibold text-text">{formatCurrency(userTotalContributed)}</span> to this sale.
+                        </p>
+                      )}
+                      {ethBalance != null && ethBalance < 0.0005 && (
+                        <div className="mb-4 p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
+                          Low ETH for gas: you have {ethBalance.toFixed(5)} ETH. Top up before continuing.
+                        </div>
+                      )}
+                      <Button
+                        variant="primary" className="w-full" size="lg"
+                        disabled={
+                          !otcMetadataReady ||
+                          tokenQty <= 0 ||
+                          exceedsOtcBalance ||
+                          tokenQty > availableTokens ||
+                          !activePhase
+                        }
+                        onClick={() => {
                     refetchOtcAllowance().then(({ data: a }) => {
                       const needed = parseUnits(amount || "0", otcTokenDecimals);
                       if (a != null && needed > 0 && (a as bigint) >= needed) {
@@ -874,6 +910,9 @@ export default function InvestPage() {
                 >
                   Back to payment options
                 </button>
+                    </>
+                  );
+                })()}
               </>
             )}
 
@@ -883,8 +922,8 @@ export default function InvestPage() {
                 <h1 className="text-2xl font-semibold text-text mb-2">Approve {otcTokenSymbol}</h1>
                 <p className="text-black/50 mb-8">Allow the sale contract to spend your {otcTokenSymbol} tokens</p>
                 <div className="bg-box rounded-xl p-6 mb-6 text-center">
-                  <p className="font-semibold text-text mb-2">Approve {numericAmount.toLocaleString()} {otcTokenSymbol}</p>
-                  <p className="text-sm text-black/50">This is a one-time approval for this investment</p>
+                  <p className="font-semibold text-text mb-2">Approve {usdcRequired.toLocaleString()} {otcTokenSymbol}</p>
+                  <p className="text-sm text-black/50">to buy {tokenQty.toLocaleString()} {project.tokenSymbol}. This is a one-time approval for this investment.</p>
                 </div>
                 <ComplianceAcknowledgment checked={otcComplianceMet} onChange={setOtcComplianceMet} />
                 <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
@@ -923,11 +962,11 @@ export default function InvestPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-black/50">Payment</span>
-                    <span className="font-semibold">{numericAmount.toLocaleString()} {otcTokenSymbol}</span>
+                    <span className="font-semibold">{usdcRequired.toLocaleString()} {otcTokenSymbol}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-black/50">Tokens</span>
-                    <span className="font-semibold">{tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} {project.tokenSymbol}</span>
+                    <span className="font-semibold">{tokenQty.toLocaleString()} {project.tokenSymbol}</span>
                   </div>
                 </div>
                 <p className="text-xs text-black/40 mb-4 text-center">
