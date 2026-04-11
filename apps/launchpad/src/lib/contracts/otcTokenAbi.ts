@@ -13,6 +13,6 @@ export const OTC_TOKEN_ABI = [
  * Sale ABI extension for OTC — adds buyOTC and otcToken view.
  */
 export const SALE_OTC_ABI = [
-  { name: "buyOTC", type: "function", stateMutability: "nonpayable", inputs: [{ name: "phaseId", type: "uint256" }, { name: "amount", type: "uint256" }], outputs: [] },
+  { name: "buyOTC", type: "function", stateMutability: "nonpayable", inputs: [{ name: "phaseId", type: "uint256" }, { name: "tokenQty", type: "uint256" }], outputs: [] },
   { name: "otcToken", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
 ] as const;

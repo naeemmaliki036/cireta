@@ -14,6 +14,10 @@ export interface ProjectPhase {
   allocation: string;
   min_contribution: string;
   max_contribution: string;
+  // Whole-token buy fields
+  min_tokens?: string;
+  max_tokens?: string;
+  top_up_min_tokens?: string;
   start_time: string;
   end_time: string;
   whitelist_only: boolean;

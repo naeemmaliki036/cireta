@@ -114,7 +114,7 @@ interface InvestAmountStepProps {
   ethBalance?: number | null;
 }
 
-const QUICK_AMOUNTS = [500, 1000, 5000, 10000];
+const QUICK_TOKEN_QUANTITIES = [1, 5, 10, 100];
 
 export function InvestAmountStep({
   project,
@@ -128,25 +128,41 @@ export function InvestAmountStep({
   userTotalContributed = 0,
   ethBalance = null,
 }: InvestAmountStepProps) {
-  const numericAmount = parseFloat(amount) || 0;
+  // Whole-token buy: `amount` is token quantity (integer, not USDC)
+  const tokenQty = parseInt(amount || "0", 10) || 0;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
-  const minContrib = activePhase ? parseFloat(activePhase.min_contribution) : 0;
-  const maxContrib = activePhase ? parseFloat(activePhase.max_contribution) || Infinity : Infinity;
-  const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
 
-  // Effective max for this investor: phase max minus what they've already contributed.
-  const remainingMax = isFinite(maxContrib) ? Math.max(0, maxContrib - userTotalContributed) : Infinity;
+  // Phase-level minimums are in whole tokens (new schema) — fall back to 1 if missing
+  const phaseRaw = activePhase as unknown as { min_tokens?: string; max_tokens?: string; top_up_min_tokens?: string };
+  const minTokens = phaseRaw?.min_tokens ? parseInt(phaseRaw.min_tokens, 10) : 1;
+  const maxTokens = phaseRaw?.max_tokens ? parseInt(phaseRaw.max_tokens, 10) : 0; // 0 = unlimited
+  const topUpMinTokens = phaseRaw?.top_up_min_tokens ? parseInt(phaseRaw.top_up_min_tokens, 10) : 1;
+
+  const usdcRequired = tokenQty * pricePerToken; // exact, zero rounding
+  const tokensToReceive = tokenQty;
+
+  // Investor's cumulative whole tokens bought — derive from total USDC contributed ÷ price
+  const investorWholeTokens = pricePerToken > 0 ? Math.floor(userTotalContributed / pricePerToken) : 0;
+  const isRepeatBuyer = investorWholeTokens > 0;
+
+  // Minimum applied to THIS buy: first-time uses minTokens, repeat uses topUpMinTokens
+  const effectiveMin = isRepeatBuyer ? topUpMinTokens : minTokens;
+  const remainingMax = maxTokens > 0 ? Math.max(0, maxTokens - investorWholeTokens) : Infinity;
 
   // Inline validation error
   let validationError: string | null = null;
-  if (numericAmount > 0 && numericAmount < minContrib) {
-    validationError = `Minimum contribution is ${formatCurrency(minContrib)}`;
-  } else if (numericAmount > 0 && numericAmount > remainingMax) {
+  if (tokenQty > 0 && !Number.isInteger(tokenQty)) {
+    validationError = "Only whole tokens allowed (e.g. 1, 5, 100)";
+  } else if (tokenQty > 0 && tokenQty < effectiveMin) {
+    validationError = isRepeatBuyer
+      ? `Top-up minimum is ${topUpMinTokens} tokens`
+      : `Minimum is ${minTokens} tokens for first-time buyers`;
+  } else if (tokenQty > 0 && tokenQty > remainingMax) {
     validationError = isFinite(remainingMax)
-      ? `Maximum remaining for your wallet is ${formatCurrency(remainingMax)}`
-      : `Amount exceeds the maximum contribution`;
-  } else if (numericAmount > 0 && maxPerBlock && numericAmount > maxPerBlock) {
-    validationError = `Per-block limit is ${formatCurrency(maxPerBlock)}. Split into smaller transactions.`;
+      ? `Maximum remaining for your wallet is ${remainingMax} tokens`
+      : `Amount exceeds the maximum`;
+  } else if (tokenQty > 0 && maxPerBlock && usdcRequired > maxPerBlock) {
+    validationError = `Per-block USDC limit is ${formatCurrency(maxPerBlock)}. Buy fewer tokens at a time.`;
   }
 
   if (!isConnected) {
@@ -167,27 +183,37 @@ export function InvestAmountStep({
   return (
     <>
       <h1 className="text-2xl font-semibold text-text mb-2">Invest in {project.title}</h1>
-      <p className="text-black/50 mb-8">Enter the amount you wish to invest in USDC</p>
+      <p className="text-black/50 mb-8">How many tokens would you like to buy?</p>
       <div className="mb-6">
-        <label className="block text-sm font-semibold text-text mb-2">Investment Amount (USDC)</label>
+        <label className="block text-sm font-semibold text-text mb-2">
+          Number of Tokens ({project.tokenSymbol})
+        </label>
         <div className="relative">
           <input
             type="number"
+            min="1"
+            step="1"
             value={amount}
-            onChange={(e) => onAmountChange(e.target.value)}
-            placeholder="0.00"
-            className="input-field text-2xl font-semibold pr-20"
+            onChange={(e) => {
+              // Strip decimals — whole tokens only
+              const v = e.target.value.replace(/[^\d]/g, "");
+              onAmountChange(v);
+            }}
+            placeholder="0"
+            className="input-field text-2xl font-semibold pr-24"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">USDC</span>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">
+            {project.tokenSymbol}
+          </span>
         </div>
         <div className="flex gap-2 mt-3">
-          {QUICK_AMOUNTS.map((v) => (
+          {QUICK_TOKEN_QUANTITIES.map((v) => (
             <button
               key={v}
               onClick={() => onAmountChange(v.toString())}
               className="flex-1 py-2 text-sm font-medium text-darkAqua bg-darkAqua/10 rounded-lg hover:bg-darkAqua/20 transition-colors"
             >
-              ${v.toLocaleString()}
+              {v} {project.tokenSymbol}
             </button>
           ))}
         </div>
@@ -198,33 +224,29 @@ export function InvestAmountStep({
           <p className="text-sm text-red-600">{validationError}</p>
         </div>
       )}
-      {numericAmount > 0 && !validationError && (
+      {tokenQty > 0 && !validationError && (
         <div className="bg-box rounded-xl p-4 space-y-3 mb-6">
-          <SummaryRow label="You Pay" value={formatCurrency(numericAmount)} />
-          <SummaryRow
-            label="You Receive"
-            value={`${tokensToReceive.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${project.tokenSymbol}`}
-          />
+          <SummaryRow label="You Receive" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
           <SummaryRow label="Price per Token" value={formatCurrency(pricePerToken)} />
+          <SummaryRow label="Total Cost" value={formatCurrency(usdcRequired)} />
         </div>
       )}
       <p className="text-xs text-black/40 mb-2">
-        Min: {formatCurrency(minContrib)} &bull; Max Allocation:{" "}
-        {isFinite(maxContrib) ? formatCurrency(maxContrib) : "No Limit"}
-        {maxPerBlock != null && (
-          <>
-            {" "}&bull; Per-block: {formatCurrency(maxPerBlock)}
-          </>
+        {isRepeatBuyer ? (
+          <>Top-up min: {topUpMinTokens} tokens</>
+        ) : (
+          <>Min: {minTokens} tokens</>
         )}
+        {" "}&bull; Max:{" "}
+        {maxTokens > 0 ? `${maxTokens} tokens per investor` : "No Limit"}
       </p>
-      {userTotalContributed > 0 && (
+      {investorWholeTokens > 0 && (
         <p className="text-xs text-black/50 mb-4">
-          You&apos;ve already contributed{" "}
-          <span className="font-semibold text-text">{formatCurrency(userTotalContributed)}</span>
-          {isFinite(maxContrib) && (
+          You&apos;ve already bought{" "}
+          <span className="font-semibold text-text">{investorWholeTokens} tokens</span>
+          {maxTokens > 0 && (
             <>
-              {" "}of {formatCurrency(maxContrib)} max
-              {" "}({formatCurrency(remainingMax)} remaining)
+              {" "}of {maxTokens} max ({remainingMax} remaining)
             </>
           )}
         </p>
@@ -235,10 +257,10 @@ export function InvestAmountStep({
         className="w-full"
         size="lg"
         disabled={
-          numericAmount <= 0 ||
-          numericAmount < minContrib ||
-          numericAmount > remainingMax ||
-          (maxPerBlock != null && numericAmount > maxPerBlock) ||
+          tokenQty <= 0 ||
+          tokenQty < effectiveMin ||
+          tokenQty > remainingMax ||
+          (maxPerBlock != null && usdcRequired > maxPerBlock) ||
           !activePhase
         }
         onClick={onContinue}

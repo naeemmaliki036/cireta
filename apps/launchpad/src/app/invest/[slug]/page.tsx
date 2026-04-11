@@ -314,7 +314,8 @@ export default function InvestPage() {
     }
   }, [buyOtcError]);
 
-  const numericAmount = parseFloat(amount) || 0;
+  // Whole-token buy: `amount` now represents token quantity (whole tokens)
+  const tokenQty = parseInt(amount || "0", 10) || 0;
 
   // Time-based active phase: only the phase whose window contains "now" is active
   const now = new Date();
@@ -325,7 +326,10 @@ export default function InvestPage() {
   }) ?? null;
 
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
-  const tokensToReceive = pricePerToken > 0 ? numericAmount / pricePerToken : 0;
+  const usdcRequired = tokenQty * pricePerToken; // exact, no rounding
+  const tokensToReceive = tokenQty; // whole tokens, what you enter is what you get
+  // Legacy name for back-compat with existing code paths
+  const numericAmount = usdcRequired;
 
   // Determine the active phase index (0-based, for on-chain call)
   const rawPhaseIndex = project?.phases.findIndex((p) => {
@@ -352,11 +356,13 @@ export default function InvestPage() {
       return;
     }
     setError(null);
-    const approveAmount = parseUnits(amount, 6);
+    // Approve the exact USDC required for tokenQty tokens
+    const approveAmount = parseUnits(usdcRequired.toString(), 6);
     console.log("[invest] Approve USDC:", {
       usdc: usdcAddress,
       spender: saleContractAddress,
-      amount: approveAmount.toString(),
+      tokenQty,
+      usdcRequired: approveAmount.toString(),
       existingAllowance: existingAllowance?.toString(),
     });
     try {
@@ -370,18 +376,18 @@ export default function InvestPage() {
       console.error("[invest] Approve error:", err);
       setError(err instanceof Error ? err.message : "Approval failed");
     }
-  }, [writeApprove, saleContractAddress, usdcAddress, amount, existingAllowance]);
+  }, [writeApprove, saleContractAddress, usdcAddress, tokenQty, usdcRequired, existingAllowance]);
 
   const handleConfirm = useCallback(() => {
     if (!saleContractAddress || !activePhase) return;
     setError(null);
     setIsContributing(true);
-    const buyAmount = parseUnits(amount, 6);
+    // Whole-token buy: second arg is token quantity (not USDC)
     console.log("[invest] Buy:", {
       sale: saleContractAddress,
       phaseIndex: activePhaseIndex >= 0 ? activePhaseIndex : 0,
-      amount: buyAmount.toString(),
-      tokensToReceive,
+      tokenQty,
+      usdcRequired,
     });
     try {
       writeContribute({
@@ -390,7 +396,7 @@ export default function InvestPage() {
         functionName: "buy",
         args: [
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
-          buyAmount,
+          BigInt(tokenQty),
         ],
         gas: BigInt(500_000),
       });
@@ -399,9 +405,9 @@ export default function InvestPage() {
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, amount, tokensToReceive]);
+  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, tokenQty, usdcRequired]);
 
-  // OTC Token: Approve OTC tokens for spending by sale contract
+  // OTC Token: Approve OTC tokens for spending by sale contract (exact USDC amount)
   const handleOtcApprove = useCallback(() => {
     if (!saleContractAddress || !otcTokenAddress) {
       setError("Sale or OTC token contract not available.");
@@ -413,14 +419,14 @@ export default function InvestPage() {
         address: otcTokenAddress,
         abi: OTC_TOKEN_ABI,
         functionName: "approve",
-        args: [saleContractAddress, parseUnits(amount, otcTokenDecimals)],
+        args: [saleContractAddress, parseUnits(usdcRequired.toString(), otcTokenDecimals)],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "OTC approval failed");
     }
-  }, [writeOtcApprove, saleContractAddress, otcTokenAddress, amount, otcTokenDecimals]);
+  }, [writeOtcApprove, saleContractAddress, otcTokenAddress, usdcRequired, otcTokenDecimals]);
 
-  // OTC Token: Call sale.buyOTC()
+  // OTC Token: Call sale.buyOTC() with token quantity
   const handleOtcConfirm = useCallback(() => {
     if (!saleContractAddress || !activePhase) return;
     setError(null);
@@ -432,7 +438,7 @@ export default function InvestPage() {
         functionName: "buyOTC",
         args: [
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
-          parseUnits(amount, otcTokenDecimals),
+          BigInt(tokenQty),
         ],
         gas: BigInt(500_000),
       });
@@ -440,7 +446,7 @@ export default function InvestPage() {
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeBuyOtc, saleContractAddress, activePhase, activePhaseIndex, amount, otcTokenDecimals]);
+  }, [writeBuyOtc, saleContractAddress, activePhase, activePhaseIndex, tokenQty]);
 
   const otcConfirmLoading = isContributing || isBuyOtcPending || isBuyOtcConfirming;
 
