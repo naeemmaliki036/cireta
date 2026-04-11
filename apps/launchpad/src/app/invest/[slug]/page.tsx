@@ -550,11 +550,14 @@ export default function InvestPage() {
 
               // KYC approved but wallet not linked to profile
               if (!isWalletLinkedToProfile) {
+                const shortAddr = connectedAddress
+                  ? `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`
+                  : "";
                 return (
                   <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
                     <p className="text-sm font-semibold text-amber-800 mb-1">Link this wallet to your profile</p>
                     <p className="text-sm text-amber-700 mb-3">
-                      You&apos;re verified, but this wallet isn&apos;t connected to your Cireta account yet.
+                      You&apos;re verified, but the connected wallet{shortAddr && <> (<code className="font-mono text-xs">{shortAddr}</code>)</>} isn&apos;t connected to your Cireta account yet.
                       Link it from your profile before you can invest.
                     </p>
                     <Link
