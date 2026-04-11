@@ -101,3 +101,31 @@ class RedemptionStatus(str, Enum):
     SHIPPED = "shipped"
     FULFILLED = "fulfilled"
     CANCELLED = "cancelled"
+
+
+class WalletDeletionRequestStatus(str, Enum):
+    """Lifecycle of a buyer-initiated request to remove a wallet from
+    their KYC-verified profile. Verified users cannot self-delete; an
+    admin reviews + approves/denies."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    DENIED = "denied"
+
+
+class IdentitySyncJobStatus(str, Enum):
+    """Lifecycle of an enqueued identity-registry sync job (whitelist add
+    or revoke). Powers the dead-letter / audit dashboard."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class IdentitySyncJobAction(str, Enum):
+    """What the worker should do when picking up an identity sync job."""
+
+    PROVISION = "provision"  # Re-sync the buyer's full wallet set after KYC approval
+    ADD = "add"  # Whitelist a single newly-linked wallet
+    REMOVE = "remove"  # Revoke a single wallet (admin-approved deletion)

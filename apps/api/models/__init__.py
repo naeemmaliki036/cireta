@@ -7,6 +7,8 @@ from apps.api.models.enums import (
     AssetType,
     ContributionStatus,
     FulfillmentMethod,
+    IdentitySyncJobAction,
+    IdentitySyncJobStatus,
     IdentityVerificationStatus,
     IssuerStatus,
     IssuerType,
@@ -17,7 +19,9 @@ from apps.api.models.enums import (
     SaleStructure,
     UserRole,
     WalletApprovalStatus,
+    WalletDeletionRequestStatus,
 )
+from apps.api.models.identity_sync_job import IdentitySyncJob
 from apps.api.models.issuer import Issuer
 from apps.api.models.issuer_whitelist import IssuerWhitelist
 from apps.api.models.kyc_application import KYCApplication
@@ -43,6 +47,7 @@ from apps.api.models.user import User
 from apps.api.models.vesting_schedule import VestingSchedule
 from apps.api.models.wallet import Wallet
 from apps.api.models.wallet_audit import WalletAuditLog
+from apps.api.models.wallet_deletion_request import WalletDeletionRequest
 from apps.api.models.webhook_event import WebhookEvent
 
 __all__ = [
@@ -87,5 +92,10 @@ __all__ = [
     "PlatformSetting",
     "PlatformStat",
     "WalletAuditLog",
+    "WalletDeletionRequest",
+    "WalletDeletionRequestStatus",
+    "IdentitySyncJob",
+    "IdentitySyncJobStatus",
+    "IdentitySyncJobAction",
     "WebhookEvent",
 ]
