@@ -58,7 +58,7 @@ export function DashboardLayout({
       <div className="flex pt-16 flex-1">
         {/* Sidebar */}
         <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Buyer</p>
           <nav className="space-y-1">
             {SIDEBAR_LINKS.map((link) => {
               const isActive = pathname === link.href;

@@ -27,7 +27,7 @@ export default function ContactPage() {
             </div>
             <h2 className="font-semibold text-gray-900 mb-1">OTC & Large Allocations</h2>
             <a href="mailto:otc@cireta.com" className="text-sm text-teal-600 hover:underline">otc@cireta.com</a>
-            <p className="text-xs text-gray-400 mt-2">For investments over $50,000 and OTC desk inquiries</p>
+            <p className="text-xs text-gray-400 mt-2">For purchases over $50,000 and OTC desk inquiries</p>
           </div>
 
           <div className="p-6 rounded-2xl border border-gray-100 hover:border-gray-200 transition-colors">
@@ -50,9 +50,9 @@ export default function ContactPage() {
         </div>
 
         <div className="bg-gray-50 rounded-2xl p-8 text-center">
-          <h2 className="font-semibold text-gray-900 mb-2">Need to change your investor type?</h2>
+          <h2 className="font-semibold text-gray-900 mb-2">Need to change your buyer type?</h2>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            If you selected the wrong investor type during onboarding (individual vs corporate),
+            If you selected the wrong buyer type during onboarding (individual vs corporate),
             email <a href="mailto:support@cireta.com" className="text-blue-600 hover:underline">support@cireta.com</a> with
             your registered email and the correct type. Our team will assist you.
           </p>

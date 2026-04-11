@@ -178,7 +178,7 @@ export default function TransactionsPage() {
             <Receipt className="w-10 h-10 text-black/20 mx-auto mb-3" />
             <p className="text-black/40 font-medium">No transactions yet</p>
             <p className="text-black/20 text-sm mt-1">
-              Your transactions will appear here after you invest.
+              Your transactions will appear here after you buy.
             </p>
           </div>
         ) : (

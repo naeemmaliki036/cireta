@@ -65,7 +65,7 @@ export function Footer() {
             </Link>
             <p className="text-sm text-gray-500 leading-relaxed mb-5 max-w-sm">
               Regulated tokenization launchpad for real-world assets.
-              Invest in commodity-backed security tokens with
+              Buy commodity-backed security tokens with
               institutional-grade compliance and transparent on-chain ownership.
             </p>
             <div className="flex items-center gap-2">
@@ -116,9 +116,9 @@ export function Footer() {
         {/* Disclaimer */}
         <div className="border-t border-gray-100 py-5">
           <p className="text-[11px] text-gray-400 leading-relaxed">
-            Cireta facilitates tokenized security offerings. Investments involve significant risk including potential loss of principal.
-            Past performance is not indicative of future results. Securities are subject to applicable regulations and available only to verified investors.
-            Cireta does not provide investment advice.
+            Cireta facilitates tokenized security offerings. Purchases involve significant risk including potential loss of principal.
+            Past performance is not indicative of future results. Securities are subject to applicable regulations and available only to verified buyers.
+            Cireta does not provide purchase advice.
           </p>
         </div>
 

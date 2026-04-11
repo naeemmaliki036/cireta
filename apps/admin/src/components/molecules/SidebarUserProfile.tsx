@@ -6,7 +6,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 const ROLE_LABELS: Record<string, string> = {
   admin: "Platform Admin",
   issuer: "Issuer",
-  investor: "Investor",
+  investor: "Buyer",
 };
 
 export function SidebarUserProfile() {

@@ -36,13 +36,13 @@ export function SplitAuthLayout({
 
           <div>
             <h1 className="text-3xl xl:text-4xl font-semibold text-white leading-tight mb-5 -tracking-[1px]">
-              Invest in the Future of{" "}
+              Buy the Future of{" "}
               <span className="text-white/70">Real World Assets</span>
             </h1>
 
             <p className="text-base text-white/50 leading-relaxed">
               Regulated security tokens for commodities, infrastructure, and real-world projects.
-              <br />Invest with confidence.
+              <br />Buy with confidence.
             </p>
 
             <div className="mt-8 space-y-3">

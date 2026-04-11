@@ -21,7 +21,7 @@ const DEFAULTS: Prefs = {
 };
 
 const CATEGORIES = [
-  { key: "investment_updates", label: "Investment confirmations" },
+  { key: "investment_updates", label: "Purchase confirmations" },
   { key: "kyc_status", label: "KYC reminders" },
   { key: "sale_announcements", label: "Sale updates" },
   { key: "dividends", label: "Dividend notifications" },

@@ -28,7 +28,7 @@ export default function PrivacyPage() {
             <ul className="list-disc pl-6 text-gray-600 space-y-2">
               <li><strong>Account Information:</strong> Name, email address, and display name provided during registration.</li>
               <li><strong>Identity Verification (KYC):</strong> Government-issued ID, selfie, proof of address, date of birth, nationality, and country of residence — processed by our third-party KYC provider (Sumsub).</li>
-              <li><strong>Financial Information:</strong> Investment amounts, transaction history, wallet addresses, and payment method details.</li>
+              <li><strong>Financial Information:</strong> Purchase amounts, transaction history, wallet addresses, and payment method details.</li>
               <li><strong>Blockchain Data:</strong> On-chain wallet addresses, transaction hashes, and token balances (publicly visible on the blockchain).</li>
               <li><strong>Technical Data:</strong> IP address, browser type, device information, and usage analytics.</li>
             </ul>
@@ -38,9 +38,9 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-gray-900">3. How We Use Your Information</h2>
             <ul className="list-disc pl-6 text-gray-600 space-y-2">
               <li>To verify your identity and comply with KYC/AML regulations.</li>
-              <li>To process investments, redemptions, and distributions.</li>
+              <li>To process purchases, redemptions, and distributions.</li>
               <li>To manage your account and provide customer support.</li>
-              <li>To send transactional emails (verification codes, investment confirmations, KYC status updates).</li>
+              <li>To send transactional emails (verification codes, purchase confirmations, KYC status updates).</li>
               <li>To detect and prevent fraud, money laundering, and other illegal activities.</li>
               <li>To comply with legal and regulatory obligations.</li>
               <li>To improve the Platform and develop new features.</li>

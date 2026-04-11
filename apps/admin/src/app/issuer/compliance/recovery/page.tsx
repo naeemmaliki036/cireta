@@ -54,7 +54,7 @@ export default function TokenRecoveryPage() {
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
         <p className="text-yellow-800 text-sm font-medium">Sensitive Action</p>
         <p className="text-yellow-700 text-sm mt-1">
-          Ensure investor identity has been verified off-platform before proceeding.
+          Ensure buyer identity has been verified off-platform before proceeding.
           This action is irreversible and recorded on-chain.
         </p>
       </div>
@@ -69,7 +69,7 @@ export default function TokenRecoveryPage() {
           { key: "new_wallet", label: "New Wallet Address", placeholder: "0x...", isAddr: true },
           { key: "token_id", label: "Token ID", placeholder: "UUID of the token", isAddr: false },
           { key: "onchain_id", label: "ONCHAINID Address (optional)", placeholder: "0x...", isAddr: true },
-          { key: "reason", label: "Reason", placeholder: "e.g. Investor lost private key, identity verified via KYC docs", isAddr: false },
+          { key: "reason", label: "Reason", placeholder: "e.g. Buyer lost private key, identity verified via KYC docs", isAddr: false },
         ].map(({ key, label, placeholder, isAddr }) => {
           const val = form[key as keyof typeof form];
           const showErr = isAddr && val && !isAddress(val);

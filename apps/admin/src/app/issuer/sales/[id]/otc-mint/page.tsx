@@ -210,7 +210,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
             <Coins className="h-5 w-5 text-darkAqua" /> Mint OTC Tokens
           </h2>
           <p className="text-xs text-black/40 mb-5">
-            Mint OTC receipt tokens to an investor or operator wallet after receiving off-chain payment.
+            Mint OTC receipt tokens to a buyer or operator wallet after receiving off-chain payment.
           </p>
 
           {formError && (
@@ -222,7 +222,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Investor / Operator Wallet Address</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Buyer / Operator Wallet Address</label>
               <input
                 type="text"
                 value={investorWallet}

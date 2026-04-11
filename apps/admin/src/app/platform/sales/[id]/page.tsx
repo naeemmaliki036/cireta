@@ -339,7 +339,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
               <XCircle className="h-4 w-4 mr-2" /> Reject On-Chain
             </Button>
           </div>
-          <TransactionStatus isPending={activateAction.isPending} isConfirming={activateAction.isConfirming} isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash} txUrl={activateAction.txUrl} error={activateAction.error} successMessage="Sale activated — now live for investors." />
+          <TransactionStatus isPending={activateAction.isPending} isConfirming={activateAction.isConfirming} isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash} txUrl={activateAction.txUrl} error={activateAction.error} successMessage="Sale activated — now live for buyers." />
           <TransactionStatus isPending={rejectAction.isPending} isConfirming={rejectAction.isConfirming} isConfirmed={rejectAction.isConfirmed} txHash={rejectAction.txHash} txUrl={rejectAction.txUrl} error={rejectAction.error} successMessage="Sale rejected on-chain — permanently blocked." />
         </motion.div>
       )}
@@ -359,7 +359,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
             Sale is Live{isOpenEnded ? " (Open-Ended)" : ""}
           </h2>
           <p className="text-sm text-blue-700 mb-4">
-            Investors can buy. You can pause, finalize{isOpenEnded ? ", or close" : ""} from your admin wallet.
+            Buyers can buy. You can pause, finalize{isOpenEnded ? ", or close" : ""} from your admin wallet.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <Button variant="outline" onClick={handlePauseOnChain} disabled={pauseAction.isPending || pauseAction.isConfirming} isLoading={pauseAction.isPending || pauseAction.isConfirming} className="text-amber-600 border-amber-200 hover:bg-amber-50">
@@ -413,7 +413,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       {isFinalizedSuccess && (
         <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
           <p className="font-semibold mb-1">Sale finalized successfully</p>
-          <p>Issuer can withdraw funds. Investors can claim tokens.</p>
+          <p>Issuer can withdraw funds. Buyers can claim tokens.</p>
         </div>
       )}
 
@@ -423,8 +423,8 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           <h2 className="text-lg font-semibold text-red-800 mb-2">Sale Failed — Soft Cap Not Reached</h2>
           <p className="text-sm text-red-700 mb-4">
             {sale.refunds_activated_at
-              ? "Refunds are active. Investors can claim USDC refunds."
-              : "Activate refunds to allow investors to reclaim their USDC contributions. OTC contributors must be refunded off-chain."
+              ? "Refunds are active. Buyers can claim USDC refunds."
+              : "Activate refunds to allow buyers to reclaim their USDC contributions. OTC contributors must be refunded off-chain."
             }
           </p>
           {!sale.refunds_activated_at && (
@@ -440,7 +440,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
               <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Refunds activated on {new Date(sale.refunds_activated_at).toLocaleDateString()}
             </div>
           )}
-          <TransactionStatus isPending={activateRefundsAction.isPending} isConfirming={activateRefundsAction.isConfirming} isConfirmed={activateRefundsAction.isConfirmed} txHash={activateRefundsAction.txHash} txUrl={activateRefundsAction.txUrl} error={activateRefundsAction.error} successMessage="Refunds activated — investors can now claim USDC refunds." />
+          <TransactionStatus isPending={activateRefundsAction.isPending} isConfirming={activateRefundsAction.isConfirming} isConfirmed={activateRefundsAction.isConfirmed} txHash={activateRefundsAction.txHash} txUrl={activateRefundsAction.txUrl} error={activateRefundsAction.error} successMessage="Refunds activated — buyers can now claim USDC refunds." />
         </motion.div>
       )}
 
@@ -505,7 +505,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
             )}
             <div>
               <p className="text-sm font-semibold text-text">{sale.is_visible ? "Visible on Launchpad" : "Hidden from Launchpad"}</p>
-              <p className="text-xs text-black/40">{sale.is_visible ? "Investors can see this sale" : "Only admin and issuer can see this sale"}</p>
+              <p className="text-xs text-black/40">{sale.is_visible ? "Buyers can see this sale" : "Only admin and issuer can see this sale"}</p>
             </div>
           </div>
           <Button

@@ -51,7 +51,7 @@ export default function PortfolioHoldingsPage() {
           <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
             <Coins className="w-10 h-10 text-black/20 mx-auto mb-3" />
             <p className="text-black/40 font-medium">No holdings yet</p>
-            <p className="text-black/20 text-sm mt-1">Invest in a token sale to see your holdings here.</p>
+            <p className="text-black/20 text-sm mt-1">Buy in a token sale to see your holdings here.</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-black/10 overflow-hidden">

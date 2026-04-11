@@ -74,7 +74,7 @@ export function InvestSidebar({
     try {
       await onInvest(numericAmount);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Investment failed");
+      setError(err instanceof Error ? err.message : "Purchase failed");
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +97,7 @@ export function InvestSidebar({
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-text mb-2">
-          Invest in {projectName}
+          Buy {projectName}
         </h3>
         <div className="flex items-center gap-2">
           <Badge variant="default" size="sm">
@@ -131,7 +131,7 @@ export function InvestSidebar({
             <span className="font-medium">Connect Wallet</span>
           </div>
           <p className="text-sm text-gray-500 mb-3">
-            Connect your wallet to start investing in this project.
+            Connect your wallet to start buying in this project.
           </p>
           <Button variant="primary" className="w-full" onClick={onConnectWallet}>
             Connect Wallet
@@ -144,7 +144,7 @@ export function InvestSidebar({
             <span className="font-medium">KYC Required</span>
           </div>
           <p className="text-sm text-gray-500 mb-3">
-            Complete KYC verification (Level {requiredKYCLevel}) to invest in this project.
+            Complete KYC verification (Level {requiredKYCLevel}) to buy in this project.
           </p>
           <Button variant="primary" className="w-full" onClick={onStartKYC}>
             Start Verification
@@ -154,17 +154,17 @@ export function InvestSidebar({
         <div className="bg-green-50 rounded-xl p-4 mb-6 flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-600" />
           <span className="text-green-700 font-medium">
-            Verified - Ready to Invest
+            Verified - Ready to Buy
           </span>
         </div>
       )}
 
-      {/* Investment Form */}
+      {/* Purchase Form */}
       {canInvest && (
         <>
           <div className="mb-4">
             <Input
-              label="Investment Amount (USDC)"
+              label="Purchase Amount (USDC)"
               type="text"
               placeholder="0.00"
               value={amount}
@@ -220,7 +220,7 @@ export function InvestSidebar({
             isLoading={isLoading}
             disabled={numericAmount <= 0}
           >
-            {isLoading ? "Processing..." : "Invest Now"}
+            {isLoading ? "Processing..." : "Buy Now"}
           </Button>
         </>
       )}

@@ -160,7 +160,7 @@ function OTCTokenSection() {
       {/* Info banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
         <strong>How OTC works:</strong> Deploy an OTC receipt token for each sale that accepts off-platform payments (bank transfers, crypto).
-        Mint OTC tokens to investors after receiving payment. They can use OTC tokens to purchase project tokens at the sale price.
+        Mint OTC tokens to buyers after receiving payment. They can use OTC tokens to purchase project tokens at the sale price.
         Only KYC-verified wallets can receive OTC tokens — verified through the Cireta platform identity registry.
       </div>
 
@@ -185,7 +185,7 @@ function OTCTokenSection() {
             <Input label="OTC Token Name" value={otcName} onChange={(e) => setOtcName(e.target.value)} placeholder="e.g. Gold OTC Receipt" />
             <Input label="Symbol" value={otcSymbol} onChange={(e) => setOtcSymbol(e.target.value)} placeholder="e.g. gOTC" />
           </div>
-          <p className="text-xs text-black/30">OTC tokens are minted on-demand to individual investors after receiving off-platform payment — no initial supply needed. Uses the Cireta platform identity registry.</p>
+          <p className="text-xs text-black/30">OTC tokens are minted on-demand to individual buyers after receiving off-platform payment — no initial supply needed. Uses the Cireta platform identity registry.</p>
           <div className="flex items-center gap-2">
             <Button variant="primary" size="sm" onClick={handleDeploy}
               disabled={!otcName || !otcSymbol || !platformIR || deployAction.isPending || deployAction.isConfirming}

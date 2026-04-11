@@ -29,7 +29,7 @@ export default function VerifyPage() {
       <div className="flex pt-16 flex-1">
         {/* Sidebar */}
         <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Buyer</p>
           <nav className="space-y-1">
             {SIDEBAR_LINKS.map((link) => {
               const isActive = pathname === link.href;
@@ -92,8 +92,8 @@ export default function VerifyPage() {
                       <h2 className="text-sm font-semibold text-gray-900">Why is verification required?</h2>
                       <p className="text-xs text-gray-500 mt-1">
                         Cireta operates under strict regulatory standards for real-world asset tokenization.
-                        We are legally required to verify the identity of every investor before granting access
-                        to investment opportunities.
+                        We are legally required to verify the identity of every buyer before granting access
+                        to purchase opportunities.
                       </p>
                     </div>
                   </div>
@@ -110,7 +110,7 @@ export default function VerifyPage() {
                       <Globe className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-xs font-medium text-gray-800">Securities Regulation</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">Regulated security tokens require verified investors</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Regulated security tokens require verified buyers</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2.5 bg-white rounded-xl p-3 border border-gray-100">

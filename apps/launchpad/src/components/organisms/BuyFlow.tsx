@@ -22,9 +22,9 @@ export function ComplianceAcknowledgment({
   return (
     <div className="bg-box rounded-xl p-5 mb-4 space-y-4">
       <p className="text-sm text-black/60">
-        This investment involves tokenized securities which may be subject to
+        This purchase involves tokenized securities which may be subject to
         transfer restrictions and lock-up periods. Please ensure you are eligible
-        to participate and that your local laws permit such investments.
+        to participate and that your local laws permit such purchases.
       </p>
       <label className="flex items-start gap-3 cursor-pointer">
         <input
@@ -180,7 +180,7 @@ export function InvestAmountStep({
     if (availableTokens > 0 && tokenQty > availableTokens) {
       validationError = `Only ${availableTokens.toLocaleString()} ${project.tokenSymbol} available`;
     } else if (maxTokens > 0) {
-      validationError = `Per-investor cap: ${investorMaxRemaining.toLocaleString()} ${project.tokenSymbol} remaining for your wallet`;
+      validationError = `Per-buyer cap: ${investorMaxRemaining.toLocaleString()} ${project.tokenSymbol} remaining for your wallet`;
     } else {
       validationError = `Amount exceeds the maximum`;
     }
@@ -193,7 +193,7 @@ export function InvestAmountStep({
           <Wallet className="w-10 h-10 text-darkAqua" />
         </div>
         <h1 className="text-2xl font-semibold text-text mb-2">Connect Your Wallet</h1>
-        <p className="text-black/50 mb-8">You need to connect your wallet before investing</p>
+        <p className="text-black/50 mb-8">You need to connect your wallet before buying</p>
         <Button variant="primary" className="w-full" size="lg" onClick={onConnect}>
           Connect Wallet
         </Button>
@@ -203,7 +203,7 @@ export function InvestAmountStep({
 
   return (
     <>
-      <h1 className="text-2xl font-semibold text-text mb-2">Invest in {project.title}</h1>
+      <h1 className="text-2xl font-semibold text-text mb-2">Buy {project.title}</h1>
       <p className="text-black/50 mb-8">How many tokens would you like to buy?</p>
       <div className="mb-6">
         <label className="block text-sm font-semibold text-text mb-2">
@@ -262,7 +262,7 @@ export function InvestAmountStep({
         {availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}
         {maxTokens > 0 && (
           <>
-            {" "}&bull; Per-investor cap: {maxTokens.toLocaleString()} {project.tokenSymbol}
+            {" "}&bull; Per-buyer cap: {maxTokens.toLocaleString()} {project.tokenSymbol}
           </>
         )}
       </p>
@@ -384,7 +384,7 @@ export function InvestApproveStep({
           <div className="bg-box rounded-xl p-6 mb-6 text-center">
             <Shield className="h-12 w-12 text-darkAqua mx-auto mb-4" />
             <p className="font-semibold text-text mb-2">Approve {formatCurrency(amount)} USDC</p>
-            <p className="text-sm text-black/50">This is a one-time approval for this investment</p>
+            <p className="text-sm text-black/50">This is a one-time approval for this purchase</p>
           </div>
 
           <ComplianceAcknowledgment checked={complianceMet} onChange={setComplianceMet} />
@@ -472,13 +472,13 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
         <CheckCircle2 className="w-10 h-10 text-green-600" />
       </div>
-      <h1 className="text-2xl font-semibold text-text mb-2">Investment Successful!</h1>
+      <h1 className="text-2xl font-semibold text-text mb-2">Purchase Successful!</h1>
       <p className="text-black/50 mb-8">
-        You have successfully invested {formatCurrency(amount)} in {project.title}
+        You have successfully bought {formatCurrency(amount)} in {project.title}
       </p>
       <div className="bg-box rounded-xl p-6 text-left mb-8 space-y-3 text-sm">
         <h3 className="font-semibold text-text text-base mb-2">Transaction Summary</h3>
-        <SummaryRow label="Amount Invested" value={formatCurrency(amount)} />
+        <SummaryRow label="Amount Bought" value={formatCurrency(amount)} />
         <SummaryRow label="Tokens Allocated" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
         {txHash && (
           <SummaryRow

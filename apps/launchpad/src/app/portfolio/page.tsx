@@ -177,7 +177,7 @@ export default function PortfolioPage() {
         {/* Sidebar */}
         <aside className="hidden lg:flex w-48 border-r border-gray-100 bg-white flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
           <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold mb-3 px-3">
-            Investor
+            Buyer
           </p>
           <nav className="space-y-0.5">
             {SIDEBAR_LINKS.map((link) => {
@@ -207,7 +207,7 @@ export default function PortfolioPage() {
             {/* Page Header */}
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-text tracking-tight">Portfolio</h1>
-              <p className="text-sm text-gray-400 mt-1">Track your investments and token holdings</p>
+              <p className="text-sm text-gray-400 mt-1">Track your purchases and token holdings</p>
             </div>
 
             {/* Stats */}
@@ -250,7 +250,7 @@ export default function PortfolioPage() {
                     <FolderOpen className="h-8 w-8 text-gray-300" />
                   </div>
                   <h3 className="text-base font-semibold text-text mb-1">Sign in to view your portfolio</h3>
-                  <p className="text-sm text-gray-400 mb-6">Connect your account to track holdings and investments</p>
+                  <p className="text-sm text-gray-400 mb-6">Connect your account to track holdings and purchases</p>
                   <Link
                     href="/login"
                     className="inline-flex items-center gap-1.5 btn-cta text-sm px-6 py-2.5 rounded-full transition-colors"
@@ -268,7 +268,7 @@ export default function PortfolioPage() {
                     <Coins className="h-8 w-8 text-darkAqua" />
                   </div>
                   <h3 className="text-base font-semibold text-text mb-1">No holdings yet</h3>
-                  <p className="text-sm text-gray-400 mb-6">Invest in a sale to start building your portfolio</p>
+                  <p className="text-sm text-gray-400 mb-6">Buy in a sale to start building your portfolio</p>
                   <Link
                     href="/projects"
                     className="inline-flex items-center gap-1.5 btn-cta text-sm px-6 py-2.5 rounded-full transition-colors"
@@ -309,7 +309,7 @@ export default function PortfolioPage() {
                       <Clock className="h-5 w-5 text-gray-300" />
                     </div>
                     <p className="text-sm text-gray-400">No transactions yet</p>
-                    <p className="text-xs text-gray-300 mt-1">Your investment activity will appear here</p>
+                    <p className="text-xs text-gray-300 mt-1">Your purchase activity will appear here</p>
                   </div>
                 )}
               </div>

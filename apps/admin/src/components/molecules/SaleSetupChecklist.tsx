@@ -265,7 +265,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
       label: "Whitelist Sale Contract",
       description: isVested
         ? "Whitelist the sale contract, vault, and your issuer wallet in the platform identity registry so they can hold and transfer tokens."
-        : "Add the sale contract to the platform identity registry so it can receive tokens. All KYC-verified investors are already whitelisted.",
+        : "Add the sale contract to the platform identity registry so it can receive tokens. All KYC-verified buyers are already whitelisted.",
       icon: Shield,
       required: true,
       completed: contractWhitelisted,
@@ -291,7 +291,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
     {
       id: "content",
       label: "Add Sale Description",
-      description: "Write a description so investors understand the offering.",
+      description: "Write a description so buyers understand the offering.",
       icon: FileText,
       required: false,
       completed: hasDescription,

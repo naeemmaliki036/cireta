@@ -6,7 +6,7 @@ import { Users, Search, ShieldCheck, Clock, UserX, ChevronLeft, ChevronRight } f
 import { Badge } from "@/components/atoms";
 import { DataTable, type Column } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
-import { getInvestors, type Investor } from "@/lib/api/repositories/investors";
+import { getInvestors, type Investor } from "@/lib/api/repositories/buyers";
 
 const KYC_LABELS: Record<number, string> = {
   0: "Unverified",
@@ -125,8 +125,8 @@ export default function PlatformUsersPage() {
 
   return (
     <PlatformAdminLayout
-      title="Investor Management"
-      description="View and manage registered investors"
+      title="Buyer Management"
+      description="View and manage registered buyers"
     >
       {/* Inline stats */}
       <div className="flex flex-wrap items-center gap-2 mb-4">

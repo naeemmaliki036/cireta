@@ -6,9 +6,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Cireta | Tokenized Real-World Asset Investment",
+  title: "Cireta | Tokenized Real-World Asset Purchase",
   description:
-    "Invest in tokenized gold and copper backed by physical reserves.",
+    "Buy tokenized gold and copper backed by physical reserves.",
   keywords: ["RWA", "tokenization", "gold", "copper", "commodities", "security tokens"],
   icons: {
     icon: "/favicon.ico",

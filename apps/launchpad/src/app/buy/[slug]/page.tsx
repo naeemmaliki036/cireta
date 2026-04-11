@@ -18,7 +18,7 @@ import {
   ComplianceAcknowledgment,
   ERC20_APPROVE_ABI,
   type InvestStep,
-} from "@/components/organisms/InvestFlow";
+} from "@/components/organisms/BuyFlow";
 import { getProject, getSaleRawBySlug } from "@/lib/api/repositories/projects.repository";
 import { buy } from "@/lib/api/repositories/sales";
 import type { Project } from "@/lib/api/repositories/projects.repository";
@@ -571,9 +571,9 @@ export default function InvestPage() {
             {/* Logged-out state — show sign in / register prompt, no KYC/wallet messaging */}
             {!isWrongChain && !isAuthenticated && (
               <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <p className="text-sm font-semibold text-amber-800 mb-1">Sign in to invest</p>
+                <p className="text-sm font-semibold text-amber-800 mb-1">Sign in to buy</p>
                 <p className="text-sm text-amber-700 mb-3">
-                  You need a Cireta account to invest. Sign in with an existing account or register a new one.
+                  You need a Cireta account to buy. Sign in with an existing account or register a new one.
                 </p>
                 <div className="flex gap-3">
                   <Link
@@ -613,7 +613,7 @@ export default function InvestPage() {
                   <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
                     <p className="text-sm font-semibold text-red-700 mb-1">Identity verification required</p>
                     <p className="text-sm text-red-600 mb-3">
-                      {statusLabel}. You must complete KYC before investing in regulated security tokens.
+                      {statusLabel}. You must complete KYC before buying regulated security tokens.
                     </p>
                     <Link
                       href="/settings/verification"
@@ -635,7 +635,7 @@ export default function InvestPage() {
                     <p className="text-sm font-semibold text-amber-800 mb-1">Link this wallet to your profile</p>
                     <p className="text-sm text-amber-700 mb-3">
                       You&apos;re verified, but the connected wallet{shortAddr && <> (<code className="font-mono text-xs">{shortAddr}</code>)</>} isn&apos;t linked to your Cireta account yet.
-                      Add it from your profile before you can invest.
+                      Add it from your profile before you can buy.
                     </p>
                     <Link
                       href="/settings/wallets"
@@ -654,7 +654,7 @@ export default function InvestPage() {
                 <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
                   <p className="text-sm font-semibold text-amber-800 mb-1">Sync in progress</p>
                   <p className="text-sm text-amber-700">
-                    Your wallet is being registered for on-chain investing. This usually takes a few seconds — please refresh in a moment.
+                    Your wallet is being registered for on-chain buying. This usually takes a few seconds — please refresh in a moment.
                   </p>
                 </div>
               );
@@ -665,7 +665,7 @@ export default function InvestPage() {
               <div className="mb-6 p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                 <p className="text-sm font-medium text-green-700">
-                  Verified wallet &mdash; you&apos;re ready to invest
+                  Verified wallet &mdash; you&apos;re ready to buy
                 </p>
               </div>
             )}
@@ -725,7 +725,7 @@ export default function InvestPage() {
             {/* Payment Method Selector — shown when OTC is enabled and method not yet chosen */}
             {saleOtcEnabled && !paymentMethod && activePhase && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-text text-center">How would you like to invest?</h2>
+                <h2 className="text-xl font-semibold text-text text-center">How would you like to buy?</h2>
                 <div className={`grid grid-cols-1 gap-4 ${saleHasOtcToken && hasOtcBalance ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                   <button
                     onClick={() => setPaymentMethod("crypto")}
@@ -754,7 +754,7 @@ export default function InvestPage() {
                   >
                     <span className="text-2xl">&#x1F3E6;</span>
                     <h3 className="font-semibold text-text">OTC & Bank Transfer</h3>
-                    <p className="text-sm text-gray-500">Pay via wire transfer or OTC allocation. Suitable for larger investments.</p>
+                    <p className="text-sm text-gray-500">Pay via wire transfer or OTC allocation. Suitable for larger purchases.</p>
                   </button>
                 </div>
               </div>
@@ -766,7 +766,7 @@ export default function InvestPage() {
                 <h2 className="text-xl font-semibold text-text">OTC & Bank Transfer</h2>
                 <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100 space-y-3">
                   <p className="text-sm text-gray-700">
-                    This sale accepts investments via bank wire transfer and OTC allocation.
+                    This sale accepts purchases via bank wire transfer and OTC allocation.
                     Review the full instructions on the project page.
                   </p>
                   <Link
@@ -793,7 +793,7 @@ export default function InvestPage() {
             {/* OTC Token flow — amount step */}
             {paymentMethod === "otc_token" && activePhase && step === "amount" && (
               <>
-                <h1 className="text-2xl font-semibold text-text mb-2">Invest with {otcTokenSymbol}</h1>
+                <h1 className="text-2xl font-semibold text-text mb-2">Buy with {otcTokenSymbol}</h1>
                 <p className="text-black/50 mb-4">
                   Use your {otcTokenSymbol} balance to buy {project.tokenSymbol} tokens
                 </p>
@@ -923,7 +923,7 @@ export default function InvestPage() {
                 <p className="text-black/50 mb-8">Allow the sale contract to spend your {otcTokenSymbol} tokens</p>
                 <div className="bg-box rounded-xl p-6 mb-6 text-center">
                   <p className="font-semibold text-text mb-2">Approve {usdcRequired.toLocaleString()} {otcTokenSymbol}</p>
-                  <p className="text-sm text-black/50">to buy {tokenQty.toLocaleString()} {project.tokenSymbol}. This is a one-time approval for this investment.</p>
+                  <p className="text-sm text-black/50">to buy {tokenQty.toLocaleString()} {project.tokenSymbol}. This is a one-time approval for this purchase.</p>
                 </div>
                 <ComplianceAcknowledgment checked={otcComplianceMet} onChange={setOtcComplianceMet} />
                 <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
@@ -953,8 +953,8 @@ export default function InvestPage() {
             {/* OTC Token flow — confirm step */}
             {paymentMethod === "otc_token" && step === "confirm" && (
               <>
-                <h1 className="text-2xl font-semibold text-text mb-2">Confirm OTC Investment</h1>
-                <p className="text-black/50 mb-8">Review and confirm your investment details</p>
+                <h1 className="text-2xl font-semibold text-text mb-2">Confirm OTC Purchase</h1>
+                <p className="text-black/50 mb-8">Review and confirm your purchase details</p>
                 <div className="bg-box rounded-xl p-6 space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-black/50">Project</span>

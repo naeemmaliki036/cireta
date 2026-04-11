@@ -222,7 +222,7 @@ export default function ProjectDetailPage() {
       <div className="flex pt-16 flex-1">
         {/* Sidebar */}
         <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Buyer</p>
           <nav className="space-y-1">
             {SIDEBAR_LINKS.map((link) => (
               <Link key={link.href} href={link.href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-text transition-colors">
@@ -329,7 +329,7 @@ export default function ProjectDetailPage() {
                     <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minTokens} ${project.tokenSymbol}`}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Available</span><span className="font-medium">{project.isComingSoon ? "TBD" : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}</span></div>
                     {maxTokensInvestor > 0 && !project.isComingSoon && (
-                      <div className="flex justify-between"><span className="text-gray-500">Per-investor cap</span><span className="font-medium">{maxTokensInvestor.toLocaleString()} {project.tokenSymbol}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">Per-buyer cap</span><span className="font-medium">{maxTokensInvestor.toLocaleString()} {project.tokenSymbol}</span></div>
                     )}
                     <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
@@ -366,11 +366,11 @@ export default function ProjectDetailPage() {
                         </div>
                       )}
                       {subscriberCount > 0 && (
-                        <p className="text-center text-xs text-gray-400">{subscriberCount} investor{subscriberCount !== 1 ? "s" : ""} interested</p>
+                        <p className="text-center text-xs text-gray-400">{subscriberCount} buyer{subscriberCount !== 1 ? "s" : ""} interested</p>
                       )}
                     </div>
                   ) : isAuthenticated ? (
-                    <Link href={`/invest/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
+                    <Link href={`/buy/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
                   ) : (
                     <button onClick={() => setShowLoginDialog(true)} className="w-full btn-cta py-3 rounded-xl transition-colors">Buy Now</button>
                   )}
@@ -754,7 +754,7 @@ export default function ProjectDetailPage() {
                 ) : txs.length === 0 ? (
                   <div className="bg-gray-50 rounded-xl p-10 text-center">
                     <p className="text-gray-400 font-medium">No transactions yet</p>
-                    <p className="text-gray-300 text-sm mt-1">Your transactions for this project will appear here after you invest.</p>
+                    <p className="text-gray-300 text-sm mt-1">Your transactions for this project will appear here after you buy.</p>
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
@@ -859,15 +859,15 @@ export default function ProjectDetailPage() {
       {showLoginDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowLoginDialog(false)}>
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-text mb-2">Sign in to invest</h3>
+            <h3 className="text-lg font-bold text-text mb-2">Sign in to buy</h3>
             <p className="text-sm text-gray-500 mb-6">
               You need to be signed in and KYC-verified to purchase tokens. Create an account or sign in to continue.
             </p>
             <div className="space-y-3">
-              <Link href={`/login?redirect=/invest/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">
+              <Link href={`/login?redirect=/buy/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">
                 Sign In
               </Link>
-              <Link href={`/register?redirect=/invest/${project.slug}`} className="block w-full bg-white text-black font-semibold py-3 rounded-xl border border-black/20 hover:bg-gray-50 transition-colors text-center">
+              <Link href={`/register?redirect=/buy/${project.slug}`} className="block w-full bg-white text-black font-semibold py-3 rounded-xl border border-black/20 hover:bg-gray-50 transition-colors text-center">
                 Create Account
               </Link>
               <button onClick={() => setShowLoginDialog(false)} className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors py-2">

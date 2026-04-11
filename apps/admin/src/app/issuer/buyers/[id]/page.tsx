@@ -56,12 +56,12 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
   };
 
   if (loading) return <div className="p-8 text-white/40 text-sm">Loading...</div>;
-  if (!investor) return <div className="p-8 text-white/40 text-sm">Investor not found.</div>;
+  if (!investor) return <div className="p-8 text-white/40 text-sm">Buyer not found.</div>;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <Link href="/issuer/investors" className="flex items-center gap-2 text-white/40 hover:text-white text-sm mb-6">
-        <ArrowLeft className="w-4 h-4" /> Back to Investors
+      <Link href="/issuer/buyers" className="flex items-center gap-2 text-white/40 hover:text-white text-sm mb-6">
+        <ArrowLeft className="w-4 h-4" /> Back to Buyers
       </Link>
       <h1 className="text-2xl font-bold text-white mb-8">{investor.display_name ?? investor.email}</h1>
       <div className="grid grid-cols-2 gap-4 mb-8">
@@ -69,8 +69,8 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
           { label: "Email", value: investor.email },
           { label: "KYC Status", value: `Level ${investor.kyc_level} — ${investor.kyc_status}` },
           { label: "Country", value: investor.country_code ?? "—" },
-          { label: "Investor Type", value: investor.investor_type },
-          { label: "Total Invested", value: `${Number(investor.total_invested).toLocaleString()} USDC` },
+          { label: "Buyer Type", value: investor.investor_type },
+          { label: "Total Bought", value: `${Number(investor.total_invested).toLocaleString()} USDC` },
           { label: "Status", value: investor.is_frozen ? "Frozen" : "Active" },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white/5 rounded-xl p-4">

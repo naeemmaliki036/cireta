@@ -64,7 +64,7 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
           {success && <p className="text-green-600 text-sm mb-4">{success}</p>}
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
-              { key: "investor_wallet", label: "Investor Wallet Address", placeholder: "0x..." },
+              { key: "investor_wallet", label: "Buyer Wallet Address", placeholder: "0x..." },
               { key: "token_amount", label: "Token Amount", placeholder: "10000" },
               { key: "payment_reference", label: "Payment Reference", placeholder: "Wire ref / bank transfer ID" },
               { key: "notes", label: "Notes (optional)", placeholder: "Additional notes" },

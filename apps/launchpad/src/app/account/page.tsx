@@ -78,7 +78,7 @@ export default function AccountPage() {
             {(user.display_name || user.email).charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold truncate">{user.display_name || "Investor"}</h2>
+            <h2 className="text-lg font-semibold truncate">{user.display_name || "Buyer"}</h2>
             <p className="text-white/70 text-sm truncate">{user.email}</p>
           </div>
           <div className="flex items-center gap-2">

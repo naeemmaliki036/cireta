@@ -27,7 +27,7 @@ const SIDEBAR_LINKS = [
   { href: "/issuer/overview", label: "Overview", icon: LayoutDashboard, requiresOnboarding: false },
   { href: "/issuer/tokens", label: "Tokens", icon: Coins, requiresOnboarding: true },
   { href: "/issuer/sales", label: "Token Sales", icon: ShoppingCart, requiresOnboarding: true },
-  { href: "/issuer/investors", label: "Investors", icon: Users, requiresOnboarding: true },
+  { href: "/issuer/buyers", label: "Buyers", icon: Users, requiresOnboarding: true },
   { href: "/issuer/compliance", label: "Compliance", icon: Shield, requiresOnboarding: true },
   { href: "/issuer/withdrawals", label: "Withdrawals", icon: Wallet, requiresOnboarding: true },
 ];

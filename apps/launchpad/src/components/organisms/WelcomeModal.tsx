@@ -13,7 +13,7 @@ const STEPS = [
   {
     key: "type",
     icon: User,
-    title: "Choose Investor Type",
+    title: "Choose Buyer Type",
     desc: "Individual or corporate — determines your verification path",
     color: "bg-blue-50 text-blue-600",
     doneColor: "bg-green-50 text-green-600",
@@ -30,7 +30,7 @@ const STEPS = [
     key: "wallet",
     icon: Wallet,
     title: "Connect Wallet",
-    desc: "Link an EVM wallet for on-chain investments — you can connect later",
+    desc: "Link an EVM wallet for on-chain purchases — you can connect later",
     color: "bg-purple-50 text-purple-600",
     doneColor: "bg-green-50 text-green-600",
     optional: true,

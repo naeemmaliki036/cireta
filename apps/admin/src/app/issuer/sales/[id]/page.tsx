@@ -104,7 +104,7 @@ function SubscribersSection({ saleId }: { saleId: string }) {
       className="bg-white rounded-lg border border-zinc-100 p-6 mt-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Interested Investors</h2>
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Interested Buyers</h2>
           <p className="text-xs text-black/30 mt-0.5">{subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}{unnotified > 0 ? ` · ${unnotified} not yet notified` : ""}</p>
         </div>
         {unnotified > 0 && (
@@ -669,7 +669,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       {/* Status Banner */}
       {isPending && <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">Pending admin approval. You&apos;ll be notified once reviewed.</div>}
       {isRejected && <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">Sale was rejected. Edit and resubmit.</div>}
-      {isFailed && <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">Sale failed to reach soft cap. Investors can claim refunds.</div>}
+      {isFailed && <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">Sale failed to reach soft cap. Buyers can claim refunds.</div>}
 
       {/* Edit Form */}
       {editing && (

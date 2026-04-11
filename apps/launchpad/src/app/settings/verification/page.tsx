@@ -98,13 +98,13 @@ export default function VerificationSettingsPage() {
                 {kyc.status}
               </Badge>
             </div>
-            <p className="text-gray-400 text-sm mt-0.5">{kyc.status === "approved" ? "Identity verified via Sumsub" : kyc.status === "pending" ? "Under review" : "Complete verification to invest"}</p>
+            <p className="text-gray-400 text-sm mt-0.5">{kyc.status === "approved" ? "Identity verified via Sumsub" : kyc.status === "pending" ? "Under review" : "Complete verification to buy"}</p>
           </div>
         </div>
 
         <div className="space-y-0">
           <div className="flex justify-between py-3 border-b border-gray-100">
-            <span className="text-gray-500 text-sm">Investor Type</span>
+            <span className="text-gray-500 text-sm">Buyer Type</span>
             <span className="text-gray-900 text-sm font-medium capitalize">{kyc.investor_type || "\u2014"}</span>
           </div>
           <div className="flex justify-between py-3 border-b border-gray-100">

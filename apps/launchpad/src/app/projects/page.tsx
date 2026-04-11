@@ -130,7 +130,7 @@ function ActiveProjectCard({ project }: { project: Project }) {
         </div>
       </div>
       <div className="px-5 pb-5 pt-2 space-y-4">
-        <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Invest in verified tokenized real-world assets backed by institutional issuers."}</p>
+        <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Buy verified tokenized real-world assets backed by institutional issuers."}</p>
         {project.phases.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {project.phases.map((p) => {
@@ -195,7 +195,7 @@ function ComingSoonCard({ project }: { project: Project }) {
         </div>
       </div>
       <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
-        <p className="text-sm text-gray-500 line-clamp-2 flex-1">{project.description || "Upcoming investment opportunity — details coming soon."}</p>
+        <p className="text-sm text-gray-500 line-clamp-2 flex-1">{project.description || "Upcoming purchase opportunity — details coming soon."}</p>
         <span className="w-full inline-flex items-center justify-center gap-2 btn-cta text-sm px-5 py-3 rounded-full transition-colors mt-4">
           View Details <ArrowRight className="h-4 w-4" />
         </span>
@@ -241,7 +241,7 @@ export default function ExplorePage() {
       <div className="flex pt-16 flex-1">
         {/* Sidebar */}
         <aside className="hidden lg:flex w-44 border-r border-gray-100 flex-col p-4 sticky top-16 h-[calc(100vh-4rem)]">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Investor</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2 px-2">Buyer</p>
           <nav className="space-y-1">
             {SIDEBAR_LINKS.map((link) => {
               const isActive = pathname === link.href;
@@ -271,7 +271,7 @@ export default function ExplorePage() {
               <Radio className="h-6 w-6 text-darkAqua" />
               <h2 className="text-2xl font-bold text-text">Active Opportunities</h2>
             </div>
-            <p className="text-sm text-gray-500 ml-9 mb-8">Live investment opportunities ready for funding</p>
+            <p className="text-sm text-gray-500 ml-9 mb-8">Live purchase opportunities ready for funding</p>
 
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

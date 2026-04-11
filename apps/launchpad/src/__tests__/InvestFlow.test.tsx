@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { SummaryRow } from "@/components/organisms/InvestFlow";
+import { SummaryRow } from "@/components/organisms/BuyFlow";
 
 describe("SummaryRow", () => {
   it("renders label and value", () => {

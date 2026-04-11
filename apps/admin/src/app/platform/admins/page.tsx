@@ -60,7 +60,7 @@ export default function AdminAccountsPage() {
   };
 
   const handleRemove = async (adminId: string, adminEmail: string) => {
-    if (!confirm(`Remove admin access for ${adminEmail}? They will be demoted to investor.`)) return;
+    if (!confirm(`Remove admin access for ${adminEmail}? They will be demoted to buyer.`)) return;
     setError("");
     try {
       await apiFetch(`/api/v1/admin/admins/${adminId}`, { method: "DELETE" });

@@ -44,7 +44,7 @@ const COUNTRIES = [
 ];
 
 const STEPS: { id: Step; label: string; required: boolean }[] = [
-  { id: "type", label: "Investor Type", required: true },
+  { id: "type", label: "Buyer Type", required: true },
   { id: "details", label: "Personal Details", required: true },
   { id: "wallet", label: "Wallet", required: false },
   { id: "kyc", label: "Verification", required: true },
@@ -124,7 +124,7 @@ export default function OnboardingPage() {
       // Update local status
       setStatus((prev) => {
         if (!prev) return prev;
-        const typeStep = prev.steps.type ?? { completed: false, label: "Investor Type" };
+        const typeStep = prev.steps.type ?? { completed: false, label: "Buyer Type" };
         return { ...prev, investor_type: investorType, steps: { ...prev.steps, type: { ...typeStep, completed: true } } };
       });
       setStep("details");
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
         setTypeConfirmed(true);
         setStatus((prev) => {
           if (!prev) return prev;
-          const typeStep = prev.steps.type ?? { completed: false, label: "Investor Type" };
+          const typeStep = prev.steps.type ?? { completed: false, label: "Buyer Type" };
           return { ...prev, investor_type: investorType, steps: { ...prev.steps, type: { ...typeStep, completed: true } } };
         });
         setStep("details");
@@ -173,7 +173,7 @@ export default function OnboardingPage() {
       const monthDiff = today.getMonth() - birthDate.getMonth();
       const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age;
       if (actualAge < 18) {
-        setError("You must be at least 18 years old to invest.");
+        setError("You must be at least 18 years old to buy.");
         setSaving(false);
         return;
       }
@@ -245,7 +245,7 @@ export default function OnboardingPage() {
                   ? <User className="h-6 w-6 text-gray-700" />
                   : <Building2 className="h-6 w-6 text-gray-700" />}
                 <div>
-                  <p className="font-semibold text-gray-900">{investorType === "individual" ? "Individual Investor" : "Corporate Investor"}</p>
+                  <p className="font-semibold text-gray-900">{investorType === "individual" ? "Individual Buyer" : "Corporate Buyer"}</p>
                   <p className="text-xs text-gray-500">{investorType === "individual" ? "KYC verification (ID + selfie)" : "KYB verification (company docs)"}</p>
                 </div>
               </div>
@@ -313,11 +313,11 @@ export default function OnboardingPage() {
           <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">{error}</div>
         )}
 
-        {/* Step 0: Investor Type */}
+        {/* Step 0: Buyer Type */}
         {step === "type" && (
           <div className="bg-white rounded-2xl border border-gray-100 p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">How will you be investing?</h1>
-            <p className="text-gray-500 text-sm mb-8">Select your investor type to proceed</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">How will you be buying?</h1>
+            <p className="text-gray-500 text-sm mb-8">Select your buyer type to proceed</p>
 
             {isTypeCompleted ? (
               /* Read-only view when type already confirmed */
@@ -327,7 +327,7 @@ export default function OnboardingPage() {
                     ? <User className="h-8 w-8 mb-3 text-gray-900" />
                     : <Building2 className="h-8 w-8 mb-3 text-gray-900" />}
                   <h3 className="font-semibold text-gray-900">{investorType === "individual" ? "Individual" : "Corporate"}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{investorType === "individual" ? "Personal investment account" : "Company or entity investment"}</p>
+                  <p className="text-sm text-gray-500 mt-1">{investorType === "individual" ? "Personal purchase account" : "Company or entity purchase"}</p>
                   <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Confirmed</p>
                 </div>
               </div>
@@ -340,7 +340,7 @@ export default function OnboardingPage() {
                   }`}>
                   <User className={`h-8 w-8 mb-3 ${investorType === "individual" ? "text-gray-900" : "text-gray-400"}`} />
                   <h3 className="font-semibold text-gray-900">Individual</h3>
-                  <p className="text-sm text-gray-500 mt-1">Personal investment account</p>
+                  <p className="text-sm text-gray-500 mt-1">Personal purchase account</p>
                   <p className="text-xs text-gray-400 mt-2">Verification: KYC (ID + selfie)</p>
                 </button>
                 <button onClick={() => setInvestorType("corporate")}
@@ -349,7 +349,7 @@ export default function OnboardingPage() {
                   }`}>
                   <Building2 className={`h-8 w-8 mb-3 ${investorType === "corporate" ? "text-gray-900" : "text-gray-400"}`} />
                   <h3 className="font-semibold text-gray-900">Corporate</h3>
-                  <p className="text-sm text-gray-500 mt-1">Company or entity investment</p>
+                  <p className="text-sm text-gray-500 mt-1">Company or entity purchase</p>
                   <p className="text-xs text-gray-400 mt-2">Verification: KYB (company docs)</p>
                 </button>
               </div>
@@ -382,7 +382,7 @@ export default function OnboardingPage() {
               >
                 {investorType
                   ? <>Continue as {investorType === "individual" ? "Individual" : "Corporate"} <ArrowRight className="h-4 w-4 ml-2" /></>
-                  : "Select Investor Type"
+                  : "Select Buyer Type"
                 }
               </Button>
             )}
@@ -492,7 +492,7 @@ export default function OnboardingPage() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Wallet</h1>
             <p className="text-gray-500 text-sm mb-8 max-w-md mx-auto">
-              Link a crypto wallet for on-chain investments. This is optional — you can also invest via bank transfer.
+              Link a crypto wallet for on-chain purchases. This is optional — you can also buy via bank transfer.
               You can always add or manage wallets later from your account settings.
             </p>
 
@@ -608,7 +608,7 @@ export default function OnboardingPage() {
             <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 mb-6 text-left max-w-md mx-auto border border-gray-100">
               <p className="text-xs text-gray-500 mb-4">
                 Cireta tokenizes regulated real-world assets as compliant security tokens. Under applicable securities and AML/CFT regulations,
-                we are required to verify every investor&apos;s identity before granting access to investment opportunities.
+                we are required to verify every buyer&apos;s identity before granting access to purchase opportunities.
               </p>
               <div className="flex items-start gap-2 mb-3">
                 <Scale className="h-3.5 w-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -676,7 +676,7 @@ export default function OnboardingPage() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">You&apos;re all set!</h1>
             <p className="text-gray-500 text-sm mb-8 max-w-md mx-auto">
-              Your account is verified and ready. Start exploring investment opportunities.
+              Your account is verified and ready. Start exploring purchase opportunities.
             </p>
             <Link href="/projects">
               <Button className="bg-gray-900 text-white rounded-xl hover:bg-gray-800 px-12" size="lg">

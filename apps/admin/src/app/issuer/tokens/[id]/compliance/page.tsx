@@ -44,7 +44,7 @@ const AVAILABLE_MODULES = [
   {
     id: "max_holders",
     name: "Max Holder Count",
-    description: "Limits the total number of unique token holders. New investors are blocked once the cap is reached.",
+    description: "Limits the total number of unique token holders. New buyers are blocked once the cap is reached.",
     icon: Users,
     address: process.env.NEXT_PUBLIC_MAX_HOLDER_COUNT_MODULE_ADDRESS || "",
     tag: "Regulatory",

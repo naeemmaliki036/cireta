@@ -308,7 +308,7 @@ export default function IssuerSettingsPage() {
             <div className="space-y-3">
               {[
                 { label: "Sale Milestones", desc: "Get notified when your sales hit funding targets" },
-                { label: "New Investors", desc: "Alerts when new investors contribute to your sales" },
+                { label: "New Buyers", desc: "Alerts when new buyers contribute to your sales" },
                 { label: "Compliance Alerts", desc: "Updates on compliance actions (freeze, recovery, etc.)" },
                 { label: "Platform Announcements", desc: "Important updates from the Cireta platform team" },
               ].map((item) => (

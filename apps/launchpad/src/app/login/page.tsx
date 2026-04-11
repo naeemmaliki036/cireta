@@ -111,7 +111,7 @@ function LoginForm() {
   return (
     <SplitAuthLayout
       title={step === "email" ? "Welcome Back" : "Enter Verification Code"}
-      subtitle={step === "email" ? "Sign in to access your portfolio and investments" : `We sent a 6-digit code to ${email}`}
+      subtitle={step === "email" ? "Sign in to access your portfolio and purchases" : `We sent a 6-digit code to ${email}`}
     >
       {/* Dev OTP Toast */}
       {devOtp && (

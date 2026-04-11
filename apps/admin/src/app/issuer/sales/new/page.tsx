@@ -328,18 +328,18 @@ export default function CreateSalePage() {
             <div className="border-t border-black/10 pt-6 mt-2">
               <div className="flex items-center gap-3 p-4 rounded-lg border border-black/10">
                 <input type="checkbox" id="otcEnabled" checked={otcEnabled} onChange={(e) => handleOtcToggle(e.target.checked)} className="h-5 w-5 rounded" />
-                <label htmlFor="otcEnabled" className="text-sm"><span className="font-semibold">Enable OTC & Bank Transfer</span> — Allow investors to pay via wire transfer or OTC. An &quot;OTC &amp; Bank&quot; tab will be shown on the sale page.</label>
+                <label htmlFor="otcEnabled" className="text-sm"><span className="font-semibold">Enable OTC & Bank Transfer</span> — Allow buyers to pay via wire transfer or OTC. An &quot;OTC &amp; Bank&quot; tab will be shown on the sale page.</label>
               </div>
               {otcEnabled && (
                 <div className="mt-4 space-y-4">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to investors)</label>
+                    <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to buyers)</label>
                     <p className="text-xs text-zinc-400">Include wire details, process steps, minimum amounts, and contact info.</p>
                     <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
                   </div>
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-zinc-600">OTC Token Contract Address (optional)</label>
-                    <p className="text-xs text-zinc-400">If the issuer has an OTC token deployed, enter the address. Investors holding OTC tokens can use them to purchase at the sale price. Can also be set after sale creation.</p>
+                    <p className="text-xs text-zinc-400">If the issuer has an OTC token deployed, enter the address. Buyers holding OTC tokens can use them to purchase at the sale price. Can also be set after sale creation.</p>
                     <Input value={otcTokenAddress} onChange={(e) => setOtcTokenAddress(e.target.value)} placeholder="0x... (leave empty to set later)"
                       maxLength={42} error={otcTokenAddress && !isAddress(otcTokenAddress) ? "Invalid EVM address" : undefined} />
                   </div>
@@ -354,7 +354,7 @@ export default function CreateSalePage() {
             <h2 className="text-xl font-semibold text-text">Content</h2>
             <div>
               <label className="input-label">Full Description</label>
-              <p className="text-xs text-zinc-400 mb-2">Detailed project description, investment thesis, background. Supports rich formatting.</p>
+              <p className="text-xs text-zinc-400 mb-2">Detailed project description, purchase thesis, background. Supports rich formatting.</p>
               <div className="min-h-[60vh]">
                 <RichTextEditor content={fullDescription} onChange={setFullDescription} placeholder="Enter full project description..." />
               </div>
@@ -415,7 +415,7 @@ export default function CreateSalePage() {
         {step === 5 && (
           <div className="max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold text-text mb-2">FAQs</h2>
-            <p className="text-sm text-gray-500 mb-4">Add frequently asked questions for investors. These appear on the sale page.</p>
+            <p className="text-sm text-gray-500 mb-4">Add frequently asked questions for buyers. These appear on the sale page.</p>
             <div className="space-y-3">
               {faqs.map((f, i) => {
                 const isOpen = expandedFAQ === i;
@@ -623,7 +623,7 @@ export default function CreateSalePage() {
           return (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text mb-1">Vesting Configuration</h2>
-            <p className="text-sm text-gray-500">Configure how tokens are released to investors after the sale finalizes.</p>
+            <p className="text-sm text-gray-500">Configure how tokens are released to buyers after the sale finalizes.</p>
 
             {/* Cliff */}
             <div>
@@ -820,7 +820,7 @@ export default function CreateSalePage() {
             <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Tips</h4>
               <ul className="text-xs text-zinc-500 space-y-2">
-                <li>Choose a clear, descriptive title that investors will recognize.</li>
+                <li>Choose a clear, descriptive title that buyers will recognize.</li>
                 <li><strong>Direct</strong> mode delivers tokens immediately after purchase.</li>
                 <li><strong>Vested</strong> mode locks tokens and releases them over time.</li>
                 <li>Enable OTC if you want to accept bank transfers or off-chain payments.</li>
@@ -851,7 +851,7 @@ export default function CreateSalePage() {
             <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Team Tips</h4>
               <ul className="text-xs text-zinc-500 space-y-2">
-                <li>Showing your team builds trust with investors.</li>
+                <li>Showing your team builds trust with buyers.</li>
                 <li>Include key roles: CEO, CTO, legal, operations.</li>
                 <li>Photos are optional but strongly recommended.</li>
               </ul>
@@ -861,7 +861,7 @@ export default function CreateSalePage() {
             <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">FAQ Tips</h4>
               <ul className="text-xs text-zinc-500 space-y-2">
-                <li>Answer common investor questions: &ldquo;What is this token backed by?&rdquo;, &ldquo;When can I trade?&rdquo;</li>
+                <li>Answer common buyer questions: &ldquo;What is this token backed by?&rdquo;, &ldquo;When can I trade?&rdquo;</li>
                 <li>Good FAQs reduce support requests and improve conversion.</li>
                 <li>3-5 FAQs is a good starting point.</li>
               </ul>
@@ -872,7 +872,7 @@ export default function CreateSalePage() {
               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Document Tips</h4>
               <ul className="text-xs text-zinc-500 space-y-2">
                 <li>Upload legal documents, audit reports, and whitepapers.</li>
-                <li>Legal and whitepaper docs are publicly visible to investors.</li>
+                <li>Legal and whitepaper docs are publicly visible to buyers.</li>
                 <li>Audit docs build credibility — third-party audits are highly valued.</li>
               </ul>
             </div>
@@ -892,7 +892,7 @@ export default function CreateSalePage() {
               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Funding Tips</h4>
               <ul className="text-xs text-zinc-500 space-y-2">
                 <li>Select the deployed token this sale will distribute.</li>
-                <li><strong>Soft cap</strong> — minimum raise needed. Below this, investors can claim refunds.</li>
+                <li><strong>Soft cap</strong> — minimum raise needed. Below this, buyers can claim refunds.</li>
                 <li><strong>Hard cap</strong> — maximum raise. Sale closes when this is reached.</li>
               </ul>
             </div>
@@ -903,7 +903,7 @@ export default function CreateSalePage() {
               <ul className="text-xs text-zinc-500 space-y-2">
                 <li><strong>Cliff</strong> — no tokens can be claimed during this period.</li>
                 <li><strong>Vesting</strong> — after the cliff, tokens unlock linearly over this duration.</li>
-                <li>Common: 6-month cliff + 12-month vesting for early investors.</li>
+                <li>Common: 6-month cliff + 12-month vesting for early buyers.</li>
               </ul>
             </div>
           )}
@@ -923,7 +923,7 @@ export default function CreateSalePage() {
                     <li>Deploy the sale contract on-chain.</li>
                     <li>Complete the setup checklist (whitelist, deposit tokens).</li>
                     <li>Submit for admin approval.</li>
-                    <li>Once approved, investors can start buying.</li>
+                    <li>Once approved, buyers can start buying.</li>
                   </>
                 )}
               </ul>

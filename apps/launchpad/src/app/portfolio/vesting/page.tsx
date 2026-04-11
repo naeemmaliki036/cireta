@@ -82,7 +82,7 @@ export default function PortfolioVestingPage() {
           <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
             <Clock className="w-10 h-10 text-black/20 mx-auto mb-3" />
             <p className="text-black/40 font-medium">No vesting schedules</p>
-            <p className="text-black/20 text-sm mt-1">Vested investments will appear here after purchase.</p>
+            <p className="text-black/20 text-sm mt-1">Vested purchases will appear here after purchase.</p>
           </div>
         ) : (
           <div className="space-y-4">

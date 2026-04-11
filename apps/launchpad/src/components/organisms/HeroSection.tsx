@@ -19,7 +19,7 @@ export function HeroSection() {
         </motion.div>
 
         <h1 className="text-xxl md:text-2xl font-semibold tracking-tight mb-9 animate-fade-in">
-          Unlock Global Commodity Investment Through RWA Tokenization
+          Unlock Global Commodity Purchase Through RWA Tokenization
         </h1>
 
         <p className="text-sm md:text-base font-semibold text-white/75 mb-[60px] max-w-2xl animate-fade-in">

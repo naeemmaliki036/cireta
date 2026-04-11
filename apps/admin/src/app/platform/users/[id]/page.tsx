@@ -33,7 +33,7 @@ import {
   confirmSumsubSync,
   type InvestorDetail,
   type SumsubCheckResponse,
-} from "@/lib/api/repositories/investors";
+} from "@/lib/api/repositories/buyers";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 
@@ -467,7 +467,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             <Shield className="h-4 w-4 text-zinc-400" /> On-Chain Whitelisting
           </h3>
           <p className="text-xs text-zinc-500 mb-3">
-            Whitelist this investor&apos;s wallet(s) on the platform&apos;s SimpleIdentityRegistry. Click the shield icon next to a wallet to whitelist it.
+            Whitelist this buyer&apos;s wallet(s) on the platform&apos;s SimpleIdentityRegistry. Click the shield icon next to a wallet to whitelist it.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-4">
             <div className="flex-1 w-full">

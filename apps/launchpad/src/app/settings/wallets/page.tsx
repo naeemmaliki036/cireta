@@ -90,7 +90,7 @@ export default function WalletsPage() {
 
   const handleSetPrimary = async (addr: string) => {
     const short = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-    if (!window.confirm(`Set ${short} as your primary wallet? This will be used for investments and payouts.`)) return;
+    if (!window.confirm(`Set ${short} as your primary wallet? This will be used for purchases and payouts.`)) return;
     setError("");
     try {
       await setPrimaryWallet(addr);

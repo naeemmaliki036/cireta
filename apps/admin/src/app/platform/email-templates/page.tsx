@@ -20,7 +20,7 @@ import {
 const CATEGORIES: Record<string, string[]> = {
   "Authentication": ["otp_code", "welcome", "wallet_linked"],
   "Compliance": ["kyc_approved", "kyc_rejected", "kyb_approved", "kyb_rejected", "kyc_expiry_warning"],
-  "Investments": ["investment_confirmation", "sale_finalized_success", "sale_finalized_failed", "tokens_claimed", "refund_claimed", "redemption_fulfilled", "dividend_available"],
+  "Purchases": ["investment_confirmation", "sale_finalized_success", "sale_finalized_failed", "tokens_claimed", "refund_claimed", "redemption_fulfilled", "dividend_available"],
   "Issuer": ["issuer_approved", "issuer_approval_request", "sale_approved", "sale_rejected", "issuer_wallet_approved", "issuer_wallet_rejected"],
   "Admin Alerts": ["admin_sale_submitted"],
 };
@@ -34,7 +34,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   kyb_approved: "KYB Approved (Corporate)",
   kyb_rejected: "KYB Rejected (Corporate)",
   kyc_expiry_warning: "KYC Expiry Warning",
-  investment_confirmation: "Investment Confirmation",
+  investment_confirmation: "Purchase Confirmation",
   sale_finalized_success: "Sale Finalized (Success)",
   sale_finalized_failed: "Sale Finalized (Failed)",
   tokens_claimed: "Tokens Claimed",

@@ -14,7 +14,7 @@ const FEATURES = [
 
 const FEATURE_STATS = [
   { label: "Total Value Locked", value: "$2.4B" },
-  { label: "Active Investors", value: "12K+" },
+  { label: "Active Buyers", value: "12K+" },
   { label: "Countries", value: "45+" },
   { label: "Compliance Rate", value: "100%" },
 ];

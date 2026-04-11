@@ -6,12 +6,12 @@ import { Users } from "lucide-react";
 import { Input, Badge, Spinner } from "@/components/atoms";
 import { KYCBadge, WalletBadge, DataTable, type Column } from "@/components/molecules";
 import { IssuerDashboardLayout } from "@/components/templates";
-import { getInvestors, type Investor } from "@/lib/api/repositories/investors";
+import { getInvestors, type Investor } from "@/lib/api/repositories/buyers";
 
 const columns: Column<Investor>[] = [
   {
     key: "email",
-    header: "Investor",
+    header: "Buyer",
     render: (row) => (
       <div>
         <p className="font-medium text-text">{(row as Investor & { display_name?: string }).display_name || row.email}</p>
@@ -60,10 +60,10 @@ export default function InvestorsPage() {
   const verified = investors.filter((i) => i.kyc_status === "approved").length;
 
   return (
-    <IssuerDashboardLayout title="Investors" description="Manage your verified investor base">
+    <IssuerDashboardLayout title="Buyers" description="Manage your verified buyer base">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
-          { label: "Total Investors", value: investors.length, icon: <Users className="h-5 w-5" /> },
+          { label: "Total Buyers", value: investors.length, icon: <Users className="h-5 w-5" /> },
           { label: "KYC Verified", value: verified, icon: <Badge variant="active" size="sm">Verified</Badge> },
           { label: "Pending KYC", value: investors.filter((i) => i.kyc_status === "pending").length, icon: null },
         ].map((stat) => (
