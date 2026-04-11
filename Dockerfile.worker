@@ -31,10 +31,12 @@ COPY packages /app/packages
 COPY infra /app/infra
 COPY scripts /app/scripts
 
-# Verify critical imports at build time so a broken Python build fails fast.
-# We import the WorkerSettings module so any module-level error is surfaced
-# now instead of at first job pickup.
-RUN python -c "from arq.connections import RedisSettings; from apps.api.workers.worker import WorkerSettings; print('worker imports OK,', len(WorkerSettings.functions), 'tasks registered')"
+# Verify ONLY third-party deps at build time (can't import app modules
+# here because Pydantic Settings() validation needs env vars that are
+# only injected at runtime). The real module import happens inside
+# scripts/start_worker.py on container boot, which is gated by a
+# friendly preflight check that fails fast on missing env vars.
+RUN python -c "import arq; from arq.connections import RedisSettings; import asyncpg, sqlalchemy, web3; print('worker base deps OK')"
 
 # No EXPOSE — the worker has no HTTP listener. Railway should set the
 # service type to "worker" (no public domain, no health check).
