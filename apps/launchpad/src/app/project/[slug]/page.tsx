@@ -12,6 +12,7 @@ import { Badge, Spinner, ProgressBar, Button } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency, formatTokenDisplay } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
 import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
@@ -105,6 +106,14 @@ export default function ProjectDetailPage() {
   const [txsError, setTxsError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
   const chainId = useChainId();
+  // Read sale + per-phase totals directly from the contract. Called BEFORE
+  // any early returns so the hook count stays stable across renders.
+  // Hook is safe with null inputs — it disables every read until the sale
+  // address + phase count are known.
+  const onChain = useOnChainSaleStats(
+    (saleRaw?.contract_address as `0x${string}` | undefined) ?? null,
+    project?.phases?.length ?? 0,
+  );
 
   useEffect(() => {
     async function load() {
@@ -188,14 +197,18 @@ export default function ProjectDetailPage() {
   const pricePerToken = ap ? parseFloat(ap.price_per_token) : 0;
   const minTokens = ap ? parseInt(ap.min_tokens || "1", 10) : 1;
   const maxTokensInvestor = ap ? parseInt(ap.max_tokens || "0", 10) : 0;
-  const totalSupply = project.totalTokenSupply ?? 0;
-  const soldTotal = project.tokensSoldTotal ?? 0;
+  // Sale-level totals: prefer the on-chain reads; fall back to DB values until
+  // wagmi has hydrated them (or for sales without a deployed contract).
+  const totalSupply = onChain.ready ? onChain.totalTokenSupply : (project.totalTokenSupply ?? 0);
+  const soldTotal = onChain.ready ? onChain.totalTokenSold : (project.tokensSoldTotal ?? 0);
   const availableTokens = Math.max(0, totalSupply - soldTotal);
   const startTime = ap?.start_time ? new Date(ap.start_time) : null;
   const endTime = ap?.end_time ? new Date(ap.end_time) : null;
-  const hardCap = parseFloat(saleRaw?.hard_cap ?? String(project.targetAmount));
-  const softCap = parseFloat(saleRaw?.soft_cap ?? "0");
-  const raised = project.currentRaised;
+  const hardCap = onChain.ready
+    ? onChain.hardCap
+    : parseFloat(saleRaw?.hard_cap ?? String(project.targetAmount));
+  const softCap = onChain.ready ? onChain.softCap : parseFloat(saleRaw?.soft_cap ?? "0");
+  const raised = onChain.ready ? onChain.totalRaised : project.currentRaised;
   const progressPct = hardCap > 0 ? Math.min((raised / hardCap) * 100, 100) : 0;
   const bannerImg = images.find((i) => i.is_banner)?.url ?? (project.imageUrl || "/images/projects/gold-ghana.png");
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
@@ -532,8 +545,14 @@ export default function ProjectDetailPage() {
                         <div className="space-y-4">
                           {sortedPhases.map((phase, idx) => {
                             const status = getPhaseStatus(phase);
-                            const allocation = Number(phase.allocation);
-                            const tokensSold = Number(phase.tokens_sold ?? "0");
+                            // Map this phase row back to its on-chain index. The
+                            // hook fetched getPhase() in the same chronological
+                            // order project.phases lives in (sorted-by-start),
+                            // so we look up by sortedPhases index. Falls back
+                            // to the DB-side numbers when on-chain isn't ready.
+                            const onChainPhase = onChain.ready ? onChain.phases[idx] : null;
+                            const allocation = onChainPhase ? onChainPhase.allocation : Number(phase.allocation);
+                            const tokensSold = onChainPhase ? onChainPhase.sold : Number(phase.tokens_sold ?? "0");
                             const usdcRaised = Number(phase.usdc_raised ?? "0");
                             const phaseSoldPct = !isPriceTiered && allocation > 0
                               ? Math.min(100, Math.round((tokensSold / allocation) * 100))

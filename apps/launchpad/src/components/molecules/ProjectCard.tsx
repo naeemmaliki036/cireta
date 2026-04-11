@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { TrendingUp, Users } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 
 export interface ProjectCardProps {
   id: string;
@@ -21,6 +22,12 @@ export interface ProjectCardProps {
   isComingSoon?: boolean;
   className?: string;
   index?: number;
+  /**
+   * On-chain sale contract address. When present, the card reads
+   * totalRaised + hardCap directly from the contract via wagmi so the
+   * displayed numbers can never go stale relative to the chain.
+   */
+  contractAddress?: string | null;
 }
 
 export function ProjectCard({
@@ -36,10 +43,19 @@ export function ProjectCard({
   isComingSoon,
   className,
   index = 0,
+  contractAddress,
 }: ProjectCardProps) {
+  // Read on-chain raised + hard cap. The hook is safe to call with null —
+  // it just returns ZERO and ready=false until a contract is deployed.
+  const onChain = useOnChainSaleStats(
+    (contractAddress ?? null) as `0x${string}` | null,
+    0,
+  );
+  const effectiveRaised = onChain.ready ? onChain.totalRaised : currentRaised;
+  const effectiveTarget = onChain.ready && onChain.hardCap > 0 ? onChain.hardCap : targetAmount;
   const progress =
-    targetAmount > 0
-      ? Math.min((currentRaised / targetAmount) * 100, 100)
+    effectiveTarget > 0
+      ? Math.min((effectiveRaised / effectiveTarget) * 100, 100)
       : 0;
 
   return (
@@ -119,7 +135,7 @@ export function ProjectCard({
             {!fundingRound && <div className="mb-6" />}
 
             {/* Progress Bar — only for active sales with raised amount */}
-            {!isComingSoon && status !== "upcoming" && status !== "approved" && currentRaised > 0 && (
+            {!isComingSoon && status !== "upcoming" && status !== "approved" && effectiveRaised > 0 && (
               <div className="bg-[#b2b7b81a] rounded-[100px] overflow-hidden h-[12px]">
                 <div
                   className="h-[12px] bg-darkAqua rounded-[100px] transition-all duration-500"
@@ -134,7 +150,7 @@ export function ProjectCard({
                 <span className="font-medium text-[14px] lg:text-[16px]/5 text-gray-400">TBD</span>
               ) : (
                 <div className="flex items-center gap-4">
-                  {currentRaised > 0 && (
+                  {effectiveRaised > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="flex items-center justify-center text-darkAqua h-[13px] w-[20px]">
                         <TrendingUp className="h-4 w-4" />
@@ -143,7 +159,7 @@ export function ProjectCard({
                         Raised
                       </span>
                       <span className="text-[14px] lg:text-[16px]/[19.09px] font-semibold">
-                        {formatCurrency(currentRaised)}
+                        {formatCurrency(effectiveRaised)}
                       </span>
                     </div>
                   )}
@@ -152,7 +168,7 @@ export function ProjectCard({
                       Target
                     </span>
                     <span className="text-[14px] lg:text-[16px]/[19.09px] font-semibold">
-                      {formatCurrency(targetAmount)}
+                      {formatCurrency(effectiveTarget)}
                     </span>
                   </div>
                 </div>

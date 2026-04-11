@@ -7,10 +7,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-// Mock wagmi (project detail page calls useChainId)
+// Mock wagmi — project detail page calls useChainId, and the embedded
+// useOnChainSaleStats hook uses useReadContracts which we need to stub.
 vi.mock("wagmi", () => ({
   useChainId: () => 8453,
   useAccount: () => ({ isConnected: false, address: undefined }),
+  useReadContract: () => ({ data: undefined, isLoading: false }),
+  useReadContracts: () => ({ data: undefined, isLoading: false }),
 }));
 
 // Mock AuthContext (project detail page calls useAuth)

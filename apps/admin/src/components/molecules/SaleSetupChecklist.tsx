@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   CheckCircle2, Circle, AlertCircle, Rocket, Shield, Coins,
   ListChecks, Send, Settings, FileText, ChevronDown, ChevronUp,
@@ -104,7 +105,7 @@ function OTCInlineConfig({ saleId, saleContractAddress, currentOTCTokenAddress, 
         </div>
       ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
-          No OTC tokens deployed yet. <a href="/issuer/tokens" className="underline font-medium">Deploy one from the Tokens page</a>, then come back to link it.
+          No OTC tokens deployed yet. <Link href="/issuer/tokens" className="underline font-medium">Deploy one from the Tokens page</Link>, then come back to link it.
         </div>
       )}
 

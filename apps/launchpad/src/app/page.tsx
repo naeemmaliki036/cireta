@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Navbar, Footer } from "@/components/organisms";
 import { getProjects, type Project } from "@/lib/api/repositories/projects.repository";
+import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import {
   getPlatformStats,
   getPartners,
@@ -54,7 +55,17 @@ function isVideoUrl(url: string): boolean {
 
 function LiveProjectCard({ project: p }: { project: Project }) {
   const [imgError, setImgError] = useState(false);
-  const progress = p.targetAmount > 0 ? Math.min(Math.round((p.currentRaised / p.targetAmount) * 100), 100) : 0;
+  // On-chain sale stats — overrides the DB-derived numbers when the sale
+  // contract is deployed so the homepage card never shows stale totals.
+  const onChain = useOnChainSaleStats(
+    (p.contract_address ?? null) as `0x${string}` | null,
+    0,
+  );
+  const effectiveRaised = onChain.ready ? onChain.totalRaised : p.currentRaised;
+  const effectiveTarget = onChain.ready && onChain.hardCap > 0 ? onChain.hardCap : p.targetAmount;
+  const progress = effectiveTarget > 0
+    ? Math.min(Math.round((effectiveRaised / effectiveTarget) * 100), 100)
+    : 0;
   const hasImage = p.imageUrl && !imgError;
   const isVideo = p.imageUrl && isVideoUrl(p.imageUrl);
 
@@ -143,7 +154,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               const e = new Date(ph.end_time || 0).getTime();
               return now >= s && now < e;
             });
-            const showProgress = isOngoing && p.currentRaised > 0;
+            const showProgress = isOngoing && effectiveRaised > 0;
             return showProgress ? (
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -159,7 +170,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
           <div className="flex items-center justify-between pt-1">
             <div>
               <p className="text-[10px] text-gray-400 uppercase">Target</p>
-              <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(p.targetAmount / 1_000_000).toFixed(1)}M USDC`}</p>
+              <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(effectiveTarget / 1_000_000).toFixed(1)}M USDC`}</p>
             </div>
             <span className="inline-flex items-center gap-1.5 btn-cta text-xs px-4 py-2 rounded-full transition-colors">
               View Details <ArrowRight className="h-3 w-3" />

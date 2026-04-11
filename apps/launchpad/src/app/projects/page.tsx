@@ -11,6 +11,7 @@ import {
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import {
   getProjects,
   type Project,
@@ -89,8 +90,16 @@ const SIDEBAR_LINKS = [
 ];
 
 function ActiveProjectCard({ project }: { project: Project }) {
-  const raised = project.currentRaised || 0;
-  const hardCap = project.targetAmount || 1;
+  // Read totals from the deployed Sale contract so the card reflects the
+  // canonical on-chain numbers, not whatever the DB last cached.
+  const onChain = useOnChainSaleStats(
+    (project.contract_address ?? null) as `0x${string}` | null,
+    0,
+  );
+  const raised = onChain.ready ? onChain.totalRaised : (project.currentRaised || 0);
+  const hardCap = onChain.ready && onChain.hardCap > 0
+    ? onChain.hardCap
+    : (project.targetAmount || 1);
   const progress = hardCap > 0 ? Math.round((raised / hardCap) * 100) : 0;
 
   return (
