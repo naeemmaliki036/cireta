@@ -114,7 +114,21 @@ interface InvestAmountStepProps {
   ethBalance?: number | null;
 }
 
-const QUICK_TOKEN_QUANTITIES = [1, 5, 10, 100];
+/**
+ * Build quick-buy suggestions starting at the effective minimum.
+ * - First-time buyer: starts at minTokens → 2x, 5x, 10x
+ * - Repeat buyer: starts at topUpMinTokens → 2x, 5x, 10x
+ * Clamps to available supply.
+ */
+function buildQuickQuantities(effectiveMin: number, availableTokens: number): number[] {
+  if (effectiveMin <= 0) return [1, 5, 10, 100];
+  const base = effectiveMin;
+  const raw = [base, base * 2, base * 5, base * 10];
+  // Dedupe and filter — don't suggest more than what's available
+  const cap = availableTokens > 0 ? availableTokens : Infinity;
+  const filtered = raw.filter((q, i, arr) => q <= cap && arr.indexOf(q) === i);
+  return filtered.length > 0 ? filtered : [effectiveMin];
+}
 
 export function InvestAmountStep({
   project,
@@ -219,13 +233,13 @@ export function InvestAmountStep({
           </span>
         </div>
         <div className="flex gap-2 mt-3">
-          {QUICK_TOKEN_QUANTITIES.map((v) => (
+          {buildQuickQuantities(effectiveMin, availableTokens).map((v) => (
             <button
               key={v}
               onClick={() => onAmountChange(v.toString())}
               className="flex-1 py-2 text-sm font-medium text-darkAqua bg-darkAqua/10 rounded-lg hover:bg-darkAqua/20 transition-colors"
             >
-              {v} {project.tokenSymbol}
+              {v.toLocaleString()} {project.tokenSymbol}
             </button>
           ))}
         </div>
