@@ -39,7 +39,7 @@ export default function InvestPage() {
   const { isConnected, address: connectedAddress } = useAccount();
   const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { isVerified: isWalletLinkedToProfile } = useWeb3();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -55,8 +55,13 @@ export default function InvestPage() {
   const [isContributing, setIsContributing] = useState(false);
   const [otcComplianceMet, setOtcComplianceMet] = useState(false);
 
-  // Payment token from the sale (e.g. cUSDC, USDT) — falls back to global config
-  const usdcAddress = (paymentTokenAddress as `0x${string}`) || getUsdcAddress(chainId);
+  // Payment token from the sale (e.g. cUSDC, USDT) — validated as a 0x hex address.
+  // Falls back to the chain-wide default when the DB has a label (e.g. "USDC") or is null.
+  const isValidAddr = (s: string | null): s is `0x${string}` =>
+    !!s && /^0x[0-9a-fA-F]{40}$/.test(s);
+  const usdcAddress = isValidAddr(paymentTokenAddress)
+    ? paymentTokenAddress
+    : getUsdcAddress(chainId);
 
   // Derive sale contract address early so hooks can reference it
   const _rawAddr = (project as unknown as { contract_address?: string | null })?.contract_address;
@@ -507,8 +512,32 @@ export default function InvestPage() {
           <motion.div key={paymentMethod ?? "choose"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl p-8 border border-black/10">
 
+            {/* Logged-out state — show sign in / register prompt, no KYC/wallet messaging */}
+            {!isAuthenticated && (
+              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <p className="text-sm font-semibold text-amber-800 mb-1">Sign in to invest</p>
+                <p className="text-sm text-amber-700 mb-3">
+                  You need a Cireta account to invest. Sign in with an existing account or register a new one.
+                </p>
+                <div className="flex gap-3">
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline"
+                  >
+                    Sign In &rarr;
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline"
+                  >
+                    Register &rarr;
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* Wallet verification status — priority: KYC first, then wallet linking */}
-            {isConnected && isWalletVerified === false && (() => {
+            {isAuthenticated && isConnected && isWalletVerified === false && (() => {
               const kyc = user?.kycStatus ?? "none";
               const kycIncomplete = kyc !== "approved";
 
@@ -576,7 +605,7 @@ export default function InvestPage() {
             })()}
 
             {/* Verified confirmation badge */}
-            {isConnected && isWalletVerified === true && user?.kycStatus === "approved" && (
+            {isAuthenticated && isConnected && isWalletVerified === true && user?.kycStatus === "approved" && (
               <div className="mb-6 p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                 <p className="text-sm font-medium text-green-700">
