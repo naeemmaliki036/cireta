@@ -113,13 +113,17 @@ async def approve_wallet_deletion_request(
         svc = WalletService(db)
         await svc._perform_unlink(req.user_id, wallet)
     else:
-        # Wallet already gone — still enqueue the revoke as a no-op safety net.
+        # Wallet already gone — still enqueue the revoke as a safety
+        # net. We pass the snapshot address from the deletion request
+        # so task_sync_wallet can call removeFromWhitelist even without
+        # a wallet_id.
         try:
             await enqueue_identity_sync(
                 db,
                 user_id=req.user_id,
                 action=IdentitySyncJobAction.REMOVE,
                 wallet_id=None,
+                wallet_address=req.wallet_address_snapshot,
             )
         except Exception as exc:
             logger.warning(

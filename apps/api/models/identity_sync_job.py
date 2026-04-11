@@ -49,6 +49,15 @@ class IdentitySyncJob(BaseModel):
         nullable=True,
         index=True,
     )
+    # Snapshot of the wallet checksum address captured at enqueue time.
+    # Used as a fallback by task_sync_wallet when the FK row has been
+    # nulled out (ON DELETE SET NULL) because the Wallet was unlinked
+    # between enqueue and worker pickup — common on the REMOVE path
+    # where WalletService._perform_unlink deletes the row in the same
+    # transaction that enqueued the revoke job.
+    wallet_address_snapshot: Mapped[str | None] = mapped_column(
+        String(42), nullable=True
+    )
     action: Mapped[IdentitySyncJobAction] = mapped_column(
         String(20), nullable=False, index=True
     )

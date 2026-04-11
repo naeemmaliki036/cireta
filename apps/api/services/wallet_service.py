@@ -250,6 +250,7 @@ class WalletService:
                     user_id=user.id,
                     action=IdentitySyncJobAction.ADD,
                     wallet_id=wallet.id,
+                    wallet_address=wallet.address_checksum,
                 )
             except Exception as exc:
                 logger.warning(
@@ -469,16 +470,18 @@ class WalletService:
         audit.unlinked_at = dt_cls.now(UTC)
         self.db.add(audit)
 
-        # Enqueue the on-chain revoke. The task is idempotent and no-ops
-        # when registered_on_chain is False (so unverified users sail
-        # through without a contract call). Enqueue BEFORE deleting the
-        # wallet row so the worker can still resolve wallet_id.
+        # Enqueue the on-chain revoke BEFORE deleting the wallet row.
+        # Snapshot the address so the worker can still call
+        # removeFromWhitelist even if the ``ON DELETE SET NULL`` FK
+        # has wiped ``wallet_id`` by the time the task runs (happens
+        # when the delete commits before the next sweep pass).
         try:
             await enqueue_identity_sync(
                 self.db,
                 user_id=user_id,
                 action=IdentitySyncJobAction.REMOVE,
                 wallet_id=wallet.id,
+                wallet_address=wallet.address_checksum,
             )
         except Exception as exc:
             logger.warning(

@@ -47,6 +47,7 @@ class IdentitySyncService:
         user_id: UUID,
         action: IdentitySyncJobAction,
         wallet_id: UUID | None = None,
+        wallet_address: str | None = None,
     ) -> IdentitySyncJob:
         """Insert an IdentitySyncJob row and enqueue the matching arq task.
 
@@ -56,10 +57,24 @@ class IdentitySyncService:
         Failure to enqueue on Redis is logged but does NOT raise — the
         DB row stays ``pending`` and the worker's pending-job sweep will
         pick it up on the next pass.
+
+        Args:
+            user_id: Target buyer.
+            action: PROVISION (full wallet set), ADD (single wallet), or
+                REMOVE (revoke single wallet).
+            wallet_id: Required for ADD/REMOVE — the Wallet row to target.
+            wallet_address: Optional checksum address snapshot. On REMOVE
+                this is used as the fallback when the Wallet row has
+                already been deleted by the time the worker runs — the
+                FK's ``ON DELETE SET NULL`` wipes ``wallet_id`` but we
+                can still revoke the address on chain via the snapshot.
+                On ADD it's stored for forensic audit but not
+                functionally required. Unused for PROVISION.
         """
         job = IdentitySyncJob()
         job.user_id = user_id
         job.wallet_id = wallet_id
+        job.wallet_address_snapshot = wallet_address
         job.action = action
         job.status = IdentitySyncJobStatus.PENDING
         job.attempts = 0
@@ -107,6 +122,7 @@ async def enqueue_identity_sync(
     user_id: UUID,
     action: IdentitySyncJobAction,
     wallet_id: UUID | None = None,
+    wallet_address: str | None = None,
 ) -> IdentitySyncJob:
     """Module-level convenience wrapper.
 
@@ -114,5 +130,8 @@ async def enqueue_identity_sync(
     than signal (e.g. inside a one-off effect inside another service).
     """
     return await IdentitySyncService(db).enqueue(
-        user_id=user_id, action=action, wallet_id=wallet_id
+        user_id=user_id,
+        action=action,
+        wallet_id=wallet_id,
+        wallet_address=wallet_address,
     )

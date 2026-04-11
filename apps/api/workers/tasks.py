@@ -521,30 +521,38 @@ async def task_sync_wallet(
                     raise RuntimeError("ADD action requires wallet_id")
 
             elif job.action == IdentitySyncJobAction.REMOVE:
-                # On remove the wallet row may already be deleted from the
-                # DB (admin approved a deletion request). Use the snapshot
-                # address from a sibling lookup if needed; for now we hit
-                # the bridge using the wallet row's address while it still
-                # exists in the unlink-then-enqueue path.
+                # On remove the Wallet row may have been deleted before
+                # the worker runs (common — WalletService._perform_unlink
+                # deletes the row in the same tx that enqueued this job,
+                # and the FK's ON DELETE SET NULL wipes wallet_id out).
+                # Resolve the target address from three sources, in order:
+                #   1. The wallet row via wallet_id (happy path)
+                #   2. The snapshot on the job row (wallet_address_snapshot)
+                #   3. Neither → raise
+                target_address: str | None = None
+                wallet: Wallet | None = None
                 if job.wallet_id:
                     wallet_q = await db.execute(
                         select(Wallet).where(Wallet.id == job.wallet_id)
                     )
                     wallet = wallet_q.scalar_one_or_none()
                     if wallet:
-                        result = await bridge.revoke_wallet(wallet.address_checksum)
-                        tx_hash = result.get("tx_hash") if isinstance(result, dict) else None
-                        wallet.registered_on_chain = False
-                    else:
-                        # Wallet row gone — safe no-op. The deletion-request
-                        # approval flow will pass the snapshot address via a
-                        # follow-up endpoint when needed.
-                        logger.info(
-                            "task_sync_wallet: REMOVE wallet %s no longer in DB, skipping",
-                            job.wallet_id,
-                        )
-                else:
-                    raise RuntimeError("REMOVE action requires wallet_id")
+                        target_address = wallet.address_checksum
+                if not target_address and job.wallet_address_snapshot:
+                    target_address = job.wallet_address_snapshot
+                    logger.info(
+                        "task_sync_wallet: wallet row gone, using snapshot address %s",
+                        target_address,
+                    )
+                if not target_address:
+                    raise RuntimeError(
+                        "REMOVE action requires wallet_id OR wallet_address_snapshot"
+                    )
+
+                result = await bridge.revoke_wallet(target_address)
+                tx_hash = result.get("tx_hash") if isinstance(result, dict) else None
+                if wallet is not None:
+                    wallet.registered_on_chain = False
             else:
                 raise RuntimeError(f"Unsupported action {job.action}")
 
