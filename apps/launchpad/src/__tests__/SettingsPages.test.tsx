@@ -127,7 +127,7 @@ describe("Notifications page", () => {
     const NotificationsPage = (await import("@/app/settings/notifications/page")).default;
     render(<NotificationsPage />);
     // Wait for loading to finish
-    expect(await screen.findByText("Investment confirmations")).toBeDefined();
+    expect(await screen.findByText("Purchase confirmations")).toBeDefined();
     expect(screen.getByText("KYC reminders")).toBeDefined();
     expect(screen.getByText("Sale updates")).toBeDefined();
     expect(screen.getByText("Dividend notifications")).toBeDefined();
@@ -137,7 +137,7 @@ describe("Notifications page", () => {
     const user = userEvent.setup();
     const NotificationsPage = (await import("@/app/settings/notifications/page")).default;
     render(<NotificationsPage />);
-    await screen.findByText("Investment confirmations");
+    await screen.findByText("Purchase confirmations");
 
     // Get the first email toggle (role=switch)
     const switches = screen.getAllByRole("switch");
