@@ -86,6 +86,32 @@ class WalletService:
             )
         is_primary = len(current) == 0
 
+        # Trim + validate label, then enforce per-user case-insensitive uniqueness.
+        if label is not None:
+            label = label.strip()
+            if not label:
+                label = None
+            elif len(label) > 50:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "LABEL_TOO_LONG",
+                        "message": "Wallet label must be at most 50 characters.",
+                    },
+                )
+        if label:
+            label_taken = any(
+                (w.label or "").strip().casefold() == label.casefold() for w in current
+            )
+            if label_taken:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "LABEL_TAKEN",
+                        "message": "You already have a wallet with that name.",
+                    },
+                )
+
         # Screen wallet before linking
         from apps.api.services.wallet_screening_service import WalletScreeningService
 
@@ -198,10 +224,12 @@ class WalletService:
         )
 
     async def _auto_register_identity(self, user_id: UUID, wallet: Wallet) -> None:
-        """If user is KYC-approved, register new wallet on-chain.
+        """If user is KYC-approved, register the new wallet on-chain.
 
-        Uses SimpleIdentityBridgeService or IdentityBridgeService based on
-        IDENTITY_MODE config setting.
+        Enqueues a queued ``task_sync_wallet`` job (the safety net) and
+        also fires the inline call as a fast-path so the user sees
+        immediate registration. Both paths are idempotent — the worker
+        re-checks ``wallet.registered_on_chain`` before doing anything.
         """
         try:
             result = await self.db.execute(select(User).where(User.id == user_id))
@@ -209,6 +237,27 @@ class WalletService:
             if not user or user.kyc_status != "approved":
                 return
 
+            # Enqueue the safety-net job first so it exists even if the
+            # inline call raises mid-execution.
+            try:
+                from apps.api.models.enums import IdentitySyncJobAction
+                from apps.api.services.identity_sync_service import (
+                    enqueue_identity_sync,
+                )
+
+                await enqueue_identity_sync(
+                    self.db,
+                    user_id=user.id,
+                    action=IdentitySyncJobAction.ADD,
+                    wallet_id=wallet.id,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to enqueue identity sync for wallet %s: %s",
+                    wallet.address_checksum, exc,
+                )
+
+            # Inline fast-path — simple mode only (per phase-1 plan).
             if settings.identity_mode == "simple":
                 from apps.api.services.simple_identity_bridge_service import (
                     SimpleIdentityBridgeService,
@@ -216,7 +265,8 @@ class WalletService:
                 bridge = SimpleIdentityBridgeService(self.db)
                 await bridge.register_wallet(user, wallet.address_checksum)
             else:
-                # Full ERC-3643 mode — requires ONCHAINID to exist
+                # Full ERC-3643 mode — requires ONCHAINID to exist. Skip
+                # the inline call and let the queued job handle it.
                 if not user.onchain_id:
                     return
                 from apps.api.services.identity_bridge_service import IdentityBridgeService
@@ -231,11 +281,51 @@ class WalletService:
             )
         except Exception:
             logger.exception(
-                "Failed to auto-register wallet %s on-chain for user %s",
+                "Failed inline auto-register for wallet %s on-chain (user %s) — "
+                "queued job will retry",
                 wallet.address_checksum, user_id,
             )
 
-    async def unlink_wallet(self, user_id: UUID, address: str) -> None:
+    async def _wallet_has_contributions(self, address_checksum: str) -> bool:
+        """True if any Contribution row references this wallet address.
+
+        Wallets that have ever participated in a sale are bound to that
+        purchase history and cannot be deleted at all (verified or not).
+        """
+        from apps.api.models.contribution import Contribution
+
+        contrib_q = await self.db.execute(
+            select(Contribution.id)
+            .where(Contribution.wallet_address == address_checksum.lower())
+            .limit(1)
+        )
+        if contrib_q.scalar_one_or_none() is not None:
+            return True
+        # Older rows may have stored the checksum case
+        contrib_q2 = await self.db.execute(
+            select(Contribution.id)
+            .where(Contribution.wallet_address == address_checksum)
+            .limit(1)
+        )
+        return contrib_q2.scalar_one_or_none() is not None
+
+    async def unlink_wallet(self, user_id: UUID, address: str) -> dict:
+        """Delete or, for verified buyers, queue an admin-mediated deletion.
+
+        Returns a dict so the endpoint can route to a 200 (deleted) or
+        202 (deletion requested) response without re-querying.
+
+        Restrictions enforced here:
+          1. Wallet exists and belongs to the user, else 404.
+          2. Cannot delete the primary wallet, else 400 PRIMARY_WALLET.
+          3. Cannot delete a wallet that has any Contribution row,
+             whether verified or not, else 409 WALLET_HAS_CONTRIBUTIONS.
+          4. KYC-approved users get 202 + a WalletDeletionRequest row;
+             admin must approve before the unlink + on-chain revoke fire.
+          5. Unverified users with no contributions hit the existing
+             direct-delete path (also enqueues a sync remove for safety,
+             which no-ops because registered_on_chain is False).
+        """
         from web3 import Web3
 
         checksum = Web3.to_checksum_address(address)
@@ -253,31 +343,196 @@ class WalletService:
                     "message": "Cannot remove primary wallet. Set another as primary first.",
                 },
             )
-        # Audit trail — record unlink event
+        if await self._wallet_has_contributions(checksum):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "WALLET_HAS_CONTRIBUTIONS",
+                    "message": "This wallet has bought tokens in a sale and cannot be removed.",
+                },
+            )
+
+        # Verified users: queue an admin-mediated deletion request
+        user_q = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_q.scalar_one_or_none()
+        if user and user.kyc_status == "approved":
+            return await self._queue_wallet_deletion_request(user_id, wallet)
+
+        return await self._perform_unlink(user_id, wallet)
+
+    async def _queue_wallet_deletion_request(
+        self, user_id: UUID, wallet: Wallet, reason: str | None = None
+    ) -> dict:
+        """Insert a pending WalletDeletionRequest for an admin to review."""
+        from apps.api.models.enums import WalletDeletionRequestStatus
+        from apps.api.models.wallet_deletion_request import WalletDeletionRequest
+
+        # Bail if there's already a pending request for this wallet — UI
+        # should prevent this but defend in depth.
+        existing_q = await self.db.execute(
+            select(WalletDeletionRequest)
+            .where(WalletDeletionRequest.wallet_id == wallet.id)
+            .where(WalletDeletionRequest.status == WalletDeletionRequestStatus.PENDING)
+        )
+        if existing_q.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "DELETION_REQUEST_ALREADY_PENDING",
+                    "message": "A removal request for this wallet is already pending admin review.",
+                },
+            )
+
+        req = WalletDeletionRequest()
+        req.user_id = user_id
+        req.wallet_id = wallet.id
+        req.wallet_address_snapshot = wallet.address_checksum
+        req.reason = reason
+        req.status = WalletDeletionRequestStatus.PENDING
+        self.db.add(req)
+        await self.db.commit()
+        await self.db.refresh(req)
+        logger.info(
+            "Wallet deletion requested: user=%s wallet=%s request_id=%s",
+            user_id, wallet.address_checksum, req.id,
+        )
+        return {
+            "status": "deletion_requested",
+            "request_id": str(req.id),
+            "message": "Removal request submitted. An admin will review and approve.",
+        }
+
+    async def request_wallet_deletion(
+        self, user_id: UUID, address: str, reason: str | None = None
+    ) -> dict:
+        """Explicit request-deletion endpoint for verified buyers.
+
+        Same enforcement as unlink_wallet, but always routes to the
+        deletion-request flow regardless of verification state. Used by
+        the new POST /wallets/{address}/deletion-request endpoint.
+        """
+        from web3 import Web3
+
+        checksum = Web3.to_checksum_address(address)
+        result = await self.db.execute(
+            select(Wallet).where(Wallet.user_id == user_id, Wallet.address_checksum == checksum)
+        )
+        wallet = result.scalar_one_or_none()
+        if not wallet:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wallet not found")
+        if wallet.is_primary:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "PRIMARY_WALLET",
+                    "message": "Cannot remove primary wallet. Set another as primary first.",
+                },
+            )
+        if await self._wallet_has_contributions(checksum):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "WALLET_HAS_CONTRIBUTIONS",
+                    "message": "This wallet has bought tokens in a sale and cannot be removed.",
+                },
+            )
+        return await self._queue_wallet_deletion_request(user_id, wallet, reason)
+
+    async def _perform_unlink(self, user_id: UUID, wallet: Wallet) -> dict:
+        """Actually delete the wallet row + audit trail + enqueue revoke.
+
+        Used by the direct-delete path (unverified users) and by the
+        admin approval flow.
+        """
         from datetime import UTC
         from datetime import datetime as dt_cls
 
+        from apps.api.models.enums import IdentitySyncJobAction
         from apps.api.models.wallet_audit import WalletAuditLog
+        from apps.api.services.identity_sync_service import enqueue_identity_sync
 
+        # Audit trail — record unlink event
         audit = WalletAuditLog()
         audit.user_id = user_id
         audit.action = "unlinked"
-        audit.address = wallet.address_checksum  # use checksum (plaintext) to avoid double-encryption
+        audit.address = wallet.address_checksum  # plaintext to avoid double-encryption
         audit.address_checksum = wallet.address_checksum
         audit.chain_id = wallet.chain_id
         audit.was_primary = wallet.is_primary
         audit.was_safe = wallet.is_safe
         audit.was_registered_on_chain = wallet.registered_on_chain or False
         audit.label = wallet.label
-        audit.link_signature = None  # don't copy encrypted values
+        audit.link_signature = None
         audit.link_nonce = wallet.link_nonce
         audit.risk_score = wallet.risk_score
         audit.linked_at = wallet.linked_at
         audit.unlinked_at = dt_cls.now(UTC)
         self.db.add(audit)
 
+        # Enqueue the on-chain revoke. The task is idempotent and no-ops
+        # when registered_on_chain is False (so unverified users sail
+        # through without a contract call). Enqueue BEFORE deleting the
+        # wallet row so the worker can still resolve wallet_id.
+        try:
+            await enqueue_identity_sync(
+                self.db,
+                user_id=user_id,
+                action=IdentitySyncJobAction.REMOVE,
+                wallet_id=wallet.id,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to enqueue identity sync remove for %s: %s",
+                wallet.address_checksum, exc,
+            )
+
         await self.db.delete(wallet)
         await self.db.commit()
+        return {"status": "deleted"}
+
+    async def rename_wallet(self, user_id: UUID, address: str, new_label: str) -> Wallet:
+        """Rename an existing wallet's label, enforcing per-user uniqueness."""
+        from web3 import Web3
+
+        checksum = Web3.to_checksum_address(address)
+        new_label = new_label.strip()
+        if not new_label:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "LABEL_REQUIRED", "message": "Label cannot be blank."},
+            )
+        if len(new_label) > 50:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "LABEL_TOO_LONG",
+                    "message": "Wallet label must be at most 50 characters.",
+                },
+            )
+        wallet_q = await self.db.execute(
+            select(Wallet).where(Wallet.user_id == user_id, Wallet.address_checksum == checksum)
+        )
+        wallet = wallet_q.scalar_one_or_none()
+        if not wallet:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wallet not found")
+
+        siblings = await self.list_wallets(user_id)
+        for s in siblings:
+            if s.id == wallet.id:
+                continue
+            if (s.label or "").strip().casefold() == new_label.casefold():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "LABEL_TAKEN",
+                        "message": "You already have a wallet with that name.",
+                    },
+                )
+
+        wallet.label = new_label
+        await self.db.commit()
+        await self.db.refresh(wallet)
+        return wallet
 
     async def set_primary(self, user_id: UUID, address: str) -> Wallet:
         from web3 import Web3

@@ -333,8 +333,31 @@ class KYCService:
         else:
             await self._register_erc3643_identity(user, settings)
 
-    async def _register_simple_identity(self, user: User, settings: object) -> None:
-        """Simple whitelist mode — add all wallets to SimpleIdentityRegistry."""
+    async def _register_simple_identity(self, user: User, settings: object) -> None:  # noqa: ARG002
+        """Simple whitelist mode — enqueue an identity sync job.
+
+        The actual on-chain call lives in the ``task_sync_identity`` worker
+        task. We also fire the inline call as a fast-path so the user sees
+        immediate registration on a happy path; the queued job is the
+        idempotent safety net (re-checks ``Wallet.registered_on_chain``
+        before doing anything).
+        """
+        # Enqueue first so the safety net exists even if the inline call
+        # raises mid-execution.
+        try:
+            from apps.api.models.enums import IdentitySyncJobAction
+            from apps.api.services.identity_sync_service import enqueue_identity_sync
+
+            await enqueue_identity_sync(
+                self.db,
+                user_id=user.id,
+                action=IdentitySyncJobAction.PROVISION,
+            )
+        except Exception as exc:
+            log.warning("Failed to enqueue identity sync for user %s: %s", user.id, exc)
+
+        # Inline fast-path — best-effort, errors are swallowed because the
+        # queued job will retry independently.
         try:
             from apps.api.services.simple_identity_bridge_service import (
                 SimpleIdentityBridgeService,
@@ -342,11 +365,14 @@ class KYCService:
             bridge = SimpleIdentityBridgeService(self.db)
             result = await bridge.provision_identity(user.id)
             log.info(
-                "Simple identity registered for user %s: %d wallet(s)",
+                "Simple identity registered (inline) for user %s: %d wallet(s)",
                 user.id, len(result.get("registered_wallets", [])),
             )
         except Exception as exc:
-            log.error("Failed simple identity registration for user %s: %s", user.id, exc)
+            log.warning(
+                "Inline simple identity registration failed for user %s: %s — "
+                "queued job will retry", user.id, exc,
+            )
 
     async def _register_erc3643_identity(self, user: User, settings: object) -> None:
         """Full ERC-3643 mode — deploy ONCHAINID + issue claims."""

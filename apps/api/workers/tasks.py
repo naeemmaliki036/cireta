@@ -354,6 +354,287 @@ async def task_rescreen_wallets(ctx: dict[str, Any]) -> None:  # noqa: ARG001
     await _rescreen({})
 
 
+# ─── Identity registry sync ──────────────────────────────────────────
+# These run on the same retry/dead-letter pattern as task_process_webhooks:
+# 3 attempts max, exponential backoff, then status='failed' + audit_logs row.
+# Both tasks read an IdentitySyncJob row first so the worker has full context
+# (action, user, wallet) and can update the row's status/attempts/tx_hash/last_error
+# in lockstep with whatever the bridge service does on chain.
+
+_IDENTITY_SYNC_MAX_ATTEMPTS = 3
+
+
+async def task_sync_identity(
+    ctx: dict[str, Any],  # noqa: ARG001
+    job_id: str,
+) -> None:
+    """Re-sync the buyer's full wallet set after KYC approval.
+
+    Loads ``IdentitySyncJob[job_id]``, calls
+    ``SimpleIdentityBridgeService.provision_identity(user_id)`` to
+    whitelist every linked wallet that isn't on chain yet, and updates
+    the job row with the outcome. Idempotent via
+    ``Wallet.registered_on_chain`` so re-running on a healthy state is
+    a no-op.
+    """
+    from sqlalchemy import select
+
+    from apps.api.models.enums import IdentitySyncJobStatus
+    from apps.api.models.identity_sync_job import IdentitySyncJob
+    from packages.common.db.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        job_q = await db.execute(
+            select(IdentitySyncJob).where(IdentitySyncJob.id == job_id)
+        )
+        job = job_q.scalar_one_or_none()
+        if not job:
+            logger.warning("task_sync_identity: job %s not found", job_id)
+            return
+        if job.status in (IdentitySyncJobStatus.SUCCEEDED, IdentitySyncJobStatus.FAILED):
+            logger.info(
+                "task_sync_identity: job %s already in terminal state %s",
+                job_id, job.status,
+            )
+            return
+
+        job.status = IdentitySyncJobStatus.RUNNING
+        job.attempts = (job.attempts or 0) + 1
+        job.started_at = datetime.now(UTC)
+        await db.commit()
+
+        try:
+            from apps.api.services.simple_identity_bridge_service import (
+                SimpleIdentityBridgeService,
+            )
+
+            bridge = SimpleIdentityBridgeService(db)
+            result = await bridge.provision_identity(job.user_id)
+            tx_hash = result.get("tx_hash") if isinstance(result, dict) else None
+
+            job.status = IdentitySyncJobStatus.SUCCEEDED
+            job.tx_hash = tx_hash
+            job.completed_at = datetime.now(UTC)
+            job.last_error = None
+            await db.commit()
+            logger.info(
+                "task_sync_identity: job=%s user=%s succeeded — %d wallet(s) registered, tx=%s",
+                job_id, job.user_id,
+                len(result.get("registered_wallets", [])) if isinstance(result, dict) else 0,
+                tx_hash,
+            )
+        except Exception as exc:
+            job.last_error = str(exc)[:500]
+            if job.attempts >= _IDENTITY_SYNC_MAX_ATTEMPTS:
+                job.status = IdentitySyncJobStatus.FAILED
+                job.completed_at = datetime.now(UTC)
+                await _record_identity_sync_failure(db, job, str(exc))
+            else:
+                job.status = IdentitySyncJobStatus.PENDING
+            await db.commit()
+            logger.warning(
+                "task_sync_identity: job=%s attempt %d/%d failed — %s",
+                job_id, job.attempts, _IDENTITY_SYNC_MAX_ATTEMPTS, exc,
+            )
+            # Re-raise so arq's own backoff sees the failure and the job
+            # gets retried automatically. The pending sweep also picks it up.
+            raise
+
+
+async def task_sync_wallet(
+    ctx: dict[str, Any],  # noqa: ARG001
+    job_id: str,
+) -> None:
+    """Register or revoke a single wallet on the identity registry.
+
+    Reads the action from the IdentitySyncJob row:
+      - ADD    → bridge.register_wallet(user, address)
+      - REMOVE → bridge.revoke_wallet(address)
+    """
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.enums import IdentitySyncJobAction, IdentitySyncJobStatus
+    from apps.api.models.identity_sync_job import IdentitySyncJob
+    from apps.api.models.user import User
+    from apps.api.models.wallet import Wallet
+    from packages.common.db.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        job_q = await db.execute(
+            select(IdentitySyncJob).where(IdentitySyncJob.id == job_id)
+        )
+        job = job_q.scalar_one_or_none()
+        if not job:
+            logger.warning("task_sync_wallet: job %s not found", job_id)
+            return
+        if job.status in (IdentitySyncJobStatus.SUCCEEDED, IdentitySyncJobStatus.FAILED):
+            logger.info(
+                "task_sync_wallet: job %s already in terminal state %s",
+                job_id, job.status,
+            )
+            return
+
+        job.status = IdentitySyncJobStatus.RUNNING
+        job.attempts = (job.attempts or 0) + 1
+        job.started_at = datetime.now(UTC)
+        await db.commit()
+
+        try:
+            from apps.api.services.simple_identity_bridge_service import (
+                SimpleIdentityBridgeService,
+            )
+
+            bridge = SimpleIdentityBridgeService(db)
+            tx_hash: str | None = None
+
+            if job.action == IdentitySyncJobAction.ADD:
+                # Need the user (with wallets eager-loaded) and the wallet row.
+                user_q = await db.execute(
+                    select(User)
+                    .options(selectinload(User.wallets))
+                    .where(User.id == job.user_id)
+                )
+                user = user_q.scalar_one_or_none()
+                if not user:
+                    raise RuntimeError(f"user {job.user_id} not found")
+
+                if job.wallet_id:
+                    wallet_q = await db.execute(
+                        select(Wallet).where(Wallet.id == job.wallet_id)
+                    )
+                    wallet = wallet_q.scalar_one_or_none()
+                    if not wallet:
+                        raise RuntimeError(f"wallet {job.wallet_id} not found")
+                    if wallet.registered_on_chain:
+                        logger.info(
+                            "task_sync_wallet: wallet %s already registered, no-op",
+                            wallet.address_checksum,
+                        )
+                    else:
+                        result = await bridge.register_wallet(
+                            user, wallet.address_checksum
+                        )
+                        tx_hash = result.get("tx_hash") if isinstance(result, dict) else None
+                        wallet.registered_on_chain = True
+                else:
+                    raise RuntimeError("ADD action requires wallet_id")
+
+            elif job.action == IdentitySyncJobAction.REMOVE:
+                # On remove the wallet row may already be deleted from the
+                # DB (admin approved a deletion request). Use the snapshot
+                # address from a sibling lookup if needed; for now we hit
+                # the bridge using the wallet row's address while it still
+                # exists in the unlink-then-enqueue path.
+                if job.wallet_id:
+                    wallet_q = await db.execute(
+                        select(Wallet).where(Wallet.id == job.wallet_id)
+                    )
+                    wallet = wallet_q.scalar_one_or_none()
+                    if wallet:
+                        result = await bridge.revoke_wallet(wallet.address_checksum)
+                        tx_hash = result.get("tx_hash") if isinstance(result, dict) else None
+                        wallet.registered_on_chain = False
+                    else:
+                        # Wallet row gone — safe no-op. The deletion-request
+                        # approval flow will pass the snapshot address via a
+                        # follow-up endpoint when needed.
+                        logger.info(
+                            "task_sync_wallet: REMOVE wallet %s no longer in DB, skipping",
+                            job.wallet_id,
+                        )
+                else:
+                    raise RuntimeError("REMOVE action requires wallet_id")
+            else:
+                raise RuntimeError(f"Unsupported action {job.action}")
+
+            job.status = IdentitySyncJobStatus.SUCCEEDED
+            job.tx_hash = tx_hash
+            job.completed_at = datetime.now(UTC)
+            job.last_error = None
+            await db.commit()
+            logger.info(
+                "task_sync_wallet: job=%s user=%s action=%s succeeded tx=%s",
+                job_id, job.user_id, job.action, tx_hash,
+            )
+        except Exception as exc:
+            job.last_error = str(exc)[:500]
+            if job.attempts >= _IDENTITY_SYNC_MAX_ATTEMPTS:
+                job.status = IdentitySyncJobStatus.FAILED
+                job.completed_at = datetime.now(UTC)
+                await _record_identity_sync_failure(db, job, str(exc))
+            else:
+                job.status = IdentitySyncJobStatus.PENDING
+            await db.commit()
+            logger.warning(
+                "task_sync_wallet: job=%s attempt %d/%d failed — %s",
+                job_id, job.attempts, _IDENTITY_SYNC_MAX_ATTEMPTS, exc,
+            )
+            raise
+
+
+async def _process_pending_identity_sync_jobs(db: Any) -> int:
+    """Sweep pending identity sync jobs left behind by Redis hiccups."""
+    from sqlalchemy import select
+
+    from apps.api.models.enums import IdentitySyncJobAction, IdentitySyncJobStatus
+    from apps.api.models.identity_sync_job import IdentitySyncJob
+
+    pending_q = await db.execute(
+        select(IdentitySyncJob)
+        .where(IdentitySyncJob.status == IdentitySyncJobStatus.PENDING)
+        .where(IdentitySyncJob.attempts < _IDENTITY_SYNC_MAX_ATTEMPTS)
+        .order_by(IdentitySyncJob.enqueued_at.asc())
+        .limit(50)
+    )
+    rows = list(pending_q.scalars().all())
+    if not rows:
+        return 0
+    try:
+        from arq import create_pool
+        from arq.connections import RedisSettings
+
+        from packages.common.core.config import settings
+
+        pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+    except Exception as exc:
+        logger.warning("identity sync sweep: redis unavailable: %s", exc)
+        return 0
+    queued = 0
+    for job in rows:
+        try:
+            if job.action == IdentitySyncJobAction.PROVISION:
+                await pool.enqueue_job("task_sync_identity", str(job.id))
+            else:
+                await pool.enqueue_job("task_sync_wallet", str(job.id))
+            queued += 1
+        except Exception as exc:
+            logger.warning("identity sync sweep: enqueue %s failed: %s", job.id, exc)
+    return queued
+
+
+async def _record_identity_sync_failure(db: Any, job: Any, error: str) -> None:
+    """Drop a row in audit_logs so compliance has a breadcrumb on dead-letter."""
+    try:
+        from apps.api.models.audit_log import AuditLog
+
+        log_row = AuditLog()
+        log_row.actor_id = None
+        log_row.action = f"identity_sync_failed_{job.action}"
+        log_row.target_type = "identity_sync_job"
+        log_row.target_id = str(job.id)
+        log_row.payload = {
+            "user_id": str(job.user_id),
+            "wallet_id": str(job.wallet_id) if job.wallet_id else None,
+            "action": job.action,
+            "attempts": job.attempts,
+            "error": error[:500],
+        }
+        db.add(log_row)
+    except Exception as exc:
+        logger.warning("Failed to record identity sync failure audit log: %s", exc)
+
+
 async def task_check_kyc_expiry(ctx: dict[str, Any]) -> None:  # noqa: ARG001
     """Daily KYC expiry check — warn 30 days before, block on expiry."""
     from apps.api.services.kyc_expiry_service import (
@@ -376,6 +657,8 @@ class WorkerSettings:
         task_process_webhooks,
         task_rescreen_wallets,
         task_check_kyc_expiry,
+        task_sync_identity,
+        task_sync_wallet,
     ]
     cron_jobs = [
         # Chain event sync: every 12 seconds
@@ -415,6 +698,24 @@ class WorkerSettings:
                     logger.error("Webhook process loop error", exc_info=True)
                 await asyncio.sleep(30)
 
+        async def _identity_sync_sweep_loop() -> None:
+            """Sweep stale pending identity sync jobs every 60 seconds.
+
+            Catches rows that didn't make it onto Redis when the API
+            enqueued them (Redis hiccup, transient network blip).
+            """
+            from packages.common.db.session import AsyncSessionLocal
+
+            while True:
+                try:
+                    async with AsyncSessionLocal() as db:
+                        queued = await _process_pending_identity_sync_jobs(db)
+                        if queued:
+                            logger.info("identity sync sweep: re-queued %d job(s)", queued)
+                except Exception:
+                    logger.error("Identity sync sweep loop error", exc_info=True)
+                await asyncio.sleep(60)
+
         async def _heartbeat_loop() -> None:
             """Write heartbeat to Redis every 30 seconds."""
             import redis.asyncio as aioredis
@@ -438,7 +739,11 @@ class WorkerSettings:
         ctx["_chain_sync_task"] = asyncio.create_task(_chain_sync_loop())
         ctx["_webhook_task"] = asyncio.create_task(_webhook_process_loop())
         ctx["_heartbeat_task"] = asyncio.create_task(_heartbeat_loop())
-        logger.info("Background tasks started: chain_sync (12s), webhook_process (30s), heartbeat (30s)")
+        ctx["_identity_sync_sweep_task"] = asyncio.create_task(_identity_sync_sweep_loop())
+        logger.info(
+            "Background tasks started: chain_sync (12s), webhook_process (30s), "
+            "heartbeat (30s), identity_sync_sweep (60s)"
+        )
 
     @staticmethod
     async def on_shutdown(ctx: dict[str, Any]) -> None:
