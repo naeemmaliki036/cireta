@@ -128,3 +128,6 @@ pids/
 secrets/
 credentials/
 .claude/
+
+# Local-only design / planning docs (kept out of git so they don't clutter PRs)
+docs/
