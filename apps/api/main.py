@@ -87,7 +87,6 @@ def create_app() -> FastAPI:
 
     # Serve local uploads in development (GCS serves directly in production)
     if settings.storage_backend == "local":
-        import os
         from pathlib import Path
 
         from fastapi.staticfiles import StaticFiles

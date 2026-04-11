@@ -6,7 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -184,6 +184,7 @@ async def notify_subscribers(
 ) -> dict:
     """Send launch notification to all subscribers who haven't been notified yet. Issuer/Admin only."""
     from datetime import UTC, datetime
+
     from apps.api.services.email_service import EmailService
 
     # Get sale

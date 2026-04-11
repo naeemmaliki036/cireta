@@ -13,8 +13,8 @@ from apps.api.models.enums import (
     KYCStatus,
     RedemptionStatus,
     SaleMode,
-    SaleStructure,
     SaleStatus,
+    SaleStructure,
     UserRole,
     WalletApprovalStatus,
 )
@@ -32,8 +32,8 @@ from apps.api.models.sale_document import SaleDocument
 from apps.api.models.sale_faq import SaleFAQ
 from apps.api.models.sale_image import SaleImage
 from apps.api.models.sale_phase import SalePhase
-from apps.api.models.sale_subscription import SaleSubscription
 from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist
+from apps.api.models.sale_subscription import SaleSubscription
 from apps.api.models.sale_team_member import SaleTeamMember
 from apps.api.models.team_member import TeamMember
 from apps.api.models.token import Token

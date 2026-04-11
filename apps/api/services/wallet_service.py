@@ -254,9 +254,10 @@ class WalletService:
                 },
             )
         # Audit trail — record unlink event
-        from apps.api.models.wallet_audit import WalletAuditLog
         from datetime import UTC
         from datetime import datetime as dt_cls
+
+        from apps.api.models.wallet_audit import WalletAuditLog
 
         audit = WalletAuditLog()
         audit.user_id = user_id

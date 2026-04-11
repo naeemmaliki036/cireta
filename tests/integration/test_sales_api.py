@@ -17,7 +17,7 @@ class TestListSalesEndpoint:
 
     async def test_list_sales_public(self, client: AsyncClient, test_sale: TokenSale) -> None:
         """Test listing sales without auth."""
-        response = await client.get("/api/v1/sales/")
+        response = await client.get("/api/v1/sales")
 
         assert response.status_code == 200
         data = response.json()
@@ -28,7 +28,7 @@ class TestListSalesEndpoint:
         self, client: AsyncClient, test_sale: TokenSale
     ) -> None:
         """Test listing sales with status filter returns only matching status."""
-        response = await client.get(f"/api/v1/sales/?status={str(test_sale.status)}")
+        response = await client.get(f"/api/v1/sales?status={str(test_sale.status)}")
 
         assert response.status_code == 200
         data = response.json()
@@ -72,7 +72,7 @@ class TestCreateSaleEndpoint:
         now = datetime.now(UTC)
 
         response = await client.post(
-            "/api/v1/sales/",
+            "/api/v1/sales",
             json={
                 "token_id": str(test_token.id),
                 "payment_token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -100,7 +100,7 @@ class TestCreateSaleEndpoint:
     async def test_create_sale_unauthorized(self, client: AsyncClient) -> None:
         """Test sale creation without auth."""
         response = await client.post(
-            "/api/v1/sales/",
+            "/api/v1/sales",
             json={
                 "token_id": str(uuid4()),
                 "payment_token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",

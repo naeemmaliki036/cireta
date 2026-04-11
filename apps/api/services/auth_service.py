@@ -91,7 +91,8 @@ class CiretaAuthService(BaseAuthService):
         self.db.add(user)
         await self.db.flush()
 
-        from datetime import datetime, UTC as _UTC
+        from datetime import UTC as _UTC
+        from datetime import datetime
         issuer = Issuer()
         issuer.user_id = user.id
         issuer.name = display_name or email.split("@")[0]

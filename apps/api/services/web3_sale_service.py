@@ -5,10 +5,10 @@ Orchestrates Sale contract interactions via Web3TxService.
 
 import asyncio
 import logging
-from fastapi import HTTPException
 from decimal import Decimal
 from typing import Any
 
+from fastapi import HTTPException
 from web3 import Web3
 
 from apps.api.core.contract_registry import ContractRegistry

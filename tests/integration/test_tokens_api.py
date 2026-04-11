@@ -17,7 +17,7 @@ class TestListTokensEndpoint:
 
     async def test_list_tokens_public(self, client: AsyncClient, test_token: Token) -> None:
         """Test listing tokens without auth."""
-        response = await client.get("/api/v1/tokens/")
+        response = await client.get("/api/v1/tokens")
 
         assert response.status_code == 200
         data = response.json()
@@ -28,7 +28,7 @@ class TestListTokensEndpoint:
 
     async def test_list_tokens_pagination(self, client: AsyncClient, test_token: Token) -> None:
         """Test token pagination."""
-        response = await client.get("/api/v1/tokens/?page=1&size=5")
+        response = await client.get("/api/v1/tokens?page=1&size=5")
 
         assert response.status_code == 200
         data = response.json()
@@ -72,7 +72,7 @@ class TestCreateTokenEndpoint:
         access_token = auth_service.create_access_token(test_issuer_user.id)
 
         response = await client.post(
-            "/api/v1/tokens/",
+            "/api/v1/tokens",
             json={
                 "name": "New Gold Token",
                 "symbol": f"NGT{uuid4().hex[:4].upper()}",
@@ -91,7 +91,7 @@ class TestCreateTokenEndpoint:
     async def test_create_token_unauthorized(self, client: AsyncClient) -> None:
         """Test token creation without auth."""
         response = await client.post(
-            "/api/v1/tokens/",
+            "/api/v1/tokens",
             json={
                 "name": "Test Token",
                 "symbol": "TEST",
@@ -112,7 +112,7 @@ class TestCreateTokenEndpoint:
         access_token = auth_service.create_access_token(test_user.id)
 
         response = await client.post(
-            "/api/v1/tokens/",
+            "/api/v1/tokens",
             json={
                 "name": "Test Token",
                 "symbol": "TEST",

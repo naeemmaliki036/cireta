@@ -1,5 +1,6 @@
 """Token sale endpoints."""
 
+from datetime import UTC
 from typing import Annotated
 from uuid import UUID
 
@@ -79,7 +80,8 @@ async def _phase_sold_map(
 
     Returns a map of phase_id (str) → (tokens_sold, usdc_raised).
     """
-    from sqlalchemy import func, select as _select
+    from sqlalchemy import func
+    from sqlalchemy import select as _select
 
     from apps.api.models.contribution import Contribution
 
@@ -427,11 +429,11 @@ async def deploy_sale(
 
     # Round-5: sale_end_time = NULL → open-ended (encoded as 0 on-chain).
     # sale_start_time defaults to "now + 60s" if not set.
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
     if sale.sale_start_time:
         sale_start_ts = int(sale.sale_start_time.timestamp())
     else:
-        sale_start_ts = int((datetime.now(timezone.utc) + timedelta(seconds=60)).timestamp())
+        sale_start_ts = int((datetime.now(UTC) + timedelta(seconds=60)).timestamp())
     sale_end_ts = int(sale.sale_end_time.timestamp()) if sale.sale_end_time else 0
 
     # If phases exist, derive a sane window from them when not explicitly set.
@@ -617,6 +619,7 @@ async def add_phase(
 ) -> dict:
     """Record a phase in the DB (after it's been added on-chain)."""
     from sqlalchemy.orm import selectinload
+
     from apps.api.models.sale_phase import SalePhase
 
     result = await db.execute(
@@ -630,7 +633,7 @@ async def add_phase(
     if sale.issuer.user_id != user_id:
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
 
-    from datetime import datetime, timezone
+    from datetime import datetime
     from decimal import Decimal
     min_contribution = Decimal(request.min_contribution)
     max_contribution = Decimal(request.max_contribution)
@@ -677,7 +680,7 @@ async def add_phase(
             status_code=400,
             detail={"code": "INVALID_PHASE_TIME_RANGE", "message": "Phase start_time must be before end_time."},
         )
-    if end_dt <= datetime.now(timezone.utc):
+    if end_dt <= datetime.now(UTC):
         raise HTTPException(
             status_code=400,
             detail={"code": "PHASE_IN_PAST", "message": "Phase end_time must be in the future."},
@@ -736,8 +739,8 @@ async def add_phase(
     phase.whitelist_only = request.whitelist_only
 
     # Round-5: update parent sale's lastPhaseAddedAt for inactivity tracking
-    from datetime import datetime as _dt, timezone as _tz
-    sale.last_phase_added_at = _dt.now(_tz.utc)
+    from datetime import datetime as _dt
+    sale.last_phase_added_at = _dt.now(UTC)
 
     db.add(phase)
     await db.commit()
@@ -845,8 +848,9 @@ async def record_sale_deployment(
         raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
 
     try:
-        from apps.api.services.web3_base_service import Web3BaseService
         from web3 import Web3
+
+        from apps.api.services.web3_base_service import Web3BaseService
 
         w3_svc = Web3BaseService()
         w3 = w3_svc.w3
@@ -936,7 +940,7 @@ async def approve_sale(
 
     Requires: admin role.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from apps.api.models.user import User
 
@@ -954,7 +958,7 @@ async def approve_sale(
     if sale.approved_at is not None:
         raise HTTPException(status_code=400, detail={"code": "ALREADY_APPROVED", "message": "Sale is already approved"})
 
-    sale.approved_at = datetime.now(timezone.utc)
+    sale.approved_at = datetime.now(UTC)
     await db.commit()
     return {"sale_id": str(sale_id), "approved_at": sale.approved_at.isoformat()}
 
@@ -998,7 +1002,7 @@ async def activate_refunds(
     """Round-5: issuer or admin activates the refund window after a failed sale.
     Mirrors Sale.activateRefunds() on-chain. One-way switch.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     sale_result = await db.execute(
         select(TokenSale).options(selectinload(TokenSale.issuer)).where(TokenSale.id == sale_id)
@@ -1019,7 +1023,7 @@ async def activate_refunds(
     if sale.refunds_activated_at is not None:
         raise HTTPException(status_code=400, detail={"code": "ALREADY_ACTIVE", "message": "Refunds already active"})
 
-    sale.refunds_activated_at = datetime.now(timezone.utc)
+    sale.refunds_activated_at = datetime.now(UTC)
     await db.commit()
     return {"sale_id": str(sale_id), "refunds_activated_at": sale.refunds_activated_at.isoformat()}
 
