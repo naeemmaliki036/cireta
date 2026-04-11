@@ -433,8 +433,8 @@ export function InvestConfirmStep({
 }: InvestConfirmStepProps) {
   return (
     <>
-      <h1 className="text-2xl font-semibold text-text mb-2">Confirm Investment</h1>
-      <p className="text-black/50 mb-8">Review and confirm your investment details</p>
+      <h1 className="text-2xl font-semibold text-text mb-2">Confirm Purchase</h1>
+      <p className="text-black/50 mb-8">Review and confirm your purchase details</p>
       <div className="bg-box rounded-xl p-6 space-y-4 mb-6">
         <SummaryRow label="Project" value={project.title} />
         <SummaryRow label="Amount" value={formatCurrency(amount)} />
@@ -451,7 +451,7 @@ export function InvestConfirmStep({
           </Button>
         )}
         <Button variant="primary" className="flex-1" size="lg" onClick={onConfirm} isLoading={isLoading}>
-          {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming...") : (isSafe ? "Propose to Safe" : "Confirm Investment")}
+          {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming...") : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
         </Button>
       </div>
     </>

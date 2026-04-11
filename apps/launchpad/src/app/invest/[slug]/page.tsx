@@ -979,7 +979,7 @@ export default function InvestPage() {
                   isLoading={otcConfirmLoading}
                   disabled={!otcMetadataReady || otcConfirmLoading}
                 >
-                  {otcConfirmLoading ? "Confirming..." : "Confirm Investment"}
+                  {otcConfirmLoading ? "Confirming..." : "Confirm Purchase"}
                 </Button>
               </>
             )}
@@ -1035,14 +1035,14 @@ export default function InvestPage() {
             )}
           </motion.div>
           {step === "success" && (
-            <div className="mt-6 space-y-3 max-w-xl mx-auto">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-xl mx-auto">
               {txHash && (
                 <a href={getTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" className="w-full" size="lg">View Transaction</Button>
+                  <Button variant="outline" size="sm">View Transaction</Button>
                 </a>
               )}
-              <Link href="/portfolio"><Button variant="primary" className="w-full" size="lg">View Portfolio</Button></Link>
-              <Link href="/projects"><Button variant="outline" className="w-full" size="lg">Explore More</Button></Link>
+              <Link href="/portfolio"><Button variant="primary" size="sm">View Portfolio</Button></Link>
+              <Link href="/projects"><Button variant="outline" size="sm">Explore More</Button></Link>
             </div>
           )}
         </div>

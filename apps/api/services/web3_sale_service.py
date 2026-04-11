@@ -211,13 +211,24 @@ class Web3SaleService:
             )
 
         event = events[0]
+        # Read token decimals from the sale contract — round-5 sales scale
+        # tokensAllocated by `10 ** tokenDecimals`, which varies per token
+        # (e.g. 6 for the round-5 Wassa Gold token, 18 for legacy tokens).
+        try:
+            token_decimals = int(
+                await asyncio.to_thread(sale_contract.functions.tokenDecimals().call)
+            )
+        except Exception:
+            token_decimals = 18
+
         return {
             "buyer": event["buyer"],
             "phase_id": event["phaseId"],
             "amount": Decimal(str(event["amount"])) / Decimal(10**USDC_DECIMALS),
             "amount_raw": event["amount"],
-            "tokens_allocated": Decimal(str(event["tokensAllocated"])) / Decimal(10**18),
+            "tokens_allocated": Decimal(str(event["tokensAllocated"])) / Decimal(10**token_decimals),
             "tokens_allocated_raw": event["tokensAllocated"],
+            "token_decimals": token_decimals,
             "is_otc": bool(event.get("isOTC", False)),
             "sale_address": sale_address,
             "block_number": receipt["blockNumber"],
