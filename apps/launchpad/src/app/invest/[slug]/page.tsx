@@ -28,6 +28,8 @@ import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { OTC_TOKEN_ABI, SALE_OTC_ABI } from "@/lib/contracts/otcTokenAbi";
 import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
 import { parseRevertReason } from "@/lib/contracts/revertReasons";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWeb3 } from "@/contexts/Web3Context";
 
 // Steps shown in the progress bar (success is rendered separately).
 const STEPS_BAR = ["amount", "approve", "confirm"] as const;
@@ -37,6 +39,8 @@ export default function InvestPage() {
   const { isConnected, address: connectedAddress } = useAccount();
   const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
+  const { user } = useAuth();
+  const { isVerified: isWalletLinkedToProfile } = useWeb3();
 
   const [project, setProject] = useState<Project | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
@@ -511,21 +515,78 @@ export default function InvestPage() {
           <motion.div key={paymentMethod ?? "choose"} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl p-8 border border-black/10">
 
-            {/* Wallet not whitelisted warning */}
-            {isConnected && isWalletVerified === false && (
-              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
-                <p className="text-sm font-semibold text-red-700 mb-1">Wallet not verified</p>
-                <p className="text-sm text-red-600 mb-3">
-                  Your connected wallet is not yet registered on the identity registry. You need to complete KYC verification and add this wallet to your profile before you can invest.
-                </p>
-                <div className="flex gap-3">
-                  <Link href="/settings/wallets" className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline">
-                    Add wallet to profile →
-                  </Link>
-                  <Link href="/settings/verification" className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline">
-                    Complete KYC →
-                  </Link>
+            {/* Wallet verification status — priority: KYC first, then wallet linking */}
+            {isConnected && isWalletVerified === false && (() => {
+              const kyc = user?.kycStatus ?? "none";
+              const kycIncomplete = kyc !== "approved";
+
+              // KYC not yet approved — highest priority: show only KYC CTA
+              if (kycIncomplete) {
+                const statusLabel =
+                  kyc === "pending"
+                    ? "Your identity verification is under review"
+                    : kyc === "rejected"
+                    ? "Your identity verification was rejected"
+                    : kyc === "expired"
+                    ? "Your identity verification has expired"
+                    : "Identity verification required";
+                const buttonLabel =
+                  kyc === "pending" ? "Check KYC Status" : "Start KYC Verification";
+                return (
+                  <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
+                    <p className="text-sm font-semibold text-red-700 mb-1">Identity verification required</p>
+                    <p className="text-sm text-red-600 mb-3">
+                      {statusLabel}. You must complete KYC before investing in regulated security tokens.
+                    </p>
+                    <Link
+                      href="/settings/verification"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline"
+                    >
+                      {buttonLabel} &rarr;
+                    </Link>
+                  </div>
+                );
+              }
+
+              // KYC approved but wallet not linked to profile
+              if (!isWalletLinkedToProfile) {
+                return (
+                  <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                    <p className="text-sm font-semibold text-amber-800 mb-1">Link this wallet to your profile</p>
+                    <p className="text-sm text-amber-700 mb-3">
+                      You&apos;re verified, but this wallet isn&apos;t connected to your Cireta account yet.
+                      Link it from your profile before you can invest.
+                    </p>
+                    <Link
+                      href="/settings/wallets"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-darkAqua hover:underline"
+                    >
+                      Add Wallet to Profile &rarr;
+                    </Link>
+                  </div>
+                );
+              }
+
+              // Edge case: KYC approved, wallet linked, but still not verified on-chain.
+              // This shouldn't normally happen — the backend auto-whitelists verified wallets.
+              // Show a gentle hint in case of sync delay.
+              return (
+                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                  <p className="text-sm font-semibold text-amber-800 mb-1">Sync in progress</p>
+                  <p className="text-sm text-amber-700">
+                    Your wallet is being registered for on-chain investing. This usually takes a few seconds — please refresh in a moment.
+                  </p>
                 </div>
+              );
+            })()}
+
+            {/* Verified confirmation badge */}
+            {isConnected && isWalletVerified === true && user?.kycStatus === "approved" && (
+              <div className="mb-6 p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                <p className="text-sm font-medium text-green-700">
+                  Verified wallet &mdash; you&apos;re ready to invest
+                </p>
               </div>
             )}
 
