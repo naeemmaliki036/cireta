@@ -36,21 +36,33 @@ class PortfolioService:
         """
         holdings: dict[str, dict] = {}
 
-        # Get claimed contributions
+        # Pull both CLAIMED and CONFIRMED contributions. CLAIMED → buyer
+        # already redeemed and holds transferable ERC-3643 project tokens.
+        # CONFIRMED → buyer holds soul-bound fraction tokens (locked, awaiting
+        # vesting + claim). Both should appear in the portfolio so the buyer
+        # sees the value of every position.
         contrib_result = await self.db.execute(
             select(Contribution)
             .options(selectinload(Contribution.sale).selectinload(TokenSale.token))
             .where(Contribution.user_id == user_id)
-            .where(Contribution.status == ContributionStatus.CLAIMED)
+            .where(
+                Contribution.status.in_(
+                    [ContributionStatus.CLAIMED, ContributionStatus.CONFIRMED]
+                )
+            )
         )
         contributions = contrib_result.scalars().all()
 
         for contrib in contributions:
             token = contrib.sale.token
             token_id = str(token.id)
+            is_locked = contrib.status == ContributionStatus.CONFIRMED
+            # Bucket each token by lock status so a buyer with both
+            # transferable + locked balances sees them as two rows.
+            bucket_key = f"{token_id}:{'locked' if is_locked else 'unlocked'}"
 
-            if token_id not in holdings:
-                holdings[token_id] = {
+            if bucket_key not in holdings:
+                holdings[bucket_key] = {
                     "token_id": token_id,
                     "token_symbol": token.symbol,
                     "token_name": token.name,
@@ -59,10 +71,11 @@ class PortfolioService:
                     "invested_usd": Decimal("0"),
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
+                    "locked": is_locked,
                 }
 
-            holdings[token_id]["balance"] += contrib.tokens_allocated
-            holdings[token_id]["invested_usd"] += contrib.amount
+            holdings[bucket_key]["balance"] += contrib.tokens_allocated
+            holdings[bucket_key]["invested_usd"] += contrib.amount
 
         # Get vesting schedules
         vesting_result = await self.db.execute(
@@ -74,19 +87,24 @@ class PortfolioService:
 
         for schedule in schedules:
             token_id = str(schedule.token_id)
+            # Vesting schedules tracked under the unlocked bucket — they
+            # represent post-claim ERC-3643 balances.
+            bucket_key = f"{token_id}:unlocked"
 
-            if token_id not in holdings:
-                holdings[token_id] = {
+            if bucket_key not in holdings:
+                holdings[bucket_key] = {
                     "token_id": token_id,
                     "token_symbol": schedule.token.symbol,
                     "token_name": schedule.token.name,
                     "balance": Decimal("0"),
+                    "invested_usd": Decimal("0"),
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
+                    "locked": False,
                 }
 
-            holdings[token_id]["vested_amount"] += schedule.claimed_amount
-            holdings[token_id]["claimable_amount"] += schedule.claimable_amount
+            holdings[bucket_key]["vested_amount"] += schedule.claimed_amount
+            holdings[bucket_key]["claimable_amount"] += schedule.claimable_amount
 
         return list(holdings.values())
 

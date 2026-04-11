@@ -451,11 +451,6 @@ export function InvestConfirmStep({
         Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
       </p>
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-      {isRecording && (
-        <div className="mb-4 p-3 rounded-xl bg-darkAqua/10 border border-darkAqua/30 text-sm text-darkAqua text-center">
-          On-chain confirmed. Saving your purchase to your portfolio… please don&apos;t close this tab.
-        </div>
-      )}
       <div className="flex gap-3">
         {onBack && (
           <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
@@ -463,11 +458,7 @@ export function InvestConfirmStep({
           </Button>
         )}
         <Button variant="primary" className="flex-1" size="lg" onClick={onConfirm} isLoading={isLoading}>
-          {isRecording
-            ? "Saving to portfolio…"
-            : isLoading
-              ? (isSafe ? "Proposing to Safe..." : "Confirming…")
-              : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
+          {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming…") : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
         </Button>
       </div>
     </>

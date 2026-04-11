@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 import {
   ShoppingBag, FolderOpen,
   DollarSign, Coins, BarChart3, Clock, ArrowUpRight,
-  Wallet, ArrowDownRight, ArrowUpFromLine,
+  Wallet, ArrowDownRight, ArrowUpFromLine, ExternalLink,
 } from "lucide-react";
+import { useChainId } from "wagmi";
 import { Spinner } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
 import { PortfolioTable, type HoldingItem } from "@/components/organisms";
@@ -20,6 +21,7 @@ import {
   type Transaction,
 } from "@/lib/api/repositories/portfolio.repository";
 import { formatCurrency } from "@/lib/utils";
+import { getTxUrl } from "@/lib/contracts/addresses";
 
 const SIDEBAR_LINKS = [
   { href: "/projects", label: "Sales", icon: ShoppingBag },
@@ -68,10 +70,18 @@ const TX_COLOR: Record<string, string> = {
   refund: "text-red-500 bg-red-50",
 };
 
-function TransactionRow({ tx }: { tx: Transaction }) {
+const TX_LABELS: Record<string, string> = {
+  investment: "Buy",
+  claim: "Claim",
+  redemption: "Redemption",
+  refund: "Refund",
+};
+
+function TransactionRow({ tx, chainId }: { tx: Transaction; chainId: number }) {
   const Icon = TX_ICON[tx.type] ?? Clock;
   const color = TX_COLOR[tx.type] ?? "text-gray-500 bg-gray-50";
-  const [iconBg, iconText] = color.split(" ");
+  const isOnChain = !!tx.tx_hash && !tx.tx_hash.startsWith("otc-");
+  const label = TX_LABELS[tx.type] ?? tx.type;
 
   return (
     <div className="flex items-center gap-4 py-3.5 border-b border-gray-50 last:border-0">
@@ -79,18 +89,37 @@ function TransactionRow({ tx }: { tx: Transaction }) {
         <Icon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-text capitalize">{tx.type}</p>
+        <p className="text-sm font-medium text-text">{label}</p>
         <p className="text-xs text-gray-400 truncate">
           {tx.token_symbol ? `${tx.token_name} (${tx.token_symbol})` : "—"}
         </p>
       </div>
-      <div className="text-right shrink-0">
+      <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
         <p className="text-sm font-semibold text-text">
-          {tx.type === "investment" ? `$${parseFloat(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${parseFloat(tx.tokens_allocated).toLocaleString()} ${tx.token_symbol}`}
+          {tx.type === "investment"
+            ? `${parseFloat(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USDC`
+            : `${parseFloat(tx.tokens_allocated).toLocaleString()} ${tx.token_symbol}`}
         </p>
-        <p className="text-xs text-gray-400">
-          {tx.created_at ? new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
-        </p>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span>
+            {tx.created_at ? new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+          </span>
+          {isOnChain && (
+            <a
+              href={getTxUrl(chainId, tx.tx_hash as string)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-darkAqua hover:underline"
+              title="View on BaseScan"
+            >
+              {tx.tx_hash!.slice(0, 6)}…{tx.tx_hash!.slice(-4)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+          {tx.tx_hash?.startsWith("otc-") && (
+            <span className="text-gray-300">OTC</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -98,6 +127,7 @@ function TransactionRow({ tx }: { tx: Transaction }) {
 
 export default function PortfolioPage() {
   const pathname = usePathname();
+  const chainId = useChainId();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -300,7 +330,7 @@ export default function PortfolioPage() {
                 {transactions.length > 0 ? (
                   <div className="px-5 py-2">
                     {transactions.map((tx) => (
-                      <TransactionRow key={tx.id} tx={tx} />
+                      <TransactionRow key={tx.id} tx={tx} chainId={chainId} />
                     ))}
                   </div>
                 ) : (

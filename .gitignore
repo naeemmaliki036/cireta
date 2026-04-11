@@ -127,3 +127,4 @@ pids/
 *.key
 secrets/
 credentials/
+.claude/

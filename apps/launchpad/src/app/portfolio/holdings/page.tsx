@@ -1,11 +1,58 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Coins, RefreshCw } from "lucide-react";
+import { Coins, RefreshCw, Lock, Unlock } from "lucide-react";
 import { Button, Spinner, Badge } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { getPortfolio, type Holding } from "@/lib/api/repositories/portfolio.repository";
 import { formatCurrency } from "@/lib/utils";
+
+function HoldingsTable({ rows, locked }: { rows: Holding[]; locked: boolean }) {
+  return (
+    <div className="bg-white rounded-xl border border-black/10 overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-black/10 text-black/40 text-xs uppercase">
+            <th className="text-left px-4 py-3">Token</th>
+            <th className="text-right px-4 py-3">Balance</th>
+            <th className="text-right px-4 py-3">Value (USD)</th>
+            <th className="text-right px-4 py-3">{locked ? "Status" : "Claimable"}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((h) => (
+            <tr key={`${h.token_id}-${locked ? "l" : "u"}`} className="border-b border-black/5 last:border-0">
+              <td className="px-4 py-4">
+                <p className="text-text font-medium">{h.token_name}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-black/40 text-xs">{h.token_symbol}</span>
+                  <Badge variant="outline" size="sm">{h.asset_type}</Badge>
+                </div>
+              </td>
+              <td className="px-4 py-4 text-right font-semibold text-text">
+                {Number(h.balance).toLocaleString()}
+              </td>
+              <td className="px-4 py-4 text-right text-text">
+                {formatCurrency(parseFloat(h.value_usd))}
+              </td>
+              <td className="px-4 py-4 text-right">
+                {locked ? (
+                  <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
+                    <Lock className="w-3 h-3" /> Vesting
+                  </span>
+                ) : parseFloat(h.claimable) > 0 ? (
+                  <span className="text-green-600 font-semibold">{Number(h.claimable).toLocaleString()}</span>
+                ) : (
+                  <span className="text-black/30">—</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function PortfolioHoldingsPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -53,46 +100,36 @@ export default function PortfolioHoldingsPage() {
             <p className="text-black/40 font-medium">No holdings yet</p>
             <p className="text-black/20 text-sm mt-1">Buy in a token sale to see your holdings here.</p>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-black/10 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-black/10 text-black/40 text-xs uppercase">
-                  <th className="text-left px-4 py-3">Token</th>
-                  <th className="text-right px-4 py-3">Balance</th>
-                  <th className="text-right px-4 py-3">Value (USD)</th>
-                  <th className="text-right px-4 py-3">Claimable</th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map((h) => (
-                  <tr key={h.token_id} className="border-b border-black/5 last:border-0">
-                    <td className="px-4 py-4">
-                      <p className="text-text font-medium">{h.token_name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-black/40 text-xs">{h.token_symbol}</span>
-                        <Badge variant="outline" size="sm">{h.asset_type}</Badge>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-right font-semibold text-text">
-                      {Number(h.balance).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-4 text-right text-text">
-                      {formatCurrency(parseFloat(h.value_usd))}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      {parseFloat(h.claimable) > 0 ? (
-                        <span className="text-green-600 font-semibold">{Number(h.claimable).toLocaleString()}</span>
-                      ) : (
-                        <span className="text-black/30">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        ) : (() => {
+          const lockedHoldings = holdings.filter((h) => h.locked);
+          const unlockedHoldings = holdings.filter((h) => !h.locked);
+          return (
+            <div className="space-y-8">
+              {lockedHoldings.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock className="w-4 h-4 text-amber-600" />
+                    <h2 className="text-sm font-semibold text-text">Locked / Vesting</h2>
+                    <span className="text-xs text-black/40">
+                      Soul-bound fraction tokens. Claim after the vesting cliff to unlock.
+                    </span>
+                  </div>
+                  <HoldingsTable rows={lockedHoldings} locked />
+                </section>
+              )}
+
+              {unlockedHoldings.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Unlock className="w-4 h-4 text-emerald-600" />
+                    <h2 className="text-sm font-semibold text-text">Available (Transferable)</h2>
+                  </div>
+                  <HoldingsTable rows={unlockedHoldings} locked={false} />
+                </section>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </DashboardLayout>
   );

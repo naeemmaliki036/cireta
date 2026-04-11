@@ -9,7 +9,13 @@ from apps.api.models.enums import FulfillmentMethod
 
 
 class HoldingResponse(BaseModel):
-    """Token holding response."""
+    """Token holding response.
+
+    Each row represents either:
+    - Unlocked: ERC-3643 project tokens the buyer holds (transferable).
+    - Locked: soul-bound fraction tokens still in vesting (not transferable).
+    The frontend uses `locked` to render two separate sections.
+    """
 
     token_id: str
     token_symbol: str
@@ -20,6 +26,7 @@ class HoldingResponse(BaseModel):
     vested_amount: str
     claimable_amount: str
     claimable: str = "0"
+    locked: bool = False
 
     class Config:
         from_attributes = True

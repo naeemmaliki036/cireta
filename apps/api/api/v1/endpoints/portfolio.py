@@ -59,6 +59,7 @@ def _holding_to_response(holding: dict) -> HoldingResponse:
         vested_amount=str(holding["vested_amount"]),
         claimable_amount=str(holding["claimable_amount"]),
         claimable=str(holding["claimable_amount"]),
+        locked=bool(holding.get("locked", False)),
     )
 
 

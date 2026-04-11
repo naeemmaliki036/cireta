@@ -74,9 +74,9 @@ export default function InvestPage() {
   const [otcComplianceMet, setOtcComplianceMet] = useState(false);
   // After on-chain confirm, the success card is gated on the backend POST
   // /sales/:id/contribute completing so the buyer's tx shows up in their
-  // portfolio + transaction history immediately.
+  // portfolio + transaction history. The button stays in its loading state
+  // until both the on-chain receipt and the backend recording are done.
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingFailed, setRecordingFailed] = useState(false);
 
   // Payment token from the sale (e.g. cUSDC, USDT) — validated as a 0x hex address.
   // Falls back to the chain-wide default when the DB has a label (e.g. "USDC") or is null.
@@ -306,7 +306,6 @@ export default function InvestPage() {
     const hash = contributeTxHash;
     setTxHash(hash);
     setIsRecording(true);
-    setRecordingFailed(false);
 
     (async () => {
       try {
@@ -316,7 +315,6 @@ export default function InvestPage() {
         await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
       } catch (err) {
         console.error("[invest] Backend recording failed:", err);
-        setRecordingFailed(true);
       }
       setIsContributing(false);
       setIsRecording(false);
@@ -343,14 +341,12 @@ export default function InvestPage() {
     const hash = buyOtcTxHash;
     setTxHash(hash);
     setIsRecording(true);
-    setRecordingFailed(false);
     (async () => {
       try {
         // OTC buys: send USDC-equivalent value as the amount field for backend fallback.
         await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
       } catch (err) {
         console.error("[invest] OTC backend recording failed:", err);
-        setRecordingFailed(true);
       }
       setIsContributing(false);
       setIsRecording(false);
@@ -847,12 +843,12 @@ export default function InvestPage() {
                         <label className="block text-sm font-semibold text-text mb-2">Amount ({project.tokenSymbol})</label>
                         <div className="relative">
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
                             placeholder="0"
-                            min={0}
-                            step={1}
                             className="input-field text-2xl font-semibold pr-24"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 font-semibold">{project.tokenSymbol}</span>
@@ -989,18 +985,13 @@ export default function InvestPage() {
                   Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
                 </p>
                 {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-                {isRecording && (
-                  <div className="mb-4 p-3 rounded-xl bg-darkAqua/10 border border-darkAqua/30 text-sm text-darkAqua text-center">
-                    On-chain confirmed. Saving your purchase to your portfolio… please don&apos;t close this tab.
-                  </div>
-                )}
                 <Button
                   variant="primary" className="w-full" size="lg"
                   onClick={handleOtcConfirm}
-                  isLoading={otcConfirmLoading || isRecording}
-                  disabled={!otcMetadataReady || otcConfirmLoading || isRecording}
+                  isLoading={otcConfirmLoading}
+                  disabled={!otcMetadataReady || otcConfirmLoading}
                 >
-                  {isRecording ? "Saving to portfolio…" : otcConfirmLoading ? "Confirming..." : "Confirm Purchase"}
+                  {otcConfirmLoading ? "Confirming..." : "Confirm Purchase"}
                 </Button>
               </>
             )}
@@ -1044,23 +1035,15 @@ export default function InvestPage() {
               <InvestConfirmStep
                 project={project} amount={numericAmount}
                 tokensToReceive={tokensToReceive} isLoading={confirmLoading || isRecording}
-                isRecording={isRecording}
                 error={error} onConfirm={handleConfirm}
                 onBack={() => setStep("amount")}
               />
             )}
             {step === "success" && (
-              <>
-                <InvestSuccessStep
-                  project={project} amount={numericAmount}
-                  tokensToReceive={tokensToReceive} txHash={txHash}
-                />
-                {recordingFailed && (
-                  <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900 text-center">
-                    Your purchase is confirmed on-chain, but we couldn&apos;t sync it to your portfolio just now. It will appear automatically within a few minutes.
-                  </div>
-                )}
-              </>
+              <InvestSuccessStep
+                project={project} amount={numericAmount}
+                tokensToReceive={tokensToReceive} txHash={txHash}
+              />
             )}
           </motion.div>
           {step === "success" && (

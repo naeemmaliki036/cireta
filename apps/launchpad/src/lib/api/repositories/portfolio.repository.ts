@@ -10,6 +10,12 @@ export interface Holding {
   claimable: string;
   /** On-chain token contract address (if deployed). */
   contract_address?: string | null;
+  /**
+   * True when the holding represents soul-bound fraction tokens still in
+   * vesting. Locked holdings can't be transferred and are rendered in a
+   * separate "Locked / Vesting" section.
+   */
+  locked?: boolean;
 }
 
 export interface VestingSchedule {

@@ -303,9 +303,19 @@ export default function TransferPage() {
             </div>
 
             {tokenOptions.length === 0 ? (
-              <div className="text-center py-8 text-black/40 text-sm">
-                <p>No transferable tokens found in your portfolio.</p>
-                <p className="text-xs mt-1">Tokens need a deployed contract address to be transferable.</p>
+              <div className="text-center py-8 text-black/50 text-sm space-y-3">
+                <p className="font-medium text-text">No transferable tokens yet.</p>
+                <p className="text-xs leading-relaxed max-w-sm mx-auto">
+                  Tokens you bought are held as <span className="font-semibold">soul-bound fractions</span> while
+                  the sale is vesting — they can&apos;t be transferred. After the vesting cliff, claim your
+                  tokens to receive transferable ERC-3643 project tokens.
+                </p>
+                <Link
+                  href="/portfolio/vesting"
+                  className="inline-block text-darkAqua hover:underline text-sm font-medium pt-1"
+                >
+                  View your vesting schedule &rarr;
+                </Link>
               </div>
             ) : (
               <div className="space-y-5">

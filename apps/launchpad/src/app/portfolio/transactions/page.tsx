@@ -135,13 +135,16 @@ export default function TransactionsPage() {
     <DashboardLayout>
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold text-text">Transaction History</h1>
           <Button variant="secondary" size="sm" onClick={fetchData} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>
+        <p className="text-xs text-black/40 mb-6">
+          Newly purchased tokens may take a few minutes to appear here.
+        </p>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
