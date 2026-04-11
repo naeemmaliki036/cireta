@@ -387,6 +387,7 @@ class WorkerSettings:
     keep_result = 3600
 
     from arq.connections import RedisSettings as _RedisSettings
+
     from packages.common.core.config import settings as _settings
 
     redis_settings = _RedisSettings.from_dsn(_settings.redis_url)

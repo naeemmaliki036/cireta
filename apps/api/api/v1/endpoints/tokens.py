@@ -210,8 +210,9 @@ async def record_token_deployment(
 
     # Parse tx receipt from chain
     try:
-        from apps.api.services.web3_base_service import Web3BaseService
         from web3 import Web3
+
+        from apps.api.services.web3_base_service import Web3BaseService
 
         w3_svc = Web3BaseService()
         w3 = w3_svc.w3

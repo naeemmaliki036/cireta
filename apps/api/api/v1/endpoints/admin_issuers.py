@@ -17,7 +17,6 @@ from apps.api.schemas.admin import (
     PlatformSettingsRequest,
     WhitelistAddRequest,
     WhitelistEntryResponse,
-    WhitelistListResponse,
 )
 from apps.api.services.compliance_service import ComplianceService
 from apps.api.services.issuer_service import IssuerService

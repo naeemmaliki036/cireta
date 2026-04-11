@@ -1,7 +1,6 @@
 """Token compliance schemas for request/response validation."""
 
 from pydantic import BaseModel, Field, field_validator
-
 from web3 import Web3
 
 

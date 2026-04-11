@@ -413,10 +413,10 @@ class EventListenerService:
         """Process factory deployment events and update DB records."""
         from sqlalchemy import select
 
+        from apps.api.models.enums import SaleStatus
         from apps.api.models.issuer import Issuer
         from apps.api.models.token import Token
         from apps.api.models.token_sale import TokenSale
-        from apps.api.models.enums import SaleStatus
         from packages.common.db.session import AsyncSessionLocal
 
         tx_hash = (

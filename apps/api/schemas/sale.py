@@ -1,6 +1,6 @@
 """Token sale schemas for request/response validation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -29,7 +29,7 @@ class SalePhaseCreate(BaseModel):
     def validate_phase(self) -> "SalePhaseCreate":
         if self.end_time <= self.start_time:
             raise ValueError("Phase end_time must be after start_time")
-        if self.end_time.tzinfo and self.end_time <= datetime.now(timezone.utc):
+        if self.end_time.tzinfo and self.end_time <= datetime.now(UTC):
             raise ValueError("Phase end_time must be in the future")
         if self.max_contribution > 0 and self.min_contribution > self.max_contribution:
             raise ValueError(

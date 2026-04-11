@@ -1,5 +1,6 @@
 """Token service for ERC-3643 security tokens."""
 
+import re
 from decimal import Decimal
 from uuid import UUID
 
@@ -10,9 +11,6 @@ from sqlalchemy.orm import selectinload
 
 from apps.api.models.issuer import Issuer
 from apps.api.models.token import Token
-
-
-import re
 
 
 def _slugify(text: str) -> str:

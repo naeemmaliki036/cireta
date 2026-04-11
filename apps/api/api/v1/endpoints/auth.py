@@ -174,6 +174,7 @@ async def request_otp(
         raise HTTPException(status_code=400, detail={"code": "INVALID_PURPOSE", "message": "Must be login, register, or verify_email"})
 
     from sqlalchemy import select
+
     from apps.api.models.user import User
 
     if request.purpose == "login":
@@ -208,12 +209,14 @@ async def verify_otp_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
     """Verify OTP. For register: creates account. For login: authenticates. For verify_email: marks verified."""
-    from apps.api.services.otp_service import OTPService
-    from apps.api.services.email_service import EmailService
-    from sqlalchemy import select
-    from apps.api.models.user import User
-    from apps.api.models.enums import UserRole
     from datetime import UTC, datetime
+
+    from sqlalchemy import select
+
+    from apps.api.models.enums import UserRole
+    from apps.api.models.user import User
+    from apps.api.services.email_service import EmailService
+    from apps.api.services.otp_service import OTPService
 
     otp_svc = OTPService(db)
     await otp_svc.verify_otp(request.email, request.code, request.purpose)
@@ -221,9 +224,9 @@ async def verify_otp_endpoint(
 
     if request.purpose == "register":
         # Check if email is in issuer whitelist — if so, register as issuer
-        from apps.api.models.issuer_whitelist import IssuerWhitelist
+        from apps.api.models.enums import IssuerStatus
         from apps.api.models.issuer import Issuer
-        from apps.api.models.enums import IssuerStatus, IssuerType
+        from apps.api.models.issuer_whitelist import IssuerWhitelist
         wl_result = await db.execute(select(IssuerWhitelist).where(IssuerWhitelist.email == email))
         wl_entry = wl_result.scalar_one_or_none()
 
@@ -239,7 +242,7 @@ async def verify_otp_endpoint(
             db.add(user)
             await db.flush()
             # Create issuer record
-            from apps.api.models.enums import IdentityVerificationStatus, WalletApprovalStatus
+            from apps.api.models.enums import IdentityVerificationStatus
             issuer = Issuer()
             issuer.user_id = user.id
             issuer.name = user.display_name or email.split("@")[0]
@@ -298,6 +301,7 @@ async def get_onboarding_status(
 ) -> dict:
     """Get investor onboarding completion status."""
     from sqlalchemy import select
+
     from apps.api.models.user import User
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -341,6 +345,7 @@ async def set_investor_type(
         raise HTTPException(status_code=400, detail={"code": "INVALID_TYPE", "message": "Must be 'individual' or 'corporate'"})
 
     from sqlalchemy import select
+
     from apps.api.models.user import User
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -368,6 +373,7 @@ async def save_onboarding_details(
 ) -> dict:
     """Save personal or corporate details during onboarding."""
     from sqlalchemy import select
+
     from apps.api.models.user import User
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -405,6 +411,7 @@ async def complete_onboarding(
 ) -> dict:
     """Mark onboarding as complete. Locks investor type."""
     from sqlalchemy import select
+
     from apps.api.models.user import User
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -437,8 +444,8 @@ async def google_auth(
         raise HTTPException(status_code=501, detail={"code": "GOOGLE_NOT_CONFIGURED", "message": "Google login not available"})
 
     try:
-        from google.oauth2 import id_token as google_id_token
         from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
         idinfo = google_id_token.verify_oauth2_token(request.id_token, google_requests.Request(), cfg.google_client_id)
     except Exception as exc:
         raise HTTPException(status_code=401, detail={"code": "INVALID_GOOGLE_TOKEN", "message": "Invalid Google token"}) from exc
@@ -447,10 +454,12 @@ async def google_auth(
     if not google_email or not idinfo.get("email_verified"):
         raise HTTPException(status_code=400, detail={"code": "UNVERIFIED_EMAIL", "message": "Google email not verified"})
 
-    from sqlalchemy import select
-    from apps.api.models.user import User
-    from apps.api.models.enums import UserRole
     from datetime import UTC, datetime
+
+    from sqlalchemy import select
+
+    from apps.api.models.enums import UserRole
+    from apps.api.models.user import User
 
     result = await db.execute(select(User).where(User.email == google_email))
     user = result.scalar_one_or_none()

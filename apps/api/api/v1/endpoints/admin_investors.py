@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -305,7 +304,6 @@ async def admin_check_sumsub_status(
     Does NOT update the database. Returns whether the DB is out of sync
     with Sumsub and what action the admin should take.
     """
-    from apps.api.models.enums import KYCStatus
     from packages.common.core.config import get_settings
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -592,7 +590,8 @@ async def create_admin(
     user.display_name = request.display_name or request.email.split("@")[0]
     user.role = UserRole.ADMIN
     user.email_verified = True
-    from datetime import UTC, datetime as dt
+    from datetime import UTC
+    from datetime import datetime as dt
     user.email_verified_at = dt.now(UTC)
     db.add(user)
     await db.commit()

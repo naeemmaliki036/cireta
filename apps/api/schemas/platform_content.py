@@ -2,7 +2,6 @@
 
 from pydantic import BaseModel
 
-
 # --- Platform Stats ---
 
 class PlatformStatResponse(BaseModel):
