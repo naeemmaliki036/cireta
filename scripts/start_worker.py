@@ -15,6 +15,7 @@ Required env vars (the script fails fast if any of these are missing):
 - ``DATABASE_URL`` — async SQLAlchemy URL (postgresql+asyncpg://...)
 - ``REDIS_URL`` — arq queue + heartbeat
 - ``WEB3_RPC_URL`` — chain sync + identity registry calls
+- ``CHAIN_ID`` — base chain id (e.g. 84532 for base-sepolia)
 - ``IDENTITY_REGISTRY_ADDRESS`` — SimpleIdentityRegistry proxy
 - ``IDENTITY_SIGNER_PRIVATE_KEY`` — registrar wallet (must hold AGENT_ROLE)
 - ``ENCRYPTION_KEY`` — used by EncryptedString columns
@@ -33,6 +34,7 @@ REQUIRED = (
     "DATABASE_URL",
     "REDIS_URL",
     "WEB3_RPC_URL",
+    "CHAIN_ID",
     "IDENTITY_REGISTRY_ADDRESS",
     "IDENTITY_SIGNER_PRIVATE_KEY",
     "ENCRYPTION_KEY",
