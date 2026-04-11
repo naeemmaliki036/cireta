@@ -30,15 +30,21 @@ COPY apps /app/apps
 COPY packages /app/packages
 COPY infra /app/infra
 COPY scripts /app/scripts
+# Railway workaround: Railway's cached project config runs `python start.py`
+# regardless of Dockerfile CMD or a Custom Start Command. Mirror the
+# Dockerfile.api pattern by exposing our boot script as /app/start.py so
+# Railway finds the worker entrypoint. Source: Dockerfile.admin header
+# comment lines 93-96.
+COPY scripts/start_worker.py /app/start.py
 
 # Verify ONLY third-party deps at build time (can't import app modules
 # here because Pydantic Settings() validation needs env vars that are
 # only injected at runtime). The real module import happens inside
-# scripts/start_worker.py on container boot, which is gated by a
-# friendly preflight check that fails fast on missing env vars.
+# start.py on container boot, which is gated by a friendly preflight
+# check that fails fast on missing env vars.
 RUN python -c "import arq; from arq.connections import RedisSettings; import asyncpg, sqlalchemy, web3; print('worker base deps OK')"
 
 # No EXPOSE — the worker has no HTTP listener. Railway should set the
 # service type to "worker" (no public domain, no health check).
 
-CMD ["python", "scripts/start_worker.py"]
+CMD ["python", "start.py"]
