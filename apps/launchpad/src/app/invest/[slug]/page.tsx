@@ -585,7 +585,7 @@ export default function InvestPage() {
             {saleOtcEnabled && !paymentMethod && activePhase && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-text text-center">How would you like to invest?</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className={`grid grid-cols-1 gap-4 ${saleHasOtcToken ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                   <button
                     onClick={() => setPaymentMethod("crypto")}
                     className="p-6 rounded-2xl border-2 border-black/10 hover:border-darkAqua transition-colors text-left space-y-2"
