@@ -98,6 +98,35 @@ class SimpleIdentityBridgeService:
         code = getattr(user, "country_code", None) or ""
         return COUNTRY_MAP.get(code.upper(), 0)
 
+    async def is_whitelisted_on_chain(self, wallet_address: str) -> bool:
+        """Read SimpleIdentityRegistry.isVerified(addr) from chain.
+
+        This is the canonical "is this wallet on the whitelist right now"
+        check. The DB ``Wallet.registered_on_chain`` flag is just a cache
+        of this read; whenever we have a chance to reconcile, we should.
+
+        Returns False on any RPC error so callers fall back to the
+        existing add path (the contract will no-op via the ``if (!_whitelist[wallet])``
+        guard inside addToWhitelist anyway).
+        """
+        registry_address = settings.identity_registry_address
+        if not registry_address:
+            return False
+        try:
+            import asyncio
+
+            w3 = Web3(Web3.HTTPProvider(settings.web3_rpc_url))
+            registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
+            return await asyncio.to_thread(
+                registry.functions.isVerified(wallet_address).call
+            )
+        except Exception as exc:
+            logger.warning(
+                "is_whitelisted_on_chain RPC failed for %s: %s — assuming False",
+                wallet_address, exc,
+            )
+            return False
+
     async def provision_identity(self, user_id: UUID) -> dict:
         """Whitelist all of the user's wallets in the SimpleIdentityRegistry.
 
@@ -122,8 +151,27 @@ class SimpleIdentityBridgeService:
         if not wallets:
             raise ValueError("No wallets linked")
 
-        # Filter to only un-registered wallets
-        to_register = [w for w in wallets if not w.registered_on_chain]
+        # Reconcile each wallet's DB flag against the on-chain whitelist
+        # before deciding what to write. Catches the case where a wallet
+        # was added directly (emergency manual flow, admin-side direct
+        # call, prior environment) and the DB cache is stale.
+        candidates = [w for w in wallets if not w.registered_on_chain]
+        to_register: list[Wallet] = []
+        reconciled = False
+        for w in candidates:
+            on_chain = await self.is_whitelisted_on_chain(w.address_checksum)
+            if on_chain:
+                w.registered_on_chain = True
+                reconciled = True
+                logger.info(
+                    "provision_identity: wallet %s already whitelisted on-chain, reconciled",
+                    w.address_checksum,
+                )
+            else:
+                to_register.append(w)
+        if reconciled:
+            await self.db.commit()
+
         if not to_register:
             logger.info("All wallets already registered for user %s", user_id)
             return {
@@ -172,23 +220,78 @@ class SimpleIdentityBridgeService:
         """Register a single wallet on-chain for an already-verified user.
 
         Called by WalletService when a verified user links a new wallet.
+
+        First checks ``isVerified(addr)`` on chain — if the wallet is
+        already whitelisted (e.g. via the emergency manual flow or some
+        other path), the call is a no-op and we just reconcile the DB
+        flag so the UI shows the correct state. The contract itself
+        ALSO no-ops on a duplicate add via the ``if (!_whitelist[wallet])``
+        guard inside addToWhitelist, but we'd rather skip the gas + tx
+        round-trip when we can.
         """
         registry_address = settings.identity_registry_address
         if not registry_address:
             raise ValueError("IDENTITY_REGISTRY_ADDRESS not configured")
+
+        # Pre-flight on-chain check — skip the write if the wallet is
+        # already whitelisted from any prior path (worker, emergency
+        # manual, or admin-side direct call).
+        if await self.is_whitelisted_on_chain(wallet_address):
+            logger.info(
+                "Wallet %s already whitelisted on-chain — skipping add and reconciling DB",
+                wallet_address,
+            )
+            await self._reconcile_wallet_flag(wallet_address, registered=True)
+            return
 
         w3, signer = self._get_w3_and_signer()
         registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
         country_code = self._get_country_code(user)
 
         await self._add_to_whitelist(w3, signer, registry, wallet_address, country_code)
+        await self._reconcile_wallet_flag(wallet_address, registered=True)
         logger.info("Whitelisted wallet %s for user %s", wallet_address, user.id)
 
+    async def _reconcile_wallet_flag(
+        self, wallet_address: str, *, registered: bool
+    ) -> None:
+        """Flip Wallet.registered_on_chain to match the on-chain truth.
+
+        Used after every register/revoke call (and when the on-chain
+        check finds a wallet is already in the desired state) so the DB
+        cache stays in sync without requiring the caller to commit.
+        """
+        from web3 import Web3 as _W3
+
+        try:
+            checksum = _W3.to_checksum_address(wallet_address)
+        except Exception:
+            checksum = wallet_address
+        wallet_q = await self.db.execute(
+            select(Wallet).where(Wallet.address_checksum == checksum)
+        )
+        wallet = wallet_q.scalar_one_or_none()
+        if wallet and wallet.registered_on_chain != registered:
+            wallet.registered_on_chain = registered
+            await self.db.commit()
+
     async def revoke_wallet(self, wallet_address: str) -> None:
-        """Remove a wallet from the whitelist (KYC revoked or wallet unlinked)."""
+        """Remove a wallet from the whitelist (KYC revoked or wallet unlinked).
+
+        Pre-flight on-chain check: if the wallet isn't whitelisted right
+        now, the call is a no-op and we just reconcile the DB flag.
+        """
         registry_address = settings.identity_registry_address
         if not registry_address:
             raise ValueError("IDENTITY_REGISTRY_ADDRESS not configured")
+
+        if not await self.is_whitelisted_on_chain(wallet_address):
+            logger.info(
+                "Wallet %s already not on whitelist — skipping revoke and reconciling DB",
+                wallet_address,
+            )
+            await self._reconcile_wallet_flag(wallet_address, registered=False)
+            return
 
         w3, signer = self._get_w3_and_signer()
         registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
@@ -206,6 +309,7 @@ class SimpleIdentityBridgeService:
         if receipt["status"] != 1:
             raise RuntimeError(f"removeFromWhitelist failed: {tx_hash.hex()}")
 
+        await self._reconcile_wallet_flag(wallet_address, registered=False)
         logger.info("Removed wallet %s from whitelist", wallet_address)
 
     async def revoke_all_wallets(self, user_id: UUID) -> None:

@@ -3,9 +3,28 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { Wallet, Plus, Trash2, Star, Copy, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Wallet,
+  Plus,
+  Trash2,
+  Star,
+  Copy,
+  CheckCircle2,
+  AlertCircle,
+  Pencil,
+  Lock,
+  Clock,
+} from "lucide-react";
 import { Button, Badge } from "@/components/atoms";
-import { listWallets, unlinkWallet, setPrimaryWallet, type Wallet as WalletType } from "@/lib/api/repositories/wallets.repository";
+import {
+  listWallets,
+  unlinkWallet,
+  setPrimaryWallet,
+  linkWallet,
+  renameWallet,
+  type Wallet as WalletType,
+} from "@/lib/api/repositories/wallets.repository";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function WalletsPage() {
   const [wallets, setWallets] = useState<WalletType[]>([]);
@@ -14,10 +33,15 @@ export default function WalletsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [labelInput, setLabelInput] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
   const { openConnectModal } = useConnectModal();
+  const { user } = useAuth();
+  const isVerified = user?.kycStatus === "approved";
 
   const connectNewWallet = useCallback(() => {
     if (isConnected) {
@@ -50,15 +74,24 @@ export default function WalletsPage() {
 
   const handleLink = async () => {
     if (!address) return;
+    const trimmed = labelInput.trim();
+    if (!trimmed) {
+      setError("Please give this wallet a name (e.g. Hardware ledger, Trading wallet).");
+      return;
+    }
+    if (trimmed.length > 50) {
+      setError("Wallet name must be 50 characters or fewer.");
+      return;
+    }
     setLinking(true);
     setError("");
     setSuccess("");
     try {
       const nonce = crypto.randomUUID();
       const signature = await signMessageAsync({ message: `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}` });
-      const { linkWallet } = await import("@/lib/api/repositories/wallets.repository");
-      await linkWallet({ address, signature, nonce });
+      await linkWallet({ address, signature, nonce, label: trimmed });
       await fetchWallets();
+      setLabelInput("");
       setSuccess("Wallet linked successfully!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (e: unknown) {
@@ -74,17 +107,57 @@ export default function WalletsPage() {
     }
   };
 
-  const handleRemove = async (addr: string) => {
-    const short = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-    if (!window.confirm(`Remove wallet ${short}? This action cannot be undone.`)) return;
+  const handleRemove = async (w: WalletType) => {
+    const short = `${w.address.slice(0, 6)}...${w.address.slice(-4)}`;
+
+    // Hard block: any wallet that has bought tokens is non-deletable.
+    if (w.has_contributions) {
+      setError(`${w.label || short} has bought tokens in a sale and cannot be removed.`);
+      return;
+    }
+
+    // Verified users hit the admin-review path. The button label says
+    // "Request removal" already, but confirm intent here too.
+    const confirmMsg = isVerified
+      ? `Request removal of ${w.label || short}?\n\nAn admin will review the request. Your wallet stays linked until it's approved.`
+      : `Remove wallet ${w.label || short}? This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+
     setError("");
     try {
-      await unlinkWallet(addr);
+      const res = await unlinkWallet(w.address);
       await fetchWallets();
-      setSuccess("Wallet removed successfully");
-      setTimeout(() => setSuccess(""), 3000);
+      if (res.status === "deletion_requested") {
+        setSuccess("Removal request submitted. An admin will review it shortly.");
+      } else {
+        setSuccess("Wallet removed successfully");
+      }
+      setTimeout(() => setSuccess(""), 4000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to remove wallet");
+    }
+  };
+
+  const handleRename = async (w: WalletType) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setError("Wallet name cannot be empty.");
+      return;
+    }
+    if (trimmed.length > 50) {
+      setError("Wallet name must be 50 characters or fewer.");
+      return;
+    }
+    setError("");
+    try {
+      await renameWallet(w.address, trimmed);
+      await fetchWallets();
+      setRenamingId(null);
+      setRenameValue("");
+      setSuccess("Wallet renamed.");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to rename wallet");
     }
   };
 
@@ -113,12 +186,26 @@ export default function WalletsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">Wallets</h2>
-          <p className="text-gray-500 text-sm">Connect and manage your blockchain wallets.</p>
+          <p className="text-gray-500 text-sm">Connect, name and manage your blockchain wallets.</p>
         </div>
         <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
           {wallets.length}/{process.env.NEXT_PUBLIC_MAX_WALLETS || "5"} wallets
         </span>
       </div>
+
+      {isVerified && (
+        <div className="flex items-start gap-2 text-xs text-amber-700 p-3 bg-amber-50 rounded-xl border border-amber-200">
+          <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">Verified accounts require admin review for wallet removals.</p>
+            <p className="mt-0.5 text-amber-700/80">
+              You can&apos;t self-delete a wallet from a KYC-verified profile. Use the
+              <span className="font-semibold"> Request removal</span> action and an admin will review.
+              Wallets that have already bought tokens in a sale cannot be removed at all.
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-2 text-red-600 text-sm p-3 bg-red-50 rounded-xl border border-red-200">
@@ -139,31 +226,20 @@ export default function WalletsPage() {
         {loading ? (
           <div className="p-8 text-center text-gray-400 text-sm">Loading wallets...</div>
         ) : wallets.length === 0 && isConnected && address ? (
-          <div className="p-6">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-darkAqua/10 flex items-center justify-center">
-                  <Wallet className="h-5 w-5 text-darkAqua" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    <span className="font-mono">{address.slice(0, 6)}...{address.slice(-4)}</span>
-                  </p>
-                  <p className="text-xs text-gray-400">Sign a message to prove ownership and link this wallet</p>
-                </div>
-              </div>
-              <Button onClick={handleLink} disabled={linking} variant="primary" size="sm">
-                {linking ? "Signing..." : "Link Wallet"}
-              </Button>
-            </div>
-          </div>
+          <FirstWalletLinkPanel
+            address={address}
+            labelInput={labelInput}
+            setLabelInput={setLabelInput}
+            handleLink={handleLink}
+            linking={linking}
+          />
         ) : wallets.length === 0 ? (
           <div className="p-10 text-center">
             <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
               <Wallet className="h-6 w-6 text-gray-400" />
             </div>
             <p className="font-medium text-gray-900 mb-1">No wallets linked</p>
-            <p className="text-sm text-gray-400 mb-5">Connect a wallet to start investing in token sales</p>
+            <p className="text-sm text-gray-400 mb-5">Connect a wallet to start buying in token sales</p>
             <Button
               variant="primary"
               size="sm"
@@ -175,60 +251,132 @@ export default function WalletsPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {wallets.map((w) => (
-              <div key={w.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    w.is_primary ? "bg-darkAqua/10" : "bg-gray-100"
-                  }`}>
-                    <Wallet className={`h-5 w-5 ${w.is_primary ? "text-darkAqua" : "text-gray-400"}`} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-medium text-gray-900">
-                        {w.address.slice(0, 6)}...{w.address.slice(-4)}
-                      </span>
-                      <button
-                        onClick={() => copyAddress(w.address)}
-                        className="text-gray-300 hover:text-darkAqua transition-colors"
-                        title="Copy address"
-                      >
-                        {copied === w.address ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                      {w.is_primary && <Badge variant="active" size="sm">Primary</Badge>}
-                      {w.is_safe && <Badge variant="default" size="sm">Safe</Badge>}
+            {wallets.map((w) => {
+              const removeDisabled = w.is_primary || w.has_contributions || w.has_pending_deletion_request;
+              const removeTitle = w.is_primary
+                ? "Set another wallet as primary first"
+                : w.has_contributions
+                  ? "This wallet has bought tokens in a sale and cannot be removed"
+                  : w.has_pending_deletion_request
+                    ? "Removal request is already pending admin review"
+                    : isVerified
+                      ? "Request removal (admin review)"
+                      : "Remove wallet";
+              return (
+                <div key={w.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      w.is_primary ? "bg-darkAqua/10" : "bg-gray-100"
+                    }`}>
+                      <Wallet className={`h-5 w-5 ${w.is_primary ? "text-darkAqua" : "text-gray-400"}`} />
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Linked {new Date(w.linked_at).toLocaleDateString()}
-                    </p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {renamingId === w.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              autoFocus
+                              maxLength={50}
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRename(w);
+                                if (e.key === "Escape") {
+                                  setRenamingId(null);
+                                  setRenameValue("");
+                                }
+                              }}
+                              className="text-sm font-medium text-gray-900 border-b border-darkAqua focus:outline-none px-1 py-0.5 max-w-[180px]"
+                            />
+                            <button
+                              onClick={() => handleRename(w)}
+                              className="text-xs text-darkAqua font-medium hover:underline"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRenamingId(null);
+                                setRenameValue("");
+                              }}
+                              className="text-xs text-gray-400 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-sm font-medium text-gray-900 truncate max-w-[180px]">
+                              {w.label || <span className="text-gray-400 italic">(unnamed)</span>}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setRenamingId(w.id);
+                                setRenameValue(w.label || "");
+                              }}
+                              className="text-gray-300 hover:text-darkAqua transition-colors"
+                              title="Rename wallet"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          </>
+                        )}
+                        {w.is_primary && <Badge variant="active" size="sm">Primary</Badge>}
+                        {w.is_safe && <Badge variant="default" size="sm">Safe</Badge>}
+                        {w.has_contributions && (
+                          <Badge variant="default" size="sm">Has purchases</Badge>
+                        )}
+                        {w.has_pending_deletion_request && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                            <Clock className="h-3 w-3" /> Pending admin review
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-mono text-xs text-gray-400">
+                          {w.address.slice(0, 6)}...{w.address.slice(-4)}
+                        </span>
+                        <button
+                          onClick={() => copyAddress(w.address)}
+                          className="text-gray-300 hover:text-darkAqua transition-colors"
+                          title="Copy address"
+                        >
+                          {copied === w.address ? (
+                            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                        <span className="text-xs text-gray-300">·</span>
+                        <span className="text-xs text-gray-400">
+                          Linked {new Date(w.linked_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {!w.is_primary && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!w.is_primary && !w.has_contributions && (
+                      <button
+                        onClick={() => handleSetPrimary(w.address)}
+                        className="p-2 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"
+                        title="Set as primary"
+                      >
+                        <Star className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleSetPrimary(w.address)}
-                      className="p-2 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"
-                      title="Set as primary"
-                    >
-                      <Star className="h-4 w-4" />
-                    </button>
-                  )}
-                  {!w.is_primary && (
-                    <button
-                      onClick={() => handleRemove(w.address)}
-                      className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      title="Remove wallet"
+                      onClick={() => !removeDisabled && handleRemove(w)}
+                      disabled={removeDisabled}
+                      className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                      title={removeTitle}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -237,21 +385,31 @@ export default function WalletsPage() {
       {wallets.length > 0 && isConnected && address && !alreadyLinked && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Link New Wallet</h3>
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-darkAqua/10 flex items-center justify-center">
                 <Wallet className="h-4 w-4 text-darkAqua" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">
                   <span className="font-mono">{address.slice(0, 6)}...{address.slice(-4)}</span>
                 </p>
                 <p className="text-xs text-gray-400">Sign a message to prove ownership and link this wallet</p>
               </div>
             </div>
-            <Button onClick={handleLink} disabled={linking} variant="primary" size="sm">
-              {linking ? "Signing..." : "Link Wallet"}
-            </Button>
+            <input
+              type="text"
+              value={labelInput}
+              onChange={(e) => setLabelInput(e.target.value)}
+              placeholder="Name this wallet (e.g. Hardware ledger)"
+              maxLength={50}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-darkAqua focus:ring-1 focus:ring-darkAqua/20"
+            />
+            <div className="flex justify-end">
+              <Button onClick={handleLink} disabled={linking || !labelInput.trim()} variant="primary" size="sm">
+                {linking ? "Signing..." : "Link Wallet"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -275,6 +433,53 @@ export default function WalletsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+interface FirstWalletLinkPanelProps {
+  address: string;
+  labelInput: string;
+  setLabelInput: (v: string) => void;
+  handleLink: () => void;
+  linking: boolean;
+}
+
+function FirstWalletLinkPanel({
+  address,
+  labelInput,
+  setLabelInput,
+  handleLink,
+  linking,
+}: FirstWalletLinkPanelProps) {
+  return (
+    <div className="p-6">
+      <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-darkAqua/10 flex items-center justify-center">
+            <Wallet className="h-5 w-5 text-darkAqua" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-900">
+              <span className="font-mono">{address.slice(0, 6)}...{address.slice(-4)}</span>
+            </p>
+            <p className="text-xs text-gray-400">Sign a message to prove ownership and link this wallet</p>
+          </div>
+        </div>
+        <input
+          type="text"
+          value={labelInput}
+          onChange={(e) => setLabelInput(e.target.value)}
+          placeholder="Name this wallet (e.g. Hardware ledger)"
+          maxLength={50}
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-darkAqua focus:ring-1 focus:ring-darkAqua/20"
+        />
+        <div className="flex justify-end">
+          <Button onClick={handleLink} disabled={linking || !labelInput.trim()} variant="primary" size="sm">
+            {linking ? "Signing..." : "Link Wallet"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
