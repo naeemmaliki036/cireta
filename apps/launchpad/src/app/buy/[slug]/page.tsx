@@ -1117,8 +1117,9 @@ export default function InvestPage() {
                     setError(null);
                     refetchAllowance()
                       .then(({ data: a }) => {
-                        const needed = parseUnits(amount || "0", 6);
-                        if (a != null && needed > 0 && (a as bigint) >= needed) {
+                        // Compare allowance against USDC cost, not token quantity
+                        const neededUsdc = parseUnits(usdcRequired.toString(), 6);
+                        if (a != null && neededUsdc > 0n && (a as bigint) >= neededUsdc) {
                           setStep("confirm");
                         } else {
                           setStep("approve");
