@@ -506,11 +506,11 @@ export default function ProjectDetailPage() {
                   <h3 className="font-bold text-text text-sm">Sale Details</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     {[
-                      ["Total Token Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
                       ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC${ap ? ` (${ap.name})` : ""}` : "TBD"],
+                      ["Total Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
+                      ["Currency", "USDC"],
                       ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                       ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
-                      ["Currency", "USDC"],
                       ["Start", startTime ? fmtDate(startTime) : "TBD"],
                       ["End", endTime ? fmtDate(endTime) : "TBD"],
                     ].map(([k, v]) => (
