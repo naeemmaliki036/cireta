@@ -24,6 +24,7 @@ export interface ProjectPhase {
   is_active: boolean;
   tokens_sold?: string;
   usdc_raised?: string;
+  deployed_on_chain?: boolean;
 }
 
 export interface Project {
