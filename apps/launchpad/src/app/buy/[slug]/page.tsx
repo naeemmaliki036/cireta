@@ -304,6 +304,7 @@ export default function InvestPage() {
   const tokenQty = parseInt(amount || "0", 10) || 0;
   const now = new Date();
   const activePhase = project?.phases.find((p) => {
+    if (p.deployed_on_chain === false) return false; // Skip tentative phases
     const start = new Date(p.start_time);
     const end = new Date(p.end_time);
     return now >= start && now < end;

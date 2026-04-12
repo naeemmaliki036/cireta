@@ -411,6 +411,8 @@ export default function ProjectDetailPage() {
                         <p className="text-center text-xs text-gray-400">{subscriberCount} buyer{subscriberCount !== 1 ? "s" : ""} interested</p>
                       )}
                     </div>
+                  ) : ap?.deployed_on_chain === false ? (
+                    <button disabled className="w-full bg-gray-200 text-gray-500 py-3 rounded-xl cursor-not-allowed">Phase Not Yet Available</button>
                   ) : isAuthenticated ? (
                     <Link href={`/buy/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
                   ) : (
