@@ -93,6 +93,7 @@ export function PlatformAdminLayout({
         <div className="flex flex-col h-full px-4 py-5 overflow-y-auto">
           {/* Logo */}
           <Link href="/platform/overview" className="flex items-center gap-2 mb-6 px-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/logo/cireta-logo.svg" alt="Cireta" className="h-7 w-auto" />
             <Badge variant="dark" size="sm" className="ml-auto text-[10px] bg-amber-100 text-amber-600 border border-amber-200">Admin</Badge>
           </Link>

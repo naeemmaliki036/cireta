@@ -78,7 +78,7 @@ class TestCreateTokenEndpoint:
                 "symbol": f"NGT{uuid4().hex[:4].upper()}",
                 "asset_type": "commodity",
                 "total_supply": "1000000",
-                "decimals": 18,
+                "decimals": 6,
             },
             headers={"Authorization": f"Bearer {access_token}"},
         )
@@ -86,7 +86,7 @@ class TestCreateTokenEndpoint:
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "New Gold Token"
-        assert data["decimals"] == 18
+        assert data["decimals"] == 6
 
     async def test_create_token_unauthorized(self, client: AsyncClient) -> None:
         """Test token creation without auth."""

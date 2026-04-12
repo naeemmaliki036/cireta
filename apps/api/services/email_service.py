@@ -572,3 +572,17 @@ class EmailService:
         def replace_var(match: re.Match) -> str:
             return str(variables.get(match.group(1).strip(), match.group(0)))
         return re.sub(r"\{\{(\w+)\}\}", replace_var, text)
+
+
+# ---------------------------------------------------------------------------
+# Module-level convenience helpers (used by kyc_expiry_service lazy-import)
+# ---------------------------------------------------------------------------
+
+async def send_kyc_expiry_warning(to_email: str, days_left: int) -> dict:
+    """Send a KYC expiry warning email (no DB session needed)."""
+    svc = EmailService()
+    return await svc.send(
+        "kyc_expiry_warning",
+        to_email,
+        {"days_left": str(days_left), "display_name": to_email},
+    )

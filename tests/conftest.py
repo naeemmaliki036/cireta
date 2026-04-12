@@ -207,6 +207,7 @@ async def test_sale(db_session: AsyncSession, test_token: Token, test_issuer: Is
     sale.soft_cap = Decimal("100000")
     sale.hard_cap = Decimal("500000")
     sale.status = SaleStatus.ACTIVE
+    sale.is_visible = True
     sale.total_raised = Decimal("0")
 
     db_session.add(sale)

@@ -148,6 +148,7 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
           });
         } catch { /* non-fatal */ }
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- contract revert error shape varies
     } catch (e: any) {
       setError(e.message?.slice(0, 100) || "Deploy failed");
     }
@@ -181,6 +182,7 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
         });
       }
       setCompletedSteps(prev => new Set([...prev, "whitelist"]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- contract revert error shape varies
     } catch (e: any) {
       setError(e.message?.slice(0, 100) || "Whitelist failed");
     }
@@ -220,6 +222,7 @@ export function SaleDeploymentWizard({ sale, onComplete }: SaleDeploymentWizardP
       }
       setCompletedSteps(prev => new Set([...prev, "deposit"]));
       onComplete();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- contract revert error shape varies
     } catch (e: any) {
       setError(e.message?.slice(0, 100) || "Deposit failed");
     }

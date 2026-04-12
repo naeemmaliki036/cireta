@@ -10,11 +10,14 @@ Events handled:
 - SaleFinalized → update sale status
 - Transfer (CiretaToken) → update portfolio balances
 - FractionsMinted / FractionsBurned → update fraction balances
+- Upgraded (EIP-1967) → detect proxy implementation changes
 """
 
 import asyncio
+import json
 import logging
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from web3 import Web3
@@ -127,6 +130,30 @@ FACTORY_EVENTS_ABI = [
     },
 ]
 
+# EIP-1967 proxy upgrade detection
+EIP1967_IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+
+UPGRADE_EVENT_ABI = [
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "implementation", "type": "address"},
+        ],
+        "name": "Upgraded",
+        "type": "event",
+    },
+]
+
+# Proxy keys from deployments/base-sepolia.json to monitor
+_DEPLOYMENT_PROXY_KEYS = [
+    "issuerRegistry",
+    "platformFeeManager",
+    "tokenFactory",
+    "saleFactory",
+    "fractionFactory",
+    "otcTokenFactory",
+]
+
 RECOVERY_EVENTS_ABI = [
     {
         "anonymous": False,
@@ -233,6 +260,14 @@ class EventListenerService:
             total_processed += await self._poll_factory_events(
                 factory_address, from_block + 1, to_block
             )
+
+        # Poll EIP-1967 Upgraded events on all proxy contracts
+        proxy_addresses = await self._get_proxy_addresses(
+            sale_addresses, token_addresses, fraction_addresses
+        )
+        total_processed += await self._poll_upgrade_events(
+            proxy_addresses, from_block + 1, to_block
+        )
 
         # Poll recovery events on tokens + fraction tokens
         for addr in token_addresses:
@@ -566,6 +601,160 @@ class EventListenerService:
                     sale.id, sale_addr, token_addr, issuer_addr, tx_hash,
                 )
 
+    # ------------------------------------------------------------------
+    # EIP-1967 proxy upgrade monitoring
+    # ------------------------------------------------------------------
+
+    async def _get_proxy_addresses(
+        self,
+        sale_addresses: list[str],
+        token_addresses: list[str],
+        fraction_addresses: list[str],
+    ) -> list[str]:
+        """Collect all proxy addresses to monitor for Upgraded events.
+
+        Sources:
+        1. Core infra proxies from contracts/deployments/base-sepolia.json
+        2. Per-sale contracts (sale, vault, fraction) from the DB
+        """
+        proxies: list[str] = []
+
+        # 1. Load from deployments file
+        deploy_file = Path(__file__).resolve().parents[3] / "contracts" / "deployments" / "base-sepolia.json"
+        if deploy_file.exists():
+            try:
+                data = json.loads(deploy_file.read_text())
+                for key in _DEPLOYMENT_PROXY_KEYS:
+                    addr = data.get(key)
+                    if addr:
+                        proxies.append(Web3.to_checksum_address(addr))
+            except Exception:
+                logger.warning("Failed to read proxy addresses from %s", deploy_file)
+
+        # 2. Also use config-level addresses (fallback / override)
+        for cfg_addr in (
+            settings.issuer_registry_address,
+            settings.token_factory_address,
+            settings.sale_factory_address,
+            settings.fraction_factory_address,
+        ):
+            if cfg_addr:
+                checksummed = Web3.to_checksum_address(cfg_addr)
+                if checksummed not in proxies:
+                    proxies.append(checksummed)
+
+        # 3. Per-sale proxies from DB (sale contracts, vault addresses, fraction tokens)
+        for addr in sale_addresses + token_addresses + fraction_addresses:
+            checksummed = Web3.to_checksum_address(addr)
+            if checksummed not in proxies:
+                proxies.append(checksummed)
+
+        # 4. Vault addresses from DB
+        from sqlalchemy import select
+
+        from apps.api.models.token_sale import TokenSale
+        from packages.common.db.session import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(TokenSale.vault_address).where(TokenSale.vault_address.isnot(None))
+            )
+            for (vault_addr,) in result.all():
+                checksummed = Web3.to_checksum_address(vault_addr)
+                if checksummed not in proxies:
+                    proxies.append(checksummed)
+
+        return proxies
+
+    async def _poll_upgrade_events(
+        self, proxy_addresses: list[str], from_block: int, to_block: int
+    ) -> int:
+        """Poll Upgraded(address) events on all monitored proxy contracts."""
+        count = 0
+        for addr in proxy_addresses:
+            try:
+                contract = self.w3.eth.contract(
+                    address=Web3.to_checksum_address(addr), abi=UPGRADE_EVENT_ABI
+                )
+                logs = await asyncio.to_thread(
+                    contract.events.Upgraded().get_logs,
+                    from_block=from_block,
+                    to_block=to_block,
+                )
+                for log_entry in logs:
+                    await self._handle_upgrade_event(addr, log_entry)
+                    count += 1
+            except Exception:
+                logger.debug(
+                    "No Upgraded events on %s (blocks %d-%d)", addr, from_block, to_block
+                )
+        return count
+
+    async def _handle_upgrade_event(self, proxy_address: str, log_entry: Any) -> None:
+        """Log a proxy implementation upgrade to audit_logs. This is a security event."""
+        from apps.api.models.audit_log import AuditLog
+        from packages.common.db.session import AsyncSessionLocal
+
+        new_impl = Web3.to_checksum_address(log_entry["args"]["implementation"])
+        tx_hash = (
+            log_entry["transactionHash"].hex()
+            if hasattr(log_entry["transactionHash"], "hex")
+            else str(log_entry["transactionHash"])
+        )
+        block_number = log_entry.get("blockNumber", 0)
+
+        # Read the old implementation from the EIP-1967 storage slot (now points to new,
+        # but we record what the event tells us — the new impl)
+        old_impl = "unknown"
+        try:
+            raw = await asyncio.to_thread(
+                self.w3.eth.get_storage_at,
+                Web3.to_checksum_address(proxy_address),
+                int(EIP1967_IMPL_SLOT, 16),
+                block_identifier=max(0, block_number - 1),
+            )
+            if raw and int.from_bytes(raw, "big") != 0:
+                old_impl = Web3.to_checksum_address(
+                    "0x" + raw[-20:].hex()
+                )
+        except Exception:
+            logger.debug("Could not read old impl slot for %s at block %d", proxy_address, block_number)
+
+        # SECURITY: Log at ERROR level so monitoring dashboards pick this up
+        logger.error(
+            "PROXY UPGRADED: proxy=%s old_impl=%s new_impl=%s tx=%s block=%d — "
+            "verify this was an authorized upgrade",
+            proxy_address,
+            old_impl,
+            new_impl,
+            tx_hash,
+            block_number,
+        )
+
+        # Persist to audit_logs table
+        async with AsyncSessionLocal() as db:
+            audit = AuditLog(
+                actor_id=None,  # on-chain event — no known actor
+                action="proxy_upgraded",
+                target_type="proxy_contract",
+                target_id=proxy_address,
+                payload={
+                    "old_implementation": old_impl,
+                    "new_implementation": new_impl,
+                    "tx_hash": tx_hash,
+                    "block_number": block_number,
+                },
+                ip_address=None,
+                reason="EIP-1967 proxy implementation changed — verify authorization",
+            )
+            db.add(audit)
+            await db.commit()
+
+        logger.info(
+            "Proxy upgrade audit logged: proxy=%s new_impl=%s tx=%s",
+            proxy_address, new_impl, tx_hash,
+        )
+
     async def _poll_recovery_events(self, address: str, from_block: int, to_block: int) -> int:
         """Poll RecoverySuccess, ForceTransferSuccess, FractionsRecovered events."""
         contract = self.w3.eth.contract(
@@ -596,7 +785,6 @@ class EventListenerService:
         from apps.api.models.token import Token
         from apps.api.models.token_sale import TokenSale
         from apps.api.models.wallet import Wallet
-        from apps.api.models.user import User
         from packages.common.db.session import AsyncSessionLocal
 
         tx_hash = log_entry["transactionHash"].hex()

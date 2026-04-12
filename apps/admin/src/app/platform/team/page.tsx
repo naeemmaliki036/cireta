@@ -179,6 +179,7 @@ export default function TeamPage() {
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-full bg-[#ECF3F4] flex items-center justify-center overflow-hidden shrink-0">
                   {member.photo_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={member.photo_url}
                       alt={member.name}

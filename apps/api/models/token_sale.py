@@ -7,9 +7,12 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+# Use JSONB on Postgres, fall back to plain JSON on SQLite (tests)
+_JSON = JSONB().with_variant(JSON(), "sqlite")
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from apps.api.models.enums import SaleMode, SaleStatus, SaleStructure
@@ -55,7 +58,7 @@ class TokenSale(BaseModel):
 
     # OTC operator wallets — list of checksummed addresses designated as
     # operators for this sale. Operators buy fractions then transfer to buyers.
-    otc_operator_addresses: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=None)
+    otc_operator_addresses: Mapped[list | None] = mapped_column(_JSON, nullable=True, default=None)
 
     # Social links
     website_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

@@ -96,7 +96,7 @@ class SaleQueryService:
         if public_only:
             query = query.where(TokenSale.is_visible == True)  # noqa: E712
             count_query = count_query.where(TokenSale.is_visible == True)  # noqa: E712
-        elif status_filter:
+        if status_filter:
             query = query.where(TokenSale.status == status_filter)
             count_query = count_query.where(TokenSale.status == status_filter)
 

@@ -130,6 +130,7 @@ export function ImageGallery({
               )}
             >
               <div className="relative h-36">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={resolveMediaUrl(item.url)} alt={item.caption || "Gallery"} className="w-full h-full object-cover" />
                 {item.media_type === "video" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/30">

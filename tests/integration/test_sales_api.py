@@ -85,6 +85,7 @@ class TestCreateSaleEndpoint:
                         "allocation": "100000",
                         "min_contribution": "100",
                         "max_contribution": "10000",
+                        "top_up_min": "1000",
                         "start_time": (now + timedelta(hours=1)).isoformat(),
                         "end_time": (now + timedelta(days=30)).isoformat(),
                     }

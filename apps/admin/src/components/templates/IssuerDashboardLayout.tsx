@@ -121,6 +121,7 @@ export function IssuerDashboardLayout({
       )}>
         <div className="flex flex-col h-full px-4 py-5 overflow-y-auto">
           <Link href="/issuer/overview" className="flex items-center gap-2 mb-6 px-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/logo/cireta-logo.svg" alt="Cireta" className="h-7 w-auto" />
             <span className="text-xs text-zinc-400 font-medium ml-auto">Issuer</span>
           </Link>

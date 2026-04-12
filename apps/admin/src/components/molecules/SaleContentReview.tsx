@@ -121,6 +121,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
                       return <video src={selectedMedia.video_url} className="w-full aspect-video" controls autoPlay />;
                     })()
                   ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={selectedMedia.url} alt={selectedMedia.caption || ""} className="w-full max-h-[400px] object-contain" />
                   )}
                   {selectedMedia.caption && <p className="text-sm text-zinc-300 px-4 py-2">{selectedMedia.caption}</p>}
@@ -132,6 +133,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
                   <button key={img.id} onClick={() => setSelectedMedia(img)}
                     className={cn("relative rounded-lg overflow-hidden border-2 text-left transition-all", selectedMedia?.id === img.id ? "border-darkAqua ring-2 ring-darkAqua/30" : "border-zinc-100 hover:border-zinc-300")}>
                     <div className="relative h-32">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={img.url} alt={img.caption || ""} className="w-full h-full object-cover" />
                       {img.media_type === "video" && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -160,6 +162,7 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
                 <div key={m.id} className="flex gap-3 p-4 rounded-lg bg-zinc-50">
                   <div className="w-12 h-12 rounded-md bg-zinc-200 overflow-hidden shrink-0">
                     {m.photo_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={m.photo_url} alt={m.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-lg">{m.name[0]}</div>
