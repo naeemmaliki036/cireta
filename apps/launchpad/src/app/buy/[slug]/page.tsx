@@ -94,8 +94,7 @@ export default function InvestPage() {
       : null;
 
   // Check if wallet is whitelisted on identity registry
-  // Use per-sale identity registry (from sale data) with env var as fallback
-  const identityRegistryAddress = (saleRaw?.identity_registry_address || process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS) as `0x${string}` | undefined;
+  const identityRegistryAddress = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}` | undefined;
   const { data: isWalletVerified } = useReadContract({
     address: identityRegistryAddress,
     abi: [{ name: "isVerified", type: "function", stateMutability: "view", inputs: [{ name: "userAddress", type: "address" }], outputs: [{ name: "", type: "bool" }] }] as const,
