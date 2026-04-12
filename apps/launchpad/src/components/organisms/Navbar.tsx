@@ -69,7 +69,8 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     };
   }, [isMobileMenuOpen]);
 
-  const _textColor = isScrolled || variant === "light" ? "text-text" : "text-white";
+  const isDarkScrolled = isScrolled && variant === "dark";
+  const _textColor = (variant === "light" && isScrolled) ? "text-text" : variant === "dark" ? "text-white" : "text-white";
 
   return (
     <>
@@ -83,7 +84,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
           "relative flex items-center justify-between mx-auto h-full duration-500 ease-in-out",
           variant === "dark"
             ? isScrolled
-              ? "max-w-4xl bg-box backdrop-blur-xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] px-6 py-2.5 rounded-full"
+              ? "max-w-4xl bg-[#13636F]/80 backdrop-blur-xl shadow-[0_2px_20px_rgba(0,0,0,0.15)] px-6 py-2.5 rounded-full"
               : "max-w-inner bg-transparent px-0 py-2"
             : isScrolled
               ? "max-w-full bg-box shadow-[0_2px_12px_rgba(0,0,0,0.05)] px-6 md:px-10 py-3"
@@ -91,7 +92,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
         )}>
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            {(!isScrolled && variant === "dark") ? (
+            {variant === "dark" ? (
               <Image src="/images/logo/cireta-logo-white.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
             ) : (
               <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
@@ -132,7 +133,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                             onClick={openConnectModal}
                             className={cn(
                               "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
-                              isScrolled || variant === "light"
+                              variant === "light"
                                 ? "btn-cta"
                                 : "bg-white text-black"
                             )}
@@ -179,7 +180,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   href={`/login?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
                     "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-medium border transition-all duration-300 hover:opacity-80",
-                    isScrolled || variant === "light"
+                    variant === "light"
                       ? "border-black/20 text-text hover:bg-black/5"
                       : "border-white/30 text-white hover:bg-white/10"
                   )}
@@ -190,7 +191,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   href={`/register?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
                     "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
-                    isScrolled || variant === "light"
+                    variant === "light"
                       ? "btn-cta"
                       : "bg-white text-black"
                   )}
@@ -218,15 +219,15 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
-                    isScrolled || variant === "light"
+                    variant === "light"
                       ? "text-text/80 hover:text-text hover:bg-black/5"
-                      : "text-white/80 hover:text-white hover:bg-white/10"
+                      : "text-white bg-white/10 hover:bg-white/20"
                   )}
                 >
                   <div className="relative w-7 h-7 rounded-full bg-darkAqua/20 flex items-center justify-center">
                     <User className="h-3.5 w-3.5 text-darkAqua" />
                     {kycBadge && (
-                      <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2", isScrolled || variant === "light" ? "ring-white" : "ring-black/90", kycBadge.bg)} title={kycBadge.tooltip}>
+                      <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2", variant === "light" ? "ring-white" : "ring-black/90", kycBadge.bg)} title={kycBadge.tooltip}>
                         <kycBadge.icon className={cn("h-2 w-2", kycBadge.color)} />
                       </span>
                     )}
