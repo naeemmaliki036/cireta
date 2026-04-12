@@ -662,7 +662,11 @@ export default function ProjectDetailPage() {
                                       {!isPriceTiered && (
                                         <div>
                                           <p className="text-gray-500 text-xs mb-0.5">Allocation</p>
-                                          <p className="font-semibold">{allocation.toLocaleString()} {project.tokenSymbol}</p>
+                                          <p className="font-semibold">
+                                            {allocation > 0
+                                              ? `${allocation.toLocaleString()} ${project.tokenSymbol}`
+                                              : <span className="text-gray-400 font-normal text-sm">Unsold from previous phase</span>}
+                                          </p>
                                         </div>
                                       )}
                                       <div>
@@ -685,7 +689,9 @@ export default function ProjectDetailPage() {
                                               : "No purchases yet in this tier"}
                                           </span>
                                         ) : (
-                                          <span>{phaseSoldPct}% sold ({tokensSold.toLocaleString()}/{allocation.toLocaleString()} {project.tokenSymbol})</span>
+                                          <span>{allocation > 0
+                                            ? `${phaseSoldPct}% sold (${tokensSold.toLocaleString()}/${allocation.toLocaleString()} ${project.tokenSymbol})`
+                                            : "Allocation based on unsold supply from previous phase"}</span>
                                         )}
                                       </div>
                                       <ProgressBar value={displayPct} size="sm" animated={status === "active"} />
