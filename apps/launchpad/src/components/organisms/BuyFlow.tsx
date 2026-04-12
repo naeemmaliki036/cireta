@@ -254,7 +254,7 @@ export function InvestAmountStep({
           </span>
         </div>
         <div className="flex gap-2 mt-3">
-          {buildQuickQuantities(effectiveMin, availableTokens).map((v) => (
+          {buildQuickQuantities(effectiveMin, remainingMax < Infinity ? remainingMax : availableTokens).map((v) => (
             <button
               key={v}
               onClick={() => onAmountChange(v.toString())}
@@ -285,7 +285,7 @@ export function InvestAmountStep({
           <>Min: {minTokens} tokens</>
         )}
         {" "}&bull; Available:{" "}
-        {availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}
+        {remainingMax > 0 && remainingMax < Infinity ? `${remainingMax.toLocaleString()} ${project.tokenSymbol}` : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}
         {maxTokens > 0 && (
           <>
             {" "}&bull; Per-buyer cap: {maxTokens.toLocaleString()} {project.tokenSymbol}

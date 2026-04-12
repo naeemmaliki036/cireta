@@ -228,7 +228,13 @@ export default function ProjectDetailPage() {
   // wagmi has hydrated them (or for sales without a deployed contract).
   const totalSupply = onChain.ready ? onChain.totalTokenSupply : (project.totalTokenSupply ?? 0);
   const soldTotal = onChain.ready ? onChain.totalTokenSold : (project.tokensSoldTotal ?? 0);
-  const availableTokens = Math.max(0, totalSupply - soldTotal);
+  const remainingTokens = Math.max(0, totalSupply - soldTotal);
+  // Cap available by hard cap USDC constraint: how many tokens fit at current price
+  const currentPrice = ap ? parseFloat(ap.price_per_token) : 0;
+  const remainingUsdc = onChain.ready ? Math.max(0, onChain.hardCap - onChain.totalRaised) : Infinity;
+  const hardCapTokens = currentPrice > 0 && remainingUsdc < Infinity
+    ? Math.floor(remainingUsdc / currentPrice) : Infinity;
+  const availableTokens = Math.min(remainingTokens, hardCapTokens === Infinity ? remainingTokens : hardCapTokens);
   const startTime = ap?.start_time ? new Date(ap.start_time) : null;
   const endTime = ap?.end_time ? new Date(ap.end_time) : null;
   const hardCap = onChain.ready
