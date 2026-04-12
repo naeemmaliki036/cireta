@@ -127,14 +127,18 @@ export default function ProjectDetailPage() {
       try {
         const [proj, raw] = await Promise.all([getProject(slug), getSaleRawBySlug(slug)]);
         setProject(proj); setSaleRaw(raw);
-        // Default-open the currently active phase (if any) so the user lands on useful content
+        // Default-open only active/upcoming phases — ended phases stay collapsed
         const _now = Date.now();
-        const activeId = proj.phases.find((p) => {
+        const openIds = new Set<string>();
+        for (const p of proj.phases) {
           const s = new Date(p.start_time).getTime();
           const e = new Date(p.end_time).getTime();
-          return _now >= s && _now < e;
-        })?.id;
-        if (activeId) setOpenPhases(new Set([activeId]));
+          if (_now >= s && _now < e) openIds.add(p.id); // active
+          else if (_now < s) openIds.add(p.id); // upcoming
+        }
+        // If nothing active/upcoming, open the first phase
+        if (openIds.size === 0 && proj.phases.length > 0 && proj.phases[0]?.id) openIds.add(proj.phases[0].id);
+        setOpenPhases(openIds);
         if (raw.token_id) getToken(raw.token_id).then(setToken).catch(() => {});
         const sid = raw.id;
         apiFetch<SaleImage[]>(`/api/v1/sales/${sid}/images`, { skipAuthRedirect: true }).then(setImages).catch(() => {});
@@ -601,14 +605,20 @@ export default function ProjectDetailPage() {
                                 return next;
                               });
                             };
+                            // Remaining-mode: compute available from on-chain remaining supply
+                            const remainingSupply = onChain.ready ? (onChain.totalTokenSupply - onChain.totalTokenSold) : 0;
+                            const effectiveAlloc = allocation > 0 ? allocation : remainingSupply;
+                            const effectivePct = effectiveAlloc > 0 ? Math.min(100, Math.round((tokensSold / effectiveAlloc) * 100)) : 0;
                             return (
                               <div
                                 key={phase.id}
                                 className={cn(
                                   "rounded-2xl border transition-all overflow-hidden",
                                   status === "active"
-                                    ? "border-darkAqua/30 bg-darkAqua/[0.03] shadow-sm"
-                                    : "border-gray-100 bg-gray-50/50"
+                                    ? "border-darkAqua/20 bg-gradient-to-br from-darkAqua/[0.02] to-darkAqua/[0.06] shadow-sm"
+                                    : status === "ended"
+                                    ? "border-gray-200 bg-gray-50/30 opacity-80"
+                                    : "border-gray-100 bg-white"
                                 )}
                               >
                                 {/* Clickable header row */}
@@ -616,30 +626,27 @@ export default function ProjectDetailPage() {
                                   type="button"
                                   onClick={togglePhase}
                                   aria-expanded={isOpen}
-                                  className="w-full flex items-center justify-between p-5 text-left hover:bg-black/[0.02] transition-colors"
+                                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-black/[0.02] transition-colors"
                                 >
-                                  <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex items-center gap-3 min-w-0">
                                     <span className={cn(
-                                      "w-3 h-3 rounded-full border-2 flex-shrink-0",
-                                      status === "active" ? "bg-darkAqua border-darkAqua" : status === "upcoming" ? "bg-white border-blue-400" : "bg-gray-300 border-gray-300"
+                                      "w-3 h-3 rounded-full flex-shrink-0",
+                                      status === "active" ? "bg-darkAqua shadow-[0_0_6px_rgba(19,99,111,0.4)]"
+                                        : status === "upcoming" || status === "planned" ? "bg-blue-400"
+                                        : "bg-gray-300"
                                     )} />
-                                    <span className="font-semibold text-sm text-text truncate">
+                                    <span className="font-bold text-base text-text truncate">
                                       Phase {idx + 1}: {phase.name}
                                     </span>
-                                    {false && phase.whitelist_only && (
-                                      <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Whitelist</span>
-                                    )}
                                   </div>
                                   <div className="flex items-center gap-3 flex-shrink-0">
-                                    {/* Compact summary visible while collapsed */}
                                     {!isOpen && (
-                                      <span className="hidden sm:inline text-xs text-gray-500">
+                                      <span className="hidden sm:inline text-sm text-gray-500">
                                         {formatCurrency(parseFloat(phase.price_per_token))}/token
-                                        {usdcRaised > 0 && ` · ${formatCurrency(usdcRaised)} raised`}
                                       </span>
                                     )}
                                     <Badge
-                                      variant={status === "active" ? "active" : status === "planned" ? "default" : status === "upcoming" ? "default" : "outline"}
+                                      variant={status === "active" ? "active" : "outline"}
                                       size="sm"
                                       className={cn(
                                         status === "upcoming" && "bg-blue-50 text-blue-600 border-blue-200",
@@ -657,67 +664,80 @@ export default function ProjectDetailPage() {
 
                                 {/* Collapsible body */}
                                 {isOpen && (
-                                  <div className="px-5 pb-5 pt-1 border-t border-black/5">
+                                  <div className="px-6 pb-6 pt-2 border-t border-black/5">
                                     {/* Details grid */}
-                                    <div className={cn("grid gap-3 text-sm mb-4 mt-4", isPriceTiered ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
-                                      <div>
-                                        <p className="text-gray-500 text-xs mb-0.5">Price</p>
-                                        <p className="font-semibold">{formatCurrency(parseFloat(phase.price_per_token))}/token</p>
+                                    <div className={cn("grid gap-4 mb-5 mt-4", isPriceTiered ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4")}>
+                                      <div className="bg-gray-50 rounded-xl p-3">
+                                        <p className="text-gray-400 text-xs mb-1">Price</p>
+                                        <p className="font-bold text-base">{formatCurrency(parseFloat(phase.price_per_token))}/token</p>
                                       </div>
                                       {!isPriceTiered && (
-                                        <div>
-                                          <p className="text-gray-500 text-xs mb-0.5">Allocation</p>
-                                          <p className="font-semibold">
+                                        <div className="bg-gray-50 rounded-xl p-3">
+                                          <p className="text-gray-400 text-xs mb-1">Allocation</p>
+                                          <p className="font-bold text-base">
                                             {allocation > 0
                                               ? `${allocation.toLocaleString()} ${project.tokenSymbol}`
-                                              : <span className="text-gray-400 font-normal text-sm">Unsold from previous phase</span>}
+                                              : remainingSupply > 0
+                                                ? `${remainingSupply.toLocaleString()} ${project.tokenSymbol}`
+                                                : "Remaining supply"}
                                           </p>
+                                          {allocation === 0 && (
+                                            <p className="text-gray-400 text-[11px] mt-0.5">Unsold from previous phase</p>
+                                          )}
                                         </div>
                                       )}
-                                      <div>
-                                        <p className="text-gray-500 text-xs mb-0.5">Min Buy</p>
-                                        <p className="font-semibold">{parseInt(phase.min_tokens || "1", 10)} {project.tokenSymbol}</p>
+                                      <div className="bg-gray-50 rounded-xl p-3">
+                                        <p className="text-gray-400 text-xs mb-1">Min Buy</p>
+                                        <p className="font-bold text-base">{parseInt(phase.min_tokens || "1", 10)} {project.tokenSymbol}</p>
                                       </div>
-                                      <div>
-                                        <p className="text-gray-500 text-xs mb-0.5">Top-Up Min</p>
-                                        <p className="font-semibold">{parseInt(phase.top_up_min_tokens || "1", 10)} {project.tokenSymbol}</p>
+                                      <div className="bg-gray-50 rounded-xl p-3">
+                                        <p className="text-gray-400 text-xs mb-1">Top-Up Min</p>
+                                        <p className="font-bold text-base">{parseInt(phase.top_up_min_tokens || "1", 10)} {project.tokenSymbol}</p>
                                       </div>
                                     </div>
 
                                     {/* Progress + sold counter */}
-                                    <div className="mb-3">
-                                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                    <div className="mb-4">
+                                      <div className="flex justify-between text-sm text-gray-500 mb-2">
                                         {isPriceTiered ? (
                                           <span>
                                             {usdcRaised > 0
                                               ? `${formatCurrency(usdcRaised)} raised in this tier`
-                                              : "No purchases yet in this tier"}
+                                              : "No purchases yet"}
                                           </span>
+                                        ) : allocation > 0 ? (
+                                          <span className="font-medium">{phaseSoldPct}% sold ({tokensSold.toLocaleString()}/{allocation.toLocaleString()} {project.tokenSymbol})</span>
+                                        ) : effectiveAlloc > 0 ? (
+                                          <span className="font-medium">{effectivePct}% sold ({tokensSold.toLocaleString()}/{effectiveAlloc.toLocaleString()} {project.tokenSymbol} available)</span>
                                         ) : (
-                                          <span>{allocation > 0
-                                            ? `${phaseSoldPct}% sold (${tokensSold.toLocaleString()}/${allocation.toLocaleString()} ${project.tokenSymbol})`
-                                            : "Allocation based on unsold supply from previous phase"}</span>
+                                          <span>Available supply from previous phase</span>
+                                        )}
+                                        {status === "ended" && allocation > 0 && tokensSold < allocation && (
+                                          <span className="text-gray-400">{(allocation - tokensSold).toLocaleString()} unsold → rolled over</span>
                                         )}
                                       </div>
-                                      <ProgressBar value={displayPct} size="sm" animated={status === "active"} />
+                                      <ProgressBar value={allocation > 0 ? displayPct : effectivePct} size="sm" animated={status === "active"} />
                                     </div>
 
                                     {/* Date range + countdown */}
-                                    <div className="flex items-center justify-between text-xs text-gray-500">
-                                      <span>
-                                        {status === "upcoming" ? "Starts" : "Started"}: {fmtDate(new Date(phase.start_time))}
-                                        {" — "}
-                                        Ends: {fmtDate(new Date(phase.end_time))}
-                                      </span>
+                                    <div className="flex items-center justify-between text-sm text-gray-500">
+                                      {status === "ended" ? (
+                                        <span>Ended on {fmtDate(new Date(phase.end_time))}</span>
+                                      ) : (
+                                        <span>
+                                          {status === "upcoming" || status === "planned" ? "Starts" : "Started"}: {fmtDate(new Date(phase.start_time))}
+                                          {" — "}Ends: {fmtDate(new Date(phase.end_time))}
+                                        </span>
+                                      )}
                                       {status === "active" && (
-                                        <span className="inline-flex items-center gap-1 text-darkAqua font-medium">
-                                          <Clock className="h-3 w-3" />
+                                        <span className="inline-flex items-center gap-1.5 text-darkAqua font-semibold">
+                                          <Clock className="h-3.5 w-3.5" />
                                           {getTimeRemaining(phase.end_time)}
                                         </span>
                                       )}
-                                      {status === "upcoming" && (
-                                        <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
-                                          <Clock className="h-3 w-3" />
+                                      {(status === "upcoming" || status === "planned") && (
+                                        <span className="inline-flex items-center gap-1.5 text-blue-600 font-semibold">
+                                          <Clock className="h-3.5 w-3.5" />
                                           {getTimeUntilStart(phase.start_time)}
                                         </span>
                                       )}
