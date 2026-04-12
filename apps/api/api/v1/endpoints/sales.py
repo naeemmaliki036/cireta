@@ -609,10 +609,13 @@ async def list_sale_transactions(
     Shows sale-level transaction history visible to everyone — amounts,
     types, and tx hashes. Wallet addresses are truncated for privacy.
     """
+    from sqlalchemy.orm import selectinload
+
     from apps.api.models.contribution import Contribution
 
     result = await db.execute(
         select(Contribution)
+        .options(selectinload(Contribution.phase))
         .where(Contribution.sale_id == sale_id)
         .order_by(Contribution.created_at.desc())
         .limit(limit)
@@ -629,6 +632,7 @@ async def list_sale_transactions(
             "tx_hash": c.tx_hash,
             "wallet_address": c.wallet_address[:6] + "..." + c.wallet_address[-4:] if c.wallet_address else None,
             "created_at": c.created_at.isoformat() if c.created_at else None,
+            "phase_name": c.phase.name if c.phase else None,
         }
         for c in contributions
     ]

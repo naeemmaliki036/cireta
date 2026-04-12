@@ -827,6 +827,7 @@ export default function ProjectDetailPage() {
                           {txs.map((tx) => {
                             const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
                             const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
+                            const phaseName = tx.phase_name || "";
                             const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
                             const typeStyle: Record<string, string> = {
                               investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
@@ -855,6 +856,7 @@ export default function ProjectDetailPage() {
                                   <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
                                     {typeLabel[tx.type] ?? tx.type}
                                   </span>
+                                  {phaseName && <p className="text-[10px] text-gray-400 mt-0.5">{phaseName}</p>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   {isOffPlatform ? (

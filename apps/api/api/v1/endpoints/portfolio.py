@@ -320,7 +320,8 @@ async def get_transactions(
         contrib_q = (
             select(Contribution)
             .options(
-                selectinload(Contribution.sale).selectinload(_TS.token)
+                selectinload(Contribution.sale).selectinload(_TS.token),
+                selectinload(Contribution.phase),
             )
             .where(Contribution.user_id == user_id)
         )
@@ -368,6 +369,7 @@ async def get_transactions(
                     "status": c_status,
                     "is_otc": bool(getattr(c, "is_otc", False)),
                     "created_at": c.created_at.isoformat() if c.created_at else None,
+                    "phase_name": c.phase.name if c.phase else None,
                 }
             )
 
