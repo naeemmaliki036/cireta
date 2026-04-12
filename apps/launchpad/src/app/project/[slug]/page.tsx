@@ -488,11 +488,9 @@ export default function ProjectDetailPage() {
                           <span className="text-text font-semibold">
                             {fmtUsdc(raised)} <span className="text-gray-400 font-normal">/ {fmtUsdc(hardCap)} USDC raised</span>
                           </span>
-                          {softCap > 0 && (
-                            <span className={cn("font-medium", softCapMet ? "text-emerald-600" : "text-amber-600")}>
-                              {softCapMet
-                                ? `Soft cap reached (${fmtUsdc(softCap)} USDC)`
-                                : `Refundable until soft cap (${fmtUsdc(softCap)} USDC)`}
+                          {softCap > 0 && softCapMet && (
+                            <span className="font-medium text-emerald-600">
+                              Soft cap reached ({fmtUsdc(softCap)} USDC)
                             </span>
                           )}
                         </div>
