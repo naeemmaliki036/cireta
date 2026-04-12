@@ -395,6 +395,23 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit TokensWithdrawn(issuer, balance);
     }
 
+    /// @notice Withdraw unsold project tokens after sale finalization.
+    /// Direct mode: unsold tokens sit in the Sale contract — this sends them to issuer.
+    /// Vested mode: calls vault.withdrawExcess() which sends unsold to issuer.
+    /// Only callable after FinalizedSuccess.
+    function withdrawUnsoldTokens() external onlyIssuer nonReentrant {
+        if (status != SaleStatus.FinalizedSuccess) revert SaleNotFinalized();
+        if (saleMode == SaleMode.Vested) {
+            vault.withdrawExcess();
+        } else {
+            // Direct mode: unsold = tokens still in this contract
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            if (balance == 0) revert NothingToWithdraw();
+            IERC20(token).safeTransfer(issuer, balance);
+            emit TokensWithdrawn(issuer, balance);
+        }
+    }
+
     /// @notice Unpause the sale. Only admin can lift a regulatory hold.
     function unpause() external adminOnly onlyStatus(SaleStatus.Paused) {
         status = SaleStatus.Active;

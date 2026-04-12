@@ -60,6 +60,7 @@ class SaleCreateRequest(BaseModel):
     facebook_url: str | None = None
     telegram_url: str | None = None
     discord_url: str | None = None
+    is_redeemable: bool = False
     sale_mode: str = "vested"  # "vested" or "direct"
     sale_structure: str = "phase_allocated"  # "phase_allocated" or "price_tiered"
     # OTC token (optional — can also be set after sale creation via Sale.setOTCToken())
@@ -120,6 +121,7 @@ class SaleUpdateRequest(BaseModel):
     otc_enabled: bool | None = None
     otc_content: str | None = None
     otc_token_address: str | None = None
+    is_redeemable: bool | None = None
     website_url: str | None = None
     twitter_url: str | None = None
     linkedin_url: str | None = None
@@ -232,6 +234,7 @@ class SaleResponse(BaseModel):
     refunds_activated_at: datetime | None = None
     finalization_pending: bool = False
     display_order: int | None = None
+    is_redeemable: bool = False
 
     class Config:
         from_attributes = True

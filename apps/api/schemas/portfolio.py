@@ -27,6 +27,7 @@ class HoldingResponse(BaseModel):
     claimable_amount: str
     claimable: str = "0"
     locked: bool = False
+    is_redeemable: bool = False
 
     class Config:
         from_attributes = True

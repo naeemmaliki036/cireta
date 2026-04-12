@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, TrendingUp, Coins, Send } from "lucide-react";
+import { ArrowUpRight, TrendingUp, Coins, Send, Repeat } from "lucide-react";
 import { Button, Badge, ProgressBar } from "@/components/atoms";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ export interface HoldingItem {
   claimable: number;
   vestingProgress: number;
   imageUrl?: string;
+  isRedeemable?: boolean;
 }
 
 export interface PortfolioTableProps {
@@ -138,6 +139,13 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
                     <Link href={`/portfolio/claim/${holding.tokenSymbol.toLowerCase()}`}>
                       <Button variant="primary" size="sm">
                         Claim
+                      </Button>
+                    </Link>
+                  )}
+                  {holding.isRedeemable && (
+                    <Link href={`/portfolio/redeem/${holding.id}`}>
+                      <Button variant="ghost" size="sm" title="Redeem">
+                        <Repeat className="h-4 w-4" />
                       </Button>
                     </Link>
                   )}

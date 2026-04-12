@@ -72,7 +72,12 @@ class PortfolioService:
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
                     "locked": is_locked,
+                    "is_redeemable": getattr(contrib.sale, "is_redeemable", False) or False,
                 }
+
+            # Promote is_redeemable if any contributing sale has it enabled
+            if getattr(contrib.sale, "is_redeemable", False):
+                holdings[bucket_key]["is_redeemable"] = True
 
             holdings[bucket_key]["balance"] += contrib.tokens_allocated
             holdings[bucket_key]["invested_usd"] += contrib.amount

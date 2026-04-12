@@ -24,23 +24,38 @@ async def update_redemption_status(
     user_id: RequireIssuerOrAdmin,  # noqa: ARG001 — role guard
     request: RedemptionUpdateRequest,
 ) -> dict:
-    """Update redemption status (issuer action: processing, shipped, fulfilled, cancelled)."""
+    """Update redemption status (issuer action: processing, shipped, fulfilled, cancelled).
+
+    When status is set to "fulfilled", the service will also attempt to call
+    RedemptionManager.fulfil() on-chain (best-effort — DB update proceeds
+    even if the on-chain call fails).
+    """
+    from apps.api.services.redemption_service import RedemptionService
+
+    svc = RedemptionService(db)
+
+    # Delegate to service — handles shipped_at/fulfilled_at timestamps
+    # and on-chain fulfilment call when status == "fulfilled".
     result = await db.execute(
         select(RedemptionRequest).where(RedemptionRequest.id == redemption_id)
     )
     req = result.scalar_one_or_none()
     if not req:
         raise HTTPException(status_code=404, detail="Redemption request not found")
-    req.status = request.status
+
+    # Set fields that update_fulfillment doesn't handle
     if request.status == "shipped":
         req.shipped_at = datetime.now(UTC)
-    if request.status == "fulfilled":
-        req.fulfilled_at = datetime.now(UTC)
-    if request.notes:
-        req.notes = request.notes
     if request.tracking_number is not None:
         req.tracking_number = request.tracking_number
-    await db.commit()
+
+    # Delegate status + notes + on-chain fulfilment to the service
+    await svc.update_fulfillment(
+        request_id=redemption_id,
+        status=request.status,
+        notes=request.notes,
+    )
+
     return {"message": "Redemption status updated", "status": request.status}
 
 

@@ -47,6 +47,7 @@ class SaleCreateService:
         sale_structure: str = "phase_allocated",
         cliff_duration_days: int = 0,
         vesting_duration_days: int = 365,
+        is_redeemable: bool = False,
     ) -> TokenSale:
         """Create a new token sale.
 
@@ -140,6 +141,7 @@ class SaleCreateService:
         sale.sale_structure = sale_structure
         sale.cliff_duration_days = cliff_duration_days
         sale.vesting_duration_days = vesting_duration_days
+        sale.is_redeemable = is_redeemable
         sale.status = SaleStatus.DRAFT
 
         self.db.add(sale)

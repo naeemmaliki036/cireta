@@ -16,6 +16,8 @@ export interface Holding {
    * separate "Locked / Vesting" section.
    */
   locked?: boolean;
+  /** Whether the investor can redeem tokens from this sale. */
+  is_redeemable?: boolean;
 }
 
 export interface VestingSchedule {

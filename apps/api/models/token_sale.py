@@ -139,6 +139,9 @@ class TokenSale(BaseModel):
         DateTime(timezone=True), nullable=True, default=None
     )
 
+    # Redemption: whether investors can redeem tokens from this sale for physical delivery or cash.
+    is_redeemable: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Admin-controlled display ordering. NULL = use default sort (ongoing → upcoming → coming soon).
     display_order: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 

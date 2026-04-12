@@ -60,6 +60,7 @@ def _holding_to_response(holding: dict) -> HoldingResponse:
         claimable_amount=str(holding["claimable_amount"]),
         claimable=str(holding["claimable_amount"]),
         locked=bool(holding.get("locked", False)),
+        is_redeemable=bool(holding.get("is_redeemable", False)),
     )
 
 

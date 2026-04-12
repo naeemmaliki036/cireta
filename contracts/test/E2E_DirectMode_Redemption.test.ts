@@ -377,4 +377,39 @@ describe("E2E: Direct Mode Sale + Redemption", () => {
       expect(req.status).to.equal(REDEMPTION_CANCELLED);
     });
   });
+
+  describe("5. Withdraw unsold tokens (Direct mode)", () => {
+    it("issuer withdraws unsold tokens after finalization", async () => {
+      const { sale, usdc, projectToken, saleStart, saleEnd } = await deployDirectSale();
+
+      // deployDirectSale already adds phase + activates. Buy only 100 tokens.
+      await usdc.mint(buyerA.address, 10000n * PRICE_RAW);
+      await usdc.connect(buyerA).approve(await sale.getAddress(), 10000n * PRICE_RAW);
+      await sale.connect(buyerA).buy(0, 100n);
+
+      // Close sale after phase ends
+      await time.increaseTo(saleEnd + 1);
+      await sale.connect(issuer).closeSale(false);
+      expect(await sale.status()).to.equal(STATUS_SUCCESS);
+
+      // Sale contract still holds unsold tokens
+      const saleBal = await projectToken.balanceOf(await sale.getAddress());
+      expect(saleBal).to.be.gt(0);
+
+      // Issuer withdraws unsold
+      const issuerBalBefore = await projectToken.balanceOf(issuer.address);
+      await sale.connect(issuer).withdrawUnsoldTokens();
+      const issuerBalAfter = await projectToken.balanceOf(issuer.address);
+
+      expect(issuerBalAfter - issuerBalBefore).to.equal(saleBal);
+      expect(await projectToken.balanceOf(await sale.getAddress())).to.equal(0);
+    });
+
+    it("reverts if sale not finalized", async () => {
+      const { sale } = await deployDirectSale();
+
+      await expect(sale.connect(issuer).withdrawUnsoldTokens())
+        .to.be.revertedWithCustomError(sale, "SaleNotFinalized");
+    });
+  });
 });

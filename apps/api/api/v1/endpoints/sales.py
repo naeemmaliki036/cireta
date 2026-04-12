@@ -167,6 +167,7 @@ def _sale_to_response(
         refunds_activated_at=getattr(sale, "refunds_activated_at", None),
         finalization_pending=getattr(sale, "finalization_pending", False) or False,
         display_order=getattr(sale, "display_order", None),
+        is_redeemable=getattr(sale, "is_redeemable", False) or False,
     )
 
 
@@ -315,6 +316,7 @@ async def create_sale(
         sale_structure=request.sale_structure,
         cliff_duration_days=request.cliff_duration_days,
         vesting_duration_days=request.vesting_duration_days,
+        is_redeemable=request.is_redeemable,
     )
     return _sale_to_response(sale)
 

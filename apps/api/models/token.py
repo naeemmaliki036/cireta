@@ -129,6 +129,10 @@ class Token(BaseModel):
         String(42),
         nullable=True,
     )
+    redemption_manager_address: Mapped[str | None] = mapped_column(
+        String(42),
+        nullable=True,
+    )
 
     is_paused: Mapped[bool] = mapped_column(
         Boolean,
