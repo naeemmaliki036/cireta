@@ -154,18 +154,16 @@ class SaleContributeService:
         # on-chain data was extracted (e.g. tx_hash from a draft test).
         active_phase = None
         if chain_phase_id is not None:
-            sorted_phases = sorted(sale.phases, key=lambda p: p.start_time)
-            if 0 <= chain_phase_id < len(sorted_phases):
-                active_phase = sorted_phases[chain_phase_id]
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "code": "INVALID_PHASE_INDEX",
-                        "message": f"On-chain phase index {chain_phase_id} is out of range "
-                        f"(sale has {len(sorted_phases)} phases)",
-                    },
-                )
+            # First try matching by on_chain_phase_id (explicit mapping)
+            for phase in sale.phases:
+                if getattr(phase, "on_chain_phase_id", None) == chain_phase_id:
+                    active_phase = phase
+                    break
+            # Fallback: sort by start_time and index (legacy behavior)
+            if not active_phase:
+                sorted_phases = sorted(sale.phases, key=lambda p: p.start_time)
+                if 0 <= chain_phase_id < len(sorted_phases):
+                    active_phase = sorted_phases[chain_phase_id]
         if not active_phase:
             for phase in sale.phases:
                 if phase.is_active:
