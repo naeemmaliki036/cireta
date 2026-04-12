@@ -63,9 +63,10 @@ function LiveProjectCard({ project: p }: { project: Project }) {
   );
   const effectiveRaised = onChain.ready ? onChain.totalRaised : p.currentRaised;
   const effectiveTarget = onChain.ready && onChain.hardCap > 0 ? onChain.hardCap : p.targetAmount;
-  const progress = effectiveTarget > 0
-    ? Math.min(Math.round((effectiveRaised / effectiveTarget) * 100), 100)
+  const progressRaw = effectiveTarget > 0
+    ? Math.min((effectiveRaised / effectiveTarget) * 100, 100)
     : 0;
+  const progress = progressRaw >= 100 ? 100 : parseFloat(progressRaw.toFixed(2));
   const hasImage = p.imageUrl && !imgError;
   const isVideo = p.imageUrl && isVideoUrl(p.imageUrl);
 

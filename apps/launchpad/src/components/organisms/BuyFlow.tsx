@@ -130,9 +130,12 @@ interface InvestAmountStepProps {
  */
 function buildQuickQuantities(effectiveMin: number, availableTokens: number): number[] {
   if (effectiveMin <= 0) return [1, 5, 10, 100];
+  // Last-chunk: if available < min, only suggest the remaining amount
+  if (availableTokens > 0 && availableTokens < effectiveMin) {
+    return [availableTokens];
+  }
   const base = effectiveMin;
   const raw = [base, base * 2, base * 5, base * 10];
-  // Dedupe and filter — don't suggest more than what's available
   const cap = availableTokens > 0 ? availableTokens : Infinity;
   const filtered = raw.filter((q, i, arr) => q <= cap && arr.indexOf(q) === i);
   return filtered.length > 0 ? filtered : [effectiveMin];
@@ -197,9 +200,18 @@ export function InvestAmountStep({
   if (tokenQty > 0 && !Number.isInteger(tokenQty)) {
     validationError = "Only whole tokens allowed (e.g. 1, 5, 100)";
   } else if (tokenQty > 0 && tokenQty < effectiveMin) {
-    validationError = isRepeatBuyer
-      ? `Top-up minimum is ${topUpMinTokens} tokens`
-      : `Minimum is ${minTokens} tokens for first-time buyers`;
+    // Last-chunk exception: if remaining supply < min, buyer can purchase exactly the remaining
+    const effectiveMax = remainingMax < Infinity ? remainingMax : availableTokens;
+    if (effectiveMax > 0 && effectiveMax < effectiveMin && tokenQty === effectiveMax) {
+      // Allow — matches the on-chain last-chunk exception
+      validationError = null;
+    } else if (effectiveMax > 0 && effectiveMax < effectiveMin) {
+      validationError = `Only ${effectiveMax.toLocaleString()} ${project.tokenSymbol} remaining — buy exactly ${effectiveMax} to complete the sale`;
+    } else {
+      validationError = isRepeatBuyer
+        ? `Top-up minimum is ${topUpMinTokens} tokens`
+        : `Minimum is ${minTokens} tokens for first-time buyers`;
+    }
   } else if (tokenQty > 0 && tokenQty > remainingMax) {
     if (hardCapMaxTokens < Infinity && tokenQty > hardCapMaxTokens) {
       validationError = `Exceeds sale hard cap — max ${Math.max(0, hardCapMaxTokens).toLocaleString()} ${project.tokenSymbol} at this price`;
@@ -279,11 +291,15 @@ export function InvestAmountStep({
         </div>
       )}
       <p className="text-xs text-black/40 mb-2">
-        {isRepeatBuyer ? (
-          <>Top-up min: {topUpMinTokens} tokens</>
-        ) : (
-          <>Min: {minTokens} tokens</>
-        )}
+        {(() => {
+          const effectiveMax = remainingMax < Infinity ? remainingMax : availableTokens;
+          if (effectiveMax > 0 && effectiveMax < effectiveMin) {
+            return <>Last {effectiveMax} tokens remaining — min waived</>;
+          }
+          return isRepeatBuyer
+            ? <>Top-up min: {topUpMinTokens} tokens</>
+            : <>Min: {minTokens} tokens</>;
+        })()}
         {" "}&bull; Available:{" "}
         {remainingMax > 0 && remainingMax < Infinity ? `${remainingMax.toLocaleString()} ${project.tokenSymbol}` : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}
         {maxTokens > 0 && (
