@@ -576,7 +576,8 @@ export default function ProjectDetailPage() {
                             // order project.phases lives in (sorted-by-start),
                             // so we look up by sortedPhases index. Falls back
                             // to the DB-side numbers when on-chain isn't ready.
-                            const onChainPhase = onChain.ready ? onChain.phases[idx] : null;
+                            const isDeployed = phase.deployed_on_chain !== false;
+                            const onChainPhase = onChain.ready && isDeployed && onChain.phases[idx] ? onChain.phases[idx] : null;
                             const allocation = onChainPhase ? onChainPhase.allocation : Number(phase.allocation);
                             const tokensSold = onChainPhase ? onChainPhase.sold : Number(phase.tokens_sold ?? "0");
                             const usdcRaised = Number(phase.usdc_raised ?? "0");
