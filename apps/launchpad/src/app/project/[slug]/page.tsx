@@ -149,18 +149,35 @@ export default function ProjectDetailPage() {
     if (slug) load();
   }, [slug]);
 
-  // Fetch transactions when Transactions tab opens (filtered by token)
+  // Fetch transactions:
+  // - "Transactions" tab = public sale-level (no auth, all buyers)
+  // - "My Position" tab = user-specific (auth required)
   useEffect(() => {
-    if ((activeTab !== "Transactions" && activeTab !== "My Position") || !isAuthenticated || !saleRaw?.token_id) return;
+    if (activeTab !== "Transactions" && activeTab !== "My Position") return;
+    if (activeTab === "My Position" && !isAuthenticated) return;
     let cancelled = false;
     setTxsLoading(true);
     setTxsError(null);
-    getTransactions({ token_id: saleRaw.token_id, limit: 100 })
-      .then((data) => { if (!cancelled) setTxs(data.transactions); })
-      .catch(() => { if (!cancelled) setTxsError("Failed to load transactions."); })
-      .finally(() => { if (!cancelled) setTxsLoading(false); });
+
+    if (activeTab === "Transactions" && saleRaw?.id) {
+      // Public endpoint — all sale transactions, no auth needed
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+      fetch(`${apiBase}/api/v1/sales/${saleRaw.id}/transactions?limit=100`)
+        .then(r => r.json())
+        .then((data) => { if (!cancelled) setTxs(Array.isArray(data) ? data : []); })
+        .catch(() => { if (!cancelled) setTxsError("Failed to load transactions."); })
+        .finally(() => { if (!cancelled) setTxsLoading(false); });
+    } else if (activeTab === "My Position" && saleRaw?.token_id) {
+      // Auth endpoint — user's own transactions
+      getTransactions({ token_id: saleRaw.token_id, limit: 100 })
+        .then((data) => { if (!cancelled) setTxs(data.transactions); })
+        .catch(() => { if (!cancelled) setTxsError("Failed to load transactions."); })
+        .finally(() => { if (!cancelled) setTxsLoading(false); });
+    } else {
+      setTxsLoading(false);
+    }
     return () => { cancelled = true; };
-  }, [activeTab, isAuthenticated, saleRaw?.token_id]);
+  }, [activeTab, isAuthenticated, saleRaw?.id, saleRaw?.token_id]);
 
   const handleSubscribe = async () => {
     if (!saleRaw) return;
@@ -767,9 +784,9 @@ export default function ProjectDetailPage() {
                 </div>
               )}
               {(activeTab === "My Position" || activeTab === "Transactions") && (
-                !isAuthenticated ? (
+                (activeTab === "My Position" && !isAuthenticated) ? (
                   <div className="bg-gray-50 rounded-xl p-10 text-center">
-                    <p className="text-gray-400 font-medium">Sign in to view your transactions</p>
+                    <p className="text-gray-400 font-medium">Sign in to view your position</p>
                     <Link href={`/login?redirect=/project/${slug}`} className="inline-block mt-3 text-darkAqua text-sm font-semibold hover:underline">Sign In</Link>
                   </div>
                 ) : txsLoading ? (
@@ -779,7 +796,7 @@ export default function ProjectDetailPage() {
                 ) : txs.length === 0 ? (
                   <div className="bg-gray-50 rounded-xl p-10 text-center">
                     <p className="text-gray-400 font-medium">No transactions yet</p>
-                    <p className="text-gray-300 text-sm mt-1">Your transactions for this project will appear here after you buy.</p>
+                    <p className="text-gray-300 text-sm mt-1">{activeTab === "Transactions" ? "Transactions for this sale will appear here as buyers participate." : "Your transactions for this project will appear here after you buy."}</p>
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">

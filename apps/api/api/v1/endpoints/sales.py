@@ -598,6 +598,42 @@ async def contribute(
     return _contribution_to_response(contribution)
 
 
+@router.get("/{sale_id}/transactions")
+async def list_sale_transactions(
+    sale_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(default=50, ge=1, le=200),
+) -> list[dict]:
+    """Public endpoint: list all contributions for a sale (no auth required).
+
+    Shows sale-level transaction history visible to everyone — amounts,
+    types, and tx hashes. Wallet addresses are truncated for privacy.
+    """
+    from apps.api.models.contribution import Contribution
+
+    result = await db.execute(
+        select(Contribution)
+        .where(Contribution.sale_id == sale_id)
+        .order_by(Contribution.created_at.desc())
+        .limit(limit)
+    )
+    contributions = result.scalars().all()
+    return [
+        {
+            "id": str(c.id),
+            "type": "investment",
+            "amount": str(c.amount),
+            "tokens_allocated": str(c.tokens_allocated),
+            "is_otc": getattr(c, "is_otc", False) or False,
+            "status": c.status,
+            "tx_hash": c.tx_hash,
+            "wallet_address": c.wallet_address[:6] + "..." + c.wallet_address[-4:] if c.wallet_address else None,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in contributions
+    ]
+
+
 class PhaseCreateRequest(BaseModel):
     """Create a sale phase. Set deployed_on_chain=true when recording an already-deployed
     phase; leave false (default) for tentative/planned phases."""
