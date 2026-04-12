@@ -117,6 +117,7 @@ export interface Transaction {
   status: string;
   is_otc?: boolean;
   created_at: string | null;
+  phase_name?: string | null;
 }
 
 export interface TransactionFilters {
