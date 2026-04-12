@@ -18,6 +18,7 @@ export interface HoldingItem {
   vestingProgress: number;
   imageUrl?: string;
   isRedeemable?: boolean;
+  saleMode?: "direct" | "vested";
 }
 
 export interface PortfolioTableProps {
@@ -85,17 +86,28 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
                     <p className="font-medium text-text group-hover:text-darkAqua transition-colors">
                       {holding.tokenName}
                     </p>
-                    <p className="text-sm text-gray-500">{holding.tokenSymbol}</p>
+                    <p className="text-sm text-gray-500">
+                      {holding.saleMode === "vested"
+                        ? <span>fr{holding.tokenSymbol} <span className="text-xs text-darkAqua/60">(vesting)</span></span>
+                        : holding.tokenSymbol}
+                    </p>
                   </div>
                 </Link>
               </td>
 
               {/* Balance */}
               <td className="px-6 py-4 text-right">
-                <span className="font-semibold">
-                  {holding.balance.toLocaleString()}
-                </span>
-                <span className="text-gray-500 ml-1">{holding.tokenSymbol}</span>
+                <div>
+                  <span className="font-semibold">
+                    {holding.balance.toLocaleString()}
+                  </span>
+                  <span className="text-gray-500 ml-1">
+                    {holding.saleMode === "vested" ? `fr${holding.tokenSymbol}` : holding.tokenSymbol}
+                  </span>
+                  {holding.saleMode === "vested" && (
+                    <p className="text-xs text-gray-400 mt-0.5">Claimable after vesting</p>
+                  )}
+                </div>
               </td>
 
               {/* Value */}
@@ -127,6 +139,8 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
                     <TrendingUp className="h-3 w-3 mr-1" />
                     {holding.claimable.toLocaleString()} available
                   </Badge>
+                ) : holding.saleMode === "vested" && holding.vestingProgress < 100 ? (
+                  <span className="text-xs text-amber-600">Vesting in progress</span>
                 ) : (
                   <span className="text-gray-400">—</span>
                 )}

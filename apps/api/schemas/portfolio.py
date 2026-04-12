@@ -28,6 +28,7 @@ class HoldingResponse(BaseModel):
     claimable: str = "0"
     locked: bool = False
     is_redeemable: bool = False
+    sale_mode: str = "direct"
 
     class Config:
         from_attributes = True

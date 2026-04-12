@@ -73,6 +73,7 @@ class PortfolioService:
                     "claimable_amount": Decimal("0"),
                     "locked": is_locked,
                     "is_redeemable": getattr(contrib.sale, "is_redeemable", False) or False,
+                    "sale_mode": getattr(contrib.sale, "sale_mode", "direct") or "direct",
                 }
 
             # Promote is_redeemable if any contributing sale has it enabled

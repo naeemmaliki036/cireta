@@ -195,6 +195,7 @@ export default function PortfolioPage() {
     claimable: parseFloat(h.claimable),
     vestingProgress: 0,
     isRedeemable: h.is_redeemable ?? false,
+    saleMode: h.sale_mode ?? "direct",
   }));
 
   const totalValue = parseFloat(portfolio?.total_value_usd ?? "0");

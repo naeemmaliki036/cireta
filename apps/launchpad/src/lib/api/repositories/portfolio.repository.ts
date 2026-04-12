@@ -18,6 +18,8 @@ export interface Holding {
   locked?: boolean;
   /** Whether the investor can redeem tokens from this sale. */
   is_redeemable?: boolean;
+  /** Sale mode — "vested" means holder has fraction tokens, "direct" means project tokens. */
+  sale_mode?: "direct" | "vested";
 }
 
 export interface VestingSchedule {
