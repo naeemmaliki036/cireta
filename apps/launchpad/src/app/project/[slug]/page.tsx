@@ -50,10 +50,10 @@ function getTimeRemaining(endTime: string): string {
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  // > 2 days: just show days (e.g. "60 days remaining")
-  if (days > 2) return `${days} days remaining`;
-  // 1-2 days: show days + hours (e.g. "1d 14h remaining")
-  if (days >= 1) return `${days}d ${hours}h remaining`;
+  // > 1 day: just show days
+  if (days > 1) return `${days} days remaining`;
+  // 1 day: show day + hours
+  if (days === 1) return `1d ${hours}h remaining`;
   // < 1 day: show hours + minutes, or just minutes if under an hour
   if (hours > 0) return `${hours}h ${mins}m remaining`;
   return `${mins}m remaining`;
@@ -64,8 +64,12 @@ function getTimeUntilStart(startTime: string): string {
   if (diff <= 0) return "";
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  if (days > 0) return `Starts in ${days}d ${hours}h`;
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  // > 1 day: show only days
+  if (days > 1) return `Starts in ${days} days`;
+  // 1 day: show day + hours
+  if (days === 1) return `Starts in 1d ${hours}h`;
+  // < 1 day: show hours + minutes
   return hours > 0 ? `Starts in ${hours}h ${mins}m` : `Starts in ${mins}m`;
 }
 
@@ -502,12 +506,14 @@ export default function ProjectDetailPage() {
                   <h3 className="font-bold text-text text-sm">Sale Details</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     {[
+                      ["Total Token Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
+                      ["Token Standard", "ERC-3643 Security Token"],
+                      ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC${ap ? ` (${ap.name})` : ""}` : "TBD"],
                       ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                       ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
-                      ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC${ap ? ` (${ap.name})` : ""}` : "TBD"],
+                      ["Currency", "USDC"],
                       ["Start", startTime ? fmtDate(startTime) : "TBD"],
                       ["End", endTime ? fmtDate(endTime) : "TBD"],
-                      ["Currency", "USDC"],
                     ].map(([k, v]) => (
                       <div key={k} className="bg-gray-50 rounded-xl p-4"><p className="text-gray-500 mb-1">{k}</p><p className="font-bold">{v}</p></div>
                     ))}
@@ -633,7 +639,7 @@ export default function ProjectDetailPage() {
                                       {!isPriceTiered && (
                                         <div>
                                           <p className="text-gray-500 text-xs mb-0.5">Allocation</p>
-                                          <p className="font-semibold">{allocation.toLocaleString()}</p>
+                                          <p className="font-semibold">{allocation.toLocaleString()} {project.tokenSymbol}</p>
                                         </div>
                                       )}
                                       <div>
@@ -656,7 +662,7 @@ export default function ProjectDetailPage() {
                                               : "No purchases yet in this tier"}
                                           </span>
                                         ) : (
-                                          <span>{phaseSoldPct}% sold ({tokensSold.toLocaleString()}/{allocation.toLocaleString()})</span>
+                                          <span>{phaseSoldPct}% sold ({tokensSold.toLocaleString()}/{allocation.toLocaleString()} {project.tokenSymbol})</span>
                                         )}
                                       </div>
                                       <ProgressBar value={displayPct} size="sm" animated={status === "active"} />
@@ -692,12 +698,9 @@ export default function ProjectDetailPage() {
                     );
                   })()}
 
-                  {token && (
-                    <div className="bg-gray-50 rounded-xl p-4 text-sm">
-                      <h4 className="font-bold mb-2">On-Chain Info</h4>
-                      <p><span className="text-gray-500">Total Supply:</span> <span className="font-medium">{Number(token.total_supply).toLocaleString()}</span></p>
-                      <p><span className="text-gray-500">Decimals:</span> <span className="font-medium">{token.decimals}</span></p>
-                      {token.is_paused && <p className="text-amber-600 font-medium mt-1">Token transfers paused</p>}
+                  {token?.is_paused && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+                      <p className="text-amber-600 font-medium">Token transfers are currently paused</p>
                     </div>
                   )}
                 </div>
