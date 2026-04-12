@@ -217,7 +217,13 @@ export default function ProjectDetailPage() {
   const bannerImg = images.find((i) => i.is_banner)?.url ?? (project.imageUrl || "/images/projects/gold-ghana.png");
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const fmtUsdc = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M` : n.toLocaleString();
+  const fmtUsdc = (n: number) => {
+    if (n >= 1_000_000) {
+      const m = n / 1_000_000;
+      return m % 1 === 0 ? `${m}M` : `${parseFloat(m.toFixed(2))}M`;
+    }
+    return n.toLocaleString();
+  };
   const statusColor: Record<string, string> = {
     active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500",
     paused: "text-amber-600", finalized_success: "text-green-600", finalized_failed: "text-gray-500",
