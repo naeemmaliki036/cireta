@@ -564,6 +564,11 @@ async def contribute(
     Requires: bearer token, kyc_level >= 2.
     Rate limit: 20/min.
     """
+    import logging as _log
+    _log.getLogger("sales.contribute").info(
+        "Contribute request: sale=%s user=%s amount=%s tx=%s phase=%s",
+        sale_id, user_id, request.amount, request.tx_hash, getattr(request, "phase_id", "?"),
+    )
     contribution = await sale_service.contribute(
         user_id=user_id,
         sale_id=sale_id,
