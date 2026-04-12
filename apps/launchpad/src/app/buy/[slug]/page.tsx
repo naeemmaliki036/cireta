@@ -1157,8 +1157,8 @@ export default function InvestPage() {
               <Link href="/portfolio" className="flex-1">
                 <Button variant="primary" size="lg" className="w-full">View Portfolio</Button>
               </Link>
-              <Link href="/projects" className="flex-1">
-                <Button variant="outline" size="lg" className="w-full">View Projects</Button>
+              <Link href={`/project/${project.slug}`} className="flex-1">
+                <Button variant="outline" size="lg" className="w-full">Back to {project.tokenSymbol}</Button>
               </Link>
             </div>
           )}
