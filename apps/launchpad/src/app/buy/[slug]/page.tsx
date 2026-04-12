@@ -110,6 +110,22 @@ export default function InvestPage() {
   });
   const ethBalance = nativeBalance ? Number(formatUnits(nativeBalance.value, 18)) : null;
 
+  // Read hard cap + total raised from on-chain for max buyable validation
+  const { data: onChainHardCap } = useReadContract({
+    address: saleContractAddress ?? undefined,
+    abi: SALE_ABI,
+    functionName: "hardCap",
+    query: { enabled: !!saleContractAddress },
+  });
+  const { data: onChainTotalRaised } = useReadContract({
+    address: saleContractAddress ?? undefined,
+    abi: SALE_ABI,
+    functionName: "totalRaised",
+    query: { enabled: !!saleContractAddress },
+  });
+  const hardCapUsdc = onChainHardCap ? Number(formatUnits(onChainHardCap as bigint, 6)) : 0;
+  const totalRaisedUsdc = onChainTotalRaised ? Number(formatUnits(onChainTotalRaised as bigint, 6)) : 0;
+
   // Read USDC balance for insufficient funds check
   const { data: usdcBalanceRaw } = useReadContract({
     address: usdcAddress ?? undefined,
@@ -1114,6 +1130,8 @@ export default function InvestPage() {
                   userTotalContributed={userTotalContributed}
                   ethBalance={ethBalance}
                   phaseRemainingTokens={phaseRemainingTokens}
+                  hardCapUsdc={hardCapUsdc}
+                  totalRaisedUsdc={totalRaisedUsdc}
                 />
               </>
             )}

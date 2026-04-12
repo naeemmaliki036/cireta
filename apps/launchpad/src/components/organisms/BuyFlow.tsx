@@ -116,6 +116,10 @@ interface InvestAmountStepProps {
    * Falls back to the sale-level remaining when undefined.
    */
   phaseRemainingTokens?: number;
+  /** On-chain hard cap in USDC (human units). Used to compute max buyable tokens at current price. */
+  hardCapUsdc?: number;
+  /** On-chain total raised in USDC (human units). */
+  totalRaisedUsdc?: number;
 }
 
 /**
@@ -145,6 +149,8 @@ export function InvestAmountStep({
   userTotalContributed = 0,
   ethBalance = null,
   phaseRemainingTokens,
+  hardCapUsdc = 0,
+  totalRaisedUsdc = 0,
 }: InvestAmountStepProps) {
   // Whole-token buy: `amount` is token quantity (integer, not USDC)
   const tokenQty = parseInt(amount || "0", 10) || 0;
@@ -177,9 +183,14 @@ export function InvestAmountStep({
       ? phaseRemainingTokens
       : saleAvailable;
 
-  // Effective per-buy ceiling: min of (buyer cap, phase/sale remaining)
+  // Hard cap constraint: max tokens that fit within remaining USDC capacity
+  const hardCapMaxTokens = hardCapUsdc > 0 && pricePerToken > 0
+    ? Math.floor((hardCapUsdc - totalRaisedUsdc) / pricePerToken)
+    : Infinity;
+
+  // Effective per-buy ceiling: min of (buyer cap, phase/sale remaining, hard cap tokens)
   const investorMaxRemaining = maxTokens > 0 ? Math.max(0, maxTokens - investorWholeTokens) : Infinity;
-  const remainingMax = Math.min(investorMaxRemaining, availableTokens || Infinity);
+  const remainingMax = Math.min(investorMaxRemaining, availableTokens || Infinity, hardCapMaxTokens);
 
   // Inline validation error
   let validationError: string | null = null;
@@ -190,7 +201,9 @@ export function InvestAmountStep({
       ? `Top-up minimum is ${topUpMinTokens} tokens`
       : `Minimum is ${minTokens} tokens for first-time buyers`;
   } else if (tokenQty > 0 && tokenQty > remainingMax) {
-    if (availableTokens > 0 && tokenQty > availableTokens) {
+    if (hardCapMaxTokens < Infinity && tokenQty > hardCapMaxTokens) {
+      validationError = `Exceeds sale hard cap — max ${Math.max(0, hardCapMaxTokens).toLocaleString()} ${project.tokenSymbol} at this price`;
+    } else if (availableTokens > 0 && tokenQty > availableTokens) {
       validationError = `Only ${availableTokens.toLocaleString()} ${project.tokenSymbol} available in this phase`;
     } else if (maxTokens > 0) {
       validationError = `Per-buyer cap: ${investorMaxRemaining.toLocaleString()} ${project.tokenSymbol} remaining for your wallet`;
