@@ -26,7 +26,7 @@ class RecoveryLog(BaseModel):
     (from_user_id != to_user_id).
     """
 
-    __tablename__ = "recovery_logs"
+    __tablename__ = "recovery_log"
 
     token_id: Mapped[PGUUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("tokens.id"), nullable=False

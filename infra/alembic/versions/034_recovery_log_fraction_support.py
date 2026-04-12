@@ -22,19 +22,19 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column(
-        "recovery_logs",
+        "recovery_log",
         sa.Column("token_type", sa.String(20), nullable=False, server_default="erc3643"),
     )
     op.add_column(
-        "recovery_logs",
+        "recovery_log",
         sa.Column("fraction_id", sa.SmallInteger(), nullable=True),
     )
     op.add_column(
-        "recovery_logs",
+        "recovery_log",
         sa.Column("amount", sa.Numeric(), nullable=True),
     )
     op.add_column(
-        "recovery_logs",
+        "recovery_log",
         sa.Column(
             "from_user_id",
             sa.dialects.postgresql.UUID(as_uuid=True),
@@ -43,7 +43,7 @@ def upgrade() -> None:
         ),
     )
     op.add_column(
-        "recovery_logs",
+        "recovery_log",
         sa.Column(
             "to_user_id",
             sa.dialects.postgresql.UUID(as_uuid=True),
@@ -52,7 +52,7 @@ def upgrade() -> None:
         ),
     )
     # Make investor_user_id nullable (legacy — old rows keep their value)
-    op.alter_column("recovery_logs", "investor_user_id", nullable=True)
+    op.alter_column("recovery_log", "investor_user_id", nullable=True)
 
     # OTC operator addresses on token_sales
     op.add_column(
@@ -63,9 +63,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column("token_sales", "otc_operator_addresses")
-    op.alter_column("recovery_logs", "investor_user_id", nullable=False)
-    op.drop_column("recovery_logs", "to_user_id")
-    op.drop_column("recovery_logs", "from_user_id")
-    op.drop_column("recovery_logs", "amount")
-    op.drop_column("recovery_logs", "fraction_id")
-    op.drop_column("recovery_logs", "token_type")
+    op.alter_column("recovery_log", "investor_user_id", nullable=False)
+    op.drop_column("recovery_log", "to_user_id")
+    op.drop_column("recovery_log", "from_user_id")
+    op.drop_column("recovery_log", "amount")
+    op.drop_column("recovery_log", "fraction_id")
+    op.drop_column("recovery_log", "token_type")
