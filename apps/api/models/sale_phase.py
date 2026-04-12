@@ -101,6 +101,20 @@ class SalePhase(BaseModel):
         default=False,
     )
 
+    # Off-chain tentative phases: False = planned/tentative (not yet on-chain),
+    # True = deployed on-chain via addPhase(). Tentative phases can be freely
+    # edited; deployed phases are immutable (changes require contract calls).
+    deployed_on_chain: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
+    # On-chain phase index (set when deployed). Null for tentative phases.
+    on_chain_phase_id: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
     # Relationships
     sale: Mapped[TokenSale] = relationship(back_populates="phases")
 

@@ -143,6 +143,8 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     // ── Events ───────────────────────────────────────────────────────────────
     event PhaseAdded(uint256 indexed phaseId, string name, uint256 pricePerToken);
     event PhaseExtended(uint256 indexed phaseId, uint256 newEndTime);
+    event PhaseShortened(uint256 indexed phaseId, uint256 newEndTime);
+    event PhaseAdvanced(uint256 indexed phaseId, uint256 newStartTime);
     event Purchase(address indexed buyer, uint256 indexed phaseId, uint256 amount, uint256 tokensAllocated, bool isOTC);
     event TokensClaimed(address indexed claimer, uint256 amount);
     event RefundClaimed(address indexed contributor, uint256 amount);
@@ -210,6 +212,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error ExtensionOverlap();
     error TopUpBelowMin();
     error PhaseStillActive();
+    error PhaseAlreadyStarted();
+    error PhaseNotInFuture();
+    error ShortenMustReduce();
+    error AdvanceMustReduce();
     error NotApproved();
     error AlreadyApproved();
     error RefundsNotActive();
@@ -504,6 +510,50 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit PhaseExtended(phaseId, newEndTime);
     }
 
+    /// @notice Shorten a phase's end time. Used to close a sold-out phase early
+    /// so the next phase can start immediately via addPhase().
+    /// newEndTime must be < current endTime and >= block.timestamp (can be "now").
+    function shortenPhase(uint256 phaseId, uint256 newEndTime) external onlyIssuer {
+        if (phaseId >= phases.length) revert InvalidPhase();
+        Phase storage p = phases[phaseId];
+        if (newEndTime >= p.endTime) revert ShortenMustReduce();
+        if (newEndTime < block.timestamp) revert PhaseInPast();
+        if (newEndTime < p.startTime) revert InvalidPhaseTimeRange();
+        p.endTime = newEndTime;
+        emit PhaseShortened(phaseId, newEndTime);
+    }
+
+    /// @notice Advance a phase's start time earlier. Used when the previous phase
+    /// ended early and you want to bring the next phase forward.
+    /// Phase must not have started yet. newStartTime must be < current startTime
+    /// and >= block.timestamp.
+    function advancePhaseStart(uint256 phaseId, uint256 newStartTime) external onlyIssuer {
+        if (phaseId >= phases.length) revert InvalidPhase();
+        Phase storage p = phases[phaseId];
+        if (block.timestamp >= p.startTime) revert PhaseAlreadyStarted();
+        if (newStartTime >= p.startTime) revert AdvanceMustReduce();
+        if (newStartTime < block.timestamp) revert PhaseInPast();
+        if (newStartTime < saleStartTime) revert PhaseOutsideSaleWindow();
+        if (newStartTime >= p.endTime) revert InvalidPhaseTimeRange();
+
+        // Must not overlap any other phase
+        for (uint256 i = 0; i < phases.length; i++) {
+            if (i == phaseId) continue;
+            Phase storage other = phases[i];
+            if (newStartTime < other.endTime && other.startTime < p.endTime) {
+                revert PhaseOverlap();
+            }
+        }
+
+        p.startTime = newStartTime;
+        emit PhaseAdvanced(phaseId, newStartTime);
+    }
+
+    /// @notice Remaining tokens available for sale across all phases.
+    function getRemainingSupply() external view returns (uint256) {
+        return totalTokenSupply - totalTokenSold;
+    }
+
     /// @dev Sum of all Fixed-mode phase allocations.
     function _totalFixedAllocations() internal view returns (uint256 sum) {
         for (uint256 i = 0; i < phases.length; i++) {
@@ -678,12 +728,26 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         return phase;
     }
 
-    /// @dev Shared phase allocation check (Fixed mode) + global supply check.
+    /// @dev Shared phase allocation check (Fixed mode with rollover) + global supply check.
+    /// Fixed phases inherit unsold tokens from prior ended Fixed phases.
     function _checkAllocationAndSupply(Phase storage phase, uint256 tokensToAllocate) internal view {
         if (phase.allocationMode == AllocationMode.Fixed) {
-            if (phase.sold + tokensToAllocate > phase.allocation) revert ExceedsAllocation();
+            uint256 effectiveAllocation = phase.allocation + _unsoldFromPriorPhases();
+            if (phase.sold + tokensToAllocate > effectiveAllocation) revert ExceedsAllocation();
         }
         if (totalTokenSold + tokensToAllocate > totalTokenSupply) revert TokenSupplyExceeded();
+    }
+
+    /// @dev Sum of unsold tokens from all Fixed-mode phases that have ended.
+    function _unsoldFromPriorPhases() internal view returns (uint256 unsold) {
+        for (uint256 i = 0; i < phases.length; i++) {
+            Phase storage p = phases[i];
+            if (p.allocationMode == AllocationMode.Fixed && block.timestamp > p.endTime) {
+                if (p.allocation > p.sold) {
+                    unsold += p.allocation - p.sold;
+                }
+            }
+        }
     }
 
     /// @notice Buy whole tokens. Investor specifies token quantity (1, 2, 100 — never fractional).

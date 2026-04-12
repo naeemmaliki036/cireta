@@ -12,6 +12,8 @@ export interface SalePhase {
   start_time: string;
   end_time: string;
   whitelist_only: boolean;
+  deployed_on_chain?: boolean;
+  on_chain_phase_id?: number | null;
 }
 
 export interface Sale {

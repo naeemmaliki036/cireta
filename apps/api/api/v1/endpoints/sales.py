@@ -67,6 +67,8 @@ def _phase_to_response(
         max_tokens=str(getattr(phase, "max_tokens", 0) or getattr(phase, "max_contribution", 0) or 0),
         top_up_min_tokens=str(getattr(phase, "top_up_min_tokens", 0) or getattr(phase, "top_up_min", 0) or 0),
         allocation_mode=getattr(phase, "allocation_mode", "fixed") or "fixed",
+        deployed_on_chain=getattr(phase, "deployed_on_chain", True),
+        on_chain_phase_id=getattr(phase, "on_chain_phase_id", None),
         tokens_sold=sold[0],
         usdc_raised=sold[1],
     )
@@ -595,7 +597,8 @@ async def contribute(
 
 
 class PhaseCreateRequest(BaseModel):
-    """Create a sale phase (DB record to match on-chain phase)."""
+    """Create a sale phase. Set deployed_on_chain=true when recording an already-deployed
+    phase; leave false (default) for tentative/planned phases."""
     name: str
     price_per_token: str
     allocation: str
@@ -608,6 +611,9 @@ class PhaseCreateRequest(BaseModel):
     whitelist_only: bool = False
     # Round-5: per-phase allocation strategy
     allocation_mode: str = "fixed"
+    # Off-chain tentative phase support
+    deployed_on_chain: bool = False
+    on_chain_phase_id: int | None = None
 
 
 @router.post("/{sale_id}/phases", status_code=201)
@@ -737,6 +743,8 @@ async def add_phase(
     phase.start_time = request.start_time
     phase.end_time = request.end_time
     phase.whitelist_only = request.whitelist_only
+    phase.deployed_on_chain = request.deployed_on_chain
+    phase.on_chain_phase_id = request.on_chain_phase_id
 
     # Round-5: update parent sale's lastPhaseAddedAt for inactivity tracking
     from datetime import datetime as _dt
@@ -745,6 +753,105 @@ async def add_phase(
     db.add(phase)
     await db.commit()
     return {"phase_id": str(phase.id), "phase_number": phase.phase_number}
+
+
+class PhaseUpdateRequest(BaseModel):
+    """Update a tentative (not-yet-deployed) phase. Deployed phases are immutable."""
+    name: str | None = None
+    price_per_token: str | None = None
+    allocation: str | None = None
+    min_contribution: str | None = None
+    max_contribution: str | None = None
+    top_up_min: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    whitelist_only: bool | None = None
+    allocation_mode: str | None = None
+    # Set to true + on_chain_phase_id when deploying on-chain
+    deployed_on_chain: bool | None = None
+    on_chain_phase_id: int | None = None
+
+
+@router.patch("/{sale_id}/phases/{phase_id}")
+async def update_phase(
+    sale_id: UUID,
+    phase_id: UUID,
+    request: PhaseUpdateRequest,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Update a tentative phase. Deployed phases can only update deployed_on_chain + on_chain_phase_id."""
+    from apps.api.models.sale_phase import SalePhase
+
+    phase = (await db.execute(
+        select(SalePhase).where(SalePhase.id == phase_id, SalePhase.sale_id == sale_id)
+    )).scalar_one_or_none()
+    if not phase:
+        raise HTTPException(status_code=404, detail="Phase not found")
+
+    # If already deployed, only allow marking deployed status
+    if phase.deployed_on_chain:
+        if request.deployed_on_chain is not None:
+            phase.deployed_on_chain = request.deployed_on_chain
+        if request.on_chain_phase_id is not None:
+            phase.on_chain_phase_id = request.on_chain_phase_id
+        await db.commit()
+        return {"phase_id": str(phase.id), "status": "updated (deployed — limited fields)"}
+
+    # Tentative phase: update all provided fields
+    from decimal import Decimal
+    if request.name is not None:
+        phase.name = request.name
+    if request.price_per_token is not None:
+        phase.price_per_token = Decimal(request.price_per_token)
+    if request.allocation is not None:
+        phase.allocation = Decimal(request.allocation)
+    if request.min_contribution is not None:
+        phase.min_contribution = Decimal(request.min_contribution)
+    if request.max_contribution is not None:
+        phase.max_contribution = Decimal(request.max_contribution)
+    if request.top_up_min is not None:
+        phase.top_up_min = Decimal(request.top_up_min)
+    if request.start_time is not None:
+        from datetime import datetime
+        phase.start_time = datetime.fromisoformat(str(request.start_time).replace("Z", "+00:00"))
+    if request.end_time is not None:
+        from datetime import datetime
+        phase.end_time = datetime.fromisoformat(str(request.end_time).replace("Z", "+00:00"))
+    if request.whitelist_only is not None:
+        phase.whitelist_only = request.whitelist_only
+    if request.allocation_mode is not None:
+        phase.allocation_mode = request.allocation_mode
+    if request.deployed_on_chain is not None:
+        phase.deployed_on_chain = request.deployed_on_chain
+    if request.on_chain_phase_id is not None:
+        phase.on_chain_phase_id = request.on_chain_phase_id
+
+    await db.commit()
+    return {"phase_id": str(phase.id), "status": "updated"}
+
+
+@router.delete("/{sale_id}/phases/{phase_id}")
+async def delete_phase(
+    sale_id: UUID,
+    phase_id: UUID,
+    user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Delete a tentative phase. Deployed phases cannot be deleted."""
+    from apps.api.models.sale_phase import SalePhase
+
+    phase = (await db.execute(
+        select(SalePhase).where(SalePhase.id == phase_id, SalePhase.sale_id == sale_id)
+    )).scalar_one_or_none()
+    if not phase:
+        raise HTTPException(status_code=404, detail="Phase not found")
+    if phase.deployed_on_chain:
+        raise HTTPException(status_code=409, detail="Cannot delete a deployed phase")
+
+    await db.delete(phase)
+    await db.commit()
+    return {"status": "deleted"}
 
 
 @router.post("/{sale_id}/submit-for-approval")

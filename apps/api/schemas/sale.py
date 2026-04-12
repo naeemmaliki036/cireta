@@ -155,6 +155,9 @@ class SalePhaseResponse(BaseModel):
     max_tokens: str = "0"
     top_up_min_tokens: str = "0"
     allocation_mode: str = "fixed"
+    # Off-chain tentative phase support
+    deployed_on_chain: bool = False
+    on_chain_phase_id: int | None = None
     # Aggregated from confirmed contributions in this phase. Always present;
     # zero when no contributions have been recorded.
     tokens_sold: str = "0"

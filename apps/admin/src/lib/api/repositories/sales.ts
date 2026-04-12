@@ -17,6 +17,9 @@ export interface SalePhase {
   max_tokens: string;
   top_up_min_tokens: string;
   allocation_mode: string;
+  // Tentative phase support
+  deployed_on_chain: boolean;
+  on_chain_phase_id: number | null;
 }
 
 export interface Sale {
@@ -307,6 +310,70 @@ export async function setHeroImage(
 ): Promise<void> {
   await apiFetch(`/api/v1/sales/${saleId}/images/${imageId}/set-hero`, {
     method: "POST",
+  });
+}
+
+// Phase management (tentative + deployed)
+
+export async function createPhase(
+  saleId: string,
+  data: {
+    name: string;
+    price_per_token: string;
+    allocation: string;
+    min_contribution: string;
+    max_contribution?: string;
+    top_up_min?: string;
+    start_time: string;
+    end_time: string;
+    whitelist_only?: boolean;
+    allocation_mode?: string;
+    deployed_on_chain?: boolean;
+    on_chain_phase_id?: number;
+  },
+  token?: string,
+): Promise<{ phase_id: string; phase_number: number }> {
+  return apiFetch(`/api/v1/sales/${saleId}/phases`, {
+    method: "POST",
+    body: data,
+    token,
+  });
+}
+
+export async function updatePhase(
+  saleId: string,
+  phaseId: string,
+  data: Partial<{
+    name: string;
+    price_per_token: string;
+    allocation: string;
+    min_contribution: string;
+    max_contribution: string;
+    top_up_min: string;
+    start_time: string;
+    end_time: string;
+    whitelist_only: boolean;
+    allocation_mode: string;
+    deployed_on_chain: boolean;
+    on_chain_phase_id: number;
+  }>,
+  token?: string,
+): Promise<{ phase_id: string; status: string }> {
+  return apiFetch(`/api/v1/sales/${saleId}/phases/${phaseId}`, {
+    method: "PATCH",
+    body: data,
+    token,
+  });
+}
+
+export async function deletePhase(
+  saleId: string,
+  phaseId: string,
+  token?: string,
+): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/sales/${saleId}/phases/${phaseId}`, {
+    method: "DELETE",
+    token,
   });
 }
 
