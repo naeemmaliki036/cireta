@@ -1106,6 +1106,11 @@ export default function InvestPage() {
                     Insufficient USDC balance. You have {usdcBalance?.toLocaleString()} USDC but need {usdcRequired.toLocaleString()} USDC.
                   </div>
                 )}
+                {error && step === "amount" && (
+                  <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
+                    <p className="text-sm font-medium text-red-700">{error}</p>
+                  </div>
+                )}
                 <InvestAmountStep
                   project={project} activePhase={activePhase}
                   amount={amount} onAmountChange={setAmount}
