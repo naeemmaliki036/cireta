@@ -504,7 +504,7 @@ export default function ProjectDetailPage() {
                     {[
                       ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                       ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
-                      ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"],
+                      ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC${ap ? ` (${ap.name})` : ""}` : "TBD"],
                       ["Start", startTime ? fmtDate(startTime) : "TBD"],
                       ["End", endTime ? fmtDate(endTime) : "TBD"],
                       ["Currency", "USDC"],
@@ -536,7 +536,7 @@ export default function ProjectDetailPage() {
                           ) : (
                             <>
                               <span className="font-semibold">Phase-allocated sale.</span>{" "}
-                              Each phase has its own token allocation cap. Tokens unsold at the end of a phase do not roll over.
+                              Each phase has its own token allocation cap. Unsold tokens from a completed phase automatically roll over to the next phase.
                             </>
                           )}
                         </div>
