@@ -139,6 +139,8 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
                     <TrendingUp className="h-3 w-3 mr-1" />
                     {holding.claimable.toLocaleString()} available
                   </Badge>
+                ) : holding.saleMode === "vested" && holding.vestingProgress === 0 ? (
+                  <span className="text-xs text-gray-500">Vesting starts after sale ends</span>
                 ) : holding.saleMode === "vested" && holding.vestingProgress < 100 ? (
                   <span className="text-xs text-amber-600">Vesting in progress</span>
                 ) : (
