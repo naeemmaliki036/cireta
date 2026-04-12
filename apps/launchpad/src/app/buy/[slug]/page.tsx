@@ -192,7 +192,11 @@ export default function InvestPage() {
     : 0;
 
   // Read existing USDC allowance — skip approve step if sufficient
-  const amountWei = amount ? parseUnits(amount, 6) : BigInt(0);
+  // amountWei = USDC cost for allowance comparison (not token qty)
+  const _tokenQtyForAllowance = parseInt(amount || "0", 10) || 0;
+  const _priceForAllowance = project?.phases?.find((p: { start_time: string; end_time: string }) => { const n = Date.now(); return n >= new Date(p.start_time).getTime() && n < new Date(p.end_time).getTime(); });
+  const _usdcCost = _tokenQtyForAllowance * (_priceForAllowance ? parseFloat(_priceForAllowance.price_per_token) : 0);
+  const amountWei = _usdcCost > 0 ? parseUnits(_usdcCost.toString(), 6) : BigInt(0);
   const { data: existingAllowance, refetch: refetchAllowance } = useReadContract({
     address: usdcAddress as `0x${string}`,
     abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const,
