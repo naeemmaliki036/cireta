@@ -507,7 +507,6 @@ export default function ProjectDetailPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                     {[
                       ["Total Token Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
-                      ["Token Standard", "ERC-3643 Security Token"],
                       ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC${ap ? ` (${ap.name})` : ""}` : "TBD"],
                       ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                       ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
