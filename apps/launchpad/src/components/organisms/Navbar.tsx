@@ -159,11 +159,13 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                         <button
                           onClick={openAccountModal}
                           className={cn(
-                            "inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-300 hover:opacity-80",
-                            "bg-darkAqua text-white"
+                            "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200",
+                            variant === "light"
+                              ? "bg-black/5 text-text hover:bg-black/10"
+                              : "bg-white/10 text-white hover:bg-white/20"
                           )}
                         >
-                          <Wallet className="h-4 w-4" />
+                          <Wallet className="h-3.5 w-3.5" />
                           {account.displayName}
                         </button>
                       );
@@ -218,14 +220,14 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200",
                     variant === "light"
                       ? "text-text/80 hover:text-text hover:bg-black/5"
                       : "text-white bg-white/10 hover:bg-white/20"
                   )}
                 >
-                  <div className="relative w-7 h-7 rounded-full bg-darkAqua/20 flex items-center justify-center">
-                    <User className="h-3.5 w-3.5 text-darkAqua" />
+                  <div className="relative w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                    <User className="h-3 w-3 text-white/70" />
                     {kycBadge && (
                       <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2", variant === "light" ? "ring-white" : "ring-black/90", kycBadge.bg)} title={kycBadge.tooltip}>
                         <kycBadge.icon className={cn("h-2 w-2", kycBadge.color)} />
