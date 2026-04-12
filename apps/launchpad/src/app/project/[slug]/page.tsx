@@ -35,7 +35,9 @@ function getEmbedUrl(url: string): string | null {
   return null;
 }
 
-function getPhaseStatus(phase: { start_time: string; end_time: string; is_active?: boolean }): "active" | "upcoming" | "ended" {
+function getPhaseStatus(phase: { start_time: string; end_time: string; is_active?: boolean; deployed_on_chain?: boolean }): "active" | "upcoming" | "ended" | "planned" {
+  // Tentative phases (not deployed on-chain) always show as "planned"
+  if (phase.deployed_on_chain === false) return "planned";
   const now = Date.now();
   const start = new Date(phase.start_time).getTime();
   const end = new Date(phase.end_time).getTime();
@@ -635,14 +637,15 @@ export default function ProjectDetailPage() {
                                       </span>
                                     )}
                                     <Badge
-                                      variant={status === "active" ? "active" : status === "upcoming" ? "default" : "outline"}
+                                      variant={status === "active" ? "active" : status === "planned" ? "default" : status === "upcoming" ? "default" : "outline"}
                                       size="sm"
                                       className={cn(
                                         status === "upcoming" && "bg-blue-50 text-blue-600 border-blue-200",
+                                        status === "planned" && "bg-gray-50 text-gray-500 border-gray-200",
                                         status === "ended" && "bg-gray-100 text-gray-500 border-gray-200"
                                       )}
                                     >
-                                      {status === "active" ? "Active" : status === "upcoming" ? "Upcoming" : "Ended"}
+                                      {status === "active" ? "Active" : status === "planned" ? "Planned" : status === "upcoming" ? "Upcoming" : "Ended"}
                                     </Badge>
                                     {isOpen
                                       ? <ChevronUp className="h-4 w-4 text-gray-400" />
