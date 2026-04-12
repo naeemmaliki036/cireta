@@ -833,7 +833,7 @@ export default function ProjectDetailPage() {
                                   ) : (
                                     <>
                                       <p className="text-text font-semibold">
-                                        {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
+                                        {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
                                         <span className="text-gray-400 font-normal text-xs">{isOtc ? "OTC" : "USDC"}</span>
                                       </p>
                                       {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && (

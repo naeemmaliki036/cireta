@@ -235,8 +235,8 @@ export default function TransactionsPage() {
                         <td className="px-4 py-3 text-right">
                           <p className="text-text font-semibold">
                             {Number(tx.amount).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
                             })}{" "}
                             <span className="text-black/40 font-normal text-xs">USDC</span>
                           </p>

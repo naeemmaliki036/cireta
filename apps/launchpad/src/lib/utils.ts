@@ -26,13 +26,11 @@ export function formatCurrency(
   amount: number | string,
   currency = "USD"
 ): string {
-  const num = typeof amount === "string" ? parseFloat(amount) : amount;
-  const hasDecimals = num % 1 !== 0;
   return formatNumber(amount, {
     style: "currency",
     currency,
-    minimumFractionDigits: hasDecimals ? 2 : 0,
-    maximumFractionDigits: hasDecimals ? 2 : 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 }
 

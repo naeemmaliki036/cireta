@@ -105,7 +105,7 @@ function TransactionRow({ tx, chainId }: { tx: Transaction; chainId: number }) {
       <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
         <p className="text-sm font-semibold text-text">
           {tx.type === "investment"
-            ? `${parseFloat(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USDC`
+            ? `${parseFloat(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} USDC`
             : `${parseFloat(tx.tokens_allocated).toLocaleString()} ${tx.token_symbol}`}
         </p>
         <div className="flex items-center gap-2 text-xs text-gray-400">
