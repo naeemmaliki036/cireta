@@ -71,6 +71,12 @@ contract CiretaToken is
         address indexed newWallet,
         address indexed investorOnchainID
     );
+    event ForceTransferSuccess(
+        address indexed from,
+        address indexed to,
+        uint256 amount,
+        string reason
+    );
     event AddressFrozen(address indexed addr, bool indexed isFrozen, address indexed agent);
     event TokensFrozen(address indexed addr, uint256 amount);
     event TokensUnfrozen(address indexed addr, uint256 amount);
@@ -354,33 +360,35 @@ contract CiretaToken is
 
     // ============ Recovery ============
 
+    /// @notice Same-user wallet swap recovery. Moves full balance + frozen state
+    /// from lostWallet to newWallet. In simple-whitelist mode (no ONCHAINID),
+    /// pass investorOnchainID = address(0) to skip the identity check.
     function recoveryAddress(
         address lostWallet,
         address newWallet,
         address investorOnchainID
     ) external onlyRole(RECOVERY_ROLE) returns (bool) {
         require(_identityRegistry.isVerified(newWallet), "new wallet not verified");
-        require(
-            address(_identityRegistry.identity(lostWallet)) == investorOnchainID,
-            "identity mismatch"
-        );
+        // In simple-whitelist mode identity() returns address(0) — skip check.
+        if (investorOnchainID != address(0)) {
+            require(
+                address(_identityRegistry.identity(lostWallet)) == investorOnchainID,
+                "identity mismatch"
+            );
+        }
 
         uint256 balance = balanceOf(lostWallet);
         if (balance > 0) {
-            // Bypass _update validation — lost wallet may be frozen.
-            // _update() already calls compliance.transferred() once for holder tracking.
             _forcedOperation = true;
             _transfer(lostWallet, newWallet, balance);
             _forcedOperation = false;
         }
 
-        // Transfer frozen tokens count
         if (_frozenTokens[lostWallet] > 0) {
             _frozenTokens[newWallet] = _frozenTokens[lostWallet];
             delete _frozenTokens[lostWallet];
         }
 
-        // Transfer frozen status
         if (_frozen[lostWallet]) {
             _frozen[newWallet] = true;
             delete _frozen[lostWallet];
@@ -388,6 +396,26 @@ contract CiretaToken is
 
         emit RecoverySuccess(lostWallet, newWallet, investorOnchainID);
         return true;
+    }
+
+    /// @notice Cross-user force transfer. Moves a specified amount from one wallet
+    /// to another — wallets can belong to different users. Used for inheritance,
+    /// court orders, compliance seizure. Does NOT copy frozen state.
+    function forceTransfer(
+        address from,
+        address to,
+        uint256 amount,
+        string calldata reason
+    ) external onlyRole(RECOVERY_ROLE) {
+        require(to != address(0), "zero address");
+        require(amount > 0, "zero amount");
+        require(_identityRegistry.isVerified(to), "recipient not verified");
+
+        _forcedOperation = true;
+        _transfer(from, to, amount);
+        _forcedOperation = false;
+
+        emit ForceTransferSuccess(from, to, amount, reason);
     }
 
     // ============ Batch Transfer ============

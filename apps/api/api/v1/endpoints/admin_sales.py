@@ -209,3 +209,73 @@ async def list_all_sales(
         "page": page,
         "size": size,
     }
+
+
+# ── OTC Operator management ───────────────────────────────────────────
+
+
+class OtcOperatorBody(BaseModel):
+    """Add or remove an OTC operator wallet."""
+
+    address: str
+
+
+@router.post("/{sale_id}/otc-operators")
+async def add_otc_operator(
+    sale_id: UUID,
+    body: OtcOperatorBody,
+    admin_id: RequireAdmin,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Designate a wallet as OTC operator for a sale."""
+    from web3 import Web3
+
+    sale = (await db.execute(select(TokenSale).where(TokenSale.id == sale_id))).scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+
+    addr = Web3.to_checksum_address(body.address)
+    operators: list = sale.otc_operator_addresses or []
+    if addr not in operators:
+        operators.append(addr)
+        sale.otc_operator_addresses = operators
+        await db.commit()
+
+    return {"operators": sale.otc_operator_addresses}
+
+
+@router.delete("/{sale_id}/otc-operators")
+async def remove_otc_operator(
+    sale_id: UUID,
+    body: OtcOperatorBody,
+    admin_id: RequireAdmin,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Remove a wallet from OTC operators for a sale."""
+    from web3 import Web3
+
+    sale = (await db.execute(select(TokenSale).where(TokenSale.id == sale_id))).scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+
+    addr = Web3.to_checksum_address(body.address)
+    operators: list = sale.otc_operator_addresses or []
+    if addr in operators:
+        operators.remove(addr)
+        sale.otc_operator_addresses = operators if operators else None
+        await db.commit()
+
+    return {"operators": sale.otc_operator_addresses or []}
+
+
+@router.get("/{sale_id}/otc-operators")
+async def list_otc_operators(
+    sale_id: UUID,
+    admin_id: RequireAdmin,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """List OTC operator wallets for a sale."""
+    sale = (await db.execute(select(TokenSale).where(TokenSale.id == sale_id))).scalar_one_or_none()
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    return {"operators": sale.otc_operator_addresses or []}

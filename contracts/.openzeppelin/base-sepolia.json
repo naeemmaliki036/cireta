@@ -74,6 +74,46 @@
       "address": "0x6FC813996242a683C6a1b2c908f6E93064b51299",
       "txHash": "0xf43b7b9872427019344a55926c8749f55388a0edd1daf2ec62654926ee482aaf",
       "kind": "uups"
+    },
+    {
+      "address": "0x601D0DC8025CEA6B89E922E38f2Af0CCC61bBEDa",
+      "txHash": "0x21dc789d137381a01aa8251d7305ba7979e52fdacdbc3190d07591db30128e6a",
+      "kind": "uups"
+    },
+    {
+      "address": "0xA6d90EAf016981d706474C8E3e56EB3D1859640b",
+      "txHash": "0x1cf8dc02f5fb8a9ef6d230bf890554b74221b79973147275504bc3e7e5b1d7d5",
+      "kind": "uups"
+    },
+    {
+      "address": "0x6992BcD24847d062515Ba91E1c7af3D736688263",
+      "txHash": "0xd4834f0c46c7f6c0d34a9d3685878d4d7643b96093448d2fdf9238e53d1285f6",
+      "kind": "uups"
+    },
+    {
+      "address": "0xDFAdaf0597522B0A57887c0249605032783e72dc",
+      "txHash": "0xc02ab343630fd96690f6415b6cb0a91a69e23c8c4d00ba69d42f3900389d0243",
+      "kind": "uups"
+    },
+    {
+      "address": "0xf1B7003102379e4deeE8f9f794Ed2e8Bab8C4050",
+      "txHash": "0x2c099c45d246f887d02b71306b194307a38e8d9c36f55993eb41fcfa27af258c",
+      "kind": "uups"
+    },
+    {
+      "address": "0x7c07c15C5BaF7C7d20E2DC34aBF191046ba1286C",
+      "txHash": "0x3642523b64e7e9efb33b39105abeab32d1b0e312b1712331b4f008e1e656e85c",
+      "kind": "uups"
+    },
+    {
+      "address": "0xB142b8DBce99a1D1851b270A153B92D0eA6B08a2",
+      "txHash": "0xf853fca3accc0b309ca876560797526cf8ff6dda655fb072b1a81541488fa916",
+      "kind": "uups"
+    },
+    {
+      "address": "0x19EbBfba479Ded9ac4190Cca7D9c4AE86aE926e3",
+      "txHash": "0xbe83974287c839f690d045b4e79dcd0c902d0a0295cfe990d8874c16fce11994",
+      "kind": "uups"
     }
   ],
   "impls": {
@@ -2271,6 +2311,161 @@
           },
           "t_mapping(t_bytes4,t_bool)": {
             "label": "mapping(bytes4 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "5b1615962722fc410bc055fdb8ae395141456bf2f9186aa7abe3009f0d8b1fcf": {
+      "address": "0x1e29d446d9635B0020a65cEE792c752C2cacba96",
+      "txHash": "0xfe2ad10f695de333af0c99a8d8d046d67b805eff9c40cfb21d253892b7d4217b",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "fractionTokenImplementation",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:15"
+          },
+          {
+            "label": "vaultImplementation",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:16"
+          },
+          {
+            "label": "deployedVaults",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:18"
+          },
+          {
+            "label": "saleToVault",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:19"
+          },
+          {
+            "label": "saleToFraction",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_mapping(t_address,t_address)",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:20"
+          },
+          {
+            "label": "upgradeNonce",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_uint256",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:23"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_array(t_uint256)100_storage",
+            "contract": "CiretaFractionFactory",
+            "src": "src/platform/CiretaFractionFactory.sol:26"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)1108_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)151_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)100_storage": {
+            "label": "uint256[100]",
+            "numberOfBytes": "3200"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)",
             "numberOfBytes": "32"
           },
           "t_uint256": {

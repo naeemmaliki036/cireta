@@ -309,3 +309,41 @@ export async function setHeroImage(
     method: "POST",
   });
 }
+
+// OTC Operator management
+
+export interface OtcOperatorsResponse {
+  operators: string[];
+}
+
+export async function getOtcOperators(
+  saleId: string,
+  token?: string,
+): Promise<OtcOperatorsResponse> {
+  return apiFetch<OtcOperatorsResponse>(
+    `/api/v1/admin/sales/${saleId}/otc-operators`,
+    { token },
+  );
+}
+
+export async function addOtcOperator(
+  saleId: string,
+  address: string,
+  token?: string,
+): Promise<OtcOperatorsResponse> {
+  return apiFetch<OtcOperatorsResponse>(
+    `/api/v1/admin/sales/${saleId}/otc-operators`,
+    { method: "POST", body: { address }, token },
+  );
+}
+
+export async function removeOtcOperator(
+  saleId: string,
+  address: string,
+  token?: string,
+): Promise<OtcOperatorsResponse> {
+  return apiFetch<OtcOperatorsResponse>(
+    `/api/v1/admin/sales/${saleId}/otc-operators`,
+    { method: "DELETE", body: { address }, token },
+  );
+}

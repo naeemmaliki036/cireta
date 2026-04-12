@@ -1,9 +1,12 @@
 """Admin compliance endpoints — freeze, unfreeze, forced-transfer, recover, pause."""
 
+from __future__ import annotations
+
+import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,15 +16,21 @@ from apps.api.schemas.admin import (
     AuditLogResponse,
     ComplianceActionResponse,
     ForcedTransferRequest,
+    ForceTransferERC3643Request,
     FreezeRequest,
     FrozenAddressInfo,
     FrozenAddressListResponse,
+    RecoverFractionsRequest,
     RecoverRequest,
+    RecoveryResponse,
     UnfreezeRequest,
 )
 from apps.api.services.compliance_service import ComplianceService
+from apps.api.services.recovery_service import RecoveryService
 from packages.common.core.auth_deps import RequireIssuerOrAdmin
 from packages.common.db.session import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["admin"])
 
@@ -331,3 +340,115 @@ async def list_recovery_logs(
         }
         for log in logs
     ]
+
+
+# ── Recovery endpoints (ERC-1155 fractions + ERC-3643 cross-user) ──────
+
+
+@router.post("/compliance/recover-fractions", response_model=RecoveryResponse)
+async def recover_fractions(
+    body: RecoverFractionsRequest,
+    user_id: RequireIssuerOrAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> RecoveryResponse:
+    """Force-transfer ERC-1155 fraction tokens between any wallets.
+
+    Supports cross-user transfers (inheritance, court orders, compliance).
+    Caller must have RECOVERY_ROLE on the fraction token contract.
+    """
+    if body.fraction_id not in (1, 2):
+        raise HTTPException(status_code=422, detail="fraction_id must be 1 or 2")
+
+    svc = RecoveryService(db)
+    try:
+        log = await svc.recover_fractions(
+            sale_id=UUID(body.sale_id),
+            from_address=body.from_address,
+            to_address=body.to_address,
+            fraction_id=body.fraction_id,
+            amount=int(body.amount),
+            reason=body.reason,
+            admin_id=user_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as exc:
+        logger.exception("Fraction recovery failed")
+        raise HTTPException(status_code=500, detail="On-chain recovery failed") from exc
+
+    from_email = None
+    to_email = None
+    if log.from_user_id:
+        from apps.api.models.user import User
+
+        u = (await db.execute(select(User).where(User.id == log.from_user_id))).scalar_one_or_none()
+        from_email = u.email if u else None
+    if log.to_user_id:
+        from apps.api.models.user import User
+
+        u = (await db.execute(select(User).where(User.id == log.to_user_id))).scalar_one_or_none()
+        to_email = u.email if u else None
+
+    return RecoveryResponse(
+        recovery_log_id=str(log.id),
+        tx_hash=log.tx_hash or "",
+        token_type=log.token_type,
+        from_address=log.lost_wallet,
+        to_address=log.new_wallet,
+        amount=str(log.amount),
+        from_user_email=from_email,
+        to_user_email=to_email,
+    )
+
+
+@router.post("/compliance/force-transfer-erc3643", response_model=RecoveryResponse)
+async def force_transfer_erc3643(
+    body: ForceTransferERC3643Request,
+    user_id: RequireIssuerOrAdmin,
+    db: AsyncSession = Depends(get_db),
+) -> RecoveryResponse:
+    """Cross-user force-transfer of ERC-3643 project tokens.
+
+    Unlike recoveryAddress (same-user wallet swap), this transfers a specific
+    amount between wallets belonging to different users. Used for inheritance,
+    court orders, compliance seizure.
+    """
+    svc = RecoveryService(db)
+    try:
+        log = await svc.force_transfer_erc3643(
+            token_id=UUID(body.token_id),
+            from_address=body.from_address,
+            to_address=body.to_address,
+            amount=int(body.amount),
+            reason=body.reason,
+            admin_id=user_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as exc:
+        logger.exception("ERC-3643 force transfer failed")
+        raise HTTPException(status_code=500, detail="On-chain force transfer failed") from exc
+
+    from_email = None
+    to_email = None
+    if log.from_user_id:
+        from apps.api.models.user import User
+
+        u = (await db.execute(select(User).where(User.id == log.from_user_id))).scalar_one_or_none()
+        from_email = u.email if u else None
+    if log.to_user_id:
+        from apps.api.models.user import User
+
+        u = (await db.execute(select(User).where(User.id == log.to_user_id))).scalar_one_or_none()
+        to_email = u.email if u else None
+
+    return RecoveryResponse(
+        recovery_log_id=str(log.id),
+        tx_hash=log.tx_hash or "",
+        token_type=log.token_type,
+        from_address=log.lost_wallet,
+        to_address=log.new_wallet,
+        amount=str(log.amount),
+        from_user_email=from_email,
+        to_user_email=to_email,
+    )

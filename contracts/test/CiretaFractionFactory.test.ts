@@ -15,6 +15,7 @@ describe("CiretaFractionFactory", () => {
 
   const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
   const BURNER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("BURNER_ROLE"));
+  const RECOVERY_ROLE = ethers.keccak256(ethers.toUtf8Bytes("RECOVERY_ROLE"));
   const CLIFF = 90 * 24 * 3600;
   const VESTING = 180 * 24 * 3600;
 
@@ -28,7 +29,7 @@ describe("CiretaFractionFactory", () => {
     mockToken = await ERC20.deploy("Wassa Gold", "WMAU", 18);
 
     // Deploy implementation contracts (not proxies — raw implementations)
-    const FractionToken = await ethers.getContractFactory("CiretaFractionToken");
+    const FractionToken = await ethers.getContractFactory("CiretaFractionToken1155");
     fractionImpl = await FractionToken.deploy();
 
     const Vault = await ethers.getContractFactory("CiretaVault");
@@ -100,7 +101,7 @@ describe("CiretaFractionFactory", () => {
 
       const fractionAddr = await factory.saleToFraction(saleAddress.address);
       const vaultAddr = await factory.saleToVault(saleAddress.address);
-      const fraction = await ethers.getContractAt("CiretaFractionToken", fractionAddr);
+      const fraction = await ethers.getContractAt("CiretaFractionToken1155", fractionAddr);
 
       // Sale has MINTER_ROLE
       expect(await fraction.hasRole(MINTER_ROLE, saleAddress.address)).to.be.true;
@@ -108,6 +109,8 @@ describe("CiretaFractionFactory", () => {
       expect(await fraction.hasRole(BURNER_ROLE, vaultAddr)).to.be.true;
       // Sale has BURNER_ROLE (for refund)
       expect(await fraction.hasRole(BURNER_ROLE, saleAddress.address)).to.be.true;
+      // Admin has RECOVERY_ROLE (for force-transfers)
+      expect(await fraction.hasRole(RECOVERY_ROLE, admin.address)).to.be.true;
     });
 
     it("sets fraction token on vault", async () => {
@@ -141,7 +144,7 @@ describe("CiretaFractionFactory", () => {
 
   describe("Implementation updates", () => {
     it("owner can update fraction implementation", async () => {
-      const NewFT = await ethers.getContractFactory("CiretaFractionToken");
+      const NewFT = await ethers.getContractFactory("CiretaFractionToken1155");
       const newImpl = await NewFT.deploy();
       await factory.setFractionTokenImplementation(await newImpl.getAddress());
       expect(await factory.fractionTokenImplementation()).to.equal(await newImpl.getAddress());

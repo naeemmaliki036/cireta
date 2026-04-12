@@ -94,6 +94,40 @@ class RecoverRequest(BaseModel):
     tx_hash: str | None = None
 
 
+class RecoverFractionsRequest(BaseModel):
+    """Request to force-transfer ERC-1155 fraction tokens."""
+
+    sale_id: str
+    from_address: str
+    to_address: str
+    fraction_id: int  # 1 = USDC, 2 = OTC
+    amount: str  # raw token amount (wei)
+    reason: str
+
+
+class ForceTransferERC3643Request(BaseModel):
+    """Request to cross-user force-transfer ERC-3643 project tokens."""
+
+    token_id: str
+    from_address: str
+    to_address: str
+    amount: str  # raw token amount (wei)
+    reason: str
+
+
+class RecoveryResponse(BaseModel):
+    """Response from recovery endpoints."""
+
+    recovery_log_id: str
+    tx_hash: str
+    token_type: str
+    from_address: str
+    to_address: str
+    amount: str
+    from_user_email: str | None = None
+    to_user_email: str | None = None
+
+
 class ComplianceActionResponse(BaseModel):
     """Compliance action response."""
 

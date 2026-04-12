@@ -113,6 +113,13 @@ class WalletDeletionRequestStatus(str, Enum):
     DENIED = "denied"
 
 
+class RecoveryTokenType(str, Enum):
+    """Which token type was recovered."""
+
+    ERC3643 = "erc3643"
+    FRACTION_1155 = "fraction_1155"
+
+
 class IdentitySyncJobStatus(str, Enum):
     """Lifecycle of an enqueued identity-registry sync job (whitelist add
     or revoke). Powers the dead-letter / audit dashboard."""

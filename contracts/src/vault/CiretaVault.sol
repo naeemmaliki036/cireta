@@ -12,7 +12,8 @@ import "../interfaces/IIdentityRegistry.sol";
 
 /// @title CiretaVault
 /// @notice Holds ERC-3643 project tokens in escrow. Releases 1:1 when fraction
-///         tokens are burned. Enforces per-investor vesting schedules.
+///         tokens are burned. Balance-based claim: whoever holds fractions at
+///         claim time receives the vested project tokens. No per-buyer entitlement.
 contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -25,16 +26,6 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         uint256 vestingDuration;
     }
 
-    /// @notice Round-5: per-id allocation tracking. Both ids share the same
-    /// vesting schedule but track allocations + claims separately so the
-    /// refund flow can act on USDC fractions only.
-    struct InvestorVesting {
-        uint256 totalUsdcFractions;
-        uint256 totalOtcFractions;
-        uint256 claimedUsdc;
-        uint256 claimedOtc;
-    }
-
     // --- State ---
     IERC20 public projectToken;
     CiretaFractionToken1155 public fractionToken;
@@ -44,19 +35,18 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     address public issuer;
     bool public finalized;
 
-    mapping(address => InvestorVesting) public investorVesting;
-
     uint256 public totalLocked;
     uint256 public totalReleased;
     uint256 public vestingStartTime;
 
-    // Round-5: identity registry reference for KYC re-verification at claim time
     IIdentityRegistry public identityRegistry;
 
-    // Round-5: running counter of outstanding fractions across BOTH ids,
-    // used by withdrawExcess to compute the issuer's claimable surplus.
-    // Incremented in recordAllocation, decremented in claim.
-    uint256 public totalOutstandingFractions;
+    /// @notice Total fractions minted across both IDs (incremented by recordAllocation).
+    uint256 public totalMintedFractions;
+
+    /// @notice Per-holder claimed amount (across both IDs). Keyed on current holder,
+    /// not original buyer — supports transferred fractions.
+    mapping(address => uint256) public claimedByHolder;
 
     /// @notice Incremented on every UUPS upgrade.
     uint256 public upgradeNonce;
@@ -145,16 +135,17 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         emit TokensLocked(amount);
     }
 
-    /// @notice Round-5: record an investor's allocation by id (1=USDC, 2=OTC).
-    function recordAllocation(address investor, uint256 id, uint256 fractionAmount) external onlySale {
-        if (id == 1) {
-            investorVesting[investor].totalUsdcFractions += fractionAmount;
-        } else if (id == 2) {
-            investorVesting[investor].totalOtcFractions += fractionAmount;
-        } else {
-            revert InvalidId();
-        }
-        totalOutstandingFractions += fractionAmount;
+    /// @notice Record a fraction mint. Only tracks the global total — no per-investor
+    /// bookkeeping because fractions are transferable (claim reads live balances).
+    function recordAllocation(address, uint256 id, uint256 fractionAmount) external onlySale {
+        if (id != 1 && id != 2) revert InvalidId();
+        totalMintedFractions += fractionAmount;
+    }
+
+    /// @notice Decrement minted counter when fractions are burned outside of claim
+    /// (e.g. refund burns ID=1). Keeps withdrawExcess accounting correct.
+    function decrementMinted(uint256 amount) external onlySale {
+        totalMintedFractions -= amount;
     }
 
     /// @notice Mark sale as finalized, start vesting clock for all investors.
@@ -187,14 +178,13 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     }
 
     /// @notice Issuer withdraws excess tokens after all fractions are settled.
-    /// Round-5: uses totalOutstandingFractions counter (tracked across both
-    /// ids in recordAllocation/claim) instead of querying the ERC-1155 supply.
+    /// outstanding = totalMintedFractions (decremented by claim + decrementMinted).
     function withdrawExcess() external onlyIssuer nonReentrant {
         if (!finalized) revert NotFinalized();
 
         uint256 remainingLocked = totalLocked - totalReleased;
-        if (remainingLocked <= totalOutstandingFractions) revert NothingToClaim();
-        uint256 excess = remainingLocked - totalOutstandingFractions;
+        if (remainingLocked <= totalMintedFractions) revert NothingToClaim();
+        uint256 excess = remainingLocked - totalMintedFractions;
 
         totalLocked -= excess;
         projectToken.safeTransfer(issuer, excess);
@@ -205,109 +195,104 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     //  CLAIM (called by investor)
     // ──────────────────────────────────────────────
 
-    /// @notice Round-5: investor claims vested project tokens. Releases both
-    /// id-1 (USDC) and id-2 (OTC) fractions in a single call. Both ids share
-    /// the same vesting schedule but are tracked separately.
-    /// KYC re-verified at claim time (closes blind spot B6).
+    /// @notice Claim vested project tokens. Burns fractions (both IDs) from caller
+    /// and releases project tokens 1:1. Balance-based: whoever holds fractions at
+    /// claim time receives the underlying. KYC re-verified at claim time.
     function claim() external nonReentrant {
         if (!finalized) revert NotFinalized();
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
 
-        InvestorVesting storage iv = investorVesting[msg.sender];
+        uint256 balUsdc = fractionToken.balanceOf(msg.sender, fractionToken.ID_USDC());
+        uint256 balOtc  = fractionToken.balanceOf(msg.sender, fractionToken.ID_OTC());
+        uint256 totalHeld = balUsdc + balOtc;
+        if (totalHeld == 0) revert NothingToClaim();
 
-        uint256 claimableUsdc = _calculateClaimable(iv.totalUsdcFractions, iv.claimedUsdc);
-        uint256 claimableOtc  = _calculateClaimable(iv.totalOtcFractions, iv.claimedOtc);
-        uint256 total = claimableUsdc + claimableOtc;
-        if (total == 0) revert NothingToClaim();
+        // Effective balance includes already-claimed fractions (which were burned).
+        // This ensures multi-claim works: vesting % applied to original effective
+        // balance, minus what's already been claimed.
+        uint256 claimed = claimedByHolder[msg.sender];
+        uint256 effectiveBalance = totalHeld + claimed;
+        uint256 vested = _calculateVested(effectiveBalance);
+        if (vested <= claimed) revert NothingToClaim();
+        uint256 claimable = vested - claimed;
 
-        // Cap by actual ERC-1155 balances (in case fractions were burned via refund)
-        if (claimableUsdc > 0) {
-            uint256 bal = fractionToken.balanceOf(msg.sender, fractionToken.ID_USDC());
-            if (claimableUsdc > bal) claimableUsdc = bal;
+        // Split burn pro-rata across both IDs
+        uint256 burnUsdc;
+        uint256 burnOtc;
+        if (balUsdc >= claimable) {
+            burnUsdc = claimable;
+        } else {
+            burnUsdc = balUsdc;
+            burnOtc = claimable - balUsdc;
         }
-        if (claimableOtc > 0) {
-            uint256 bal = fractionToken.balanceOf(msg.sender, fractionToken.ID_OTC());
-            if (claimableOtc > bal) claimableOtc = bal;
-        }
-        total = claimableUsdc + claimableOtc;
-        if (total == 0) revert NothingToClaim();
 
         // Effects
-        iv.claimedUsdc += claimableUsdc;
-        iv.claimedOtc  += claimableOtc;
-        totalReleased  += total;
-        totalOutstandingFractions -= total;
+        claimedByHolder[msg.sender] += claimable;
+        totalMintedFractions -= claimable;
+        totalReleased += claimable;
 
         // Interactions: burn fractions, release project tokens
-        if (claimableUsdc > 0) {
-            fractionToken.burn(msg.sender, fractionToken.ID_USDC(), claimableUsdc);
+        if (burnUsdc > 0) {
+            fractionToken.burn(msg.sender, fractionToken.ID_USDC(), burnUsdc);
         }
-        if (claimableOtc > 0) {
-            fractionToken.burn(msg.sender, fractionToken.ID_OTC(), claimableOtc);
+        if (burnOtc > 0) {
+            fractionToken.burn(msg.sender, fractionToken.ID_OTC(), burnOtc);
         }
-        projectToken.safeTransfer(msg.sender, total);
+        projectToken.safeTransfer(msg.sender, claimable);
 
-        emit TokensClaimed(msg.sender, total, total);
+        emit TokensClaimed(msg.sender, claimable, claimable);
     }
 
     // ──────────────────────────────────────────────
     //  VIEW FUNCTIONS
     // ──────────────────────────────────────────────
 
-    /// @notice How many project tokens can the investor claim right now (USDC + OTC).
-    function getClaimable(address investor) public view returns (uint256) {
+    /// @notice How many project tokens can the holder claim right now.
+    /// Balance-based: reads current ERC-1155 holdings, not stored allocations.
+    function getClaimable(address holder) public view returns (uint256) {
         if (!finalized) return 0;
-
-        InvestorVesting storage iv = investorVesting[investor];
-        uint256 claimableUsdc = _calculateClaimable(iv.totalUsdcFractions, iv.claimedUsdc);
-        uint256 claimableOtc = _calculateClaimable(iv.totalOtcFractions, iv.claimedOtc);
-
-        // Cap by actual ERC-1155 balances
-        uint256 balUsdc = fractionToken.balanceOf(investor, fractionToken.ID_USDC());
-        if (claimableUsdc > balUsdc) claimableUsdc = balUsdc;
-        uint256 balOtc = fractionToken.balanceOf(investor, fractionToken.ID_OTC());
-        if (claimableOtc > balOtc) claimableOtc = balOtc;
-
-        return claimableUsdc + claimableOtc;
+        uint256 totalHeld = fractionToken.balanceOf(holder, fractionToken.ID_USDC())
+                          + fractionToken.balanceOf(holder, fractionToken.ID_OTC());
+        if (totalHeld == 0) return 0;
+        uint256 claimed = claimedByHolder[holder];
+        uint256 effectiveBalance = totalHeld + claimed;
+        uint256 vested = _calculateVested(effectiveBalance);
+        return vested > claimed ? vested - claimed : 0;
     }
 
-    /// @notice Round-5: per-id breakdown of claimable amounts.
-    function getClaimableByid(address investor) external view returns (uint256 usdc, uint256 otc) {
+    /// @notice Per-id breakdown of claimable amounts (proportional to balance ratio).
+    function getClaimableById(address holder) external view returns (uint256 usdc, uint256 otc) {
         if (!finalized) return (0, 0);
-        InvestorVesting storage iv = investorVesting[investor];
-        usdc = _calculateClaimable(iv.totalUsdcFractions, iv.claimedUsdc);
-        otc = _calculateClaimable(iv.totalOtcFractions, iv.claimedOtc);
-        uint256 balUsdc = fractionToken.balanceOf(investor, fractionToken.ID_USDC());
-        if (usdc > balUsdc) usdc = balUsdc;
-        uint256 balOtc = fractionToken.balanceOf(investor, fractionToken.ID_OTC());
-        if (otc > balOtc) otc = balOtc;
+        uint256 balUsdc = fractionToken.balanceOf(holder, fractionToken.ID_USDC());
+        uint256 balOtc  = fractionToken.balanceOf(holder, fractionToken.ID_OTC());
+        uint256 totalHeld = balUsdc + balOtc;
+        if (totalHeld == 0) return (0, 0);
+        uint256 claimable = getClaimable(holder);
+        if (claimable == 0) return (0, 0);
+        usdc = (claimable * balUsdc) / totalHeld;
+        otc  = claimable - usdc;
     }
 
-    /// @notice Total vested amount for investor (USDC + OTC fractions, sum).
-    function getVested(address investor) external view returns (uint256) {
+    /// @notice Total vested amount for holder (effective balance = held + claimed).
+    function getVested(address holder) external view returns (uint256) {
         if (!finalized) return 0;
-        InvestorVesting storage iv = investorVesting[investor];
-        return _calculateVested(iv.totalUsdcFractions + iv.totalOtcFractions);
+        uint256 totalHeld = fractionToken.balanceOf(holder, fractionToken.ID_USDC())
+                          + fractionToken.balanceOf(holder, fractionToken.ID_OTC());
+        uint256 claimed = claimedByHolder[holder];
+        return _calculateVested(totalHeld + claimed);
     }
 
     // ──────────────────────────────────────────────
     //  INTERNAL
     // ──────────────────────────────────────────────
 
-    /// @dev Linear-after-cliff vesting math, applied to a single fraction pool.
-    function _calculateVested(uint256 totalFractions) internal view returns (uint256) {
-        if (vestingStartTime == 0 || totalFractions == 0) return 0;
+    /// @dev Linear-after-cliff vesting math applied to a fraction balance.
+    function _calculateVested(uint256 balance) internal view returns (uint256) {
+        if (vestingStartTime == 0 || balance == 0) return 0;
         uint256 elapsed = block.timestamp - vestingStartTime;
         if (elapsed < vestingConfig.cliffDuration) return 0;
-        if (elapsed >= vestingConfig.vestingDuration) return totalFractions;
-        return (totalFractions * elapsed) / vestingConfig.vestingDuration;
-    }
-
-    /// @dev Claimable = vested - already claimed for the given pool.
-    function _calculateClaimable(uint256 totalFractions, uint256 claimed) internal view returns (uint256) {
-        uint256 vested = _calculateVested(totalFractions);
-        if (vested <= claimed) return 0;
-        return vested - claimed;
+        if (elapsed >= vestingConfig.vestingDuration) return balance;
+        return (balance * elapsed) / vestingConfig.vestingDuration;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {
@@ -315,5 +300,5 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     }
 
     /// @notice Contract version.
-    function version() external pure returns (string memory) { return "5.0.0"; }
+    function version() external pure returns (string memory) { return "5.1.0"; }
 }

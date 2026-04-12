@@ -129,3 +129,49 @@ export async function getAuditLogs(
 export async function getFrozenAddresses(token?: string): Promise<FrozenAddressListResponse> {
   return apiFetch<FrozenAddressListResponse>("/api/v1/admin/compliance/frozen", { token });
 }
+
+export interface RecoveryResponse {
+  recovery_log_id: string;
+  tx_hash: string;
+  token_type: string;
+  from_address: string;
+  to_address: string;
+  amount: string;
+  from_user_email: string | null;
+  to_user_email: string | null;
+}
+
+export async function recoverFractions(
+  data: {
+    sale_id: string;
+    from_address: string;
+    to_address: string;
+    fraction_id: number;
+    amount: string;
+    reason: string;
+  },
+  token: string,
+): Promise<RecoveryResponse> {
+  return apiFetch<RecoveryResponse>("/api/v1/admin/compliance/recover-fractions", {
+    method: "POST",
+    body: data,
+    token,
+  });
+}
+
+export async function forceTransferERC3643(
+  data: {
+    token_id: string;
+    from_address: string;
+    to_address: string;
+    amount: string;
+    reason: string;
+  },
+  token: string,
+): Promise<RecoveryResponse> {
+  return apiFetch<RecoveryResponse>("/api/v1/admin/compliance/force-transfer-erc3643", {
+    method: "POST",
+    body: data,
+    token,
+  });
+}

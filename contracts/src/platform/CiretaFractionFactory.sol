@@ -91,6 +91,10 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         CiretaFractionToken1155(fractionProxy).grantRole(burnerRole, vaultProxy);
         CiretaFractionToken1155(fractionProxy).grantRole(burnerRole, sale);
 
+        // Grant recovery role to admin (issuer signer) for force-transfers
+        bytes32 recoveryRole = CiretaFractionToken1155(fractionProxy).RECOVERY_ROLE();
+        CiretaFractionToken1155(fractionProxy).grantRole(recoveryRole, admin);
+
         // Transfer fraction token admin
         CiretaFractionToken1155(fractionProxy).grantRole(defaultAdmin, admin);
         CiretaFractionToken1155(fractionProxy).renounceRole(defaultAdmin, address(this));

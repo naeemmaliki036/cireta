@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +51,10 @@ class TokenSale(BaseModel):
     otc_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     otc_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     otc_token_address: Mapped[str | None] = mapped_column(String(42), nullable=True, default=None)
+
+    # OTC operator wallets — list of checksummed addresses designated as
+    # operators for this sale. Operators buy fractions then transfer to buyers.
+    otc_operator_addresses: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=None)
 
     # Social links
     website_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

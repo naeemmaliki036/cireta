@@ -117,18 +117,16 @@ describe("CiretaVault", () => {
   });
 
   describe("recordAllocation", () => {
-    it("tracks investor fractions", async () => {
+    it("tracks global minted fractions", async () => {
       const amount = ethers.parseEther("100");
       await vault.connect(saleAccount).recordAllocation(investor1.address, 1, amount);
-      const vesting = await vault.investorVesting(investor1.address);
-      expect(vesting.totalUsdcFractions).to.equal(amount);
+      expect(await vault.totalMintedFractions()).to.equal(amount);
     });
 
     it("accumulates multiple allocations", async () => {
       await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("50"));
       await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("30"));
-      const vesting = await vault.investorVesting(investor1.address);
-      expect(vesting.totalUsdcFractions).to.equal(ethers.parseEther("80"));
+      expect(await vault.totalMintedFractions()).to.equal(ethers.parseEther("80"));
     });
 
     it("reverts if not sale", async () => {
@@ -380,7 +378,111 @@ describe("CiretaVault", () => {
   describe("getVested", () => {
     it("returns 0 before finalization", async () => {
       await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("100"));
+      await fractionToken.connect(saleAccount).mint(investor1.address, 1, ethers.parseEther("100"), '0x');
       expect(await vault.getVested(investor1.address)).to.equal(0);
+    });
+  });
+
+  describe("claim after transfer (balance-based)", () => {
+    const AMOUNT = ethers.parseEther("100");
+
+    beforeEach(async () => {
+      await vault.connect(saleAccount).depositTokens(TOKENS_LOCKED);
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, AMOUNT);
+      await fractionToken.connect(saleAccount).mint(investor1.address, 1, AMOUNT, '0x');
+      await vault.connect(saleAccount).startVesting();
+    });
+
+    it("new holder can claim after receiving transferred fractions", async () => {
+      // investor1 transfers all fractions to investor2
+      await fractionToken.connect(investor1).safeTransferFrom(
+        investor1.address, investor2.address, 1, AMOUNT, '0x',
+      );
+      expect(await fractionToken.balanceOf(investor2.address, 1)).to.equal(AMOUNT);
+      expect(await fractionToken.balanceOf(investor1.address, 1)).to.equal(0);
+
+      // Advance past full vesting
+      await time.increase(VESTING + 1);
+
+      // investor2 claims
+      await vault.connect(investor2).claim();
+      expect(await projectToken.balanceOf(investor2.address)).to.equal(AMOUNT);
+      expect(await fractionToken.balanceOf(investor2.address, 1)).to.equal(0);
+
+      // investor1 cannot claim (no balance)
+      await expect(vault.connect(investor1).claim())
+        .to.be.revertedWithCustomError(vault, "NothingToClaim");
+    });
+
+    it("partial transfer: both holders claim proportionally", async () => {
+      const half = AMOUNT / 2n;
+      await fractionToken.connect(investor1).safeTransferFrom(
+        investor1.address, investor2.address, 1, half, '0x',
+      );
+
+      await time.increase(VESTING + 1);
+
+      await vault.connect(investor1).claim();
+      await vault.connect(investor2).claim();
+
+      expect(await projectToken.balanceOf(investor1.address)).to.equal(half);
+      expect(await projectToken.balanceOf(investor2.address)).to.equal(half);
+    });
+  });
+
+  describe("claim with OTC fractions (ID=2)", () => {
+    const USDC_AMOUNT = ethers.parseEther("60");
+    const OTC_AMOUNT = ethers.parseEther("40");
+
+    beforeEach(async () => {
+      await vault.connect(saleAccount).depositTokens(TOKENS_LOCKED);
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, USDC_AMOUNT);
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 2, OTC_AMOUNT);
+      await fractionToken.connect(saleAccount).mint(investor1.address, 1, USDC_AMOUNT, '0x');
+      await fractionToken.connect(saleAccount).mint(investor1.address, 2, OTC_AMOUNT, '0x');
+      await vault.connect(saleAccount).startVesting();
+    });
+
+    it("claims burns both IDs", async () => {
+      await time.increase(VESTING + 1);
+
+      const total = USDC_AMOUNT + OTC_AMOUNT;
+      await vault.connect(investor1).claim();
+
+      expect(await projectToken.balanceOf(investor1.address)).to.equal(total);
+      expect(await fractionToken.balanceOf(investor1.address, 1)).to.equal(0);
+      expect(await fractionToken.balanceOf(investor1.address, 2)).to.equal(0);
+    });
+
+    it("OTC operator transfers ID=2 to buyer who then claims", async () => {
+      // Simulate: investor1 is operator, investor2 is buyer
+      await fractionToken.connect(investor1).safeTransferFrom(
+        investor1.address, investor2.address, 2, OTC_AMOUNT, '0x',
+      );
+
+      await time.increase(VESTING + 1);
+
+      // investor1 claims ID=1 fractions only
+      await vault.connect(investor1).claim();
+      expect(await projectToken.balanceOf(investor1.address)).to.equal(USDC_AMOUNT);
+
+      // investor2 claims ID=2 fractions
+      await vault.connect(investor2).claim();
+      expect(await projectToken.balanceOf(investor2.address)).to.equal(OTC_AMOUNT);
+    });
+  });
+
+  describe("decrementMinted", () => {
+    it("decrements totalMintedFractions", async () => {
+      await vault.connect(saleAccount).recordAllocation(investor1.address, 1, ethers.parseEther("100"));
+      expect(await vault.totalMintedFractions()).to.equal(ethers.parseEther("100"));
+      await vault.connect(saleAccount).decrementMinted(ethers.parseEther("30"));
+      expect(await vault.totalMintedFractions()).to.equal(ethers.parseEther("70"));
+    });
+
+    it("reverts if not sale", async () => {
+      await expect(vault.connect(other).decrementMinted(10))
+        .to.be.revertedWithCustomError(vault, "OnlySale");
     });
   });
 });
