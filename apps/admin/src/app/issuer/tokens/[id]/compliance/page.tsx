@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Shield, CheckCircle2, Globe, Users, AlertCircle } from "lucide-react";
+import { ArrowLeft, Shield, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -15,42 +15,15 @@ import {
 } from "@/lib/api/repositories/token-compliance";
 import { useContractAction } from "@/hooks/useContractAction";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { MODULAR_COMPLIANCE_ABI } from "@/lib/contracts/abis/modularCompliance";
+import { ALL_COMPLIANCE_MODULES } from "@/lib/contracts/complianceModules";
 import { ModuleCard } from "./ComplianceModuleCards";
+import { AvailableModulesList } from "./AvailableModulesList";
 
 // CountryAllowModule ABI — for auto-configuring system access after attach
 const COUNTRY_ALLOW_ABI = [
   { name: "batchAllowCountries", type: "function", stateMutability: "nonpayable", inputs: [{ name: "compliance", type: "address" }, { name: "countries", type: "uint16[]" }], outputs: [] },
 ] as const;
-
-// ModularCompliance ABI — addModule / removeModule
-const COMPLIANCE_ABI = [
-  { name: "addModule", type: "function", stateMutability: "nonpayable", inputs: [{ name: "module", type: "address" }], outputs: [] },
-  { name: "removeModule", type: "function", stateMutability: "nonpayable", inputs: [{ name: "module", type: "address" }], outputs: [] },
-  { name: "getModules", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address[]" }] },
-  { name: "owner", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
-] as const;
-
-// Platform-deployed compliance modules
-const AVAILABLE_MODULES = [
-  {
-    id: "country_allow",
-    name: "Country Allow List",
-    description: "Only wallets from approved countries can hold or receive tokens. Configure allowed countries after attaching.",
-    icon: Globe,
-    address: process.env.NEXT_PUBLIC_COUNTRY_ALLOW_MODULE_ADDRESS || "",
-    tag: "Regulatory",
-    tagColor: "bg-blue-100 text-blue-700",
-  },
-  {
-    id: "max_holders",
-    name: "Max Holder Count",
-    description: "Limits the total number of unique token holders. New buyers are blocked once the cap is reached.",
-    icon: Users,
-    address: process.env.NEXT_PUBLIC_MAX_HOLDER_COUNT_MODULE_ADDRESS || "",
-    tag: "Regulatory",
-    tagColor: "bg-blue-100 text-blue-700",
-  },
-];
 
 export default function TokenCompliancePage({
   params: paramsPromise,
@@ -105,15 +78,15 @@ export default function TokenCompliancePage({
 
     const receipt = await attachAction.execute({
       address: complianceAddr as `0x${string}`,
-      abi: COMPLIANCE_ABI as unknown as Abi,
+      abi: MODULAR_COMPLIANCE_ABI as unknown as Abi,
       functionName: "addModule",
       args: [moduleAddress as `0x${string}`],
     });
 
     if (receipt) {
       // Auto-configure system access for CountryAllowModule
-      const countryAllowAddr = AVAILABLE_MODULES.find((m) => m.id === "country_allow")?.address;
-      if (moduleAddress.toLowerCase() === countryAllowAddr?.toLowerCase()) {
+      const countryMod = ALL_COMPLIANCE_MODULES.find((m) => m.id === "country_allow");
+      if (moduleAddress.toLowerCase() === countryMod?.address?.toLowerCase()) {
         setAutoConfigStatus("Auto-configuring system access...");
         const configReceipt = await autoConfigAction.execute({
           address: moduleAddress as `0x${string}`,
@@ -143,7 +116,7 @@ export default function TokenCompliancePage({
 
     const receipt = await removeAction.execute({
       address: complianceAddr as `0x${string}`,
-      abi: COMPLIANCE_ABI as unknown as Abi,
+      abi: MODULAR_COMPLIANCE_ABI as unknown as Abi,
       functionName: "removeModule",
       args: [moduleAddress as `0x${string}`],
     });
@@ -186,7 +159,6 @@ export default function TokenCompliancePage({
         </Link>
       }
     >
-
       {/* Status messages */}
       {actionMessage && (
         <div className={`mb-4 p-3 rounded-lg border text-sm flex items-center gap-2 ${
@@ -238,58 +210,15 @@ export default function TokenCompliancePage({
         </Badge>
       </div>
 
-      {/* Available Modules */}
-      <div className="mb-8">
-        <h3 className="text-sm font-semibold text-zinc-900 mb-1">Available Modules</h3>
-        <p className="text-xs text-zinc-400 mb-4">Select which rules to enforce on every token transfer. Attach from your connected wallet.</p>
-
-        <div className="space-y-3">
-          {AVAILABLE_MODULES.map((mod) => {
-            const isAttached = attachedAddresses.has(mod.address.toLowerCase());
-            const isAttaching = attachAction.isPending || attachAction.isConfirming;
-            const isRemoving = removeAction.isPending || removeAction.isConfirming;
-            const Icon = mod.icon;
-
-            return (
-              <div key={mod.id} className={`rounded-lg border-2 p-4 transition-all ${
-                isAttached ? "border-green-300 bg-green-50/50" : "border-zinc-200 bg-white"
-              }`}>
-                <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    isAttached ? "bg-green-100 text-green-600" : "bg-zinc-100 text-zinc-400"
-                  }`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-semibold text-zinc-900">{mod.name}</p>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${mod.tagColor}`}>{mod.tag}</span>
-                      {isAttached && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-green-100 text-green-700">Active</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-zinc-500">{mod.description}</p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    {isAttached ? (
-                      <Button variant="outline" size="sm" onClick={() => handleRemove(mod.address)}
-                        disabled={isRemoving} isLoading={isRemoving}
-                        className="text-red-600 border-red-200 hover:bg-red-50">
-                        Remove
-                      </Button>
-                    ) : (
-                      <Button variant="primary" size="sm" onClick={() => handleAttach(mod.address, mod.name)}
-                        disabled={isAttaching || !mod.address} isLoading={isAttaching}>
-                        {!isConnected ? "Connect Wallet" : "Attach"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Available Modules — all 11 */}
+      <AvailableModulesList
+        attachedAddresses={attachedAddresses}
+        isConnected={isConnected}
+        isAttaching={attachAction.isPending || attachAction.isConfirming}
+        isRemoving={removeAction.isPending || removeAction.isConfirming}
+        onAttach={handleAttach}
+        onRemove={handleRemove}
+      />
 
       {/* Attached Module Configuration */}
       {compliance && compliance.modules.length > 0 && (

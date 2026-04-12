@@ -7,6 +7,7 @@ import {
   ShoppingBag, FolderOpen,
   DollarSign, Coins, BarChart3, Clock, ArrowUpRight,
   Wallet, ArrowDownRight, ArrowUpFromLine, ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import { useChainId } from "wagmi";
 import { Spinner } from "@/components/atoms";
@@ -22,6 +23,13 @@ import {
 } from "@/lib/api/repositories/portfolio.repository";
 import { formatCurrency } from "@/lib/utils";
 import { getTxUrl } from "@/lib/contracts/addresses";
+import { apiGet } from "@/lib/api/client";
+
+interface RefundEligibleHolding {
+  tokenId: string;
+  tokenName: string;
+  tokenSymbol: string;
+}
 
 const SIDEBAR_LINKS = [
   { href: "/projects", label: "Sales", icon: ShoppingBag },
@@ -131,6 +139,7 @@ export default function PortfolioPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [refundEligible, setRefundEligible] = useState<RefundEligibleHolding[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -149,6 +158,24 @@ export default function PortfolioPage() {
         ]);
         setPortfolio(data);
         setTransactions(txData.transactions ?? []);
+
+        // Check each holding for refund eligibility
+        const eligible: RefundEligibleHolding[] = [];
+        if (data.holdings.length > 0) {
+          const checks = data.holdings.map(async (h) => {
+            try {
+              const res = await apiGet<{ items: Array<{ status: string; refunds_activated_at?: string | null }> }>(
+                `/api/v1/sales?token_id=${h.token_id}&size=1`
+              );
+              const sale = res.items?.[0];
+              if (sale?.refunds_activated_at) {
+                eligible.push({ tokenId: h.token_id, tokenName: h.token_name, tokenSymbol: h.token_symbol });
+              }
+            } catch { /* ignore — sale lookup failed */ }
+          });
+          await Promise.all(checks);
+        }
+        setRefundEligible(eligible);
       } catch {
         setError(true);
       } finally {
@@ -313,6 +340,46 @@ export default function PortfolioPage() {
                 </div>
               )}
             </section>
+
+            {/* Refund Available */}
+            {refundEligible.length > 0 && (
+              <section className="mb-8">
+                <div className="flex items-center gap-3 mb-5">
+                  <h2 className="text-lg font-semibold text-text">Refunds Available</h2>
+                  <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">
+                    {refundEligible.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {refundEligible.map((item) => (
+                    <div
+                      key={item.tokenId}
+                      className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6"
+                    >
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                          <AlertTriangle className="h-5 w-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-text">
+                            {item.tokenName} ({item.tokenSymbol})
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Sale did not reach soft cap — refund available
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        href={`/portfolio/claim/${item.tokenId}`}
+                        className="inline-flex items-center gap-1.5 btn-cta text-sm px-5 py-2 rounded-full transition-colors w-full justify-center"
+                      >
+                        Claim Refund <ArrowUpRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Recent Transactions */}
             <section>

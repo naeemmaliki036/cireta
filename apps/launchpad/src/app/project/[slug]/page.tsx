@@ -220,14 +220,14 @@ export default function ProjectDetailPage() {
   const fmtUsdc = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M` : n.toLocaleString();
   const statusColor: Record<string, string> = {
     active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500",
-    paused: "text-amber-600", finalized_success: "text-green-600", finalized_failed: "text-red-600",
-    failed: "text-red-600", approved: "text-blue-600", pending_approval: "text-amber-600",
+    paused: "text-amber-600", finalized_success: "text-green-600", finalized_failed: "text-gray-500",
+    failed: "text-gray-500", approved: "text-blue-600", pending_approval: "text-amber-600",
   };
   const isOpenEnded = saleRaw?.is_open_ended;
   const statusLabel = project.isComingSoon ? "Coming Soon"
     : project.status === "active" && isOpenEnded ? "Active — Open-Ended"
     : project.status === "finalized_failed" || project.status === "failed"
-      ? saleRaw?.refunds_activated_at ? "Closed — Refund Available" : "Closed — Failed"
+      ? saleRaw?.refunds_activated_at ? "Closed — Refund Available" : "Completed"
     : project.status === "finalized_success" || project.status === "finalized" ? "Completed"
     : project.status === "approved" ? "Pending Launch"
     : project.status;

@@ -255,7 +255,7 @@ export default function ClaimTokenPage({
                 <h2 className="text-lg font-semibold text-text">Sale Did Not Reach Soft Cap</h2>
               </div>
               <p className="text-black/60 text-sm mb-6">
-                This sale has been finalized as failed. You can claim your USDC refund directly from the smart contract.
+                This sale has been completed without reaching its soft cap. You can claim your USDC refund directly from the smart contract.
               </p>
               <Button
                 variant="primary"
