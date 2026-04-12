@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, User, Loader2 } from "lucide-react";
+import { Mail, User } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
 
 function RegisterForm() {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<"info" | "otp">("info");
   const [email, setEmail] = useState("");

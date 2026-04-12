@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # from apps.api.core.tokens import generate_email_verify_token  # replaced by OTP flow
@@ -145,8 +146,6 @@ async def login(
 
 
 # ==================== Passwordless OTP Auth ====================
-
-from pydantic import BaseModel as PydanticBaseModel
 
 
 class OTPRequestBody(PydanticBaseModel):

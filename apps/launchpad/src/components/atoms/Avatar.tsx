@@ -42,6 +42,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
     return (
       <div ref={ref} className={cn(avatarVariants({ size }), className)}>
         {src ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={src}
             alt={alt || (fallback ? `${fallback} avatar` : "User avatar")}

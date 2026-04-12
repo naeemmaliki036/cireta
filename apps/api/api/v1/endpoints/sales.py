@@ -676,11 +676,11 @@ async def add_phase(
             if isinstance(request.end_time, datetime)
             else datetime.fromisoformat(str(request.end_time).replace("Z", "+00:00"))
         )
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
         raise HTTPException(
             status_code=400,
             detail={"code": "INVALID_PHASE_TIME_RANGE", "message": "Could not parse phase start/end time."},
-        )
+        ) from exc
     if start_dt >= end_dt:
         raise HTTPException(
             status_code=400,
@@ -777,7 +777,7 @@ async def update_phase(
     sale_id: UUID,
     phase_id: UUID,
     request: PhaseUpdateRequest,
-    user_id: CurrentUserId,
+    user_id: CurrentUserId,  # noqa: ARG001
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Update a tentative phase. Deployed phases can only update deployed_on_chain + on_chain_phase_id."""
@@ -835,7 +835,7 @@ async def update_phase(
 async def delete_phase(
     sale_id: UUID,
     phase_id: UUID,
-    user_id: CurrentUserId,
+    user_id: CurrentUserId,  # noqa: ARG001
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Delete a tentative phase. Deployed phases cannot be deleted."""
@@ -934,7 +934,7 @@ async def submit_for_approval(
 @router.post("/{sale_id}/record-deployment")
 async def record_sale_deployment(
     sale_id: UUID,
-    user_id: CurrentUserId,
+    user_id: CurrentUserId,  # noqa: ARG001
     db: Annotated[AsyncSession, Depends(get_db)],
     tx_hash: str = Query(..., min_length=66, max_length=66),
 ) -> dict:
@@ -984,7 +984,7 @@ async def record_sale_deployment(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail={"code": "CHAIN_ERROR", "message": f"Failed to read tx receipt: {exc}"})
+        raise HTTPException(status_code=502, detail={"code": "CHAIN_ERROR", "message": f"Failed to read tx receipt: {exc}"}) from exc
 
 
 @router.post("/{sale_id}/convert-to-live")
@@ -1110,6 +1110,8 @@ async def activate_refunds(
     Mirrors Sale.activateRefunds() on-chain. One-way switch.
     """
     from datetime import datetime
+
+    from sqlalchemy.orm import selectinload
 
     sale_result = await db.execute(
         select(TokenSale).options(selectinload(TokenSale.issuer)).where(TokenSale.id == sale_id)

@@ -26,7 +26,7 @@ import { Spinner } from "@/components/atoms";
 // Auth token handled by httpOnly cookie via proxy — no manual token needed
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { OTC_TOKEN_ABI, SALE_OTC_ABI } from "@/lib/contracts/otcTokenAbi";
-import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
+import { getUsdcAddress } from "@/lib/contracts/addresses";
 import { parseRevertReason } from "@/lib/contracts/revertReasons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3 } from "@/contexts/Web3Context";
@@ -287,7 +287,7 @@ export default function InvestPage() {
     query: { enabled: !!otcTokenAddress && !!connectedAddress && !!saleContractAddress },
   });
   const otcAmountWei = amount ? parseUnits(amount, otcTokenDecimals) : BigInt(0);
-  const hasEnoughOtcAllowance = otcAllowance != null && otcAmountWei > 0 && (otcAllowance as bigint) >= otcAmountWei;
+  const _hasEnoughOtcAllowance = otcAllowance != null && otcAmountWei > 0 && (otcAllowance as bigint) >= otcAmountWei;
 
   // Whole-token buy: `amount` represents token quantity (whole tokens).
   // Declared here so it's available to the useEffects below.
@@ -341,7 +341,7 @@ export default function InvestPage() {
       refetchAllowance();
       setStep("confirm");
     }
-  }, [approveConfirmed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [approveConfirmed]);
 
   // When on-chain contribute confirms, record in backend then show success.
   // The success card is gated on the backend POST so the buyer's purchase

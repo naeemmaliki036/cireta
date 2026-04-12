@@ -375,6 +375,7 @@ export default function HomePage() {
                 {[...partners, ...partners].map((p, i) => (
                   <div key={`${p.id}-${i}`} className="shrink-0 flex items-center justify-center mx-10" style={{ minWidth: "140px" }}>
                     {p.logo_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={p.logo_url}
                         alt={p.name}

@@ -87,6 +87,7 @@ export function FileUpload({
         {label && <label className="input-label">{label}</label>}
         <div className="relative rounded-lg border border-black/10 overflow-hidden">
           {previewType === "image" ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img src={value.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL || ""}${value}` : value} alt="Preview" className="w-full h-40 object-cover" />
           ) : (
             <div className="flex items-center gap-3 p-4 bg-zinc-50">

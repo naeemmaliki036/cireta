@@ -186,7 +186,6 @@ export function CountrySelector({ selected, onChange, alreadyAllowed }: CountryS
   // Filter out already-allowed countries
   const available = useMemo(() =>
     COUNTRIES.filter((c) => !allowedSet.has(c.code)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [alreadyAllowed.join(",")]
   );
 

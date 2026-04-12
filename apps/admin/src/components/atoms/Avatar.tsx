@@ -47,6 +47,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         {...props}
       >
         {src ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img src={src} alt={alt || "Avatar"} className="w-full h-full object-cover" />
         ) : (
           <span>{initials}</span>

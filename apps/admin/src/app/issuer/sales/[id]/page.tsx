@@ -427,7 +427,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         syncSaleDeployment(resolvedId, txHash, pendingKey);
       }
     }
-  }, [resolvedId, sale?.contract_address]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [resolvedId, sale?.contract_address]);
 
   // Block navigation during deployment/syncing
   const isDeployingOrSyncing = deployAction.isPending || deployAction.isConfirming || isSyncing;
@@ -889,6 +889,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                       <video src={resolveMediaUrl(img.url)} className="w-full h-full object-cover" muted />
                     </div>
                   ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={resolveMediaUrl(img.url)} alt={img.caption || ""} className="w-full h-full object-cover" />
                   )}
                   {img.is_banner && (

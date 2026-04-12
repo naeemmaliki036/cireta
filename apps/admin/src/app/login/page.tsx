@@ -14,6 +14,7 @@ function BrandPanel() {
         <div className="absolute bottom-1/4 right-1/3 w-60 h-60 bg-[#13636F]/20 rounded-md blur-[80px]" />
       </div>
       <div className="relative z-10 flex flex-col h-full px-14 xl:px-20 py-12">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/logo/cireta-logo-white.svg" alt="Cireta" className="h-8 w-auto self-start" />
         <div className="flex-1 flex flex-col justify-center">
           <h1 className="text-3xl xl:text-4xl font-semibold text-white leading-tight mb-5 -tracking-[1px]">

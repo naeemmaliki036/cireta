@@ -5,8 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Radio, Sparkles, CheckCircle2, TrendingUp,
-  ArrowRight, Bell, ShoppingBag, FolderOpen,
+  Radio, Sparkles, CheckCircle2,
+  ArrowRight, ShoppingBag, FolderOpen,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -215,7 +215,7 @@ function ComingSoonCard({ project }: { project: Project }) {
 
 export default function ExplorePage() {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated: _isAuthenticated } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 

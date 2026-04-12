@@ -68,7 +68,7 @@ export default function OnboardingPage() {
 
   // Form state — null means no selection yet
   const [investorType, setInvestorType] = useState<"individual" | "corporate" | null>(null);
-  const [typeConfirmed, setTypeConfirmed] = useState(false);
+  const [_typeConfirmed, setTypeConfirmed] = useState(false);
   // Individual
   const [dob, setDob] = useState("");
   const [nationality, setNationality] = useState("");

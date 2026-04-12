@@ -189,7 +189,7 @@ class RecordDeploymentRequest(BaseModel):
 async def record_token_deployment(
     token_id: UUID,
     request: RecordDeploymentRequest,
-    user_id: CurrentUserId,
+    user_id: CurrentUserId,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """Record on-chain deployment by parsing the tx receipt server-side.

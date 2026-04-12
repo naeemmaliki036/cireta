@@ -125,7 +125,7 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
     } catch {
       setRawUnits(null);
     }
-  }, [amount, decimals]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [amount, decimals]);
   const totalSupply = totalSupplyRaw
     ? formatUnits(totalSupplyRaw as bigint, decimals)
     : null;

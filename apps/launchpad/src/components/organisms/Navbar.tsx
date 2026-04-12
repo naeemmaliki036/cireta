@@ -69,7 +69,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     };
   }, [isMobileMenuOpen]);
 
-  const textColor = isScrolled || variant === "light" ? "text-text" : "text-white";
+  const _textColor = isScrolled || variant === "light" ? "text-text" : "text-white";
 
   return (
     <>

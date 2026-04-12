@@ -17,7 +17,7 @@ const SIDEBAR_LINKS = [
 
 export default function VerifyPage() {
   const pathname = usePathname();
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   // Auto-detect verification type from user's investor_type
   const isCorperate = user?.investor_type === "corporate";

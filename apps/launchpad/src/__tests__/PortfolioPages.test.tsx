@@ -23,7 +23,7 @@ vi.mock("framer-motion", () => {
   function makeMotion(tag: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Comp = (props: any) => {
-      const { children, initial, animate, transition, whileInView, viewport, whileTap, ...rest } = props;
+      const { children, initial: _initial, animate: _animate, transition: _transition, whileInView: _whileInView, viewport: _viewport, whileTap: _whileTap, ...rest } = props;
       if (tag === "button") return <button {...rest}>{children}</button>;
       return <div {...rest}>{children}</div>;
     };

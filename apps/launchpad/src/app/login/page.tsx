@@ -8,7 +8,7 @@ import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
 
 function LoginForm() {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const googleError = searchParams.get("error");
 

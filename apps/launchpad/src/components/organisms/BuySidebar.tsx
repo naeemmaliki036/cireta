@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Shield, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button, Input, Badge, ProgressBar } from "@/components/atoms";
 import { cn, formatCurrency } from "@/lib/utils";
 

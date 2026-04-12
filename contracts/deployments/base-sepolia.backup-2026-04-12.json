@@ -1,0 +1,21 @@
+{
+  "identityMode": "simple",
+  "issuerRegistry": "0x7278011896b1f7Ca51477538afD85225099b6912",
+  "issuerRegistryImplementation": "0xBBC25771B4104C3dC1c535c0e5Bb4A35db13F24d",
+  "simpleIdentityRegistry": "0x390F619D7C7d2e87E674Db36E0FD27a9402B517a",
+  "platformFeeManager": "0x1ad2143e752520F8A6ACe8c172Ca67883f476a1f",
+  "tokenImplementation": "0x1aeB8A49A3266b328CAbB95537315d12DCBd0355",
+  "simpleIdentityRegistryImplementation": "0xe19E32fbD567724775abEd5777738677aaF2c823",
+  "complianceImplementation": "0x6Ab573e1f83e3731ce2cCd77C3a9086191dD7fdE",
+  "saleImplementation": "0x51d759B0E98f4b12E7A18A77e020Cd4a71637183",
+  "fractionTokenImplementation": "0xbaB007f497ABf971bE37685fa2F6117F1e1854fC",
+  "vaultImplementation": "0x6fD292c6e7b1C6651fDBA50433eD12d296ab938A",
+  "tokenFactory": "0x2712a6C30849EA47C0C2700e36Cc0A689a0bEF1d",
+  "saleFactory": "0xDc680f69dB1Be83dCE9cB3426f056973C74E04AC",
+  "fractionFactory": "0x23bFd2892af2EC5332F5559eE4b3AA4C4417efE1",
+  "countryAllowModule": "0x2e0DDb773e9822c3FA10Db9a7Fb265A544f10297",
+  "maxHolderCountModule": "0xC6563D87732375b2e57651d967Fb04399aC10B99",
+  "otcTokenImplementation": "0x98c12B5aE74fb4cF6cfda297Aa8Cd77D2c183963",
+  "otcTokenFactory": "0x203c3E3bCE9623cB8D23398F8c39Bd4C9C67626A",
+  "ciretaUSDC": "0x225A62D44091E567cF9f5BF31D795Ee173E1f2Cf"
+}

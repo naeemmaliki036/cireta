@@ -165,6 +165,7 @@ export default function PartnersPage() {
               {/* Logo */}
               <div className="h-32 bg-[#ECF3F4] flex items-center justify-center p-4">
                 {partner.logo_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={partner.logo_url}
                     alt={partner.name}

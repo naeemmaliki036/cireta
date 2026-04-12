@@ -7,7 +7,7 @@ const SumsubWebSdk = dynamic(() => import("@sumsub/websdk-react"), { ssr: false 
 import { motion } from "framer-motion";
 import { Building2, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
-import { Button, Input, Spinner } from "@/components/atoms";
+import { Button, Input } from "@/components/atoms";
 import {
   initiateCorporateKYB,
   getCorporateKYBStatus,

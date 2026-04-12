@@ -28,6 +28,7 @@ vi.mock("@/lib/hooks/useAuth", () => ({
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => {
     const { fill: _fill, priority: _priority, ...rest } = props;
+    // eslint-disable-next-line @next/next/no-img-element
     return <img {...rest} />;
   },
 }));

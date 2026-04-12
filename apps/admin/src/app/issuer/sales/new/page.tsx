@@ -384,6 +384,7 @@ export default function CreateSalePage() {
                     className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors">
                     {isOpen ? <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-zinc-400 shrink-0" />}
                     {m.photo_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={m.photo_url.startsWith("/") ? `${process.env.NEXT_PUBLIC_API_URL || ""}${m.photo_url}` : m.photo_url}
                         alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     ) : (

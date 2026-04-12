@@ -56,7 +56,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
     } catch { /* ignore */ }
   };
 
-  useEffect(() => { fetchIssuer(); fetchSales(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchIssuer(); fetchSales(); }, [id]);
 
   const handleAction = async (action: string) => {
     setActionLoading(action);

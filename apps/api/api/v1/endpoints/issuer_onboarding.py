@@ -62,7 +62,7 @@ async def discard_wallet(
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
 ) -> dict:
     """Discard verified wallet before submission. Not allowed after submission or approval."""
-    issuer = await issuer_service.discard_wallet(user_id)
+    await issuer_service.discard_wallet(user_id)
     return {"wallet_status": "none"}
 
 

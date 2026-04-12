@@ -166,7 +166,7 @@ export default function CreateTokenPage() {
         recordDeployment(createdTokenId, txHash, pendingKey);
       }
     }
-  }, [createdTokenId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [createdTokenId]);
 
   // Block navigation during deployment/recording
   const isDeploying = deployAction.isPending || deployAction.isConfirming || isRecording;

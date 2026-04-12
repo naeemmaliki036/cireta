@@ -449,7 +449,7 @@ export function InvestConfirmStep({
   isSafe = false,
   onConfirm,
   onBack,
-  isRecording = false,
+  isRecording: _isRecording = false,
 }: InvestConfirmStepProps) {
   return (
     <>
