@@ -44,11 +44,15 @@ class TestWeb3SaleService:
             payment_token="0x" + "2" * 40,
             identity_registry="0x" + "3" * 40,
             issuer_wallet="0x" + "4" * 40,
+            sale_factory_address="0x" + "6" * 40,
             fee_manager="0x" + "5" * 40,
             soft_cap=100000 * 10**6,
             hard_cap=500000 * 10**6,
             fee_basis_points=250,
             fee_cap_usdc=10000 * 10**6,
+            sale_start_time=1700000000,
+            sale_end_time=1710000000,
+            total_token_supply=1000000 * 10**18,
         )
 
         assert address == "0x" + "b" * 40
@@ -72,7 +76,9 @@ class TestWeb3SaleService:
         with pytest.raises(ValueError, match="SaleDeployed event not found"):
             await svc.deploy_sale(
                 "0x" + "1" * 40, "0x" + "2" * 40, "0x" + "3" * 40,
-                "0x" + "4" * 40, "0x" + "5" * 40, 100000, 500000, 250, 10000,
+                "0x" + "4" * 40, "0x" + "6" * 40, "0x" + "5" * 40,
+                100000, 500000, 250, 10000,
+                1700000000, 1710000000, 1000000 * 10**18,
             )
 
     @pytest.mark.asyncio

@@ -60,27 +60,26 @@ class TestTokenServiceCreate:
         assert exc_info.value.status_code == 403
         assert exc_info.value.detail["code"] == "NOT_ISSUER"
 
-    async def test_create_token_duplicate_symbol(
+    async def test_create_token_duplicate_symbol_allowed(
         self,
         db_session: AsyncSession,
         test_issuer: Issuer,
         test_issuer_user: User,
         test_token: Token,
     ) -> None:
-        """Test token creation fails for duplicate symbol."""
+        """Duplicate symbols are allowed — multiple tokens can share a symbol."""
         service = TokenService(db_session)
 
-        with pytest.raises(HTTPException) as exc_info:
-            await service.create_token(
-                user_id=test_issuer_user.id,
-                name="Another Token",
-                symbol=test_token.symbol,
-                asset_type="commodity",
-                total_supply=Decimal("100000"),
-            )
+        token = await service.create_token(
+            user_id=test_issuer_user.id,
+            name="Another Token",
+            symbol=test_token.symbol,
+            asset_type="commodity",
+            total_supply=Decimal("100000"),
+        )
 
-        assert exc_info.value.status_code == 409
-        assert exc_info.value.detail["code"] == "SYMBOL_EXISTS"
+        assert token.symbol == test_token.symbol
+        assert token.id != test_token.id
 
 
 class TestTokenServiceDeploy:

@@ -44,11 +44,12 @@ async def screening_user(db_session: AsyncSession) -> User:
 
 @pytest_asyncio.fixture
 async def screening_wallet(db_session: AsyncSession, screening_user: User) -> Wallet:
+    unique = uuid4().hex[:40]
     wallet = Wallet()
     wallet.id = uuid4()
     wallet.user_id = screening_user.id
-    wallet.address = "0x1234567890abcdef1234567890abcdef12345678"
-    wallet.address_checksum = "0x1234567890AbcdEF1234567890aBcDEF12345678"
+    wallet.address = f"0x{unique}"
+    wallet.address_checksum = f"0x{unique}"
     wallet.is_primary = True
     db_session.add(wallet)
     await db_session.commit()
