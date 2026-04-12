@@ -178,8 +178,11 @@ class SaleContributeService:
                 detail={"code": "NO_ACTIVE_PHASE", "message": "No active sale phase"},
             )
 
-        # Whitelist check for whitelist-only phases
-        if getattr(active_phase, "whitelist_only", False):
+        # Whitelist check for whitelist-only phases.
+        # Skip if tx_hash is provided — the transaction already succeeded on-chain,
+        # meaning the contract's own whitelist check passed. The DB whitelist
+        # may not be in sync (on-chain setWhitelist vs DB sale_phase_whitelists).
+        if getattr(active_phase, "whitelist_only", False) and not tx_hash:
             from apps.api.models.sale_phase_whitelist import SalePhaseWhitelist
 
             resolved_wallet = contrib_wallet or wallet_address
