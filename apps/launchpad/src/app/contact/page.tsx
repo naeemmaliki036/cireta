@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Mail, Clock, MessageSquare, MapPin } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 

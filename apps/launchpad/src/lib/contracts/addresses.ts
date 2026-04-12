@@ -12,7 +12,7 @@ interface ChainAddresses {
   identityRegistry: `0x${string}` | null;
 }
 
-function requireEnv(name: string): string {
+function _requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`${name} is required. Set it in .env.local`);

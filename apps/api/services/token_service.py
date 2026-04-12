@@ -91,7 +91,7 @@ class TokenService:
 
         # Check symbol — warn but don't block (multiple tokens can share symbols)
         existing = await self.db.execute(select(Token).where(Token.symbol == symbol.upper()))
-        symbol_warning = bool(existing.scalar_one_or_none())
+        existing.scalar_one_or_none()  # existence check only; duplicates are allowed
 
         # Create token
         token = Token()

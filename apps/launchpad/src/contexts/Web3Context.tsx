@@ -102,7 +102,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
     return () => { cancelled = true; };
     // Only run when address changes — NOT when isAuthenticated changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, isConnected]);
 
   // Reset on disconnect or auth change

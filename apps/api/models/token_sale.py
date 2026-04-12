@@ -18,6 +18,7 @@ from packages.common.models.base import BaseModel
 if TYPE_CHECKING:
     from apps.api.models.contribution import Contribution
     from apps.api.models.issuer import Issuer
+    from apps.api.models.otc_transfer_log import OtcTransferLog
     from apps.api.models.sale_document import SaleDocument
     from apps.api.models.sale_faq import SaleFAQ
     from apps.api.models.sale_image import SaleImage
@@ -155,6 +156,9 @@ class TokenSale(BaseModel):
         back_populates="sale", cascade="all, delete-orphan", order_by="SaleImage.sort_order"
     )
     documents: Mapped[list[SaleDocument]] = relationship(
+        back_populates="sale", cascade="all, delete-orphan"
+    )
+    otc_transfer_logs: Mapped[list[OtcTransferLog]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
     )
 

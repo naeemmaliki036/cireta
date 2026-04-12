@@ -264,7 +264,7 @@ async def record_token_deployment(
         raise HTTPException(status_code=502, detail={
             "code": "CHAIN_ERROR",
             "message": f"Failed to read tx receipt: {exc}",
-        })
+        }) from exc
 
     await db.commit()
     await db.refresh(token)

@@ -90,8 +90,8 @@ class SaleCreateRequest(BaseModel):
                 raise ValueError("Scientific notation not allowed — use plain decimal")
             try:
                 Decimal(v)
-            except InvalidOperation:
-                raise ValueError("Invalid decimal format")
+            except InvalidOperation as exc:
+                raise ValueError("Invalid decimal format") from exc
         return v
 
     @model_validator(mode="after")

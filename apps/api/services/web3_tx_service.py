@@ -152,7 +152,6 @@ class Web3TxService:
                     if raw_log.get("topics") and raw_log["topics"][0] == topic0:
                         # Decode indexed params from topics
                         indexed = [i for i in event_abi.get("inputs", []) if i.get("indexed")]
-                        non_indexed = [i for i in event_abi.get("inputs", []) if not i.get("indexed")]
                         decoded = {}
                         for idx, param in enumerate(indexed):
                             if idx + 1 < len(raw_log["topics"]):

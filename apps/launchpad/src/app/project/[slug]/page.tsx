@@ -8,7 +8,7 @@ import {
   ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell, Play,
   FileText, ChevronDown, ChevronUp, Download, Clock,
 } from "lucide-react";
-import { Badge, Spinner, ProgressBar, Button } from "@/components/atoms";
+import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency, formatTokenDisplay } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -16,7 +16,7 @@ import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
 import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
-import { apiGet, apiPost, apiFetch } from "@/lib/api/client";
+import { apiPost, apiFetch } from "@/lib/api/client";
 import { truncateAddress } from "@/lib/utils";
 import { getTxUrl } from "@/lib/contracts/addresses";
 import { useChainId } from "wagmi";

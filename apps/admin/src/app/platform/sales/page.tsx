@@ -119,7 +119,7 @@ export default function PlatformSalesPage() {
       setSales(data.items);
       setSaveMsg("Display order saved");
       setTimeout(() => setSaveMsg(null), 3000);
-    } catch (err) {
+    } catch (_err) {
       setSaveMsg("Failed to save order");
     } finally {
       setSaving(false);

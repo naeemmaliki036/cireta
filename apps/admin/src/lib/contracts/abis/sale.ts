@@ -76,6 +76,33 @@ export const SALE_ABI = [
     outputs: [],
   },
   {
+    name: "shortenPhase",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "phaseId", type: "uint256" },
+      { name: "newEndTime", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "advancePhaseStart",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "phaseId", type: "uint256" },
+      { name: "newStartTime", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "getRemainingSupply",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     name: "setWhitelist",
     type: "function",
     stateMutability: "nonpayable",

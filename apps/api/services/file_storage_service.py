@@ -11,6 +11,7 @@ Usage:
     url = await storage.get_signed_url("docs/whitepaper.pdf")
 """
 
+import contextlib
 import datetime
 import logging
 import os
@@ -119,10 +120,8 @@ class FileStorageService:
         blob.upload_from_string(file_data, content_type=content_type)
         # For public buckets, try make_public but don't fail if bucket uses uniform access
         if not private:
-            try:
+            with contextlib.suppress(Exception):  # Bucket-level ACL handles public access
                 blob.make_public()
-            except Exception:
-                pass  # Bucket-level ACL handles public access
         logger.info("Uploaded to GCS: %s/%s (private=%s)", bucket_name, path, private)
         if not private:
             return f"https://storage.googleapis.com/{bucket_name}/{path}"

@@ -4,7 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Clock, Unlock, Lock, Calendar } from "lucide-react";
 import { Button, Badge, ProgressBar } from "@/components/atoms";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export interface VestingCardProps {
   tokenName: string;

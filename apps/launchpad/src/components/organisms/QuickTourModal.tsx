@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Play, UserPlus, Wallet, ShieldCheck, Coins, ArrowRight } from "lucide-react";
+import { Play, UserPlus, Wallet, ShieldCheck, Coins, ArrowRight } from "lucide-react";
 import { CiretaLogo } from "@/components/atoms";
 
 const STEPS = [

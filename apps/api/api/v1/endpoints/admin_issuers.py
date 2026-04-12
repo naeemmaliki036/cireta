@@ -308,7 +308,7 @@ async def register_issuer_onchain(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"code": "ONCHAIN_TX_FAILED", "message": f"On-chain transaction failed: {exc}"},
-        )
+        ) from exc
 
     return OnChainRegistrationResponse(
         issuer_id=str(issuer_id),

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 const SumsubWebSdk = dynamic(() => import("@sumsub/websdk-react"), { ssr: false });
-import { Shield, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button, Spinner } from "@/components/atoms";
 import { initiateKYC, getKYCStatus } from "@/lib/api/repositories/kyc.repository";
 import { useAuth } from "@/contexts/AuthContext";

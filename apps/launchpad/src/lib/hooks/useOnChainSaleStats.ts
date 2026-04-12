@@ -17,7 +17,7 @@
  * hook returns zeros + ready=false.
  */
 import { useMemo } from "react";
-import { useReadContract, useReadContracts } from "wagmi";
+import { useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 

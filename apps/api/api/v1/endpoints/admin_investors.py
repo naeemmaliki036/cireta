@@ -296,7 +296,7 @@ async def admin_update_kyc(
 @router.post("/investors/{user_id}/kyc/check-sumsub", response_model=AdminKYCSyncResponse)
 async def admin_check_sumsub_status(
     user_id: UUID,
-    admin_id: RequireAdmin,
+    admin_id: RequireAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> AdminKYCSyncResponse:
     """Check the latest KYC status from Sumsub API (read-only).
@@ -376,7 +376,7 @@ async def admin_check_sumsub_status(
 @router.post("/investors/{user_id}/kyc/confirm-sync")
 async def admin_confirm_sync(
     user_id: UUID,
-    admin_id: RequireAdmin,
+    admin_id: RequireAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Apply the Sumsub status to the database, register on-chain, and notify the user.
@@ -408,7 +408,7 @@ async def admin_confirm_sync(
         from apps.api.services.kyc_service import _sumsub_request
         applicant_data = await _sumsub_request("GET", f"/resources/applicants/{applicant_id}/one", token, secret)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail={"code": "SUMSUB_ERROR", "message": f"Failed to fetch from Sumsub: {exc}"})
+        raise HTTPException(status_code=502, detail={"code": "SUMSUB_ERROR", "message": f"Failed to fetch from Sumsub: {exc}"}) from exc
 
     review_answer = applicant_data.get("review", {}).get("reviewResult", {}).get("reviewAnswer")
     old_status = user.kyc_status.value if hasattr(user.kyc_status, "value") else str(user.kyc_status)
@@ -486,7 +486,7 @@ async def admin_confirm_sync(
 @router.post("/investors/{user_id}/kyc/register-onchain")
 async def admin_register_onchain(
     user_id: UUID,
-    admin_id: RequireAdmin,
+    admin_id: RequireAdmin,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Manually trigger on-chain identity registration for a KYC-approved user.
@@ -517,7 +517,7 @@ async def admin_register_onchain(
         await db.commit()
         return {"user_id": str(user_id), "status": "registered", "message": "On-chain identity registered successfully"}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail={"code": "REGISTRATION_FAILED", "message": f"On-chain registration failed: {exc}"})
+        raise HTTPException(status_code=500, detail={"code": "REGISTRATION_FAILED", "message": f"On-chain registration failed: {exc}"}) from exc
 
 
 # ==================== Admin Account Management ====================

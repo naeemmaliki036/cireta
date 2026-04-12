@@ -204,7 +204,7 @@ class WalletService:
                     "code": "SAFE_CALL_FAILED",
                     "message": "Could not verify Safe owners. Is this a valid Safe address?",
                 },
-            )
+            ) from e
 
         owners_lower = {o.lower() for o in owners}
         user_addresses = {w.address_checksum.lower() for w in existing_wallets}

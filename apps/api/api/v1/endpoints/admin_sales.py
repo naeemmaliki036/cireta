@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import SaleStatus
+from apps.api.models.otc_transfer_log import OtcTransferLog
 from apps.api.models.token_sale import TokenSale
+from apps.api.schemas.otc_transfer import OtcTransferCreate, OtcTransferResponse
 from apps.api.services.sale_service import SaleService
 from packages.common.core.auth_deps import RequireAdmin
 from packages.common.db.session import get_db
@@ -36,7 +38,7 @@ class SaleActionResponse(BaseModel):
 @router.post("/{sale_id}/approve", response_model=SaleActionResponse)
 async def approve_sale(
     sale_id: UUID,
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
 ) -> SaleActionResponse:
     """Approve a pending sale.
@@ -69,7 +71,7 @@ async def approve_sale(
 async def reject_sale(
     sale_id: UUID,
     request: SaleActionRequest,
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
 ) -> SaleActionResponse:
     """Reject a pending sale — returns to rejected status."""
@@ -90,7 +92,7 @@ async def reject_sale(
 @router.post("/{sale_id}/toggle-visibility", response_model=SaleActionResponse)
 async def toggle_visibility(
     sale_id: UUID,
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
 ) -> SaleActionResponse:
     """Toggle sale visibility on the launchpad. Sale must be approved first."""
@@ -119,7 +121,7 @@ async def toggle_visibility(
 @router.post("/{sale_id}/activate", response_model=SaleActionResponse)
 async def activate_sale(
     sale_id: UUID,
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
 ) -> SaleActionResponse:
     """Record on-chain activation — update DB status to active.
@@ -159,7 +161,7 @@ async def admin_finalize_sale(
 @router.post("/{sale_id}/display-order", response_model=SaleActionResponse)
 async def set_display_order(
     sale_id: UUID,
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
     body: dict = Body(...),
 ) -> SaleActionResponse:
@@ -177,7 +179,7 @@ async def set_display_order(
 
 @router.post("/reorder", response_model=dict)
 async def reorder_sales(
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
     body: dict = Body(...),
 ) -> dict:
@@ -193,7 +195,7 @@ async def reorder_sales(
 
 @router.get("", response_model=dict)
 async def list_all_sales(
-    user_id: RequireAdmin,
+    user_id: RequireAdmin,  # noqa: ARG001
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
@@ -279,3 +281,131 @@ async def list_otc_operators(
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
     return {"operators": sale.otc_operator_addresses or []}
+
+
+# ── OTC Transfer Log ────────────────────────────────────────────────
+
+
+@router.get("/{sale_id}/otc-transfers", response_model=list[OtcTransferResponse])
+async def list_otc_transfers(
+    sale_id: UUID,
+    admin_id: RequireAdmin,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+) -> list[OtcTransferResponse]:
+    """List OTC transfer logs for a sale (operator->buyer handoffs)."""
+    sale = (
+        await db.execute(select(TokenSale).where(TokenSale.id == sale_id))
+    ).scalar_one_or_none()
+    if not sale:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"},
+        )
+
+    offset = (page - 1) * size
+    result = await db.execute(
+        select(OtcTransferLog)
+        .where(OtcTransferLog.sale_id == sale_id)
+        .order_by(OtcTransferLog.block_number.desc())
+        .offset(offset)
+        .limit(size)
+    )
+    logs = result.scalars().all()
+    return [
+        OtcTransferResponse(
+            id=str(log.id),
+            sale_id=str(log.sale_id),
+            operator_address=log.operator_address,
+            buyer_address=log.buyer_address,
+            fraction_id=log.fraction_id,
+            amount=str(log.amount),
+            tx_hash=log.tx_hash,
+            block_number=log.block_number,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]
+
+
+@router.post(
+    "/{sale_id}/otc-transfers",
+    response_model=OtcTransferResponse,
+    status_code=201,
+)
+async def record_otc_transfer(
+    sale_id: UUID,
+    body: OtcTransferCreate,
+    admin_id: RequireAdmin,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> OtcTransferResponse:
+    """Record an OTC transfer (manual entry or from event indexer)."""
+    from web3 import Web3
+
+    sale = (
+        await db.execute(select(TokenSale).where(TokenSale.id == sale_id))
+    ).scalar_one_or_none()
+    if not sale:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"},
+        )
+
+    operator = Web3.to_checksum_address(body.operator_address)
+    buyer = Web3.to_checksum_address(body.buyer_address)
+
+    # Validate operator is a known OTC operator for this sale
+    operators = sale.otc_operator_addresses or []
+    if operator not in operators:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "UNKNOWN_OPERATOR",
+                "message": (
+                    f"{operator} is not a registered OTC operator for this sale"
+                ),
+            },
+        )
+
+    # Check for duplicate tx_hash
+    existing = (
+        await db.execute(
+            select(OtcTransferLog).where(OtcTransferLog.tx_hash == body.tx_hash)
+        )
+    ).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "DUPLICATE_TX",
+                "message": (
+                    f"Transfer with tx_hash {body.tx_hash} already recorded"
+                ),
+            },
+        )
+
+    log = OtcTransferLog(
+        sale_id=sale_id,
+        operator_address=operator,
+        buyer_address=buyer,
+        fraction_id=body.fraction_id,
+        amount=body.amount,
+        tx_hash=body.tx_hash,
+        block_number=body.block_number,
+    )
+    db.add(log)
+    await db.commit()
+    await db.refresh(log)
+
+    return OtcTransferResponse(
+        id=str(log.id),
+        sale_id=str(log.sale_id),
+        operator_address=log.operator_address,
+        buyer_address=log.buyer_address,
+        fraction_id=log.fraction_id,
+        amount=str(log.amount),
+        tx_hash=log.tx_hash,
+        block_number=log.block_number,
+        created_at=log.created_at,
+    )
