@@ -336,9 +336,10 @@ export default function HomePage() {
             loop
             playsInline
             preload="none"
+            poster="https://cdn.cireta.com/cireta-home/hero-poster.jpg"
             className="absolute inset-0 w-full h-full object-cover"
           >
-            <source src="/images/hero-bg.mp4" type="video/mp4" />
+            <source src="https://cdn.cireta.com/cireta-home/hero-vd.mp4" type="video/mp4" />
           </video>
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/60" />
         </div>
@@ -786,8 +787,8 @@ export default function HomePage() {
       {/* ── 13. Final CTA ── */}
       <section className="relative py-24 px-4 overflow-hidden">
         <div className="absolute inset-0">
-          <video autoPlay muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover">
-            <source src="/images/hero-bg.mp4" type="video/mp4" />
+          <video autoPlay muted loop playsInline preload="none" poster="https://cdn.cireta.com/cireta-home/hero-poster.jpg" className="absolute inset-0 w-full h-full object-cover">
+            <source src="https://cdn.cireta.com/cireta-home/hero-vd.mp4" type="video/mp4" />
           </video>
           <div className="absolute inset-0 bg-black/50" />
         </div>
