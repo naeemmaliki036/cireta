@@ -361,7 +361,7 @@ export default function HomePage() {
               href="/projects"
               className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
             >
-              Explore Live Projects <ArrowRight className="h-4 w-4" />
+              Explore Projects <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </motion.div>
@@ -697,18 +697,18 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-card transition-shadow"
+                className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-card transition-shadow flex flex-col h-full"
               >
                 <div className={`${article.color} px-6 py-4`}>
                   <p className="text-white font-bold text-lg">{article.source}</p>
                 </div>
-                <div className="p-6">
+                <div className="p-6 flex flex-col flex-1">
                   <div className="flex items-center gap-3 mb-3">
                     <span className="text-xs font-semibold text-darkAqua bg-box px-2.5 py-1 rounded-full">{article.badge}</span>
                     <span className="text-xs text-black/40">{article.date}</span>
                   </div>
                   <h3 className="text-lg font-bold text-text mb-2">{article.title}</h3>
-                  <p className="text-sm text-black/50 leading-relaxed mb-4">{article.excerpt}</p>
+                  <p className="text-sm text-black/50 leading-relaxed mb-4 flex-1">{article.excerpt}</p>
                   <Link href={article.url} target="_blank" className="text-sm font-semibold text-darkAqua hover:underline inline-flex items-center gap-1">
                     Read more <ArrowRight className="w-3 h-3" />
                   </Link>
