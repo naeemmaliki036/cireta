@@ -476,15 +476,20 @@ export function InvestConfirmStep({
       <p className="text-xs text-black/40 mb-4 text-center">
         Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
       </p>
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {error && (
+        <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
+          <p className="text-sm font-medium text-red-700 mb-1">Transaction Failed</p>
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
       <div className="flex gap-3">
         {onBack && (
-          <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
+          <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading && !error}>
             Back
           </Button>
         )}
-        <Button variant="primary" className="flex-1" size="lg" onClick={onConfirm} isLoading={isLoading}>
-          {isLoading ? (isSafe ? "Proposing to Safe..." : "Confirming…") : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
+        <Button variant="primary" className="flex-1" size="lg" onClick={onConfirm} isLoading={isLoading && !error} disabled={isLoading && !error}>
+          {isLoading && !error ? (isSafe ? "Proposing to Safe..." : "Confirming…") : error ? "Try Again" : (isSafe ? "Propose to Safe" : "Confirm Purchase")}
         </Button>
       </div>
     </>
