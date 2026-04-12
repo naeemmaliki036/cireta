@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits, formatUnits, zeroAddress } from "viem";
@@ -109,6 +109,16 @@ export default function InvestPage() {
     query: { enabled: !!connectedAddress },
   });
   const ethBalance = nativeBalance ? Number(formatUnits(nativeBalance.value, 18)) : null;
+
+  // Read USDC balance for insufficient funds check
+  const { data: usdcBalanceRaw } = useReadContract({
+    address: usdcAddress ?? undefined,
+    abi: [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const,
+    functionName: "balanceOf",
+    args: connectedAddress ? [connectedAddress] : undefined,
+    query: { enabled: !!usdcAddress && !!connectedAddress },
+  });
+  const usdcBalance = usdcBalanceRaw != null ? Number(formatUnits(usdcBalanceRaw as bigint, 6)) : null;
 
   // Read sale.totalContributed[wallet] for amount-step display
   const { data: userTotalContributedRaw } = useReadContract({
@@ -300,6 +310,7 @@ export default function InvestPage() {
   }) ?? null;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
   const usdcRequired = tokenQty * pricePerToken;
+  const insufficientUsdc = paymentMethod === "crypto" && usdcBalance != null && usdcRequired > 0 && usdcBalance < usdcRequired;
   const tokensToReceive = tokenQty;
   const numericAmount = usdcRequired;
 
@@ -717,12 +728,12 @@ export default function InvestPage() {
               );
             })()}
 
-            {/* Verified confirmation badge */}
-            {!isWrongChain && isAuthenticated && isConnected && isWalletVerified === true && user?.kycStatus === "approved" && (
-              <div className="mb-6 p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-green-700">
-                  Verified wallet &mdash; you&apos;re ready to buy
+            {/* Wallet not verified — error banner (blocks buying) */}
+            {!isWrongChain && isAuthenticated && isConnected && isWalletVerified === false && user?.kycStatus === "approved" && step !== "amount" && (
+              <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm font-medium text-red-700">
+                  This wallet is not registered on the identity registry. Please link a verified wallet or contact support.
                 </p>
               </div>
             )}
@@ -954,6 +965,11 @@ export default function InvestPage() {
                           !activePhase
                         }
                         onClick={() => {
+                    if (isWalletVerified === false) {
+                      setError("Wallet not registered on identity registry");
+                      return;
+                    }
+                    setError(null);
                     refetchOtcAllowance().then(({ data: a }) => {
                       const needed = parseUnits(amount || "0", otcTokenDecimals);
                       if (a != null && needed > 0 && (a as bigint) >= needed) {
@@ -978,8 +994,21 @@ export default function InvestPage() {
               </>
             )}
 
-            {/* OTC Token flow — approve step */}
-            {paymentMethod === "otc_token" && step === "approve" && (
+            {/* OTC Token flow — approve step (blocked if wallet not verified) */}
+            {paymentMethod === "otc_token" && step === "approve" && isWalletVerified === false && (
+              <div className="text-center py-8 space-y-3">
+                <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
+                <h2 className="text-lg font-semibold text-text">Wallet Not Verified</h2>
+                <p className="text-black/50 text-sm">
+                  This wallet is not registered on the identity registry. You cannot proceed with the purchase.
+                  Please link a verified wallet or contact support.
+                </p>
+                <button onClick={() => setStep("amount")} className="text-darkAqua font-medium hover:underline text-sm">
+                  Go Back
+                </button>
+              </div>
+            )}
+            {paymentMethod === "otc_token" && step === "approve" && isWalletVerified !== false && (
               <>
                 <h1 className="text-2xl font-semibold text-text mb-2">Approve {otcTokenSymbol}</h1>
                 <p className="text-black/50 mb-8">Allow the sale contract to spend your {otcTokenSymbol} tokens</p>
@@ -1048,31 +1077,57 @@ export default function InvestPage() {
 
             {/* Crypto flow — existing steps */}
             {paymentMethod === "crypto" && activePhase && step === "amount" && (
-              <InvestAmountStep
-                project={project} activePhase={activePhase}
-                amount={amount} onAmountChange={setAmount}
-                onContinue={() => {
-                  setError(null);
-                  refetchAllowance()
-                    .then(({ data: a }) => {
-                      const needed = parseUnits(amount || "0", 6);
-                      if (a != null && needed > 0 && (a as bigint) >= needed) {
-                        // Sufficient allowance — skip approve, go to confirm
-                        setStep("confirm");
-                      } else {
-                        // Need approval — show approve step (with current allowance info)
-                        setStep("approve");
-                      }
-                    })
-                    .catch(() => setStep("approve"));
-                }}
-                isConnected={isConnected} onConnect={() => openConnectModal?.()}
-                userTotalContributed={userTotalContributed}
-                ethBalance={ethBalance}
-                phaseRemainingTokens={phaseRemainingTokens}
-              />
+              <>
+                {insufficientUsdc && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
+                    Insufficient USDC balance. You have {usdcBalance?.toLocaleString()} USDC but need {usdcRequired.toLocaleString()} USDC.
+                  </div>
+                )}
+                <InvestAmountStep
+                  project={project} activePhase={activePhase}
+                  amount={amount} onAmountChange={setAmount}
+                  onContinue={() => {
+                    if (insufficientUsdc) {
+                      setError("Insufficient USDC balance");
+                      return;
+                    }
+                    if (isWalletVerified === false) {
+                      setError("Wallet not registered on identity registry");
+                      return;
+                    }
+                    setError(null);
+                    refetchAllowance()
+                      .then(({ data: a }) => {
+                        const needed = parseUnits(amount || "0", 6);
+                        if (a != null && needed > 0 && (a as bigint) >= needed) {
+                          setStep("confirm");
+                        } else {
+                          setStep("approve");
+                        }
+                      })
+                      .catch(() => setStep("approve"));
+                  }}
+                  isConnected={isConnected} onConnect={() => openConnectModal?.()}
+                  userTotalContributed={userTotalContributed}
+                  ethBalance={ethBalance}
+                  phaseRemainingTokens={phaseRemainingTokens}
+                />
+              </>
             )}
-            {paymentMethod === "crypto" && step === "approve" && (
+            {paymentMethod === "crypto" && step === "approve" && isWalletVerified === false && (
+              <div className="text-center py-8 space-y-3">
+                <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
+                <h2 className="text-lg font-semibold text-text">Wallet Not Verified</h2>
+                <p className="text-black/50 text-sm">
+                  This wallet is not registered on the identity registry. You cannot proceed with the purchase.
+                  Please link a verified wallet or contact support.
+                </p>
+                <button onClick={() => setStep("amount")} className="text-darkAqua font-medium hover:underline text-sm">
+                  Go Back
+                </button>
+              </div>
+            )}
+            {paymentMethod === "crypto" && step === "approve" && isWalletVerified !== false && (
               <InvestApproveStep
                 amount={numericAmount} isLoading={isApproving || isApproveConfirming}
                 error={error} onApprove={handleApprove}
