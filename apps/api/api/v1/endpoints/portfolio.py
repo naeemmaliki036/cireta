@@ -98,6 +98,11 @@ def _redemption_to_response(redemption) -> RedemptionResponse:
         tx_hash=redemption.tx_hash,
         fulfilled_at=redemption.fulfilled_at,
         notes=redemption.notes,
+        tracking_number=redemption.tracking_number,
+        shipped_at=redemption.shipped_at,
+        delivery_name=redemption.delivery_name,
+        delivery_address=redemption.delivery_address,
+        delivery_phone=redemption.delivery_phone,
         created_at=redemption.created_at,
     )
 

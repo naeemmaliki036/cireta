@@ -46,6 +46,7 @@ class RedemptionRequest(BaseModel):
     delivery_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     delivery_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    tracking_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Relationships
     token: Mapped[Token] = relationship(back_populates="redemption_requests")

@@ -12,7 +12,6 @@ import { WalletBadge } from "@/components/molecules";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getToken as fetchToken, recordTokenDeployment, type Token } from "@/lib/api/repositories/tokens";
-import { pauseToken, unpauseToken } from "@/lib/api/repositories/compliance";
 import { getAccessToken } from "@/lib/api/client";
 import { useContractAction } from "@/hooks/useContractAction";
 import { TOKEN_FACTORY_ABI } from "@/lib/contracts/abis/tokenFactory";
@@ -26,13 +25,13 @@ function getAuthToken() {
 export default function TokenDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const [token, setToken] = useState<Token | null>(null);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState(false);
   const [resolvedId, setResolvedId] = useState<string>("");
 
   // On-chain deployment
   const { isConnected, address: walletAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
   const deployAction = useContractAction();
+  const pauseAction = useContractAction();
 
   // Read on-chain total supply to show mint guidance
   const { data: onChainSupply } = useReadContract({
@@ -42,6 +41,15 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
     query: { enabled: !!token?.contract_address },
   });
   const supplyMinted = Number(onChainSupply ?? 0) > 0;
+
+  // Read on-chain paused state
+  const { data: onChainPaused, refetch: refetchPaused } = useReadContract({
+    address: token?.contract_address as `0x${string}`,
+    abi: CIRETA_TOKEN_ABI as unknown as Abi,
+    functionName: "paused",
+    query: { enabled: !!token?.contract_address },
+  });
+  const isPaused = typeof onChainPaused === "boolean" ? onChainPaused : token?.is_paused ?? false;
 
   useEffect(() => {
     paramsPromise.then((p) => setResolvedId(p.id));
@@ -59,19 +67,19 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
   }, [resolvedId]);
 
   const handlePauseToggle = async () => {
-    if (!token) return;
-    setToggling(true);
-    const auth = getAuthToken();
-    try {
-      if (token.is_paused) {
-        await unpauseToken(token.id, "Admin action", auth);
-        setToken({ ...token, is_paused: false });
-      } else {
-        await pauseToken(token.id, "Admin action", auth);
-        setToken({ ...token, is_paused: true });
-      }
-    } catch { /* TODO: toast */ }
-    setToggling(false);
+    if (!token?.contract_address) return;
+    if (!isConnected) { openConnectModal?.(); return; }
+
+    pauseAction.reset();
+    const fnName = isPaused ? "unpause" : "pause";
+    const receipt = await pauseAction.execute({
+      address: token.contract_address as `0x${string}`,
+      abi: CIRETA_TOKEN_ABI as unknown as Abi,
+      functionName: fnName,
+    });
+    if (receipt) {
+      await refetchPaused();
+    }
   };
 
   const handleDeployOnChain = async () => {
@@ -185,7 +193,7 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
               { label: "Symbol", value: token.symbol },
               { label: "Asset Type", value: token.asset_type },
               { label: "Total Supply", value: parseFloat(token.total_supply).toLocaleString() },
-              { label: "Status", value: <Badge variant={token.is_paused ? "pending" : "active"} size="sm">{token.is_paused ? "Paused" : "Active"}</Badge> },
+              { label: "Status", value: <Badge variant={isPaused ? "pending" : "active"} size="sm">{isPaused ? "Paused" : "Active"}</Badge> },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between py-2 border-b border-black/5 last:border-0">
                 <span className="text-sm text-black/50">{label}</span>
@@ -250,12 +258,34 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
           <div className="mt-6 pt-4 border-t border-black/10">
             <h3 className="text-sm font-semibold text-text mb-3">Actions</h3>
             <div className="flex gap-3">
-              <Button variant={token.is_paused ? "primary" : "outline"} size="sm"
-                leftIcon={token.is_paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                onClick={handlePauseToggle} disabled={toggling || !token.contract_address}>
-                {token.is_paused ? "Unpause" : "Pause"} Token
-              </Button>
+              {isPaused ? (
+                <Button variant="primary" size="sm"
+                  leftIcon={<Play className="h-4 w-4" />}
+                  onClick={handlePauseToggle}
+                  disabled={pauseAction.isPending || pauseAction.isConfirming || !token.contract_address}
+                  isLoading={pauseAction.isPending || pauseAction.isConfirming}>
+                  Unpause Token
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  leftIcon={<Pause className="h-4 w-4" />}
+                  onClick={handlePauseToggle}
+                  disabled={pauseAction.isPending || pauseAction.isConfirming || !token.contract_address}
+                  isLoading={pauseAction.isPending || pauseAction.isConfirming}>
+                  Pause Token
+                </Button>
+              )}
             </div>
+            <TransactionStatus
+              isPending={pauseAction.isPending}
+              isConfirming={pauseAction.isConfirming}
+              isConfirmed={pauseAction.isConfirmed}
+              txHash={pauseAction.txHash}
+              txUrl={pauseAction.txUrl}
+              error={pauseAction.error}
+              successMessage={isPaused ? "Token paused on-chain." : "Token unpaused on-chain."}
+            />
           </div>
         </motion.div>
       </div>

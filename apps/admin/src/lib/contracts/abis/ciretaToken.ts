@@ -15,6 +15,7 @@ export const CIRETA_TOKEN_ABI = [
   { name: "totalSupply", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { name: "identityRegistry", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { name: "compliance", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
+  { name: "paused", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "bool" }] },
   { name: "pause", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { name: "unpause", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { name: "setAddressFrozen", type: "function", stateMutability: "nonpayable", inputs: [{ name: "addr", type: "address" }, { name: "freeze", type: "bool" }], outputs: [] },

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Unlock, ArrowLeftRight, RotateCcw, X, AlertTriangle } from "lucide-react";
-import { useAccount } from "wagmi";
+import { Lock, Unlock, ArrowLeftRight, RotateCcw, X, AlertTriangle, Pause, Play } from "lucide-react";
+import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi, isAddress } from "viem";
 import { Button, Input, Spinner } from "@/components/atoms";
@@ -18,7 +18,7 @@ import type { ComplianceAction } from "@/components/molecules";
 import { useContractAction } from "@/hooks/useContractAction";
 import { CIRETA_TOKEN_ABI } from "@/lib/contracts/abis/ciretaToken";
 
-type ActionType = "freeze" | "unfreeze" | "forced_transfer" | "recover" | null;
+type ActionType = "freeze" | "unfreeze" | "forced_transfer" | "recover" | "pause" | "unpause" | null;
 
 const ACTION_CARDS = [
   { action: "freeze" as const, icon: Lock, title: "Freeze Address", desc: "Prevent an address from transferring tokens", color: "text-red-600", bg: "bg-red-100" },
@@ -41,6 +41,16 @@ export default function CompliancePage() {
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
   const action = useContractAction();
+  const pauseAction = useContractAction();
+
+  // Read on-chain paused state for selected token
+  const { data: onChainPaused, refetch: refetchPaused } = useReadContract({
+    address: selectedTokenAddr as `0x${string}`,
+    abi: CIRETA_TOKEN_ABI as unknown as Abi,
+    functionName: "paused",
+    query: { enabled: !!selectedTokenAddr },
+  });
+  const isPaused = typeof onChainPaused === "boolean" ? onChainPaused : false;
 
   // Load tokens and audit logs
   useEffect(() => {
@@ -104,6 +114,21 @@ export default function CompliancePage() {
     }
   };
 
+  const handlePauseToggle = async () => {
+    if (!isConnected) { openConnectModal?.(); return; }
+    if (!selectedTokenAddr) return;
+    pauseAction.reset();
+    const fnName = isPaused ? "unpause" : "pause";
+    const receipt = await pauseAction.execute({
+      address: selectedTokenAddr as `0x${string}`,
+      abi: CIRETA_TOKEN_ABI as unknown as Abi,
+      functionName: fnName,
+    });
+    if (receipt) {
+      await refetchPaused();
+    }
+  };
+
   const resetModal = () => {
     setModalAction(null);
     setTargetAddress("");
@@ -152,6 +177,55 @@ export default function CompliancePage() {
               <p className="text-xs text-zinc-500">{card.desc}</p>
             </motion.button>
           ))}
+        </div>
+      )}
+
+      {/* Pause / Unpause — shown when token selected */}
+      {selectedTokenAddr && (
+        <div className="bg-white rounded-lg border border-zinc-100 p-5 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Token Pause Control</h3>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {isPaused
+                  ? "Token is currently paused. All transfers are blocked."
+                  : "Token is active. Pausing will block all transfers."}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${isPaused ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isPaused ? "bg-red-500" : "bg-green-500"}`} />
+                {isPaused ? "Paused" : "Active"}
+              </span>
+              {isPaused ? (
+                <Button variant="primary" size="sm"
+                  leftIcon={<Play className="h-4 w-4" />}
+                  onClick={handlePauseToggle}
+                  disabled={pauseAction.isPending || pauseAction.isConfirming}
+                  isLoading={pauseAction.isPending || pauseAction.isConfirming}>
+                  Unpause Token
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  leftIcon={<Pause className="h-4 w-4" />}
+                  onClick={handlePauseToggle}
+                  disabled={pauseAction.isPending || pauseAction.isConfirming}
+                  isLoading={pauseAction.isPending || pauseAction.isConfirming}>
+                  Pause Token
+                </Button>
+              )}
+            </div>
+          </div>
+          <TransactionStatus
+            isPending={pauseAction.isPending}
+            isConfirming={pauseAction.isConfirming}
+            isConfirmed={pauseAction.isConfirmed}
+            txHash={pauseAction.txHash}
+            txUrl={pauseAction.txUrl}
+            error={pauseAction.error}
+            successMessage={isPaused ? "Token paused on-chain." : "Token unpaused on-chain."}
+          />
         </div>
       )}
 

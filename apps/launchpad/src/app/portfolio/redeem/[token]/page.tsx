@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Package, Truck, Clock } from "lucide-react";
 import { Button, Input, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
-import { getPortfolio, createRedemption, type Holding } from "@/lib/api/repositories/portfolio.repository";
+import { getPortfolio, createRedemption, getRedemptions, type Holding, type RedemptionRequest } from "@/lib/api/repositories/portfolio.repository";
 
 export default function RedeemTokenPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
   const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
@@ -16,6 +16,7 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
   const [method, setMethod] = useState<"cash" | "physical">("cash");
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [existingRedemptions, setExistingRedemptions] = useState<RedemptionRequest[]>([]);
 
   useEffect(() => {
     paramsPromise.then(setResolvedParams);
@@ -25,9 +26,13 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
     if (!resolvedParams) return;
     (async () => {
       try {
-        const portfolio = await getPortfolio();
+        const [portfolio, redemptions] = await Promise.all([getPortfolio(), getRedemptions()]);
         const h = portfolio.holdings.find((h) => h.token_id === resolvedParams.token);
         if (h) setHolding(h);
+        const tokenRedemptions = redemptions.filter(
+          (r) => r.token_id === resolvedParams.token && r.status !== "cancelled"
+        );
+        setExistingRedemptions(tokenRedemptions);
       } catch (err) { console.error("Failed to load holdings:", err); }
       finally { setLoading(false); }
     })();
@@ -128,7 +133,76 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
             </Button>
           </div>
         </motion.div>
+
+        {existingRedemptions.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="mt-6 bg-white rounded-3xl p-8 border border-black/10">
+            <h3 className="text-lg font-semibold text-text mb-4">Your Redemption Requests</h3>
+            <div className="space-y-4">
+              {existingRedemptions.map((r) => (
+                <RedemptionStatusCard key={r.id} redemption={r} />
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     </DashboardLayout>
+  );
+}
+
+const STATUS_STEPS = ["pending", "processing", "shipped", "fulfilled"];
+
+function RedemptionStatusCard({ redemption: r }: { redemption: RedemptionRequest }) {
+  const idx = STATUS_STEPS.indexOf(r.status);
+  const isPhysical = r.fulfillment_method === "physical";
+
+  return (
+    <div className="border border-black/5 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium text-text">
+          {Number(r.amount).toLocaleString()} tokens
+        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+          r.status === "fulfilled" ? "bg-green-100 text-green-700" :
+          r.status === "shipped" ? "bg-blue-100 text-blue-700" :
+          r.status === "processing" ? "bg-yellow-100 text-yellow-700" :
+          "bg-gray-100 text-gray-500"
+        }`}>
+          {r.status}
+        </span>
+      </div>
+
+      {isPhysical && (
+        <div className="flex items-center gap-2 mb-3">
+          {STATUS_STEPS.map((step, i) => (
+            <div key={step} className="flex items-center gap-2 flex-1">
+              <div className={`h-1 w-full rounded-full ${i <= idx ? "bg-darkAqua" : "bg-black/10"}`} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="text-xs text-black/40 space-y-1">
+        <p>
+          {r.fulfillment_method === "physical" ? (
+            <><Package className="inline h-3 w-3 mr-1" />Physical Delivery</>
+          ) : (
+            <><Clock className="inline h-3 w-3 mr-1" />Cash Settlement</>
+          )}
+          {" \u00b7 "}{new Date(r.created_at).toLocaleDateString()}
+        </p>
+        {r.status === "shipped" && r.tracking_number && (
+          <p className="text-blue-600 font-medium">
+            <Truck className="inline h-3 w-3 mr-1" />Tracking: {r.tracking_number}
+          </p>
+        )}
+        {r.shipped_at && (
+          <p>Shipped: {new Date(r.shipped_at).toLocaleDateString()}</p>
+        )}
+        {r.fulfilled_at && (
+          <p className="text-green-600">Delivered: {new Date(r.fulfilled_at).toLocaleDateString()}</p>
+        )}
+      </div>
+    </div>
   );
 }

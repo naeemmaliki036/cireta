@@ -6,9 +6,13 @@ export interface Redemption {
   token_id: string;
   amount: string;
   status: string;
+  fulfillment_method: string | null;
   delivery_name: string | null;
   delivery_address: string | null;
   delivery_phone: string | null;
+  tracking_number: string | null;
+  shipped_at: string | null;
+  fulfilled_at: string | null;
   tx_hash: string | null;
   created_at: string | null;
 }
@@ -22,9 +26,13 @@ export async function listRedemptions(): Promise<Redemption[]> {
   return data.redemptions ?? [];
 }
 
-export async function updateRedemptionStatus(id: string, status: string): Promise<void> {
+export async function updateRedemptionStatus(
+  id: string,
+  status: string,
+  extra?: { tracking_number?: string; notes?: string },
+): Promise<void> {
   await apiFetch(`/api/v1/admin/redemptions/${id}`, {
     method: "PATCH",
-    body: { status },
+    body: { status, ...extra },
   });
 }

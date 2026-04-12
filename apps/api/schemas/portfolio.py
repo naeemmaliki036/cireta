@@ -85,6 +85,11 @@ class RedemptionResponse(BaseModel):
     notes: str | None
     rejection_reason: str | None = None
     delivery_details: str | None = None
+    tracking_number: str | None = None
+    shipped_at: datetime | None = None
+    delivery_name: str | None = None
+    delivery_address: str | None = None
+    delivery_phone: str | None = None
     created_at: datetime
 
     class Config:

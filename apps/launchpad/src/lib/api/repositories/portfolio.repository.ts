@@ -46,9 +46,14 @@ export interface RedemptionRequest {
   token_name: string;
   amount: string;
   fulfillment_method: "physical" | "cash";
-  status: "pending" | "processing" | "fulfilled" | "cancelled";
+  status: "pending" | "processing" | "shipped" | "fulfilled" | "cancelled";
   tx_hash: string;
   fulfilled_at: string | null;
+  tracking_number: string | null;
+  shipped_at: string | null;
+  delivery_name: string | null;
+  delivery_address: string | null;
+  delivery_phone: string | null;
   created_at: string;
 }
 

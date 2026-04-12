@@ -38,6 +38,8 @@ async def update_redemption_status(
         req.fulfilled_at = datetime.now(UTC)
     if request.notes:
         req.notes = request.notes
+    if request.tracking_number is not None:
+        req.tracking_number = request.tracking_number
     await db.commit()
     return {"message": "Redemption status updated", "status": request.status}
 
@@ -65,6 +67,10 @@ async def list_redemptions(
                 "delivery_name": r.delivery_name,
                 "delivery_address": r.delivery_address,
                 "delivery_phone": r.delivery_phone,
+                "tracking_number": r.tracking_number,
+                "fulfillment_method": r.fulfillment_method.value if hasattr(r.fulfillment_method, "value") else r.fulfillment_method,
+                "shipped_at": r.shipped_at.isoformat() if r.shipped_at else None,
+                "fulfilled_at": r.fulfilled_at.isoformat() if r.fulfilled_at else None,
                 "tx_hash": r.tx_hash,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
