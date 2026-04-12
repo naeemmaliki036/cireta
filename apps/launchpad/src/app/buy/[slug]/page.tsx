@@ -377,7 +377,9 @@ export default function InvestPage() {
       setIsRecording(false);
       setStep("success");
     })();
-  }, [contributeConfirmed, contributeTxHash, saleId, usdcRequired, activePhase?.id]);
+  }, [contributeConfirmed, contributeTxHash, saleId, usdcRequired]);
+  // Note: activePhase?.id intentionally excluded — recording must fire even
+  // if frontend couldn't resolve the phase (backend resolves from on-chain event)
 
   // Handle contribute error
   useEffect(() => {
@@ -410,7 +412,7 @@ export default function InvestPage() {
       refetchOtcBalance();
       setStep("success");
     })();
-  }, [buyOtcConfirmed, buyOtcTxHash, saleId, usdcRequired, activePhase?.id, refetchOtcBalance]);
+  }, [buyOtcConfirmed, buyOtcTxHash, saleId, usdcRequired, refetchOtcBalance]);
 
   // OTC: Handle buyOTC error
   useEffect(() => {
