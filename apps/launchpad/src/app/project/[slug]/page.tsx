@@ -593,7 +593,7 @@ export default function ProjectDetailPage() {
                                     <span className="font-semibold text-sm text-text truncate">
                                       Phase {idx + 1}: {phase.name}
                                     </span>
-                                    {phase.whitelist_only && (
+                                    {false && phase.whitelist_only && (
                                       <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Whitelist</span>
                                     )}
                                   </div>
