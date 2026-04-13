@@ -242,8 +242,8 @@ export default function ProjectDetailPage() {
     : parseFloat(saleRaw?.hard_cap ?? String(project.targetAmount));
   const softCap = onChain.ready ? onChain.softCap : parseFloat(saleRaw?.soft_cap ?? "0");
   const raised = onChain.ready ? onChain.totalRaised : project.currentRaised;
-  const progressPctRaw = hardCap > 0 ? Math.min((raised / hardCap) * 100, 100) : 0;
-  const progressPct = progressPctRaw >= 100 ? 100 : parseFloat(progressPctRaw.toFixed(2));
+  const progressPctRaw = hardCap > 0 ? (raised / hardCap) * 100 : 0;
+  const progressPct = raised >= hardCap ? 100 : Math.min(parseFloat(progressPctRaw.toFixed(2)), 99.99);
   const bannerImg = images.find((i) => i.is_banner)?.url ?? (project.imageUrl || "/images/projects/gold-ghana.png");
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });

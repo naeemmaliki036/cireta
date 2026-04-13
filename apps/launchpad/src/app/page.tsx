@@ -64,9 +64,10 @@ function LiveProjectCard({ project: p }: { project: Project }) {
   const effectiveRaised = onChain.ready ? onChain.totalRaised : p.currentRaised;
   const effectiveTarget = onChain.ready && onChain.hardCap > 0 ? onChain.hardCap : p.targetAmount;
   const progressRaw = effectiveTarget > 0
-    ? Math.min((effectiveRaised / effectiveTarget) * 100, 100)
+    ? (effectiveRaised / effectiveTarget) * 100
     : 0;
-  const progress = progressRaw >= 100 ? 100 : parseFloat(progressRaw.toFixed(2));
+  // Only show 100% if raised truly equals/exceeds target — avoid float rounding to 100
+  const progress = effectiveRaised >= effectiveTarget ? 100 : Math.min(parseFloat(progressRaw.toFixed(2)), 99.99);
   const hasImage = p.imageUrl && !imgError;
   const isVideo = p.imageUrl && isVideoUrl(p.imageUrl);
 
@@ -171,7 +172,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
           <div className="flex items-center justify-between pt-1">
             <div>
               <p className="text-[10px] text-gray-400 uppercase">Target</p>
-              <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${(effectiveTarget / 1_000_000).toFixed(1)}M USDC`}</p>
+              <p className="text-sm font-bold">{p.isComingSoon ? "TBD" : `${parseFloat((effectiveTarget / 1_000_000).toFixed(2))}M USDC`}</p>
             </div>
             <span className="inline-flex items-center gap-1.5 btn-cta text-xs px-4 py-2 rounded-full transition-colors">
               View Details <ArrowRight className="h-3 w-3" />
