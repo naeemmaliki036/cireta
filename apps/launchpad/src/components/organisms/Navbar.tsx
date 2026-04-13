@@ -128,7 +128,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                 )}
               >
                 <HelpCircle className="h-3.5 w-3.5" />
-                How To?
+                Learn
                 <ChevronDown className={cn("h-3 w-3 transition-transform", isHelpMenuOpen && "rotate-180")} />
               </button>
               <AnimatePresence>
@@ -382,22 +382,20 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               </div>
             )}
 
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={cn(
-                "lg:hidden p-2 rounded-full transition-colors",
-                isScrolled || variant === "dark"
-                  ? "text-white hover:bg-white/10"
-                  : "text-text hover:bg-black/5"
-              )}
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
+            {/* Mobile Menu Toggle — hidden when menu is open (panel has its own X) */}
+            {!isMobileMenuOpen && (
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className={cn(
+                  "lg:hidden p-3 rounded-full transition-colors",
+                  variant === "dark"
+                    ? "text-white hover:bg-white/10"
+                    : "text-text hover:bg-black/5"
+                )}
+              >
                 <Menu className="h-6 w-6" />
-              )}
-            </button>
+              </button>
+            )}
           </div>
         </nav>
       </header>
@@ -415,32 +413,79 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               className="absolute inset-0 bg-black/50"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <div className="absolute right-0 top-0 h-full w-full max-w-sm bg-black shadow-aside p-6 pt-24">
-              <nav className="flex flex-col gap-2">
-                <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}
-                  className="px-4 py-3 rounded-xl text-lg font-medium text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-                  Explore Projects
-                </Link>
-              </nav>
+            <div className="absolute right-0 top-0 h-full w-full shadow-2xl px-5 pt-4 pb-6 backdrop-blur-xl" style={{ backgroundColor: "rgba(236, 243, 244, 0.92)" }}>
+              {/* Close button */}
+              <div className="flex items-center justify-end mb-4">
+                <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-darkAqua text-white transition-colors hover:opacity-90">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {/* Navigation */}
+              <div className="space-y-6 overflow-y-auto" style={{ maxHeight: "calc(100vh - 100px)" }}>
+                {/* Main nav */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#13636F" }}>Navigate</p>
+                  <nav className="flex flex-col">
+                    <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}
+                      className="py-3 border-b border-black/5 text-sm font-semibold text-text flex items-center gap-3">
+                      Explore Projects
+                    </Link>
+                    {isAuthenticated && (
+                      <Link href="/portfolio" onClick={() => setIsMobileMenuOpen(false)}
+                        className="py-3 border-b border-black/5 text-sm font-semibold text-text flex items-center gap-3">
+                        Portfolio
+                      </Link>
+                    )}
+                  </nav>
+                </div>
+
+                {/* Learn */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#13636F" }}>Learn</p>
+                  <nav className="flex flex-col">
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setShowTour(true), 300); }}
+                      className="py-3 border-b border-black/5 text-sm font-medium text-text text-left flex items-center gap-3"
+                    >
+                      <Play className="h-4 w-4" style={{ color: "#13636F" }} /> Quick Tour
+                    </button>
+                    <Link href="/#how-it-works" onClick={() => setIsMobileMenuOpen(false)}
+                      className="py-3 border-b border-black/5 text-sm font-medium text-text flex items-center gap-3">
+                      <BookOpen className="h-4 w-4" style={{ color: "#13636F" }} /> Getting Started
+                    </Link>
+                    <a href="https://www.cireta.com/faqs" target="_blank" rel="noopener noreferrer"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="py-3 border-b border-black/5 text-sm font-medium text-text flex items-center gap-3">
+                      <HelpCircle className="h-4 w-4" style={{ color: "#13636F" }} /> FAQ
+                    </a>
+                    <a href="https://www.cireta.com/contact" target="_blank" rel="noopener noreferrer"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="py-3 text-sm font-medium text-text flex items-center gap-3">
+                      <MessageCircle className="h-4 w-4" style={{ color: "#13636F" }} /> Contact Support
+                    </a>
+                  </nav>
+                </div>
+              </div>
               {/* Sign Up / Log In (Mobile) */}
               {!isAuthenticated && (
-                <div className="mt-6 border-t border-white/10 pt-6">
+                <div className="mt-5 space-y-2">
                   <Link
                     href={`/login?redirect=${encodeURIComponent(pathname)}`}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white text-black text-base font-semibold transition-colors hover:bg-white/90"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors"
+                    style={{ backgroundColor: "#13636F" }}
                   >
-                    <User className="h-5 w-5" />
                     Sign Up / Log In
                   </Link>
                 </div>
               )}
               {/* User Info (Mobile) */}
               {isAuthenticated && user && (
-                <div className="mt-6 border-t border-white/10 pt-6">
-                  <div className="px-4 mb-4">
+                <div className="mt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#13636F" }}>Account</p>
+                  <div className="mb-3">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-white">{user.display_name || user.email.split("@")[0]}</p>
+                      <p className="text-sm font-semibold text-text">{user.display_name || user.email.split("@")[0]}</p>
                       {kycBadge && (
                         <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", kycBadge.bg, kycBadge.color)}>
                           <kycBadge.icon className="h-2.5 w-2.5" />
@@ -448,41 +493,41 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-white/50">{user.email}</p>
+                    <p className="text-xs text-black/40">{user.email}</p>
                   </div>
                   {!user.onboarding_completed && user.kycStatus !== "approved" && (
                     <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors animate-pulse"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors"
                       style={{ color: "#13636F" }}
                     >
-                      <Shield className="h-5 w-5" />
+                      <Shield className="h-4 w-4" />
                       Complete Profile
                     </Link>
                   )}
                   {user.onboarding_completed && user.kycStatus !== "approved" && (
                     <Link href="/verify" onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
                       style={{ color: "#13636F" }}
                     >
-                      <Shield className="h-5 w-5" />
+                      <Shield className="h-4 w-4" />
                       {user.kycStatus === "pending" ? "Verification In Progress" : user.kycStatus === "rejected" ? "Re-submit Verification" : "Renew Verification"}
                     </Link>
                   )}
                   <Link href="/account" onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors text-base font-medium">
-                    <User className="h-5 w-5" /> Account
+                    className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-text">
+                    <User className="h-4 w-4" style={{ color: "#13636F" }} /> Account
                   </Link>
                   <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors text-base font-medium">
-                    <Settings className="h-5 w-5" /> Settings
+                    className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-text">
+                    <Settings className="h-4 w-4" style={{ color: "#13636F" }} /> Settings
                   </Link>
                   <button onClick={() => { setIsMobileMenuOpen(false); logout(); }}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-base font-medium w-full">
-                    <LogOut className="h-5 w-5" /> Sign Out
+                    className="flex items-center gap-3 py-3 text-sm font-medium text-red-500 w-full">
+                    <LogOut className="h-4 w-4" /> Sign Out
                   </button>
                 </div>
               )}
-              <div className="mt-8">
+              <div className="mt-3">
                 <ConnectButton.Custom>
                   {({
                     account,
@@ -512,9 +557,10 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                             return (
                               <button
                                 onClick={openConnectModal}
-                                className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold bg-darkAqua text-white transition-all duration-300 hover:opacity-80"
+                                className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90"
+                                style={{ backgroundColor: "#13636F" }}
                               >
-                                <Wallet className="h-5 w-5" />
+                                <Wallet className="h-4 w-4" />
                                 Connect Wallet
                               </button>
                             );

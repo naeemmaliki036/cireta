@@ -173,21 +173,23 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
             onClick={handleClose}
           />
 
-          {/* Tooltip for targeted steps */}
-          {activeStep?.targetId && (
-            <Tooltip
-              targetId={activeStep.targetId}
-              title={activeStep.title}
-              description={activeStep.description}
-            />
-          )}
+          {/* Tooltip for targeted steps — hidden on mobile */}
+          <div className="hidden sm:block">
+            {activeStep?.targetId && (
+              <Tooltip
+                targetId={activeStep.targetId}
+                title={activeStep.title}
+                description={activeStep.description}
+              />
+            )}
+          </div>
 
-          {/* Modal */}
+          {/* Modal — full screen on mobile, centered card on desktop */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm rounded-2xl shadow-2xl p-6"
+            className="fixed z-50 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-sm sm:rounded-2xl inset-x-0 bottom-0 sm:inset-auto rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto"
             style={{ backgroundColor: "#FFFFFF" }}
           >
             {/* Close button */}
