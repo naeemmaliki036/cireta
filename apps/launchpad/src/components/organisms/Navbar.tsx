@@ -68,7 +68,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   // Auto-show tour only for unregistered users on first visit
   useEffect(() => {
     if (typeof window !== "undefined" && !isAuthenticated && !localStorage.getItem("cireta_tour_completed")) {
-      const timer = setTimeout(() => setShowTour(true), 800);
+      const timer = setTimeout(() => setShowTour(true), 5000);
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated]);
