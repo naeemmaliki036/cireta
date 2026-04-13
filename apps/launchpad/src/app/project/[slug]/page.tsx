@@ -451,6 +451,59 @@ export default function ProjectDetailPage() {
                 </div>
               )}
             </div>
+            {/* Sale widget — mobile only (inline card below banner) */}
+            <div className="lg:hidden bg-white border border-black/10 rounded-2xl mx-4 -mt-8 relative z-10 p-5 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-darkAqua/10 flex items-center justify-center"><Coins className="h-4 w-4 text-darkAqua" /></div>
+                  <div>
+                    <p className="font-bold text-sm">USDC</p>
+                    <p className="text-xs text-gray-500">
+                      {project.isComingSoon
+                        ? "Details announced at launch"
+                        : raised > 0
+                          ? `${fmtUsdc(raised)} raised out of ${fmtUsdc(hardCap)} USDC`
+                          : `Target: ${fmtUsdc(hardCap)} USDC`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("w-2 h-2 rounded-full", project.status === "active" ? "bg-green-500" : project.isComingSoon ? "bg-amber-400" : "bg-gray-400")} />
+                  <span className={cn("text-xs font-semibold capitalize", project.isComingSoon ? "text-amber-600" : statusColor[project.status] ?? "text-gray-500")}>
+                    {statusLabel}
+                  </span>
+                </div>
+              </div>
+              {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
+              <div className="space-y-2 text-sm mb-4">
+                <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Available</span><span className="font-medium">{project.isComingSoon ? "TBD" : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "\u2014"}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minTokens} ${project.tokenSymbol}`}</span></div>
+              </div>
+              {project.isComingSoon ? (
+                subscribed ? (
+                  <button className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 cursor-default">
+                    <Bell className="h-4 w-4" /> Subscribed
+                  </button>
+                ) : isAuthenticated ? (
+                  <button onClick={handleSubscribe} disabled={subscribing}
+                    className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                    <Bell className="h-4 w-4" /> {subscribing ? "Subscribing..." : "Notify Me"}
+                  </button>
+                ) : (
+                  <button onClick={() => setShowEmailInput(true)}
+                    className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <Bell className="h-4 w-4" /> Notify Me
+                  </button>
+                )
+              ) : ap?.deployed_on_chain === false ? (
+                <button disabled className="w-full bg-gray-200 text-gray-500 py-3 rounded-xl cursor-not-allowed">Phase Not Yet Available</button>
+              ) : isAuthenticated ? (
+                <Link href={`/buy/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
+              ) : (
+                <button onClick={() => setShowLoginDialog(true)} className="w-full btn-cta py-3 rounded-xl transition-colors">Buy Now</button>
+              )}
+            </div>
             {/* Social Links */}
             {saleRaw && (saleRaw.website_url || saleRaw.twitter_url || saleRaw.linkedin_url || saleRaw.telegram_url || saleRaw.discord_url || saleRaw.instagram_url || saleRaw.facebook_url) && (
               <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100">

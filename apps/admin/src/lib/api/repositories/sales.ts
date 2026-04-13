@@ -278,6 +278,33 @@ export async function removeSaleImage(
   });
 }
 
+export async function removeSaleTeamMember(
+  saleId: string,
+  memberId: string,
+): Promise<void> {
+  await apiFetch(`/api/v1/sales/${saleId}/team/${memberId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function removeSaleFAQ(
+  saleId: string,
+  faqId: string,
+): Promise<void> {
+  await apiFetch(`/api/v1/sales/${saleId}/faqs/${faqId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function removeSaleDocument(
+  saleId: string,
+  docId: string,
+): Promise<void> {
+  await apiFetch(`/api/v1/sales/${saleId}/documents/${docId}`, {
+    method: "DELETE",
+  });
+}
+
 export interface UpdateSaleRequest {
   title?: string;
   description?: string;

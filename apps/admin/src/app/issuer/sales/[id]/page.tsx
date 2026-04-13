@@ -449,6 +449,8 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         description: sale.description_text ?? undefined,
         full_description: sale.full_description ?? undefined,
         banner_image_url: sale.banner_image_url ?? undefined,
+        otc_enabled: sale.otc_enabled,
+        otc_content: sale.otc_content ?? undefined,
         website_url: sale.website_url ?? undefined,
         twitter_url: sale.twitter_url ?? undefined,
         linkedin_url: sale.linkedin_url ?? undefined,
@@ -467,6 +469,8 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       description: sale.description_text ?? undefined,
       full_description: sale.full_description ?? undefined,
       banner_image_url: sale.banner_image_url ?? undefined,
+      otc_enabled: sale.otc_enabled,
+      otc_content: sale.otc_content ?? undefined,
       website_url: sale.website_url ?? undefined,
       twitter_url: sale.twitter_url ?? undefined,
       linkedin_url: sale.linkedin_url ?? undefined,
@@ -715,6 +719,34 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                 onChange={(html) => setEditForm({ ...editForm, full_description: html })}
                 placeholder="Write a detailed description..."
               />
+            </div>
+          </div>
+
+          {/* OTC Details */}
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-700 mb-3 flex items-center gap-2">
+              <Coins className="h-4 w-4" /> OTC / Bank Transfer
+            </h3>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editForm.otc_enabled ?? false}
+                  onChange={(e) => setEditForm({ ...editForm, otc_enabled: e.target.checked })}
+                  className="rounded border-zinc-300 text-darkAqua focus:ring-darkAqua"
+                />
+                Enable OTC / Bank Transfer purchases
+              </label>
+              {editForm.otc_enabled && (
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">OTC Instructions</label>
+                  <RichTextEditor
+                    content={editForm.otc_content ?? ""}
+                    onChange={(html) => setEditForm({ ...editForm, otc_content: html })}
+                    placeholder="Bank transfer details, instructions for OTC buyers..."
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -983,7 +1015,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
       {/* Sale Content: description, gallery, team, FAQ, documents */}
       <div className="mt-6">
-        <SaleContentReview saleId={sale.id} description={sale.description_text} fullDescription={sale.full_description} />
+        <SaleContentReview saleId={sale.id} description={sale.description_text} fullDescription={sale.full_description} editable />
       </div>
     </IssuerDashboardLayout>
   );

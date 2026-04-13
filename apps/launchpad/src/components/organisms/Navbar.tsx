@@ -121,13 +121,12 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               <button
                 onClick={() => setIsHelpMenuOpen(!isHelpMenuOpen)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 text-sm font-medium rounded-full px-4 py-1.5 transition-all duration-200",
+                  "inline-flex items-center gap-1.5 text-sm font-medium rounded-full px-5 py-2 border transition-all duration-300 hover:opacity-80",
                   variant === "light"
-                    ? "text-text/80 hover:text-text hover:bg-black/5"
-                    : "text-white bg-white/10 hover:bg-white/20"
+                    ? "border-black/20 text-text hover:bg-black/5"
+                    : "border-white/30 text-white hover:bg-white/10"
                 )}
               >
-                <HelpCircle className="h-3.5 w-3.5" />
                 Learn
                 <ChevronDown className={cn("h-3 w-3 transition-transform", isHelpMenuOpen && "rotate-180")} />
               </button>
@@ -339,7 +338,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-black/10 py-2 z-50"
+                      className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-lg border border-black/10 py-2 z-50"
                     >
                       <div className="px-4 py-3 border-b border-black/5">
                         <div className="flex items-center gap-1.5">

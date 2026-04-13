@@ -16,6 +16,7 @@
     "@safe-global/protocol-kit": "^6.1.2",
     "@safe-global/types-kit": "^3.0.0",
     "@sumsub/websdk-react": "^2.6.1",
+    "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.72.1",
     "@tiptap/extension-image": "^3.22.2",
     "@tiptap/extension-link": "^3.21.0",

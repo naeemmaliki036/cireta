@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FileText, Users, HelpCircle, ImageIcon, ChevronDown, ChevronUp, Play, Download, AlignLeft, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  FileText, Users, HelpCircle, ImageIcon, ChevronDown, ChevronUp,
+  Play, Download, AlignLeft, X, Plus, Trash2,
+} from "lucide-react";
 import { apiGet } from "@/lib/api/client";
+import { Button, Input, Select, FileUpload } from "@/components/atoms";
 import { cn } from "@/lib/utils";
+import {
+  addSaleTeamMember, removeSaleTeamMember,
+  addSaleFAQ, removeSaleFAQ,
+  addSaleDocument, removeSaleDocument,
+  type TeamMemberData, type FAQData, type DocumentData,
+} from "@/lib/api/repositories/sales";
 
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: string; video_url?: string }
 interface TeamMember { id: string; name: string; title?: string; bio?: string; photo_url?: string }
@@ -14,6 +24,7 @@ interface SaleContentReviewProps {
   saleId: string;
   description?: string | null;
   fullDescription?: string | null;
+  editable?: boolean;
 }
 
 const TABS = [
@@ -26,7 +37,15 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export function SaleContentReview({ saleId, description, fullDescription }: SaleContentReviewProps) {
+const DOC_TYPES = [
+  { value: "whitepaper", label: "Whitepaper" },
+  { value: "legal", label: "Legal" },
+  { value: "audit", label: "Audit Report" },
+  { value: "pitch_deck", label: "Pitch Deck" },
+  { value: "other", label: "Other" },
+];
+
+export function SaleContentReview({ saleId, description, fullDescription, editable }: SaleContentReviewProps) {
   const [images, setImages] = useState<SaleImage[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -35,13 +54,82 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [selectedMedia, setSelectedMedia] = useState<SaleImage | null>(null);
 
-  useEffect(() => {
+  // Inline add forms
+  const [addingTeam, setAddingTeam] = useState(false);
+  const [newTeam, setNewTeam] = useState<TeamMemberData>({ name: "", title: "", bio: "", photo_url: "" });
+  const [addingFaq, setAddingFaq] = useState(false);
+  const [newFaq, setNewFaq] = useState<FAQData>({ question: "", answer: "" });
+  const [addingDoc, setAddingDoc] = useState(false);
+  const [newDoc, setNewDoc] = useState<DocumentData>({ name: "", type: "legal", url: "" });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const loadContent = useCallback(() => {
     if (!saleId) return;
     apiGet<SaleImage[]>(`/api/v1/sales/${saleId}/images`).then(setImages).catch(() => {});
     apiGet<TeamMember[]>(`/api/v1/sales/${saleId}/team`).then(setTeam).catch(() => {});
     apiGet<FAQ[]>(`/api/v1/sales/${saleId}/faqs`).then(setFaqs).catch(() => {});
     apiGet<SaleDoc[]>(`/api/v1/sales/${saleId}/documents`).then(setDocs).catch(() => {});
   }, [saleId]);
+
+  useEffect(() => { loadContent(); }, [loadContent]);
+
+  const handleAddTeam = async () => {
+    if (!newTeam.name.trim()) return;
+    setSaving(true);
+    try {
+      await addSaleTeamMember(saleId, newTeam);
+      setNewTeam({ name: "", title: "", bio: "", photo_url: "" });
+      setAddingTeam(false);
+      loadContent();
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  };
+
+  const handleRemoveTeam = async (id: string) => {
+    setDeleting(id);
+    try { await removeSaleTeamMember(saleId, id); loadContent(); }
+    catch { /* ignore */ }
+    finally { setDeleting(null); }
+  };
+
+  const handleAddFaq = async () => {
+    if (!newFaq.question.trim()) return;
+    setSaving(true);
+    try {
+      await addSaleFAQ(saleId, newFaq);
+      setNewFaq({ question: "", answer: "" });
+      setAddingFaq(false);
+      loadContent();
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  };
+
+  const handleRemoveFaq = async (id: string) => {
+    setDeleting(id);
+    try { await removeSaleFAQ(saleId, id); loadContent(); }
+    catch { /* ignore */ }
+    finally { setDeleting(null); }
+  };
+
+  const handleAddDoc = async () => {
+    if (!newDoc.name.trim() || !newDoc.url.trim()) return;
+    setSaving(true);
+    try {
+      await addSaleDocument(saleId, newDoc);
+      setNewDoc({ name: "", type: "legal", url: "" });
+      setAddingDoc(false);
+      loadContent();
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  };
+
+  const handleRemoveDoc = async (id: string) => {
+    setDeleting(id);
+    try { await removeSaleDocument(saleId, id); loadContent(); }
+    catch { /* ignore */ }
+    finally { setDeleting(null); }
+  };
 
   const counts: Record<TabKey, number> = {
     overview: description || fullDescription ? 1 : 0,
@@ -105,7 +193,6 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
         {activeTab === "gallery" && (
           images.length > 0 ? (
             <div className="space-y-4">
-              {/* Player / preview */}
               {selectedMedia && (
                 <div className="relative rounded-lg overflow-hidden bg-black">
                   <button onClick={() => setSelectedMedia(null)}
@@ -127,7 +214,6 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
                   {selectedMedia.caption && <p className="text-sm text-zinc-300 px-4 py-2">{selectedMedia.caption}</p>}
                 </div>
               )}
-              {/* Thumbnail grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((img) => (
                   <button key={img.id} onClick={() => setSelectedMedia(img)}
@@ -156,71 +242,207 @@ export function SaleContentReview({ saleId, description, fullDescription }: Sale
 
         {/* Team */}
         {activeTab === "team" && (
-          team.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {team.map((m) => (
-                <div key={m.id} className="flex gap-3 p-4 rounded-lg bg-zinc-50">
-                  <div className="w-12 h-12 rounded-md bg-zinc-200 overflow-hidden shrink-0">
-                    {m.photo_url ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={m.photo_url} alt={m.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-lg">{m.name[0]}</div>
+          <div className="space-y-4">
+            {team.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {team.map((m) => (
+                  <div key={m.id} className="flex gap-3 p-4 rounded-lg bg-zinc-50 group relative">
+                    <div className="w-12 h-12 rounded-md bg-zinc-200 overflow-hidden shrink-0">
+                      {m.photo_url ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={m.photo_url} alt={m.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-lg">{m.name[0]}</div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-text">{m.name}</p>
+                      {m.title && <p className="text-xs text-darkAqua">{m.title}</p>}
+                      {m.bio && <p className="text-xs text-zinc-500 mt-1 line-clamp-3">{m.bio}</p>}
+                    </div>
+                    {editable && (
+                      <button
+                        onClick={() => handleRemoveTeam(m.id)}
+                        disabled={deleting === m.id}
+                        className="absolute top-2 right-2 p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm text-text">{m.name}</p>
-                    {m.title && <p className="text-xs text-darkAqua">{m.title}</p>}
-                    {m.bio && <p className="text-xs text-zinc-500 mt-1 line-clamp-3">{m.bio}</p>}
-                  </div>
+                ))}
+              </div>
+            ) : !editable ? (
+              <p className="text-zinc-400 text-sm text-center py-8">No team members added</p>
+            ) : null}
+
+            {editable && !addingTeam && (
+              <Button variant="outline" size="sm" onClick={() => setAddingTeam(true)} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Add Team Member
+              </Button>
+            )}
+            {editable && addingTeam && (
+              <div className="border border-zinc-200 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Input placeholder="Name" value={newTeam.name} onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })} />
+                  <Input placeholder="Title (e.g. CEO)" value={newTeam.title} onChange={(e) => setNewTeam({ ...newTeam, title: e.target.value })} />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-zinc-400 text-sm text-center py-8">No team members added</p>
-          )
+                <textarea
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30"
+                  rows={3}
+                  placeholder="Brief biography..."
+                  value={newTeam.bio}
+                  onChange={(e) => setNewTeam({ ...newTeam, bio: e.target.value })}
+                />
+                <FileUpload
+                  label="Photo"
+                  accept="image/*"
+                  prefix="team"
+                  value={newTeam.photo_url || null}
+                  previewType="image"
+                  onUpload={(r) => setNewTeam({ ...newTeam, photo_url: r.url })}
+                  onRemove={() => setNewTeam({ ...newTeam, photo_url: "" })}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setAddingTeam(false); setNewTeam({ name: "", title: "", bio: "", photo_url: "" }); }}>Cancel</Button>
+                  <Button variant="primary" size="sm" onClick={handleAddTeam} isLoading={saving} disabled={!newTeam.name.trim()}>Add</Button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* FAQ */}
         {activeTab === "faq" && (
-          faqs.length > 0 ? (
-            <div className="space-y-2">
-              {faqs.map((f) => (
-                <div key={f.id} className="border border-zinc-100 rounded-lg overflow-hidden">
-                  <button onClick={() => setOpenFaq(openFaq === f.id ? null : f.id)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-                    <span className="font-medium text-sm text-text">{f.question}</span>
-                    {openFaq === f.id ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
-                  </button>
-                  {openFaq === f.id && <div className="px-4 pb-3 text-sm text-zinc-600">{f.answer}</div>}
+          <div className="space-y-4">
+            {faqs.length > 0 ? (
+              <div className="space-y-2">
+                {faqs.map((f) => (
+                  <div key={f.id} className="border border-zinc-100 rounded-lg overflow-hidden group relative">
+                    <button onClick={() => setOpenFaq(openFaq === f.id ? null : f.id)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+                      <span className="font-medium text-sm text-text">{f.question}</span>
+                      <div className="flex items-center gap-2">
+                        {editable && (
+                          <span
+                            onClick={(e) => { e.stopPropagation(); handleRemoveFaq(f.id); }}
+                            className="p-1 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                        {openFaq === f.id ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
+                      </div>
+                    </button>
+                    {openFaq === f.id && <div className="px-4 pb-3 text-sm text-zinc-600">{f.answer}</div>}
+                  </div>
+                ))}
+              </div>
+            ) : !editable ? (
+              <p className="text-zinc-400 text-sm text-center py-8">No FAQs added</p>
+            ) : null}
+
+            {editable && !addingFaq && (
+              <Button variant="outline" size="sm" onClick={() => setAddingFaq(true)} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Add FAQ
+              </Button>
+            )}
+            {editable && addingFaq && (
+              <div className="border border-zinc-200 rounded-lg p-4 space-y-3">
+                <div>
+                  <label className="input-label">Question</label>
+                  <textarea
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30"
+                    rows={2}
+                    placeholder="Enter the question..."
+                    value={newFaq.question}
+                    onChange={(e) => setNewFaq({ ...newFaq, question: e.target.value })}
+                  />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-zinc-400 text-sm text-center py-8">No FAQs added</p>
-          )
+                <div>
+                  <label className="input-label">Answer</label>
+                  <textarea
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30"
+                    rows={4}
+                    placeholder="Enter a detailed answer..."
+                    value={newFaq.answer}
+                    onChange={(e) => setNewFaq({ ...newFaq, answer: e.target.value })}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setAddingFaq(false); setNewFaq({ question: "", answer: "" }); }}>Cancel</Button>
+                  <Button variant="primary" size="sm" onClick={handleAddFaq} isLoading={saving} disabled={!newFaq.question.trim()}>Add</Button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Documents */}
         {activeTab === "documents" && (
-          docs.length > 0 ? (
-            <div className="space-y-2">
-              {docs.map((d) => (
-                <a key={d.id} href={d.url || "#"} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 rounded-lg bg-zinc-50 hover:bg-zinc-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-darkAqua shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm text-text">{d.name}</p>
-                      <p className="text-xs text-zinc-400 capitalize">{d.doc_type}</p>
+          <div className="space-y-4">
+            {docs.length > 0 ? (
+              <div className="space-y-2">
+                {docs.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between p-4 rounded-lg bg-zinc-50 group">
+                    <a href={d.url || "#"} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                      <FileText className="h-5 w-5 text-darkAqua shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-text truncate">{d.name}</p>
+                        <p className="text-xs text-zinc-400 capitalize">{d.doc_type}</p>
+                      </div>
+                    </a>
+                    <div className="flex items-center gap-2">
+                      {editable && (
+                        <button
+                          onClick={() => handleRemoveDoc(d.id)}
+                          disabled={deleting === d.id}
+                          className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Remove"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <a href={d.url || "#"} target="_blank" rel="noopener noreferrer">
+                        <Download className="h-4 w-4 text-zinc-400" />
+                      </a>
                     </div>
                   </div>
-                  <Download className="h-4 w-4 text-zinc-400" />
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="text-zinc-400 text-sm text-center py-8">No documents uploaded</p>
-          )
+                ))}
+              </div>
+            ) : !editable ? (
+              <p className="text-zinc-400 text-sm text-center py-8">No documents uploaded</p>
+            ) : null}
+
+            {editable && !addingDoc && (
+              <Button variant="outline" size="sm" onClick={() => setAddingDoc(true)} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Add Document
+              </Button>
+            )}
+            {editable && addingDoc && (
+              <div className="border border-zinc-200 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Input placeholder="Document name" value={newDoc.name} onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })} />
+                  <Select label="" options={DOC_TYPES} value={newDoc.type} onChange={(e) => setNewDoc({ ...newDoc, type: e.target.value })} />
+                </div>
+                <FileUpload
+                  label="Document File"
+                  accept=".pdf"
+                  prefix="documents"
+                  value={newDoc.url || null}
+                  previewType="document"
+                  visibility={["whitepaper", "legal"].includes(newDoc.type) ? "public" : "private"}
+                  onUpload={(r) => setNewDoc({ ...newDoc, url: r.url })}
+                  onRemove={() => setNewDoc({ ...newDoc, url: "" })}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setAddingDoc(false); setNewDoc({ name: "", type: "legal", url: "" }); }}>Cancel</Button>
+                  <Button variant="primary" size="sm" onClick={handleAddDoc} isLoading={saving} disabled={!newDoc.name.trim() || !newDoc.url.trim()}>Add</Button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

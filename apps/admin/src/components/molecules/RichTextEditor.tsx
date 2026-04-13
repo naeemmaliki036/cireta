@@ -481,8 +481,8 @@ export default function RichTextEditor({
         <Preview html={editor.getHTML()} />
       ) : (
       <>
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 bg-zinc-50 border-b border-zinc-200">
+      {/* Toolbar — sticky so it stays visible while scrolling */}
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 px-2 py-1.5 bg-zinc-50 border-b border-zinc-200">
         <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo">
           <Undo2 className="h-4 w-4" />
         </ToolbarButton>
@@ -566,7 +566,9 @@ export default function RichTextEditor({
         </div>
       </div>
 
-      <EditorContent editor={editor} />
+      <div className="max-h-[60vh] overflow-y-auto">
+        <EditorContent editor={editor} />
+      </div>
       </>
       )}
     </div>
