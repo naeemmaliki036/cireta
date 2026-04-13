@@ -1114,7 +1114,7 @@ export default function InvestPage() {
                 <InvestAmountStep
                   project={project} activePhase={activePhase}
                   amount={amount} onAmountChange={setAmount}
-                  onContinue={async () => {
+                  onContinue={() => {
                     if (insufficientUsdc) {
                       setError("Insufficient USDC balance");
                       return;
@@ -1124,18 +1124,19 @@ export default function InvestPage() {
                       return;
                     }
                     setError(null);
-                    try {
-                      const { data: a } = await refetchAllowance();
-                      const neededUsdc = parseUnits(usdcRequired.toString(), 6);
-                      if (a != null && neededUsdc > 0n && (a as bigint) >= neededUsdc) {
-                        setStep("confirm");
-                      } else {
+                    refetchAllowance()
+                      .then(({ data: a }) => {
+                        const neededUsdc = parseUnits(usdcRequired.toString(), 6);
+                        if (a != null && neededUsdc > 0n && (a as bigint) >= neededUsdc) {
+                          setStep("confirm");
+                        } else {
+                          setStep("approve");
+                        }
+                      })
+                      .catch((err) => {
+                        console.error("[invest] Allowance check failed:", err);
                         setStep("approve");
-                      }
-                    } catch (err) {
-                      console.error("[invest] Allowance check failed:", err);
-                      setStep("approve");
-                    }
+                      });
                   }}
                   isConnected={isConnected} onConnect={() => openConnectModal?.()}
                   userTotalContributed={userTotalContributed}
