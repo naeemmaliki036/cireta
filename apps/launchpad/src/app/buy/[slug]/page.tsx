@@ -1115,6 +1115,7 @@ export default function InvestPage() {
                   project={project} activePhase={activePhase}
                   amount={amount} onAmountChange={setAmount}
                   onContinue={() => {
+                    console.log("[invest] Continue clicked", { insufficientUsdc, isWalletVerified, usdcRequired, saleContractAddress, usdcAddress });
                     if (insufficientUsdc) {
                       setError("Insufficient USDC balance");
                       return;
@@ -1124,9 +1125,15 @@ export default function InvestPage() {
                       return;
                     }
                     setError(null);
+                    if (!saleContractAddress || !usdcAddress) {
+                      console.warn("[invest] Missing contract addresses, going to approve");
+                      setStep("approve");
+                      return;
+                    }
                     refetchAllowance()
                       .then(({ data: a }) => {
                         const neededUsdc = parseUnits(usdcRequired.toString(), 6);
+                        console.log("[invest] Allowance:", a?.toString(), "Needed:", neededUsdc.toString());
                         if (a != null && neededUsdc > 0n && (a as bigint) >= neededUsdc) {
                           setStep("confirm");
                         } else {
