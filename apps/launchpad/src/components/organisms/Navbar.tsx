@@ -65,12 +65,13 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Auto-show tour only for unregistered users on first visit
   useEffect(() => {
-    if (typeof window !== "undefined" && !localStorage.getItem("cireta_tour_completed")) {
+    if (typeof window !== "undefined" && !isAuthenticated && !localStorage.getItem("cireta_tour_completed")) {
       const timer = setTimeout(() => setShowTour(true), 800);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isMobileMenuOpen) {
