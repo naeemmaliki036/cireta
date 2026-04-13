@@ -858,6 +858,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               contractAddress={sale.contract_address}
               saleId={sale.id}
               availableSupply={available}
+              existingPhases={sale.phases}
               onSuccess={reload}
             />
           </div>

@@ -82,7 +82,8 @@ const SIDEBAR_LINKS = [
 
 const BASE_TABS = ["Overview", "Token & Sale", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
 const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
-type Tab = (typeof ALL_TABS)[number];
+const VESTED_INSERT = "Vesting" as const;
+type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT;
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -465,7 +466,15 @@ export default function ProjectDetailPage() {
             {/* Tabs */}
             <div className="border-b border-gray-100 mx-6">
               <div className="flex gap-6 overflow-x-auto py-3">
-                {(saleRaw?.otc_enabled ? ALL_TABS : BASE_TABS).map((tab) => (
+                {(() => {
+                  const baseTabs: Tab[] = [...(saleRaw?.otc_enabled ? ALL_TABS : BASE_TABS)];
+                  // Insert Vesting tab after "Token & Sale" for vested sales
+                  if (saleRaw?.sale_mode === "vested") {
+                    const idx = baseTabs.indexOf("Token & Sale");
+                    if (idx !== -1) baseTabs.splice(idx + 1, 0, VESTED_INSERT);
+                  }
+                  return baseTabs;
+                })().map((tab) => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTab === tab ? "text-white" : "text-gray-500 hover:bg-gray-100 hover:text-text")} style={activeTab === tab ? { backgroundColor: "#13636F" } : undefined}>
                     {tab}
                   </button>
@@ -767,6 +776,124 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
               )}
+
+              {activeTab === "Vesting" && saleRaw?.sale_mode === "vested" && (() => {
+                const cliffDays = saleRaw.cliff_duration_days ?? 0;
+                const vestingDays = saleRaw.vesting_duration_days ?? 0;
+                const fmtDur = (days: number) => {
+                  if (days >= 365 && days % 365 === 0) return `${days / 365} year${days / 365 > 1 ? "s" : ""}`;
+                  if (days >= 30 && days % 30 === 0) return `${days / 30} month${days / 30 > 1 ? "s" : ""}`;
+                  return `${days} day${days !== 1 ? "s" : ""}`;
+                };
+                const isCliffOnly = vestingDays <= cliffDays || vestingDays === 0;
+                const linearDays = Math.max(0, vestingDays - cliffDays);
+                // Build milestone schedule
+                const milestones: { label: string; pct: number }[] = [];
+                if (isCliffOnly) {
+                  milestones.push({ label: `Day ${cliffDays} (cliff)`, pct: 100 });
+                } else {
+                  const interval = linearDays <= 90 ? 30 : linearDays <= 365 ? 30 : 90;
+                  milestones.push({ label: `Day ${cliffDays} (cliff)`, pct: 0 });
+                  for (let d = interval; d < linearDays; d += interval) {
+                    const pct = Math.round((d / linearDays) * 100 * 10) / 10;
+                    milestones.push({ label: `Day ${cliffDays + d}`, pct });
+                  }
+                  milestones.push({ label: `Day ${cliffDays + linearDays}`, pct: 100 });
+                }
+                return (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 rounded-xl p-5">
+                      <h3 className="font-bold text-text mb-3 text-sm">Vesting Schedule</h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Cliff Duration</p>
+                          <p className="font-bold text-base">{cliffDays > 0 ? fmtDur(cliffDays) : "None"}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Total Vesting Duration</p>
+                          <p className="font-bold text-base">{vestingDays > 0 ? fmtDur(vestingDays) : "None"}</p>
+                        </div>
+                        {linearDays > 0 && (
+                          <div>
+                            <p className="text-gray-500">Linear Unlock Period</p>
+                            <p className="font-bold text-base">{fmtDur(linearDays)} (after cliff)</p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-gray-500">Unlock Type</p>
+                          <p className="font-bold text-base">{isCliffOnly ? "100% at cliff" : "Linear after cliff"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visual timeline */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <h3 className="font-bold text-text mb-4 text-sm">Unlock Timeline</h3>
+                      <div className="relative">
+                        {/* Track */}
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-6">
+                          {cliffDays > 0 && vestingDays > 0 && (
+                            <>
+                              <div
+                                className="h-full bg-amber-300 absolute left-0 rounded-l-full"
+                                style={{ width: `${(cliffDays / (cliffDays + linearDays)) * 100}%` }}
+                              />
+                              <div
+                                className="h-full bg-darkAqua absolute rounded-r-full"
+                                style={{
+                                  left: `${(cliffDays / (cliffDays + linearDays)) * 100}%`,
+                                  width: `${(linearDays / (cliffDays + linearDays)) * 100}%`,
+                                }}
+                              />
+                            </>
+                          )}
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>Purchase</span>
+                          {cliffDays > 0 && <span>Cliff ({fmtDur(cliffDays)})</span>}
+                          <span>Fully vested</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Claim schedule table */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <h3 className="font-bold text-text mb-3 text-sm">Claim Schedule</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-100 text-gray-400 text-xs uppercase">
+                              <th className="text-left py-2 pr-4">Milestone</th>
+                              <th className="text-right py-2">Unlocked</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {milestones.map((m, i) => (
+                              <tr key={i} className="border-b border-gray-50 last:border-0">
+                                <td className="py-2 pr-4 font-medium text-text">{m.label}</td>
+                                <td className="py-2 text-right">
+                                  <span className={m.pct === 100 ? "text-green-600 font-semibold" : "text-gray-600"}>
+                                    {m.pct}%
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Explanation */}
+                    <div className="bg-gray-50 rounded-xl p-5 text-sm text-gray-600 leading-relaxed">
+                      After purchasing, your tokens enter a vesting period. You receive fraction tokens
+                      (fr{project.tokenSymbol}) immediately. After the cliff period
+                      {cliffDays > 0 ? ` of ${fmtDur(cliffDays)}` : ""},
+                      your tokens {isCliffOnly ? "become fully claimable" : "begin unlocking linearly"}.
+                      You can claim vested tokens at any time from your portfolio.
+                    </div>
+                  </div>
+                );
+              })()}
 
               {activeTab === "OTC & Bank" && saleRaw?.otc_enabled && (
                 <div className="prose prose-sm max-w-none">

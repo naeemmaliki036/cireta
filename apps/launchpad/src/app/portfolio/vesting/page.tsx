@@ -11,6 +11,45 @@ const VAULT_CLAIM_ABI = [
   { inputs: [], name: "claim", outputs: [], stateMutability: "nonpayable", type: "function" },
 ] as const;
 
+/** Format a duration in days into a human-readable string */
+function formatDuration(days: number): string {
+  if (days >= 365 && days % 365 === 0) return `${days / 365} year${days / 365 > 1 ? "s" : ""}`;
+  if (days >= 30 && days % 30 === 0) return `${days / 30} month${days / 30 > 1 ? "s" : ""}`;
+  return `${days} day${days !== 1 ? "s" : ""}`;
+}
+
+/** Build a claim schedule from cliff and vesting dates */
+function buildClaimSchedule(
+  cliffEnd: Date,
+  vestingEnd: Date,
+): { label: string; date: Date; pct: number }[] {
+  const cliffMs = cliffEnd.getTime();
+  const vestMs = vestingEnd.getTime();
+  const totalVestingMs = vestMs - cliffMs;
+
+  // If cliff == vesting end, it's 100% at cliff
+  if (totalVestingMs <= 0) {
+    return [{ label: "Cliff (100%)", date: cliffEnd, pct: 100 }];
+  }
+
+  // Linear vesting: show monthly milestones
+  const totalDays = Math.round(totalVestingMs / (1000 * 60 * 60 * 24));
+  const interval = totalDays <= 90 ? 30 : totalDays <= 365 ? 30 : 90;
+  const milestones: { label: string; date: Date; pct: number }[] = [];
+
+  // Add cliff milestone
+  milestones.push({ label: "Cliff", date: cliffEnd, pct: 0 });
+
+  for (let d = interval; d < totalDays; d += interval) {
+    const pct = Math.round((d / totalDays) * 100);
+    const date = new Date(cliffMs + d * 24 * 60 * 60 * 1000);
+    milestones.push({ label: `Day ${d}`, date, pct });
+  }
+
+  milestones.push({ label: "Fully vested", date: vestingEnd, pct: 100 });
+  return milestones;
+}
+
 export default function PortfolioVestingPage() {
   const [schedules, setSchedules] = useState<VestingSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,19 +129,44 @@ export default function PortfolioVestingPage() {
               const total = parseFloat(s.total_amount);
               const claimed = parseFloat(s.claimed_amount);
               const claimable = parseFloat(s.claimable_amount);
+              const cliffEnd = new Date(s.cliff_end);
+              const vestingEnd = new Date(s.vesting_end);
+              const now = new Date();
+              const cliffPassed = cliffEnd <= now;
+              const vestingComplete = vestingEnd <= now;
+              const vestedPct = vestingComplete
+                ? 100
+                : cliffPassed && total > 0
+                  ? Math.min(100, Math.round(((claimed + claimable) / total) * 100))
+                  : 0;
               const progress = total > 0 ? ((claimed / total) * 100) : 0;
-              const cliffPassed = new Date(s.cliff_end) <= new Date();
+
+              // Cliff countdown
+              const cliffDiffMs = cliffEnd.getTime() - now.getTime();
+              const cliffDays = Math.floor(cliffDiffMs / (1000 * 60 * 60 * 24));
+              const cliffHours = Math.floor((cliffDiffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+              // Claim schedule
+              const schedule = buildClaimSchedule(cliffEnd, vestingEnd);
 
               return (
                 <div key={s.id} className="bg-white rounded-xl border border-black/10 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-text font-semibold">{s.token_name}</p>
+                      <p className="text-text font-semibold text-base">{s.token_name}</p>
                       <p className="text-black/40 text-sm">{s.token_symbol} — {s.sale_mode}</p>
                     </div>
-                    <Badge variant={cliffPassed ? "success" : "pending"} size="sm">
-                      {cliffPassed ? "Cliff passed" : "Cliff pending"}
-                    </Badge>
+                    {!cliffPassed ? (
+                      <Badge variant="pending" size="sm">
+                        Cliff ends in {cliffDays}d {cliffHours}h
+                      </Badge>
+                    ) : vestingComplete ? (
+                      <Badge variant="success" size="sm">Fully vested</Badge>
+                    ) : (
+                      <Badge variant="success" size="sm">
+                        {vestedPct}% vested — {claimable.toLocaleString()} claimable
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="mb-4">
@@ -128,8 +192,47 @@ export default function PortfolioVestingPage() {
                     </div>
                     <div>
                       <p className="text-black/40">Vesting End</p>
-                      <p className="font-semibold">{new Date(s.vesting_end).toLocaleDateString()}</p>
+                      <p className="font-semibold">{vestingEnd.toLocaleDateString()}</p>
                     </div>
+                  </div>
+
+                  {/* Claim Schedule */}
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-text mb-2">Claim Schedule</p>
+                    {schedule.length === 1 ? (
+                      <p className="text-sm text-black/60">
+                        100% claimable after cliff ({cliffEnd.toLocaleDateString()})
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <div className="flex gap-0 min-w-0">
+                          {schedule.map((m, i) => {
+                            const isPast = m.date <= now;
+                            return (
+                              <div key={i} className="flex items-center">
+                                <div className="flex flex-col items-center text-center min-w-[80px]">
+                                  <div
+                                    className={`w-3 h-3 rounded-full border-2 ${
+                                      isPast
+                                        ? "bg-darkAqua border-darkAqua"
+                                        : "bg-white border-black/20"
+                                    }`}
+                                  />
+                                  <p className="text-xs font-semibold text-text mt-1">{m.pct}%</p>
+                                  <p className="text-[10px] text-black/40">{m.label}</p>
+                                  <p className="text-[10px] text-black/30">
+                                    {m.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                                  </p>
+                                </div>
+                                {i < schedule.length - 1 && (
+                                  <div className={`h-0.5 w-6 ${isPast ? "bg-darkAqua" : "bg-black/10"}`} />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {claimable > 0 && s.vault_address && (

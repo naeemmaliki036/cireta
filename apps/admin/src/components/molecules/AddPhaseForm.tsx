@@ -8,12 +8,19 @@ import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SALE_ABI } from "@/lib/contracts/abis/sale";
 
+interface ExistingPhase {
+  name: string;
+  price_per_token: string;
+}
+
 interface AddPhaseFormProps {
   contractAddress: string;
   saleId?: string;
   tokenDecimals?: number;
   /** Total token supply available (deposited - already allocated across existing phases) */
   availableSupply?: number;
+  /** Existing phases (used to warn when new price is lower than a previous phase) */
+  existingPhases?: ExistingPhase[];
   onSuccess?: () => void;
 }
 
@@ -57,6 +64,7 @@ export function AddPhaseForm({
   saleId,
   tokenDecimals = 18,
   availableSupply,
+  existingPhases,
   onSuccess,
 }: AddPhaseFormProps) {
   const [form, setForm] = useState<PhaseFormData>(INITIAL_FORM);
@@ -75,6 +83,12 @@ export function AddPhaseForm({
 
   const allocationNum = parseFloat(form.allocation) || 0;
   const allocationExceedsSupply = availableSupply !== undefined && availableSupply > 0 && allocationNum > availableSupply;
+
+  // Price warning: check if new price is lower than any existing phase
+  const newPrice = parseFloat(form.pricePerToken) || 0;
+  const higherPhase = newPrice > 0 && existingPhases?.length
+    ? existingPhases.find((p) => parseFloat(p.price_per_token) > newPrice)
+    : undefined;
 
   const handleSubmit = async () => {
     setValidationError(null);
@@ -235,6 +249,11 @@ export function AddPhaseForm({
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
             placeholder="0.50"
           />
+          {higherPhase && (
+            <p className="text-xs text-amber-600 mt-1">
+              This phase price (${newPrice}) is lower than a previous phase (${parseFloat(higherPhase.price_per_token)}) &mdash; {higherPhase.name}. Earlier buyers paid more per token.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
