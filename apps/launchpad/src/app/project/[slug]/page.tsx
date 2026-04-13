@@ -80,8 +80,8 @@ const SIDEBAR_LINKS = [
   { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
 ];
 
-const BASE_TABS = ["Overview", "Token & Sale", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
-const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Documents", "Team", "FAQ", "My Position", "Transactions"] as const;
+const BASE_TABS = ["Overview", "Token & Sale", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
+const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
 const VESTED_INSERT = "Vesting" as const;
 type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT;
 

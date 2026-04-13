@@ -295,15 +295,17 @@ export function SaleContentReview({ saleId, description, fullDescription, editab
                   value={newTeam.bio}
                   onChange={(e) => setNewTeam({ ...newTeam, bio: e.target.value })}
                 />
-                <FileUpload
-                  label="Photo"
-                  accept="image/*"
-                  prefix="team"
-                  value={newTeam.photo_url || null}
-                  previewType="image"
-                  onUpload={(r) => setNewTeam({ ...newTeam, photo_url: r.url })}
-                  onRemove={() => setNewTeam({ ...newTeam, photo_url: "" })}
-                />
+                <div className="max-w-[200px]">
+                  <FileUpload
+                    label="Photo"
+                    accept="image/*"
+                    prefix="team"
+                    value={newTeam.photo_url || null}
+                    previewType="image"
+                    onUpload={(r) => setNewTeam({ ...newTeam, photo_url: r.url })}
+                    onRemove={() => setNewTeam({ ...newTeam, photo_url: "" })}
+                  />
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="secondary" size="sm" onClick={() => { setAddingTeam(false); setNewTeam({ name: "", title: "", bio: "", photo_url: "" }); }}>Cancel</Button>
                   <Button variant="primary" size="sm" onClick={handleAddTeam} isLoading={saving} disabled={!newTeam.name.trim()}>Add</Button>
