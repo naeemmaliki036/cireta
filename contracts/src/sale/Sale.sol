@@ -705,31 +705,48 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     /// @dev Shared min/topup check in whole-token units.
     /// First-time buyers must meet minTokens; repeat buyers must meet topUpMinTokens.
     /// Last-chunk exception: if remaining supply < min, buyer can purchase exactly
-    /// the remaining amount regardless of min.
-    function _checkMinTokens(Phase storage phase, uint256 tokenQty) internal view {
+    /// the remaining amount regardless of min. Also supports hard-cap-constrained
+    /// last chunk where max affordable tokens < remaining but < min.
+    /// @return isLastChunk True if this buy qualifies for last-chunk exception
+    ///         (used by _checkBuyEligibility to relax hard cap).
+    function _checkMinTokens(Phase storage phase, uint256 tokenQty) internal view returns (bool isLastChunk) {
         uint256 remainingWholeTokens = (totalTokenSupply - totalTokenSold) / (10 ** tokenDecimals);
-        // Investor's cumulative whole tokens across all phases
         uint256 investorWholeTokens = contributions[msg.sender].tokensAllocated / (10 ** tokenDecimals);
 
+        // Determine effective minimum for this buyer
+        uint256 effectiveMin = investorWholeTokens == 0 ? phase.minTokens : phase.topUpMinTokens;
+
+        if (tokenQty >= effectiveMin) {
+            return false; // Normal buy, no exception needed
+        }
+
+        // Below minimum — check last-chunk exceptions
+        // Case 1: buying exactly all remaining tokens
+        if (tokenQty == remainingWholeTokens) {
+            return true;
+        }
+
+        // Case 2: hard-cap-constrained — max affordable < remaining < min
+        // Allow buying the max tokens that fit within the hard cap
+        if (remainingWholeTokens < effectiveMin && phase.pricePerToken > 0) {
+            uint256 remainingUsdc = hardCap > totalRaised ? hardCap - totalRaised : 0;
+            uint256 maxAffordable = remainingUsdc / phase.pricePerToken;
+            if (maxAffordable > 0 && maxAffordable < remainingWholeTokens && tokenQty == maxAffordable) {
+                return false; // Not a last-chunk overshoot — fits within hard cap
+            }
+        }
+
+        // Not a valid last-chunk exception
         if (investorWholeTokens == 0) {
-            // First-time buyer
-            if (tokenQty < phase.minTokens) {
-                // Last-chunk exception: allow buying exactly the remaining supply
-                if (tokenQty != remainingWholeTokens) revert BelowMinContribution();
-            }
+            revert BelowMinContribution();
         } else {
-            // Repeat buyer (top-up)
-            if (tokenQty < phase.topUpMinTokens) {
-                // Last-chunk exception for top-ups too
-                if (tokenQty != remainingWholeTokens) revert TopUpBelowMin();
-            }
+            revert TopUpBelowMin();
         }
     }
 
     /// @dev Shared phase + buyer eligibility checks.
-    /// @param tokenQty Whole tokens the buyer wants to purchase.
-    /// @param usdcRequired Calculated USDC cost for the purchase.
-    function _checkBuyEligibility(uint256 phaseId, uint256 tokenQty, uint256 usdcRequired) internal view returns (Phase storage) {
+    /// @param isLastChunk If true, relaxes hard cap check (last-chunk exception).
+    function _checkBuyEligibility(uint256 phaseId, uint256 tokenQty, uint256 usdcRequired, bool isLastChunk) internal view returns (Phase storage) {
         if (phaseId >= phases.length) revert InvalidPhase();
         Phase storage phase = phases[phaseId];
         if (block.timestamp < phase.startTime) revert PhaseNotStarted();
@@ -739,7 +756,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
             uint256 investorWholeTokens = contributions[msg.sender].tokensAllocated / (10 ** tokenDecimals);
             if (investorWholeTokens + tokenQty > phase.maxTokens) revert ExceedsMaxContribution();
         }
-        if (totalRaised + usdcRequired > hardCap) revert ExceedsHardCap();
+        // Hard cap check — relaxed for last-chunk buys (remaining tokens that
+        // would otherwise be permanently stuck). Overshoot is bounded by
+        // remainingTokens × pricePerToken which is a small fraction of the cap.
+        if (!isLastChunk && totalRaised + usdcRequired > hardCap) revert ExceedsHardCap();
         if (!identityRegistry.isVerified(msg.sender)) revert KYCRequired();
         if (phase.whitelistOnly && !whitelisted[phaseId][msg.sender]) revert NotWhitelisted();
         return phase;
@@ -779,8 +799,13 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         uint256 tokensRaw = tokenQty * (10 ** tokenDecimals);
 
         // ── Checks ──
-        Phase storage phase = _checkBuyEligibility(phaseId, tokenQty, usdcRequired);
-        _checkMinTokens(phase, tokenQty);
+        // _checkMinTokens first to determine if last-chunk exception applies
+        bool isLastChunk;
+        {
+            Phase storage phaseRef = phases[phaseId];
+            isLastChunk = _checkMinTokens(phaseRef, tokenQty);
+        }
+        Phase storage phase = _checkBuyEligibility(phaseId, tokenQty, usdcRequired, isLastChunk);
         _checkAllocationAndSupply(phase, tokensRaw);
 
         // ── Effects ──
@@ -825,7 +850,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         uint256 otcRequired = tokenQty * phases[phaseId].pricePerToken;
         uint256 tokensRaw = tokenQty * (10 ** tokenDecimals);
 
-        Phase storage phase = _checkBuyEligibility(phaseId, tokenQty, otcRequired);
+        Phase storage phase = _checkBuyEligibility(phaseId, tokenQty, otcRequired, false);
 
         if (IERC20(address(otcToken)).balanceOf(msg.sender) < otcRequired) revert InsufficientOTCBalance();
         if (IERC20(address(otcToken)).allowance(msg.sender, address(this)) < otcRequired) revert OTCNotApproved();
