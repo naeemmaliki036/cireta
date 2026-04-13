@@ -828,30 +828,52 @@ export default function ProjectDetailPage() {
 
                     {/* Visual timeline */}
                     <div className="bg-white border border-gray-100 rounded-xl p-5">
-                      <h3 className="font-bold text-text mb-4 text-sm">Unlock Timeline</h3>
-                      <div className="relative">
-                        {/* Track */}
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-6">
-                          {cliffDays > 0 && vestingDays > 0 && (
-                            <>
-                              <div
-                                className="h-full bg-amber-300 absolute left-0 rounded-l-full"
-                                style={{ width: `${(cliffDays / (cliffDays + linearDays)) * 100}%` }}
-                              />
-                              <div
-                                className="h-full bg-darkAqua absolute rounded-r-full"
-                                style={{
-                                  left: `${(cliffDays / (cliffDays + linearDays)) * 100}%`,
-                                  width: `${(linearDays / (cliffDays + linearDays)) * 100}%`,
-                                }}
-                              />
-                            </>
+                      <h3 className="font-bold text-text mb-2 text-sm">Unlock Timeline</h3>
+                      <p className="text-xs text-gray-400 mb-5">
+                        {cliffDays > 0 && linearDays > 0
+                          ? `After purchasing, your tokens are locked for ${fmtDur(cliffDays)} (cliff). Then they unlock linearly over ${fmtDur(linearDays)}. You can claim unlocked tokens at any time.`
+                          : cliffDays > 0
+                            ? `After purchasing, your tokens are locked for ${fmtDur(cliffDays)}. After the cliff, 100% is claimable.`
+                            : `Tokens unlock linearly over ${fmtDur(vestingDays)} from the moment the sale finalizes.`}
+                      </p>
+                      <div className="relative mb-2">
+                        {/* Labels above bar */}
+                        <div className="flex text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+                          {cliffDays > 0 && (
+                            <div style={{ width: `${(cliffDays / vestingDays) * 100}%` }} className="text-center">
+                              Cliff · {fmtDur(cliffDays)}
+                            </div>
                           )}
+                          <div style={{ width: `${(linearDays / vestingDays) * 100}%` }} className="text-center">
+                            {linearDays > 0 ? `Linear unlock · ${fmtDur(linearDays)}` : "Fully unlocked"}
+                          </div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Purchase</span>
-                          {cliffDays > 0 && <span>Cliff ({fmtDur(cliffDays)})</span>}
-                          <span>Fully vested</span>
+                        {/* Slim track */}
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden relative">
+                          {cliffDays > 0 && (
+                            <div
+                              className="h-full absolute left-0 rounded-l-full"
+                              style={{ width: `${(cliffDays / vestingDays) * 100}%`, backgroundColor: "#ECF3F4" }}
+                            />
+                          )}
+                          <div
+                            className="h-full absolute rounded-r-full"
+                            style={{
+                              left: `${(cliffDays / vestingDays) * 100}%`,
+                              width: `${(linearDays / vestingDays) * 100}%`,
+                              backgroundColor: "#13636F",
+                            }}
+                          />
+                        </div>
+                        {/* Markers below */}
+                        <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
+                          <span>Day 0</span>
+                          {cliffDays > 0 && cliffDays < vestingDays && (
+                            <span style={{ position: "absolute", left: `${(cliffDays / vestingDays) * 100}%`, transform: "translateX(-50%)" }}>
+                              Day {cliffDays}
+                            </span>
+                          )}
+                          <span>Day {vestingDays}</span>
                         </div>
                       </div>
                     </div>
