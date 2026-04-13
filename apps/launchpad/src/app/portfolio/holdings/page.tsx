@@ -13,29 +13,29 @@ function HoldingsTable({ rows, locked }: { rows: Holding[]; locked: boolean }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-black/10 text-black/40 text-xs uppercase">
-            <th className="text-left px-4 py-3">Token</th>
-            <th className="text-right px-4 py-3">Balance</th>
-            <th className="text-right px-4 py-3">Value (USD)</th>
-            <th className="text-right px-4 py-3">{locked ? "Status" : "Claimable"}</th>
+            <th className="text-left px-2 sm:px-4 py-3">Token</th>
+            <th className="text-right px-2 sm:px-4 py-3">Balance</th>
+            <th className="hidden sm:table-cell text-right px-2 sm:px-4 py-3">Value (USD)</th>
+            <th className="text-right px-2 sm:px-4 py-3">{locked ? "Status" : "Claimable"}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((h) => (
             <tr key={`${h.token_id}-${locked ? "l" : "u"}`} className="border-b border-black/5 last:border-0">
-              <td className="px-4 py-4">
+              <td className="px-2 sm:px-4 py-4">
                 <p className="text-text font-medium">{h.token_name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-black/40 text-xs">{h.token_symbol}</span>
                   <Badge variant="outline" size="sm">{h.asset_type}</Badge>
                 </div>
               </td>
-              <td className="px-4 py-4 text-right font-semibold text-text">
+              <td className="px-2 sm:px-4 py-4 text-right font-semibold text-text">
                 {Number(h.balance).toLocaleString()}
               </td>
-              <td className="px-4 py-4 text-right text-text">
+              <td className="hidden sm:table-cell px-2 sm:px-4 py-4 text-right text-text">
                 {formatCurrency(parseFloat(h.value_usd))}
               </td>
-              <td className="px-4 py-4 text-right">
+              <td className="px-2 sm:px-4 py-4 text-right">
                 {locked ? (
                   <span className="inline-flex items-center gap-1 text-amber-600 text-xs font-medium">
                     <Lock className="w-3 h-3" /> Vesting

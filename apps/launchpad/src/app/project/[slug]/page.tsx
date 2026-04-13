@@ -315,13 +315,13 @@ export default function ProjectDetailPage() {
                 <Link href="/projects" className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium z-10">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Link>
-                <div className="absolute bottom-6 left-6 right-[380px] z-10">
+                <div className="absolute bottom-6 left-6 right-6 lg:right-[380px] z-10">
                   <p className="text-white/60 text-xs mb-1">{project.issuer.name}</p>
                   <h1 className="text-2xl font-bold text-white mb-2">{project.title}</h1>
                   {project.description && <p className="text-white/80 text-sm line-clamp-2">{project.description}</p>}
                 </div>
-                {/* Sale widget overlaid on banner */}
-                <div className="absolute top-4 right-4 w-[340px] bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 z-10">
+                {/* Sale widget overlaid on banner — desktop only */}
+                <div className="hidden lg:block absolute top-4 right-4 w-[340px] bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 z-10">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-darkAqua/10 flex items-center justify-center"><Coins className="h-4 w-4 text-darkAqua" /></div>

@@ -147,15 +147,15 @@ export default function TransactionsPage() {
         </p>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="w-48">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6">
+          <div className="w-full sm:w-48">
             <Select
               options={tokenOptions}
               value={filterTokenId}
               onChange={(e) => setFilterTokenId(e.target.value)}
             />
           </div>
-          <div className="w-40">
+          <div className="w-full sm:w-40">
             <Select
               options={TYPE_OPTIONS}
               value={filterType}
@@ -191,12 +191,12 @@ export default function TransactionsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-black/10 text-black/40 text-xs uppercase">
-                      <th className="text-left px-4 py-3">Date</th>
-                      <th className="text-left px-4 py-3">Type</th>
-                      <th className="text-left px-4 py-3">Token</th>
-                      <th className="text-right px-4 py-3">Amount</th>
-                      <th className="text-left px-4 py-3">Status</th>
-                      <th className="text-left px-4 py-3">Tx Hash</th>
+                      <th className="text-left px-2 sm:px-4 py-3">Date</th>
+                      <th className="text-left px-2 sm:px-4 py-3">Type</th>
+                      <th className="hidden sm:table-cell text-left px-2 sm:px-4 py-3">Token</th>
+                      <th className="text-right px-2 sm:px-4 py-3">Amount</th>
+                      <th className="text-left px-2 sm:px-4 py-3">Status</th>
+                      <th className="hidden sm:table-cell text-left px-2 sm:px-4 py-3">Tx Hash</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -206,13 +206,16 @@ export default function TransactionsPage() {
                         className="border-b border-black/5 last:border-0 hover:bg-gray-50/50 transition-colors"
                       >
                         {/* Date */}
-                        <td className="px-4 py-3">
-                          <p className="text-text text-sm">{formatDate(tx.created_at)}</p>
+                        <td className="px-2 sm:px-4 py-3">
+                          <p className="text-text text-sm">
+                            <span className="sm:hidden">{formatDate(tx.created_at).replace(/(\w{3}) (\d+), (\d{4})/, "$1 $2")}</span>
+                            <span className="hidden sm:inline">{formatDate(tx.created_at)}</span>
+                          </p>
                           <p className="text-black/30 text-xs">{formatTime(tx.created_at)}</p>
                         </td>
 
                         {/* Type */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 sm:px-4 py-3">
                           <span
                             className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                               TYPE_STYLES[tx.type] ?? "bg-black/5 text-black/50"
@@ -223,7 +226,7 @@ export default function TransactionsPage() {
                         </td>
 
                         {/* Token */}
-                        <td className="px-4 py-3">
+                        <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
                           {tx.token_symbol ? (
                             <span className="text-text font-medium">{tx.token_symbol}</span>
                           ) : (
@@ -232,7 +235,7 @@ export default function TransactionsPage() {
                         </td>
 
                         {/* Amount */}
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-2 sm:px-4 py-3 text-right">
                           <p className="text-text font-semibold">
                             {Number(tx.amount).toLocaleString(undefined, {
                               minimumFractionDigits: 0,
@@ -250,7 +253,7 @@ export default function TransactionsPage() {
                         </td>
 
                         {/* Status */}
-                        <td className="px-4 py-3">
+                        <td className="px-2 sm:px-4 py-3">
                           <span
                             className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
                               STATUS_STYLES[tx.status] ?? "bg-black/5 text-black/40"
@@ -261,7 +264,7 @@ export default function TransactionsPage() {
                         </td>
 
                         {/* Tx Hash */}
-                        <td className="px-4 py-3">
+                        <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
                           {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
                             <a
                               href={getTxUrl(chainId, tx.tx_hash)}

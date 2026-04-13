@@ -56,12 +56,12 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
       <table className="w-full">
         <thead>
           <tr className="table-header">
-            <th className="px-6 py-4 text-left rounded-tl-xl">Asset</th>
-            <th className="px-6 py-4 text-right">Balance</th>
-            <th className="px-6 py-4 text-right">Value</th>
-            <th className="px-6 py-4 text-center">Vesting</th>
-            <th className="px-6 py-4 text-right">Claimable</th>
-            <th className="px-6 py-4 text-right rounded-tr-xl">Actions</th>
+            <th className="px-3 sm:px-6 py-4 text-left rounded-tl-xl">Asset</th>
+            <th className="px-3 sm:px-6 py-4 text-right">Balance</th>
+            <th className="px-3 sm:px-6 py-4 text-right">Value</th>
+            <th className="hidden sm:table-cell px-3 sm:px-6 py-4 text-center">Vesting</th>
+            <th className="hidden sm:table-cell px-3 sm:px-6 py-4 text-right">Claimable</th>
+            <th className="px-3 sm:px-6 py-4 text-right rounded-tr-xl">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -74,7 +74,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
               className="table-row border-b border-black/5"
             >
               {/* Asset */}
-              <td className="px-6 py-4">
+              <td className="px-3 sm:px-6 py-4">
                 <Link
                   href={`/project/${holding.projectSlug}`}
                   className="flex items-center gap-3 group"
@@ -96,7 +96,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
               </td>
 
               {/* Balance */}
-              <td className="px-6 py-4 text-right">
+              <td className="px-3 sm:px-6 py-4 text-right">
                 <div>
                   <span className="font-semibold">
                     {holding.balance.toLocaleString()}
@@ -111,14 +111,14 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
               </td>
 
               {/* Value */}
-              <td className="px-6 py-4 text-right">
+              <td className="px-3 sm:px-6 py-4 text-right">
                 <span className="font-semibold">
                   {formatCurrency(holding.value)}
                 </span>
               </td>
 
               {/* Vesting Progress */}
-              <td className="px-6 py-4">
+              <td className="hidden sm:table-cell px-3 sm:px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
                   <ProgressBar
                     value={holding.vestingProgress}
@@ -133,7 +133,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
               </td>
 
               {/* Claimable */}
-              <td className="px-6 py-4 text-right">
+              <td className="hidden sm:table-cell px-3 sm:px-6 py-4 text-right">
                 {holding.claimable > 0 ? (
                   <Badge variant="success" size="sm">
                     <TrendingUp className="h-3 w-3 mr-1" />
@@ -149,7 +149,7 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
               </td>
 
               {/* Actions */}
-              <td className="px-6 py-4 text-right">
+              <td className="px-3 sm:px-6 py-4 text-right">
                 <div className="flex items-center justify-end gap-2">
                   {holding.claimable > 0 && (
                     <Link href={`/portfolio/claim/${holding.tokenSymbol.toLowerCase()}`}>
@@ -159,18 +159,26 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
                     </Link>
                   )}
                   {holding.isRedeemable && (
-                    <Link href={`/portfolio/redeem/${holding.id}`}>
+                    <Link href={`/portfolio/redeem/${holding.id}`} className="hidden sm:inline-flex">
                       <Button variant="ghost" size="sm" title="Redeem">
                         <Repeat className="h-4 w-4" />
                       </Button>
                     </Link>
                   )}
-                  <Link href="/portfolio/transfer">
+                  <Link href="/portfolio/transfer" className="hidden sm:inline-flex">
                     <Button variant="ghost" size="sm" title="Transfer">
                       <Send className="h-4 w-4" />
                     </Button>
                   </Link>
-                  <Link href={`/project/${holding.projectSlug}`}>
+                  {/* On mobile: show link icon only when there's no claim button */}
+                  {holding.claimable <= 0 && (
+                    <Link href={`/project/${holding.projectSlug}`} className="sm:hidden">
+                      <Button variant="ghost" size="sm">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href={`/project/${holding.projectSlug}`} className="hidden sm:inline-flex">
                     <Button variant="ghost" size="sm">
                       <ArrowUpRight className="h-4 w-4" />
                     </Button>
