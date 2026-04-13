@@ -5,10 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown, ShieldCheck, ShieldAlert, Clock, Shield } from "lucide-react";
+import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown, ShieldCheck, ShieldAlert, Clock, Shield, HelpCircle, Play, BookOpen, MessageCircle } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { GuidedTour } from "./GuidedTour";
 
 
 export interface NavbarProps {
@@ -19,7 +20,10 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const helpMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -53,9 +57,19 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setIsUserMenuOpen(false);
       }
+      if (helpMenuRef.current && !helpMenuRef.current.contains(e.target as Node)) {
+        setIsHelpMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("cireta_tour_completed")) {
+      const timer = setTimeout(() => setShowTour(true), 800);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   useEffect(() => {
@@ -102,6 +116,80 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
           {/* Actions */}
           <div className="relative flex items-center gap-3">
+            <div className="relative hidden sm:block" ref={helpMenuRef}>
+              <button
+                onClick={() => setIsHelpMenuOpen(!isHelpMenuOpen)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-sm font-medium rounded-full px-4 py-1.5 transition-all duration-200",
+                  variant === "light"
+                    ? "text-text/80 hover:text-text hover:bg-black/5"
+                    : "text-white bg-white/10 hover:bg-white/20"
+                )}
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                How To?
+                <ChevronDown className={cn("h-3 w-3 transition-transform", isHelpMenuOpen && "rotate-180")} />
+              </button>
+              <AnimatePresence>
+                {isHelpMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-black/10 py-1.5 z-50"
+                  >
+                    <button
+                      onClick={() => { setShowTour(true); setIsHelpMenuOpen(false); }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors w-full"
+                    >
+                      <Play className="h-4 w-4 text-black/40" />
+                      <div className="text-left">
+                        <p className="font-medium">Quick Tour</p>
+                        <p className="text-xs text-black/40">Take a guided tour</p>
+                      </div>
+                    </button>
+                    <Link
+                      href="/#how-it-works"
+                      onClick={() => setIsHelpMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors"
+                    >
+                      <BookOpen className="h-4 w-4 text-black/40" />
+                      <div>
+                        <p className="font-medium">Getting Started</p>
+                        <p className="text-xs text-black/40">How the platform works</p>
+                      </div>
+                    </Link>
+                    <a
+                      href="https://www.cireta.com/faqs"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsHelpMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors"
+                    >
+                      <HelpCircle className="h-4 w-4 text-black/40" />
+                      <div>
+                        <p className="font-medium">FAQ</p>
+                        <p className="text-xs text-black/40">Common questions</p>
+                      </div>
+                    </a>
+                    <a
+                      href="https://www.cireta.com/contact"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsHelpMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4 text-black/40" />
+                      <div>
+                        <p className="font-medium">Contact Support</p>
+                        <p className="text-xs text-black/40">Get help from our team</p>
+                      </div>
+                    </a>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <ConnectButton.Custom>
               {({
                 account,
@@ -130,6 +218,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                       if (!connected) {
                         return (
                           <button
+                            data-tour-id="connect-wallet"
                             onClick={openConnectModal}
                             className={cn(
                               "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
@@ -190,6 +279,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   Sign In
                 </Link>
                 <Link
+                  data-tour-id="register"
                   href={`/register?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
                     "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
@@ -218,6 +308,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             {isAuthenticated && user && (
               <div className="relative hidden sm:block" ref={userMenuRef}>
                 <button
+                  data-tour-id="user-menu"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200",
@@ -458,6 +549,13 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      <GuidedTour
+        isOpen={showTour}
+        onClose={() => {
+          setShowTour(false);
+          localStorage.setItem("cireta_tour_completed", "true");
+        }}
+      />
     </>
   );
 }

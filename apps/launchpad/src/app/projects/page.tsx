@@ -218,7 +218,6 @@ export default function ExplorePage() {
   const { isAuthenticated: _isAuthenticated } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     (async () => {
       try {
