@@ -462,7 +462,7 @@ export default function ProjectDetailPage() {
                           <button onClick={() => setShowEmailInput(false)} className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
                         </div>
                       )}
-                      {subscriberCount > 0 && (
+                      {false && subscriberCount > 0 && (
                         <p className="text-center text-xs text-gray-400">{subscriberCount} buyer{subscriberCount !== 1 ? "s" : ""} interested</p>
                       )}
                     </div>
