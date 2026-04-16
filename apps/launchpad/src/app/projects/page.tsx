@@ -117,8 +117,8 @@ function ActiveProjectCard({ project }: { project: Project }) {
             return ap ? (
               <>
                 <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-                  <span className="w-2 h-2 rounded-full bg-darkAqua animate-pulse" />
-                  on going
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  Ongoing
                 </span>
                 <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white">
                   {ap.name}
@@ -139,7 +139,7 @@ function ActiveProjectCard({ project }: { project: Project }) {
         </div>
       </div>
       <div className="px-5 pb-5 pt-2 space-y-4">
-        <p className="text-sm text-gray-500 line-clamp-2">{project.description || "Buy verified tokenized real-world assets backed by institutional issuers."}</p>
+        <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 min-h-[2lh]">{project.description || "Buy verified tokenized real-world assets backed by institutional issuers."}</p>
         {project.phases.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {project.phases.map((p) => {
@@ -151,15 +151,19 @@ function ActiveProjectCard({ project }: { project: Project }) {
               return (
                 <div key={p.id || p.name} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border ${
                   status === "active" ? "bg-darkAqua/10 border-darkAqua/20 text-darkAqua" :
-                  status === "ended" ? "bg-black/5 border-black/10 text-black/40" :
+                  status === "ended" ? "bg-green-50 border-green-200 text-green-600" :
                   "bg-box border-black/10 text-black/50"
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    status === "active" ? "bg-darkAqua animate-pulse" : status === "ended" ? "bg-black/30" : "bg-black/20"
-                  }`} />
+                  {status === "ended" ? (
+                    <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6l1.5 1.5L8 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  ) : (
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      status === "active" ? "bg-green-500 animate-pulse" : "bg-black/20"
+                    }`} />
+                  )}
                   <span className="font-medium">{p.name}</span>
                   {status === "active" && minBuy > 0 && <span className="text-darkAqua/60">· Min ${minBuy >= 1000 ? `${(minBuy/1000).toFixed(0)}K` : minBuy.toLocaleString()}</span>}
-                  {status === "ended" && <span>· Ended</span>}
+                  {status === "ended" && <span>· Completed</span>}
                   {status === "upcoming" && <span>· Coming Soon</span>}
                 </div>
               );

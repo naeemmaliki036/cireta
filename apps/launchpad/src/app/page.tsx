@@ -3,9 +3,27 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle2, ChevronDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ArrowRight, Bell, CheckCircle2, ChevronDown, Gift, Shield, Repeat, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Navbar, Footer } from "@/components/organisms";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiFetch } from "@/lib/api/client";
+
+/* ─── localStorage helpers for anonymous subscriptions ─── */
+const SUB_KEY = "cireta_sale_subs";
+function getLocalSubs(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(SUB_KEY) || "{}"); } catch { return {}; }
+}
+function setLocalSub(saleId: string, email: string) {
+  const subs = getLocalSubs();
+  subs[saleId] = email;
+  localStorage.setItem(SUB_KEY, JSON.stringify(subs));
+}
+function removeLocalSub(saleId: string) {
+  const subs = getLocalSubs();
+  delete subs[saleId];
+  localStorage.setItem(SUB_KEY, JSON.stringify(subs));
+}
 import { getProjects, type Project } from "@/lib/api/repositories/projects.repository";
 import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import {
@@ -55,6 +73,85 @@ function isVideoUrl(url: string): boolean {
 
 function LiveProjectCard({ project: p }: { project: Project }) {
   const [imgError, setImgError] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [justSubscribed, setJustSubscribed] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [subEmail, setSubEmail] = useState("");
+  const { isAuthenticated } = useAuth();
+
+  // Check subscription status on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiFetch<{ subscribed: boolean }>(`/api/v1/sales/${p.id}/is-subscribed`, { skipAuthRedirect: true })
+        .then((r) => setSubscribed(r.subscribed))
+        .catch(() => {});
+    } else {
+      // Check localStorage for anonymous subscriptions
+      const localSubs = getLocalSubs();
+      if (localSubs[p.id]) setSubscribed(true);
+    }
+  }, [p.id, isAuthenticated]);
+
+  const doSubscribe = useCallback(async (email?: string) => {
+    setSubLoading(true);
+    try {
+      await apiFetch(`/api/v1/sales/${p.id}/subscribe`, {
+        method: "POST",
+        body: email ? { email } : {},
+        skipAuthRedirect: true,
+      });
+      setSubscribed(true);
+      setJustSubscribed(true);
+      if (email) setLocalSub(p.id, email);
+      setShowEmailInput(false);
+    } catch {
+      setSubscribed(true);
+      setJustSubscribed(true);
+      if (email) setLocalSub(p.id, email);
+      setShowEmailInput(false);
+    } finally {
+      setSubLoading(false);
+    }
+  }, [p.id]);
+
+  const doUnsubscribe = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSubLoading(true);
+    try {
+      if (isAuthenticated) {
+        await apiFetch(`/api/v1/sales/${p.id}/unsubscribe`, { method: "DELETE" });
+      }
+      setSubscribed(false);
+      removeLocalSub(p.id);
+    } catch {
+      // Ignore errors — just remove locally
+      setSubscribed(false);
+      removeLocalSub(p.id);
+    } finally {
+      setSubLoading(false);
+    }
+  }, [p.id, isAuthenticated]);
+
+  const handleSubscribeClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (subLoading) return;
+    if (isAuthenticated) {
+      doSubscribe();
+    } else {
+      setShowEmailInput(true);
+    }
+  }, [isAuthenticated, subLoading, doSubscribe]);
+
+  const handleEmailSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const email = subEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) return;
+    doSubscribe(email);
+  }, [subEmail, doSubscribe]);
   // On-chain sale stats — overrides the DB-derived numbers when the sale
   // contract is deployed so the homepage card never shows stale totals.
   const onChain = useOnChainSaleStats(
@@ -101,8 +198,8 @@ function LiveProjectCard({ project: p }: { project: Project }) {
             return ap ? (
               <>
                 <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-darkAqua animate-pulse" />
-                  on going
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Ongoing
                 </span>
                 <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-white">
                   {ap.name}
@@ -111,24 +208,24 @@ function LiveProjectCard({ project: p }: { project: Project }) {
             ) : p.isComingSoon ? (
               <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-black/30" />
-                coming soon
+                Coming Soon
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium text-black/50">
                 <span className="w-1.5 h-1.5 rounded-full bg-black/30" />
-                {p.phases.every((ph) => now >= new Date(ph.end_time || 0).getTime()) ? "completed" : "upcoming"}
+                {p.phases.every((ph) => now >= new Date(ph.end_time || 0).getTime()) ? "Completed" : "Upcoming"}
               </span>
             );
           })()}
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-          <h3 className="text-white font-semibold text-sm flex items-center gap-1">
+          <h3 className="text-white font-semibold text-[16px] flex items-center gap-1">
             {p.title} <CheckCircle2 className="h-3.5 w-3.5 text-white/70" />
           </h3>
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
-        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{p.description || "Buy tokenized real-world assets."}</p>
+        <p className="text-[12px] text-gray-500 leading-relaxed line-clamp-2 min-h-[2lh] mb-2">{p.description || "Buy tokenized real-world assets."}</p>
         {p.phases.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {p.phases.map((ph) => {
@@ -137,11 +234,13 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               const e = new Date(ph.end_time || 0).getTime();
               const st = now < s ? "upcoming" : now >= e ? "ended" : "active";
               return (
-                <span key={ph.id || ph.name} className={`text-[10px] font-medium px-2 py-0.5 rounded ${
+                <span key={ph.id || ph.name} className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${
                   st === "active" ? "bg-darkAqua/10 text-darkAqua" :
-                  st === "ended" ? "bg-black/5 text-black/30 line-through" :
+                  st === "ended" ? "bg-green-50 text-green-600" :
                   "bg-box text-black/40"
                 }`}>
+                  {st === "ended" && <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6l1.5 1.5L8 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {st === "active" && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
                   {ph.name}
                 </span>
               );
@@ -157,7 +256,7 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               return now >= s && now < e;
             });
             const showProgress = isOngoing && effectiveRaised > 0;
-            return showProgress ? (
+            if (showProgress) return (
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>Funding progress</span>
@@ -167,7 +266,60 @@ function LiveProjectCard({ project: p }: { project: Project }) {
                   <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${progress}%` }} />
                 </div>
               </div>
-            ) : null;
+            );
+            if (subscribed) return (
+              <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-green-50 border border-green-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  <span className="text-[11px] text-green-600 font-medium">
+                    {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                  </span>
+                </div>
+                <button onClick={doUnsubscribe} disabled={subLoading} className="text-black/30 hover:text-red-400 transition-colors p-0.5" title="Unsubscribe">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            );
+            if (showEmailInput) return (
+              <form onSubmit={handleEmailSubmit} onClick={(e) => e.preventDefault()} className="flex items-center gap-1.5 w-full rounded-lg bg-box p-1.5">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={subEmail}
+                  onChange={(e) => setSubEmail(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                  className="flex-1 min-w-0 bg-white rounded-md px-2.5 py-1.5 text-[11px] border border-black/10 outline-none focus:border-darkAqua"
+                />
+                <button
+                  type="submit"
+                  disabled={subLoading || !subEmail.includes("@")}
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 bg-darkAqua text-white text-[11px] font-medium px-3 py-1.5 rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {subLoading ? (
+                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
+                  ) : "Subscribe"}
+                </button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setShowEmailInput(false); }} className="shrink-0 text-black/30 hover:text-black/60 p-0.5">
+                  <X className="h-3 w-3" />
+                </button>
+              </form>
+            );
+            return (
+              <button
+                onClick={handleSubscribeClick}
+                disabled={subLoading}
+                className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 bg-box hover:bg-darkAqua/5 transition-colors"
+              >
+                {subLoading ? (
+                  <svg className="animate-spin h-3.5 w-3.5 text-darkAqua shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
+                ) : (
+                  <Bell className="h-3.5 w-3.5 text-darkAqua shrink-0" />
+                )}
+                <span className="text-[11px] text-black/50">{p.isComingSoon ? "Subscribe for launch updates" : "Get notified when funding opens"}</span>
+              </button>
+            );
           })()}
           <div className="flex items-center justify-between pt-1">
             <div>
@@ -226,6 +378,141 @@ const STEPS = [
   { num: 4, title: "Buy", desc: "Choose from a range of tokenized commodity projects and buy with USDC. Tokens are issued on-chain immediately." },
 ];
 
+function HowItWorksSection() {
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = timelineRef.current;
+    const fill = fillRef.current;
+    if (!el || !fill) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Reset everything
+            timers.forEach(clearTimeout);
+            timers.length = 0;
+            fill.classList.remove("animate");
+            const circles = el.querySelectorAll(".step-circle");
+            circles.forEach((c) => c.classList.remove("reached"));
+            // Force reflow then start
+            void fill.offsetWidth;
+            fill.classList.add("animate");
+            circles.forEach((circle, i) => {
+              timers.push(setTimeout(() => circle.classList.add("reached"), 500 + i * 750));
+            });
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => { observer.disconnect(); timers.forEach(clearTimeout); };
+  }, []);
+
+  return (
+    <section className="py-16 md:py-20 lg:py-[100px] px-4 md:px-8 bg-white" id="how-it-works">
+      <div className="max-w-inner mx-auto">
+        <div className="text-center mb-14 max-w-[768px] xl:max-w-[1020px] mx-auto">
+          <motion.span
+            className="text-xs font-semibold uppercase tracking-widest text-black/40 block"
+            initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+            whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
+            Getting Started
+          </motion.span>
+          <motion.h2
+            className="font-semibold text-text -tracking-[0.96px] mt-2"
+            style={{ fontSize: "clamp(1.875rem, 1.1852rem + 2.94314vw, 3rem)", lineHeight: "clamp(32px, 1.1852rem + 2.94314vw, 3.25rem)" }}
+            initial={{ opacity: 0, y: 30, scale: 0.97, filter: "blur(6px)" }}
+            whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+          >
+            How Tokenized Commodity Purchase Works
+          </motion.h2>
+          <motion.p
+            className="-tracking-[0.36px] opacity-75 mt-4"
+            style={{ fontSize: "clamp(16px, 2vw, 18px)", lineHeight: "clamp(20px, 2.2vw, 28px)" }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+          >
+            From browsing tokenized gold and copper projects to making your first blockchain-settled purchase, the process is straightforward. No prior crypto experience required.
+          </motion.p>
+        </div>
+
+        {/* Desktop horizontal timeline */}
+        <div ref={timelineRef} className="steps-timeline hidden md:flex justify-between mt-14 px-5 mb-12">
+          <div className="timeline-track" />
+          <div ref={fillRef} className="timeline-fill" />
+          {STEPS.map((s) => (
+            <div key={s.num} className="text-center relative z-[2] flex-1">
+              <div className="step-circle w-[60px] h-[60px] rounded-full bg-white border-[3px] border-box flex items-center justify-center mx-auto mb-4 text-[20px] font-bold text-darkAqua">
+                {s.num}
+              </div>
+              <h3 className="text-[17px] font-bold text-text mb-2">{s.title}</h3>
+              <p className="text-[14px] text-black/50 leading-[1.6] max-w-[200px] mx-auto">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile vertical timeline */}
+        <div className="steps-timeline md:hidden flex flex-col gap-8 pl-10 relative mb-12">
+          {STEPS.map((s) => (
+            <div key={s.num} className="relative z-[2]">
+              <div className="step-circle absolute -left-10 w-[40px] h-[40px] rounded-full bg-white border-[3px] border-box flex items-center justify-center text-sm font-bold text-darkAqua">
+                {s.num}
+              </div>
+              <div className="pl-2">
+                <h3 className="text-lg font-bold text-text mb-1">{s.title}</h3>
+                <p className="text-sm text-black/50 leading-relaxed">{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <motion.div
+          className="mt-12 md:mt-16 max-w-[700px] mx-auto bg-white rounded-2xl border border-black/10 overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.04)]"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="flex items-stretch">
+            <div className="w-1 bg-darkAqua shrink-0" />
+            <div className="p-6 md:p-8 flex-1">
+              <h4 className="text-[17px] font-bold text-text mb-4">After Investing</h4>
+              <p className="text-[15px] text-black/50 leading-[1.7] mb-5">
+                Following your 12-month vesting period, you can take <a href="https://www.cireta.com/tokenized-gold" className="text-darkAqua font-medium hover:underline">physical delivery</a> of your commodity, settle in USDC, or continue holding your position. Your tokens remain fully transferable on-chain.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 bg-box rounded-lg px-3 py-2">
+                  <Gift className="w-3.5 h-3.5 text-darkAqua" />
+                  <span className="text-xs font-medium text-black/60">Physical Delivery</span>
+                </div>
+                <div className="flex items-center gap-2 bg-box rounded-lg px-3 py-2">
+                  <Shield className="w-3.5 h-3.5 text-darkAqua" />
+                  <span className="text-xs font-medium text-black/60">Cash Out Anytime</span>
+                </div>
+                <div className="flex items-center gap-2 bg-box rounded-lg px-3 py-2">
+                  <Repeat className="w-3.5 h-3.5 text-darkAqua" />
+                  <span className="text-xs font-medium text-black/60">Fully Transferable</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Why Cireta cards ─── */
 
 const WHY_CARDS = [
@@ -275,6 +562,7 @@ const PRESS = [
     badge: "Press",
     date: "Jan 23, 2026",
     color: "bg-[#1a1a2e]",
+    image: null as string | null,
     title: "Institutional Approaches to Commodity Tokenization in Real-World Assets: A Case Study Involving Cireta",
     excerpt: "Cireta describes itself as an RWA tokenization platform supporting gold and copper projects with verified reserves and institutional insurance...",
     url: "https://coinfomania.com/institutional-approaches-to-commodity-tokenization-in-real-world-assets-a-case-study-involving-cireta/",
@@ -283,7 +571,8 @@ const PRESS = [
     source: "MPOST",
     badge: "Press",
     date: "Jan 6, 2026",
-    color: "bg-[#0d1117]",
+    color: "bg-[#2d1b69]",
+    image: null,
     title: "Cireta\u2019s Global Debut Puts Real Gold On-Chain With Delivery Rights",
     excerpt: "Cireta has launched globally with Wassa Gold, a tokenized gold project providing fractional ownership backed by physical delivery rights...",
     url: "https://mpost.io/ciretas-global-debut-puts-real-gold-on-chain-with-delivery-rights/",
@@ -346,112 +635,144 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/60" />
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative z-10 text-center px-4 max-w-4xl mx-auto"
-        >
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight mb-6 leading-tight">
+        <div className="relative z-10 max-w-[780px] mx-auto flex items-center flex-col text-center px-4">
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+            className="text-[36px]/[40px] md:text-[52px]/[56px] lg:text-[64px]/[68px] font-bold text-white -tracking-[1.8px] mb-4 md:mb-6"
+          >
             Buy Real World Assets<br className="hidden md:block" /> Through Tokenization
-          </h1>
-          <p className="text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.45 }}
+            className="text-[20px] font-normal leading-8 -tracking-[0.36px] max-w-[600px] text-white/90"
+          >
             Access tokenized gold, copper, and infrastructure projects backed by verified physical reserves, institutional insurance, and blockchain-grade transparency.
-          </p>
-          <div className="flex items-center justify-center">
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.6 }}
+            className="flex items-center gap-4 mt-8"
+          >
             <Link
               href="/projects"
-              className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
+              className="inline-flex items-center gap-2 h-12 px-8 rounded-full bg-white text-darkAqua text-sm md:text-base font-semibold hover:bg-white/90 transition-colors duration-200"
             >
               Explore Projects <ArrowRight className="h-4 w-4" />
             </Link>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
         {/* Partner logo carousel — overlays bottom of hero */}
         {partners.length > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 z-10 overflow-hidden py-5 bg-gradient-to-t from-black/60 via-black/30 to-transparent backdrop-blur-[2px]">
-            <div className="relative">
-              <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-black/40 to-transparent z-10 pointer-events-none" />
-              <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-black/40 to-transparent z-10 pointer-events-none" />
-              <div className="marquee-track">
-                {[...partners, ...partners].map((p, i) => (
-                  <div key={`${p.id}-${i}`} className="shrink-0 flex items-center justify-center mx-10" style={{ minWidth: "140px" }}>
-                    {p.logo_url ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={p.logo_url}
-                        alt={p.name}
-                        className="h-10 md:h-12 w-auto max-w-[160px] object-contain brightness-0 invert opacity-50 hover:opacity-80 transition-opacity"
-                      />
-                    ) : (
-                      <span className="text-white/40 text-base font-semibold tracking-wide whitespace-nowrap">
-                        {p.name}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── 2. Trust Bar ── */}
-      {stats.length > 0 && (
-        <section className="py-16 px-4 bg-white">
-          <div className="max-w-inner mx-auto">
-            <div className="flex flex-wrap items-center justify-center gap-y-8">
-              {stats.sort((a, b) => a.sort_order - b.sort_order).map((s, i) => (
-                <div key={s.key} className="flex items-center">
-                  {i > 0 && <div className="hidden md:block w-px h-12 bg-black/10 mx-8" />}
-                  <div className="text-center px-4">
-                    <p className="text-3xl md:text-4xl font-bold text-darkAqua">{s.value}</p>
-                    <p className="text-sm text-black/50 mt-1">{s.label}</p>
-                  </div>
+          <motion.div
+            className="absolute bottom-0 left-0 right-0 py-6 md:py-8 bg-gradient-to-t from-black/40 to-transparent overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2, duration: 0.8 }}
+          >
+            <div className="marquee-track">
+              {[...partners, ...partners].map((p, i) => (
+                <div key={`${p.id}-${i}`} className="shrink-0 mx-6 md:mx-10 flex items-center">
+                  {p.logo_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={p.logo_url}
+                      alt={p.name}
+                      className="h-12 md:h-16 w-auto object-contain brightness-0 invert"
+                    />
+                  ) : (
+                    <span className="text-white/40 text-base font-semibold tracking-wide whitespace-nowrap">
+                      {p.name}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
-            <p className="text-center text-xs text-black/30 mt-8">Figures verified as of {(() => {
-              const now = new Date();
-              const month = now.getMonth(); // 0-11
-              const day = now.getDate();
-              const year = now.getFullYear();
-              const currentQ = Math.floor(month / 3) + 1;
-              // If we're past the first 7 days of the quarter, show current; otherwise previous
-              const daysIntoQuarter = (month % 3) * 30 + day;
-              if (daysIntoQuarter > 7) return `Q${currentQ} ${year}`;
-              // Previous quarter
-              if (currentQ === 1) return `Q4 ${year - 1}`;
-              return `Q${currentQ - 1} ${year}`;
-            })()}</p>
-          </div>
-        </section>
-      )}
+          </motion.div>
+        )}
+      </section>
 
-      {/* ── 3. Intro Definition ── */}
-      <section className="py-16 px-4 bg-box">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-lg md:text-xl text-black/70 leading-relaxed">
-            Cireta is a real-world asset <a href="https://www.cireta.com/tokenization" className="text-darkAqua font-semibold hover:underline">tokenization platform</a> that connects verified buyers to production-stage gold and copper projects. Every purchase is backed by independently certified reserves, 105% credit risk insurance, and <a href="https://www.cireta.com/tokenized-gold" className="text-darkAqua font-semibold hover:underline">physical delivery rights</a>. The platform operates through <a href="https://www.cireta.com/compliance" className="text-darkAqua font-semibold hover:underline">segregated SPV structures</a> with full KYC/KYB compliance.
-          </p>
+      {/* ── 2. Platform at a Glance ── */}
+      <section className="py-16 md:py-20 lg:py-[100px] px-4 md:px-8 bg-white">
+        <div className="max-w-inner mx-auto">
+          <div className="mb-12 overflow-hidden">
+            <div className="space-y-4 max-w-[768px] xl:max-w-[1020px] mx-auto text-center">
+              <motion.span
+                className="text-xs font-semibold uppercase tracking-widest text-black/40 block"
+                initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+                whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              >
+                Platform at a Glance
+              </motion.span>
+              <motion.h2
+                className="font-semibold -tracking-[0.96px] mt-2"
+                style={{ fontSize: "clamp(1.875rem, 1.1852rem + 2.94314vw, 3rem)", lineHeight: "clamp(32px, 1.1852rem + 2.94314vw, 3.25rem)" }}
+                initial={{ opacity: 0, y: 30, scale: 0.97, filter: "blur(6px)" }}
+                whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+              >
+                Capital. Trust. Execution.
+              </motion.h2>
+              <motion.p
+                className="-tracking-[0.36px] opacity-75"
+                style={{ fontSize: "clamp(16px, 2vw, 18px)", lineHeight: "clamp(20px, 2.2vw, 28px)" }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+              >
+                Cireta connects investors with blockchain-secured commodity and infrastructure projects through a compliance-first platform. Our tokenized gold and copper offerings are backed by verified reserves, institutional insurance, and SPV-protected legal structures designed to safeguard every investment.
+              </motion.p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+            {[
+              { value: "$209M+", label: "Funds Raised" },
+              { value: "15+", label: "Partnerships" },
+              { value: "6+", label: "Live Projects" },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                className="bg-white rounded-2xl border border-black/10 p-6 md:p-8 text-center transition-shadow duration-300 hover:shadow-lg"
+                initial={{ opacity: 0, scale: 0.85 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ type: "spring", stiffness: 200, damping: 20, delay: i * 0.12 }}
+              >
+                <p className="text-[40px]/[44px] md:text-[56px]/[60px] font-bold text-darkAqua tracking-tight">
+                  {stat.value}
+                </p>
+                <p className="text-sm md:text-base text-black/40 mt-2 font-medium">
+                  {stat.label}
+                </p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── 4. Projects (EXISTING CODE) ── */}
       <section className="py-20 px-4 bg-white">
         <div className="max-w-inner mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Live Purchase Opportunities</p>
-            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Projects</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
+          <div className="text-center mb-12 max-w-[768px] xl:max-w-[1020px] mx-auto">
+            <p className="text-xs font-semibold text-black/40 uppercase tracking-widest mb-4">Live Purchase Opportunities</p>
+            <h2 className="font-semibold text-text -tracking-[0.96px] mb-4" style={{ fontSize: "clamp(1.875rem, 1.1852rem + 2.94314vw, 3rem)", lineHeight: "clamp(32px, 1.1852rem + 2.94314vw, 3.25rem)" }}>Projects</h2>
+            <p className="-tracking-[0.36px] opacity-75 max-w-[768px] mx-auto" style={{ fontSize: "clamp(16px, 2vw, 18px)", lineHeight: "clamp(20px, 2.2vw, 28px)" }}>
               Browse active tokenized gold, copper, and mineral projects currently open for purchase. Each is backed by independently verified physical reserves, structured through segregated SPVs, and protected by credit risk insurance.
             </p>
             <Link
               href="/projects"
-              className="inline-flex items-center gap-2 btn-cta px-6 py-2.5 rounded-full mt-6 text-sm transition-colors"
+              className="inline-flex justify-center items-center text-xsm md:text-sm lg:text-base rounded-full btn-cta py-[18px] px-10 mt-8 gap-2.5 transition-colors duration-300"
             >
-              Explore All Projects <ArrowRight className="h-4 w-4" />
+              See Full Portfolio <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
@@ -560,63 +881,7 @@ export default function HomePage() {
       </section>
 
       {/* ── 7. How It Works ── */}
-      <section className="py-20 px-4 bg-white" id="how-it-works">
-        <div className="max-w-inner mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Getting Started</p>
-            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">How Tokenized Commodity Purchase Works</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-              From browsing tokenized gold and copper projects to making your first blockchain-settled purchase, the process is straightforward. No prior crypto experience required.
-            </p>
-          </div>
-
-          {/* Desktop horizontal timeline */}
-          <div className="hidden md:block relative mb-12">
-            {/* Horizontal connecting line */}
-            <div className="absolute top-[30px] left-[50px] right-[50px] h-[3px] bg-box" />
-            <div className="grid grid-cols-4 gap-6 px-5">
-              {STEPS.map((s, i) => (
-                <motion.div
-                  key={s.num}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.12 }}
-                  className="flex flex-col items-center text-center"
-                >
-                  <div className="w-[60px] h-[60px] rounded-full bg-white border-[3px] border-box flex items-center justify-center font-bold text-xl text-darkAqua mb-4 relative z-10">
-                    {s.num}
-                  </div>
-                  <h3 className="text-[17px] font-bold text-text mb-2">{s.title}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed max-w-[200px]">{s.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile vertical list */}
-          <div className="md:hidden space-y-8 mb-12 pl-10 relative">
-            <div className="absolute left-[30px] top-0 bottom-0 w-[3px] bg-box" />
-            {STEPS.map((s) => (
-              <div key={s.num} className="relative">
-                <div className="absolute -left-10 w-[40px] h-[40px] rounded-full bg-white border-[3px] border-box flex items-center justify-center font-bold text-sm text-darkAqua z-10">
-                  {s.num}
-                </div>
-                <div className="pl-2">
-                  <h3 className="text-lg font-bold text-text mb-1">{s.title}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-box border-l-4 border-l-darkAqua rounded-r-xl p-5 max-w-[700px] mx-auto">
-            <p className="text-[15px] text-gray-500">
-              <span className="font-semibold text-text">After investing:</span> Following your 12-month vesting period, you can take <a href="https://www.cireta.com" className="text-darkAqua hover:underline">physical delivery</a> of your commodity, settle in USDC, or continue holding your position. Your tokens remain fully transferable on-chain.
-            </p>
-          </div>
-        </div>
-      </section>
+      <HowItWorksSection />
 
       {/* ── 8. Leadership ── */}
       {team.length > 0 && (
@@ -684,37 +949,73 @@ export default function HomePage() {
       )}
 
       {/* ── 9. Press & Media ── */}
-      <section className="py-20 px-4 bg-box">
+      <section className="py-16 md:py-20 lg:py-[100px] px-4 md:px-8 bg-white">
         <div className="max-w-inner mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">In The News</p>
-            <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Press & Media</h2>
+          <div className="mb-12 max-w-[768px] xl:max-w-[1020px] mx-auto text-center">
+            <motion.span
+              className="text-xs font-semibold uppercase tracking-widest text-black/40 block"
+              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            >
+              In The News
+            </motion.span>
+            <motion.h2
+              className="font-semibold text-text -tracking-[0.96px] mt-2"
+              style={{ fontSize: "clamp(1.875rem, 1.1852rem + 2.94314vw, 3rem)", lineHeight: "clamp(32px, 1.1852rem + 2.94314vw, 3.25rem)" }}
+              initial={{ opacity: 0, y: 30, scale: 0.97, filter: "blur(6px)" }}
+              whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+            >
+              Press & Media
+            </motion.h2>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {PRESS.map((article, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-card transition-shadow flex flex-col h-full"
+                initial={{ opacity: 0, y: 40, scale: 0.96 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: i * 0.15 }}
               >
-                <div className={`${article.color} px-6 py-4`}>
-                  <p className="text-white font-bold text-lg">{article.source}</p>
-                </div>
-                <div className="p-6 flex flex-col flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-xs font-semibold text-darkAqua bg-box px-2.5 py-1 rounded-full">{article.badge}</span>
-                    <span className="text-xs text-black/40">{article.date}</span>
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block rounded-2xl overflow-hidden h-full bg-box hover:shadow-card transition-shadow duration-300"
+                >
+                  {/* Image / Color header */}
+                  <div className={`relative h-[200px] md:h-[260px] overflow-hidden ${article.color}`}>
+                    {article.image ? (
+                      <Image
+                        src={article.image}
+                        alt={article.source}
+                        fill
+                        className="object-cover hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-white/90 text-2xl md:text-3xl font-bold tracking-tight">{article.source}</span>
+                      </div>
+                    )}
                   </div>
-                  <h3 className="text-lg font-bold text-text mb-2">{article.title}</h3>
-                  <p className="text-sm text-black/50 leading-relaxed mb-4 flex-1">{article.excerpt}</p>
-                  <Link href={article.url} target="_blank" className="text-sm font-semibold text-darkAqua hover:underline inline-flex items-center gap-1">
-                    Read more <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
+                  {/* Content */}
+                  <div className="p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-xs font-semibold text-darkAqua bg-white px-2.5 py-1 rounded-full border border-black/5">{article.badge}</span>
+                      <span className="text-xs text-black/40">{article.date}</span>
+                    </div>
+                    <h3 className="text-base md:text-lg font-semibold text-text -tracking-[0.4px] mb-2 line-clamp-2">{article.title}</h3>
+                    <p className="text-sm text-black/50 leading-relaxed line-clamp-3 mb-4">{article.excerpt}</p>
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-darkAqua">
+                      Read more <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </a>
               </motion.div>
             ))}
           </div>
@@ -787,33 +1088,60 @@ export default function HomePage() {
       </section>
 
       {/* ── 13. Final CTA ── */}
-      <section className="relative py-24 px-4 overflow-hidden">
-        <div className="absolute inset-0">
-          <video autoPlay muted loop playsInline preload="none" poster="https://cdn.cireta.com/cireta-home/hero-poster.jpg" className="absolute inset-0 w-full h-full object-cover">
-            <source src="https://cdn.cireta.com/cireta-home/hero-vd.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-black/50" />
+      <section className="relative w-full h-full overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full">
+          <motion.video
+            initial={{ scale: 1 }}
+            whileInView={{ scale: 1.05, transition: { type: "spring", duration: 2, delay: 0.1 } }}
+            viewport={{ once: false }}
+            autoPlay muted loop playsInline
+            className="w-full h-full object-cover"
+          >
+            <source src="https://cdn.cireta.com/cireta-home/bottom-vd.mp4" type="video/mp4" />
+          </motion.video>
         </div>
-        <div className="relative z-10 max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">
-            Ready to Buy Tokenized Assets?
-          </h2>
-          <p className="text-white/80 mb-10 max-w-xl mx-auto text-[17px]">
-            Access gold, copper, and infrastructure projects through blockchain-secured tokens on the Cireta Launchpad.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-2 bg-white text-black font-semibold px-8 py-3.5 rounded-full hover:bg-white/90 transition-colors text-sm"
+        <div className="flex items-center justify-center relative min-h-[50vh] md:min-h-[60vh] h-full w-full py-16 md:py-20 px-4">
+          <div className="max-w-[700px] mx-auto text-center flex flex-col items-center">
+            <motion.h2
+              className="text-[36px]/[40px] md:text-[48px]/[52px] font-bold -tracking-[1.44px] mb-4 md:mb-5 text-white"
+              initial={{ opacity: 0, y: 30, scale: 0.97, filter: "blur(8px)" }}
+              whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             >
-              View Projects <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="mailto:info@cireta.com"
-              className="inline-flex items-center gap-2 border border-white/40 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-white/10 transition-colors text-sm"
+              Ready to Buy Tokenized Assets?
+            </motion.h2>
+            <motion.p
+              className="text-sm/6 md:text-base/7 font-medium -tracking-[0.18px] text-white/85 max-w-[560px]"
+              initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
             >
-              Contact Us
-            </Link>
+              Access gold, copper, and infrastructure projects through blockchain-secured tokens on the Cireta Launchpad.
+            </motion.p>
+            <motion.div
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8"
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.3 }}
+            >
+              <Link
+                href="/projects"
+                className="inline-flex items-center gap-2 h-12 px-8 rounded-full bg-white text-darkAqua text-sm md:text-base font-semibold hover:bg-white/90 transition-colors duration-200"
+              >
+                View Projects <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a
+                href="https://www.cireta.com/contact-us"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 h-12 px-8 rounded-full border border-white/40 text-white text-sm md:text-base font-medium hover:bg-white/10 transition-colors duration-200"
+              >
+                Contact Us
+              </a>
+            </motion.div>
           </div>
         </div>
       </section>

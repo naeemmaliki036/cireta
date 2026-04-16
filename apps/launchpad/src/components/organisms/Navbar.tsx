@@ -1,16 +1,113 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import { Menu, X, Wallet, User, Settings, LogOut, ChevronDown, ShieldCheck, ShieldAlert, Clock, Shield, HelpCircle, Play, BookOpen, MessageCircle } from "lucide-react";
+import {
+  Menu, X, Wallet, User, Settings, LogOut, ChevronDown,
+  ShieldCheck, ShieldAlert, Clock, Shield,
+} from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { GuidedTour } from "./GuidedTour";
 
+/* ─── Nav icon SVGs ─── */
+const navIcons = {
+  insights: (
+    <svg viewBox="0 0 20 20" fill="none">
+      <path d="M3 17V7l4-4h6l4 4v10H3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M7 12h6M7 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+  faqs: (
+    <svg viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8 7.5a2 2 0 113 1.7c-.5.4-1 .8-1 1.5V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="10" cy="14.5" r="0.75" fill="currentColor" />
+    </svg>
+  ),
+  contact: (
+    <svg viewBox="0 0 20 20" fill="none">
+      <path d="M3 5h14v10H3V5z" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 5l7 6 7-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  quickTour: (
+    <svg viewBox="0 0 20 20" fill="none">
+      <polygon points="6,4 6,16 16,10" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+    </svg>
+  ),
+  about: (
+    <svg viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 9v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="10" cy="6.5" r="0.75" fill="currentColor" />
+    </svg>
+  ),
+  team: (
+    <svg viewBox="0 0 20 20" fill="none">
+      <circle cx="7" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="13.5" cy="8.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2.5 16c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12 16c0-2 1.5-3.5 3.5-3.5s2 1.5 2 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
+};
+
+/* ─── Nav groups data (matches cireta.com + added Learn) ─── */
+interface NavItem {
+  key: string;
+  title: string;
+  desc: string;
+  href: string;
+  external?: boolean;
+  icon: React.ReactNode;
+  action?: "tour";
+}
+interface NavGroup {
+  key: string;
+  label: string;
+  type: "link" | "dropdown";
+  href?: string;
+  children?: NavItem[];
+}
+
+const CIRETA = "https://www.cireta.com";
+
+const navGroupsData: NavGroup[] = [
+  { key: "home", label: "Home", type: "link", href: "/" },
+  { key: "projects", label: "Projects", type: "link", href: "/projects" },
+  {
+    key: "company",
+    label: "Company",
+    type: "dropdown",
+    children: [
+      { key: "about", title: "About Us", desc: "Our mission, values, and the team behind Cireta.", href: `${CIRETA}/about`, external: true, icon: navIcons.about },
+      { key: "team", title: "Team", desc: "Meet our leadership and advisory board.", href: `${CIRETA}/team`, external: true, icon: navIcons.team },
+      { key: "contact", title: "Contact Us", desc: "Reach out for support or partnership inquiries.", href: `${CIRETA}/contact-us`, external: true, icon: navIcons.contact },
+    ],
+  },
+  {
+    key: "learn",
+    label: "Learn",
+    type: "dropdown",
+    children: [
+      { key: "tour", title: "Quick Tour", desc: "Take a guided tour", href: "#", action: "tour", icon: navIcons.quickTour },
+      { key: "getting-started", title: "Getting Started", desc: "How the platform works", href: "/#how-it-works", icon: navIcons.insights },
+      { key: "faq", title: "FAQ", desc: "Common questions", href: `${CIRETA}/faqs`, external: true, icon: navIcons.faqs },
+      { key: "contact-support", title: "Contact Support", desc: "Get help from our team", href: `${CIRETA}/contact`, external: true, icon: navIcons.contact },
+    ],
+  },
+];
+
+const dropdownVariants = {
+  hidden: { opacity: 0, y: -16, scale: 0.95, filter: "blur(4px)", transition: { duration: 0.15 } },
+  visible: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, y: -10, scale: 0.97, filter: "blur(2px)", transition: { duration: 0.18 } },
+};
 
 export interface NavbarProps {
   variant?: "dark" | "light";
@@ -20,12 +117,24 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
+  const [mobileGroupOpen, setMobileGroupOpen] = useState<string | null>(null);
+
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const helpMenuRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const navListRef = useRef<HTMLUListElement>(null);
+  const dropdownPanelRef = useRef<HTMLDivElement>(null);
+  const dropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [navWidth, setNavWidth] = useState(0);
+
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Pill state only when user has scrolled.
+  const effectiveScrolled = isScrolled;
+  // Text color class at the top of the page (before scroll). White on dark hero, black on light pages.
+  const topTextColor = variant === "dark" ? "text-white" : "text-black";
 
   const kycBadge = (() => {
     if (!user) return null;
@@ -43,29 +152,59 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     }
   })();
 
+  // Scroll listener
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Measure nav list width (used to size dropdown panel)
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+    const measure = () => {
+      if (navListRef.current) setNavWidth(navListRef.current.offsetWidth);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [effectiveScrolled]);
+
+  // Close dropdowns on route change
+  useEffect(() => {
+    setActiveDropdown(null);
+    setIsUserMenuOpen(false);
+  }, [pathname]);
+
+  // Escape closes dropdowns
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setActiveDropdown(null);
         setIsUserMenuOpen(false);
       }
-      if (helpMenuRef.current && !helpMenuRef.current.contains(e.target as Node)) {
-        setIsHelpMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Auto-show tour only for unregistered users on first visit
+  // Click outside handlers
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setIsUserMenuOpen(false);
+      }
+      const inNav = navRef.current?.contains(target);
+      const inPanel = dropdownPanelRef.current?.contains(target);
+      if (activeDropdown && !inNav && !inPanel) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeDropdown]);
+
+  // Auto-show tour for unregistered users
   useEffect(() => {
     if (typeof window !== "undefined" && !isAuthenticated && !localStorage.getItem("cireta_tour_completed")) {
       const timer = setTimeout(() => setShowTour(true), 5000);
@@ -73,145 +212,161 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     }
   }, [isAuthenticated]);
 
+  // Body overflow when mobile menu open
   useEffect(() => {
-    if (isMobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [isMobileMenuOpen]);
 
-  const isDarkScrolled = isScrolled && variant === "dark";
-  const _textColor = (variant === "light" && isScrolled) ? "text-text" : variant === "dark" ? "text-white" : "text-white";
+  const handleMouseEnter = useCallback((groupKey: string) => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+    setActiveDropdown(groupKey);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    dropdownTimeoutRef.current = setTimeout(() => setActiveDropdown(null), 150);
+  }, []);
+
+  const handleGroupToggle = useCallback((groupKey: string) => {
+    setActiveDropdown((prev) => (prev === groupKey ? null : groupKey));
+  }, []);
+
+  const getLabelClass = (isOpen: boolean) => {
+    if (effectiveScrolled) {
+      return isOpen ? "text-darkAqua bg-box" : "text-black hover:text-darkAqua hover:bg-box/50";
+    }
+    if (topTextColor === "text-white") {
+      return isOpen ? "text-white bg-white/20" : "text-white hover:bg-white/10";
+    }
+    return isOpen ? "text-darkAqua bg-box" : "text-black/70 hover:text-black hover:bg-box/50";
+  };
+
+  const getChevronClass = () => {
+    if (effectiveScrolled) return "text-black/40";
+    return topTextColor === "text-white" ? "text-white/80" : "text-black/40";
+  };
+
+  const handleLearnItemClick = (item: NavItem) => {
+    if (item.action === "tour") {
+      setShowTour(true);
+    }
+    setActiveDropdown(null);
+  };
 
   return (
     <>
-      <header
+      <motion.header
+        ref={navRef}
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 w-full duration-300",
-          variant === "dark" ? "px-4 md:px-8 py-3 md:py-4" : "px-0 py-0",
+          "fixed left-0 right-0 z-[60] w-full duration-300",
+          effectiveScrolled ? "px-4 md:px-8 top-3 md:top-4" : variant === "dark" ? "px-4 md:px-8 top-0" : "px-0 top-0",
         )}
       >
-        <nav className={cn(
-          "relative flex items-center justify-between mx-auto h-full duration-500 ease-in-out",
-          variant === "dark"
-            ? isScrolled
-              ? "max-w-4xl bg-[#13636F]/80 backdrop-blur-xl shadow-[0_2px_20px_rgba(0,0,0,0.15)] px-6 py-2.5 rounded-full"
-              : "max-w-inner bg-transparent px-0 py-2"
-            : isScrolled
-              ? "max-w-full bg-box shadow-[0_2px_12px_rgba(0,0,0,0.05)] px-6 md:px-10 py-3"
-              : "max-w-full bg-white px-6 md:px-10 py-3 border-b border-black/5"
-        )}>
+        <nav
+          className={cn(
+            "relative flex items-center justify-between mx-auto h-full duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            effectiveScrolled
+              ? "max-w-[900px] bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-full px-4 md:px-6 py-2.5"
+              : variant === "dark"
+                ? "max-w-inner py-5 md:py-7"
+                : "max-w-full bg-white px-6 md:px-10 py-3 border-b border-black/5"
+          )}
+          aria-label="Main navigation"
+        >
           {/* Logo */}
-          <Link href="/" className="flex items-center">
-            {variant === "dark" ? (
-              <Image src="/images/logo/cireta-logo-white.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
+          <Link
+            href="/"
+            aria-label="Cireta Home"
+            className={cn(
+              "flex items-center shrink-0 duration-300",
+              effectiveScrolled
+                ? "max-w-[90px] lg:max-w-[100px]"
+                : variant === "dark"
+                  ? "max-w-[100px] lg:max-w-[120px]"
+                  : ""
+            )}
+          >
+            {variant === "dark" && !effectiveScrolled ? (
+              <Image src="/images/logo/cireta-logo-white.svg" alt="Cireta" width={552} height={146} className="w-full h-auto" priority />
             ) : (
-              <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className="h-8 w-auto" />
+              <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className={cn(effectiveScrolled || variant === "dark" ? "w-full h-auto" : "h-8 w-auto")} priority />
             )}
           </Link>
 
-
-          {/* Actions */}
-          <div className="relative flex items-center gap-3">
-            <div className="relative hidden sm:block" ref={helpMenuRef}>
-              <button
-                onClick={() => setIsHelpMenuOpen(!isHelpMenuOpen)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 text-sm font-medium rounded-full px-5 py-2 border transition-all duration-300 hover:opacity-80",
-                  variant === "light"
-                    ? "border-black/20 text-text hover:bg-black/5"
-                    : "border-white/30 text-white hover:bg-white/10"
-                )}
-              >
-                Learn
-                <ChevronDown className={cn("h-3 w-3 transition-transform", isHelpMenuOpen && "rotate-180")} />
-              </button>
-              <AnimatePresence>
-                {isHelpMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-black/10 py-1.5 z-50"
-                  >
-                    <button
-                      onClick={() => { setShowTour(true); setIsHelpMenuOpen(false); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors w-full"
-                    >
-                      <Play className="h-4 w-4 text-black/40" />
-                      <div className="text-left">
-                        <p className="font-medium">Quick Tour</p>
-                        <p className="text-xs text-black/40">Take a guided tour</p>
-                      </div>
-                    </button>
+          {/* Center Nav — desktop only */}
+          <ul
+            ref={navListRef}
+            className={cn(
+              "hidden laptop:flex items-center duration-300",
+              effectiveScrolled ? "gap-0" : "gap-0.5"
+            )}
+            onMouseLeave={handleMouseLeave}
+          >
+            {navGroupsData.map((group) => {
+              const isOpen = activeDropdown === group.key;
+              if (group.type === "link") {
+                const isActive = group.href === "/" ? pathname === "/" : !!(group.href && pathname.startsWith(group.href));
+                return (
+                  <li key={group.key} className="relative" onMouseEnter={() => handleMouseEnter("")}>
                     <Link
-                      href="/#how-it-works"
-                      onClick={() => setIsHelpMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors"
+                      href={group.href || "/"}
+                      className={cn(
+                        "flex items-center rounded-full font-medium transition-all duration-200 whitespace-nowrap",
+                        effectiveScrolled ? "px-2.5 py-1.5 text-[13px]" : "px-3 py-2 text-xsm",
+                        getLabelClass(isActive)
+                      )}
                     >
-                      <BookOpen className="h-4 w-4 text-black/40" />
-                      <div>
-                        <p className="font-medium">Getting Started</p>
-                        <p className="text-xs text-black/40">How the platform works</p>
-                      </div>
+                      {group.label}
                     </Link>
-                    <a
-                      href="https://www.cireta.com/faqs"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setIsHelpMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors"
+                  </li>
+                );
+              }
+              return (
+                <li key={group.key} className="relative" onMouseEnter={() => handleMouseEnter(group.key)}>
+                  <button
+                    onClick={() => handleGroupToggle(group.key)}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full font-medium transition-all duration-200 whitespace-nowrap",
+                      effectiveScrolled ? "px-2.5 py-1.5 text-[13px]" : "px-3 py-2 text-xsm",
+                      getLabelClass(isOpen)
+                    )}
+                    aria-expanded={isOpen}
+                    aria-haspopup="true"
+                  >
+                    {group.label}
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 10 10"
+                      fill="none"
+                      className={cn("transition-transform duration-200", getChevronClass(), isOpen && "rotate-180")}
                     >
-                      <HelpCircle className="h-4 w-4 text-black/40" />
-                      <div>
-                        <p className="font-medium">FAQ</p>
-                        <p className="text-xs text-black/40">Common questions</p>
-                      </div>
-                    </a>
-                    <a
-                      href="https://www.cireta.com/contact"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setIsHelpMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors"
-                    >
-                      <MessageCircle className="h-4 w-4 text-black/40" />
-                      <div>
-                        <p className="font-medium">Contact Support</p>
-                        <p className="text-xs text-black/40">Get help from our team</p>
-                      </div>
-                    </a>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <ConnectButton.Custom>
-              {({
-                account,
-                chain,
-                openAccountModal,
-                openChainModal,
-                openConnectModal,
-                mounted,
-              }) => {
+                      <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Connect Wallet — only for authenticated users */}
+            {isAuthenticated && <ConnectButton.Custom>
+              {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
                 const ready = mounted;
                 const connected = ready && account && chain;
-
                 return (
                   <div
-                    {...(!ready && {
-                      "aria-hidden": true,
-                      style: {
-                        opacity: 0,
-                        pointerEvents: "none",
-                        userSelect: "none",
-                      },
-                    })}
+                    {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none", userSelect: "none" } })}
                     className="hidden sm:flex"
                   >
                     {(() => {
@@ -221,10 +376,12 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                             data-tour-id="connect-wallet"
                             onClick={openConnectModal}
                             className={cn(
-                              "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
-                              variant === "light"
-                                ? "btn-cta"
-                                : "bg-white text-black"
+                              "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 hover:opacity-80",
+                              effectiveScrolled
+                                ? "h-8 md:h-9 px-4 text-xsm bg-darkAqua text-white"
+                                : variant === "light"
+                                  ? "px-5 py-2 text-sm btn-cta"
+                                  : "px-5 py-2 text-sm bg-white text-black"
                             )}
                           >
                             <Wallet className="h-4 w-4" />
@@ -232,26 +389,26 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                           </button>
                         );
                       }
-
                       if (chain.unsupported) {
                         return (
                           <button
                             onClick={openChainModal}
-                            className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold bg-red-500 text-white transition-all duration-300 hover:opacity-80"
+                            className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-xsm font-semibold bg-red-500 text-white hover:opacity-90"
                           >
                             Wrong Network
                           </button>
                         );
                       }
-
                       return (
                         <button
                           onClick={openAccountModal}
                           className={cn(
-                            "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200",
-                            variant === "light"
-                              ? "bg-black/5 text-text hover:bg-black/10"
-                              : "bg-white/10 text-white hover:bg-white/20"
+                            "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-medium transition-all duration-200",
+                            effectiveScrolled
+                              ? "bg-box text-black hover:bg-box/80"
+                              : variant === "light"
+                                ? "bg-black/5 text-text hover:bg-black/10"
+                                : "bg-white/10 text-white hover:bg-white/20"
                           )}
                         >
                           <Wallet className="h-3.5 w-3.5" />
@@ -262,18 +419,20 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   </div>
                 );
               }}
-            </ConnectButton.Custom>
+            </ConnectButton.Custom>}
 
-            {/* Auth CTAs — visible when not authenticated */}
+            {/* Auth CTAs */}
             {!isAuthenticated && (
               <div className="hidden sm:flex items-center gap-2">
                 <Link
                   href={`/login?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
-                    "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-medium border transition-all duration-300 hover:opacity-80",
-                    variant === "light"
-                      ? "border-black/20 text-text hover:bg-black/5"
-                      : "border-white/30 text-white hover:bg-white/10"
+                    "inline-flex items-center justify-center rounded-full font-medium border transition-all duration-300 hover:opacity-80",
+                    effectiveScrolled
+                      ? "h-8 md:h-9 px-4 text-[13px] border-black/15 text-black hover:bg-black/5"
+                      : variant === "light"
+                        ? "px-5 py-2 text-sm border-black/20 text-text hover:bg-black/5"
+                        : "px-5 py-2 text-sm border-white/30 text-white hover:bg-white/10"
                   )}
                 >
                   Sign In
@@ -282,10 +441,12 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   data-tour-id="register"
                   href={`/register?redirect=${encodeURIComponent(pathname)}`}
                   className={cn(
-                    "inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 hover:opacity-80",
-                    variant === "light"
-                      ? "btn-cta"
-                      : "bg-white text-black"
+                    "inline-flex items-center justify-center rounded-full font-semibold transition-all duration-300 hover:opacity-80",
+                    effectiveScrolled
+                      ? "h-8 md:h-9 px-4 text-[13px] bg-darkAqua text-white"
+                      : variant === "light"
+                        ? "px-5 py-2 text-sm btn-cta"
+                        : "px-5 py-2 text-sm bg-white text-black"
                   )}
                 >
                   Register
@@ -293,12 +454,11 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               </div>
             )}
 
-            {/* Complete Profile CTA — shown when logged in but onboarding not done */}
+            {/* Complete Profile CTA */}
             {isAuthenticated && user && !user.onboarding_completed && user.kycStatus !== "approved" && (
               <Link
                 href="/onboarding"
-                className="hidden sm:inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white transition-all duration-300 animate-pulse"
-                style={{ backgroundColor: "#13636F" }}
+                className="hidden sm:inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-white transition-all duration-300 animate-pulse bg-darkAqua"
               >
                 Complete Profile
               </Link>
@@ -311,24 +471,31 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   data-tour-id="user-menu"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200",
-                    variant === "light"
-                      ? "text-text/80 hover:text-text hover:bg-black/5"
-                      : "text-white bg-white/10 hover:bg-white/20"
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-all duration-200",
+                    effectiveScrolled
+                      ? "text-[13px] text-black/80 hover:text-black hover:bg-black/5"
+                      : variant === "light"
+                        ? "text-sm text-text/80 hover:text-text hover:bg-black/5"
+                        : "text-sm text-white bg-white/10 hover:bg-white/20"
                   )}
                 >
-                  <div className="relative w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                    <User className="h-3 w-3 text-white/70" />
+                  <div className={cn("relative w-6 h-6 rounded-full flex items-center justify-center", effectiveScrolled || variant === "light" ? "bg-darkAqua/10" : "bg-white/20")}>
+                    <User className={cn("h-3 w-3", effectiveScrolled || variant === "light" ? "text-darkAqua" : "text-white/70")} />
                     {kycBadge && (
-                      <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2", variant === "light" ? "ring-white" : "ring-black/90", kycBadge.bg)} title={kycBadge.tooltip}>
+                      <span
+                        className={cn(
+                          "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2",
+                          effectiveScrolled || variant === "light" ? "ring-white" : "ring-black/90",
+                          kycBadge.bg
+                        )}
+                        title={kycBadge.tooltip}
+                      >
                         <kycBadge.icon className={cn("h-2 w-2", kycBadge.color)} />
                       </span>
                     )}
                   </div>
                   <span className="max-w-[120px] truncate">{user.display_name || user.email.split("@")[0]}</span>
-                  {kycBadge?.label === "Verified" && (
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                  )}
+                  {kycBadge?.label === "Verified" && <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
                   <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isUserMenuOpen && "rotate-180")} />
                 </button>
                 <AnimatePresence>
@@ -342,7 +509,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     >
                       <div className="px-4 py-3 border-b border-black/5">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-text truncate">{user.display_name || user.email.split("@")[0]}</p>
+                          <p className="text-sm font-semibold text-black truncate">{user.display_name || user.email.split("@")[0]}</p>
                           {kycBadge && (
                             <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", kycBadge.bg, kycBadge.color)}>
                               <kycBadge.icon className="h-2.5 w-2.5" />
@@ -353,25 +520,34 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                         <p className="text-xs text-black/50 truncate">{user.email}</p>
                       </div>
                       {user.kycStatus !== "approved" && (
-                        <Link href="/onboarding" onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors"
-                          style={{ color: "#13636F" }}
+                        <Link
+                          href="/onboarding"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors text-darkAqua"
                         >
                           <Shield className="h-4 w-4" />
                           {user.kycStatus === "none" ? "Complete Verification" : user.kycStatus === "pending" ? "Verification In Progress" : user.kycStatus === "rejected" ? "Re-submit Verification" : "Renew Verification"}
                         </Link>
                       )}
-                      <Link href="/account" onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors">
+                      <Link
+                        href="/account"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-black hover:bg-black/5 transition-colors"
+                      >
                         <User className="h-4 w-4 text-black/40" /> Account
                       </Link>
-                      <Link href="/settings" onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-text hover:bg-black/5 transition-colors">
+                      <Link
+                        href="/settings"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-black hover:bg-black/5 transition-colors"
+                      >
                         <Settings className="h-4 w-4 text-black/40" /> Settings
                       </Link>
                       <div className="border-t border-black/5 mt-1 pt-1">
-                        <button onClick={() => { setIsUserMenuOpen(false); logout(); }}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full">
+                        <button
+                          onClick={() => { setIsUserMenuOpen(false); logout(); }}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
+                        >
                           <LogOut className="h-4 w-4" /> Sign Out
                         </button>
                       </div>
@@ -381,15 +557,18 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               </div>
             )}
 
-            {/* Mobile Menu Toggle — hidden when menu is open (panel has its own X) */}
+            {/* Mobile Menu Toggle */}
             {!isMobileMenuOpen && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open menu"
                 className={cn(
-                  "lg:hidden p-3 rounded-full transition-colors",
-                  variant === "dark"
-                    ? "text-white hover:bg-white/10"
-                    : "text-text hover:bg-black/5"
+                  "laptop:hidden p-3 rounded-full transition-colors",
+                  effectiveScrolled
+                    ? "text-black hover:bg-black/5"
+                    : variant === "dark"
+                      ? "text-white hover:bg-white/10"
+                      : "text-text hover:bg-black/5"
                 )}
               >
                 <Menu className="h-6 w-6" />
@@ -397,7 +576,208 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             )}
           </div>
         </nav>
-      </header>
+      </motion.header>
+
+      {/* Dropdown Panel — rendered outside the pill so it can be wider */}
+      <AnimatePresence>
+        {activeDropdown && (
+          <motion.div
+            ref={dropdownPanelRef}
+            key={activeDropdown}
+            variants={dropdownVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="hidden laptop:block fixed left-0 right-0 z-[55] pointer-events-none"
+            style={{ top: effectiveScrolled ? "72px" : "80px" }}
+          >
+            <div className="flex justify-center px-4">
+              <div
+                className="pointer-events-auto bg-white rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-black/10 overflow-hidden"
+                style={{ width: `${Math.max(Math.round(navWidth * 1.8), 620)}px` }}
+                onMouseEnter={() => {
+                  if (dropdownTimeoutRef.current) {
+                    clearTimeout(dropdownTimeoutRef.current);
+                    dropdownTimeoutRef.current = null;
+                  }
+                }}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div className="flex">
+                  {/* Links */}
+                  <div className="flex-1 p-4">
+                    <p className="text-[11px] font-semibold text-black/40 uppercase tracking-wider mb-2 px-2">
+                      {navGroupsData.find((g) => g.key === activeDropdown)?.label}
+                    </p>
+                    <div className="grid gap-0.5">
+                      {(navGroupsData.find((g) => g.key === activeDropdown)?.children || []).map((child, i) => {
+                        const linkClass = "flex items-start gap-3 px-2 py-2.5 rounded-lg transition-colors duration-150 group hover:bg-box/60";
+                        const iconEl = (
+                          <span className="flex-shrink-0 mt-0.5 w-4 h-4 text-black/30 group-hover:text-darkAqua transition-colors">
+                            {child.icon}
+                          </span>
+                        );
+                        const textEl = (
+                          <div className="min-w-0 flex-1">
+                            <span className="block text-[13px] font-semibold text-black group-hover:text-darkAqua transition-colors whitespace-nowrap">{child.title}</span>
+                            <span className="block text-[11px] text-black/50 mt-0.5 leading-relaxed">{child.desc}</span>
+                          </div>
+                        );
+                        const inner = (
+                          <>
+                            {iconEl}
+                            {textEl}
+                          </>
+                        );
+                        return (
+                          <motion.div
+                            key={child.key}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1], delay: i * 0.04 }}
+                          >
+                            {child.action === "tour" ? (
+                              <button onClick={() => handleLearnItemClick(child)} className={cn(linkClass, "w-full text-left")}>{inner}</button>
+                            ) : child.external ? (
+                              <a href={child.href} target="_blank" rel="noopener noreferrer" onClick={() => setActiveDropdown(null)} className={linkClass}>{inner}</a>
+                            ) : (
+                              <Link href={child.href} onClick={() => setActiveDropdown(null)} className={linkClass}>{inner}</Link>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Animated decorative panel */}
+                  <div className="hidden md:flex w-[260px] p-3 items-center justify-center bg-white">
+                    <div className="relative w-full h-full overflow-hidden rounded-xl bg-darkAqua min-h-[220px]">
+                      {/* Ambient glow */}
+                      <motion.div
+                        className="absolute w-36 h-36 rounded-full blur-3xl"
+                        style={{ background: "radial-gradient(circle, rgba(236,243,244,0.7) 0%, transparent 70%)", top: "15%", left: "15%" }}
+                        animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0.9, 0.5] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      <motion.div
+                        className="absolute w-24 h-24 rounded-full blur-2xl"
+                        style={{ background: "radial-gradient(circle, rgba(236,243,244,0.75) 0%, transparent 70%)", bottom: "10%", right: "10%" }}
+                        animate={{ scale: [1.2, 1, 1.2], opacity: [0.5, 0.85, 0.5] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                      />
+
+                      {/* Company: connected people network */}
+                      {activeDropdown === "company" && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg className="absolute inset-0 w-full h-full" fill="none">
+                            <motion.line x1="50%" y1="38%" x2="30%" y2="22%" stroke="rgba(236,243,244,0.35)" strokeWidth="1"
+                              animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} />
+                            <motion.line x1="50%" y1="38%" x2="72%" y2="25%" stroke="rgba(236,243,244,0.35)" strokeWidth="1"
+                              animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.3 }} />
+                            <motion.line x1="50%" y1="38%" x2="25%" y2="60%" stroke="rgba(236,243,244,0.35)" strokeWidth="1"
+                              animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.6 }} />
+                            <motion.line x1="50%" y1="38%" x2="75%" y2="62%" stroke="rgba(236,243,244,0.35)" strokeWidth="1"
+                              animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.9 }} />
+                            <motion.line x1="50%" y1="38%" x2="50%" y2="78%" stroke="rgba(236,243,244,0.35)" strokeWidth="1"
+                              animate={{ opacity: [0.3, 0.65, 0.3] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.2 }} />
+                          </svg>
+                          <motion.div
+                            className="absolute flex items-center justify-center"
+                            style={{ top: "33%", left: "45%" }}
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                          >
+                            <div className="w-7 h-7 rounded-full border-[1.5px] border-box/25 bg-box/10 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-box/30" />
+                            </div>
+                            <motion.div className="absolute w-7 h-7 rounded-full border border-box/15"
+                              animate={{ scale: [1, 2.2], opacity: [0.3, 0] }}
+                              transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }} />
+                          </motion.div>
+                          {[
+                            { top: "17%", left: "24%", delay: 0 },
+                            { top: "20%", left: "66%", delay: 0.4 },
+                            { top: "55%", left: "18%", delay: 0.8 },
+                            { top: "58%", left: "68%", delay: 1.2 },
+                            { top: "73%", left: "44%", delay: 0.6 },
+                          ].map((node, i) => (
+                            <motion.div
+                              key={i}
+                              className="absolute"
+                              style={{ top: node.top, left: node.left }}
+                              animate={{ y: [-2, 3, -2], opacity: [0.6, 0.95, 0.6] }}
+                              transition={{ duration: 3 + i * 0.5, repeat: Infinity, ease: "easeInOut", delay: node.delay }}
+                            >
+                              <svg width="16" height="18" viewBox="0 0 16 18" fill="none">
+                                <circle cx="8" cy="5" r="3.5" stroke="rgba(236,243,244,0.75)" strokeWidth="1" fill="rgba(236,243,244,0.75)" />
+                                <path d="M2 17C2 13.5 4.5 11 8 11C11.5 11 14 13.5 14 17" stroke="rgba(236,243,244,0.75)" strokeWidth="1" fill="rgba(236,243,244,0.18)" />
+                              </svg>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Learn: token blocks rising from asset */}
+                      {activeDropdown === "learn" && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ perspective: "400px" }}>
+                          <motion.svg
+                            className="absolute bottom-[18%]" width="50" height="32" viewBox="0 0 50 32" fill="none"
+                            animate={{ opacity: [0.5, 0.85, 0.5] }}
+                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                          >
+                            <rect x="5" y="8" width="16" height="24" rx="1" stroke="rgba(236,243,244,0.75)" strokeWidth="1" fill="rgba(236,243,244,0.18)" />
+                            <rect x="29" y="0" width="16" height="32" rx="1" stroke="rgba(236,243,244,0.75)" strokeWidth="1" fill="rgba(236,243,244,0.18)" />
+                            <rect x="9" y="12" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="14" y="12" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="9" y="18" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="14" y="18" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="33" y="5" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="38" y="5" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="33" y="11" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                            <rect x="38" y="11" width="3" height="3" rx="0.5" fill="rgba(236,243,244,0.35)" />
+                          </motion.svg>
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="absolute w-8 h-8 rounded overflow-hidden"
+                              style={{
+                                background: `linear-gradient(135deg, rgba(236,243,244,${0.12 + i * 0.04}) 0%, rgba(236,243,244,0.35) 100%)`,
+                                border: `1px solid rgba(236,243,244,${0.12 + i * 0.03})`,
+                                boxShadow: i === 2 ? "0 8px 24px rgba(0,0,0,0.2)" : "none",
+                              }}
+                              animate={{
+                                y: [20, -10 - i * 12, -10 - i * 12, 20],
+                                x: [-10 + i * 14, -10 + i * 14, -10 + i * 14, -10 + i * 14],
+                                opacity: [0, 1, 1, 0],
+                                scale: [0.6, 1, 1, 0.6],
+                              }}
+                              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: i * 0.6, times: [0, 0.3, 0.7, 1] }}
+                            >
+                              <svg className="w-full h-full p-1.5" viewBox="0 0 16 16" fill="none">
+                                <rect x="2" y="2" width="5" height="5" rx="1" stroke="rgba(236,243,244,0.65)" strokeWidth="0.8" />
+                                <rect x="9" y="9" width="5" height="5" rx="1" stroke="rgba(236,243,244,0.65)" strokeWidth="0.8" />
+                                <path d="M7 7L9 9" stroke="rgba(236,243,244,0.75)" strokeWidth="0.8" />
+                              </svg>
+                            </motion.div>
+                          ))}
+                          <motion.div
+                            className="absolute w-[1px] h-8 left-1/2"
+                            style={{ background: "linear-gradient(to top, rgba(236,243,244,0.65), transparent)", bottom: "42%" }}
+                            animate={{ opacity: [0.6, 0.95, 0.6] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          />
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
@@ -406,85 +786,98 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-40 lg:hidden"
+            className="fixed inset-0 z-[70] laptop:hidden"
           >
-            <div
-              className="absolute inset-0 bg-black/50"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-            <div className="absolute right-0 top-0 h-full w-full shadow-2xl px-5 pt-4 pb-6 backdrop-blur-xl" style={{ backgroundColor: "rgba(236, 243, 244, 0.92)" }}>
-              {/* Close button */}
-              <div className="flex items-center justify-end mb-4">
-                <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-darkAqua text-white transition-colors hover:opacity-90">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)} />
+            <div className="absolute right-0 top-0 h-full w-full shadow-2xl px-5 pt-4 pb-6 backdrop-blur-xl overflow-y-auto" style={{ backgroundColor: "rgba(236, 243, 244, 0.96)" }}>
+              <div className="flex items-center justify-between mb-4">
+                <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className="h-7 w-auto" />
+                </Link>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-darkAqua text-white">
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              {/* Navigation */}
-              <div className="space-y-6 overflow-y-auto" style={{ maxHeight: "calc(100vh - 100px)" }}>
-                {/* Main nav */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#13636F" }}>Navigate</p>
-                  <nav className="flex flex-col">
-                    <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}
-                      className="py-3 border-b border-black/5 text-sm font-semibold text-text flex items-center gap-3">
-                      Explore Projects
-                    </Link>
-                    {isAuthenticated && (
-                      <Link href="/portfolio" onClick={() => setIsMobileMenuOpen(false)}
-                        className="py-3 border-b border-black/5 text-sm font-semibold text-text flex items-center gap-3">
-                        Portfolio
-                      </Link>
-                    )}
-                  </nav>
-                </div>
 
-                {/* Learn */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#13636F" }}>Learn</p>
-                  <nav className="flex flex-col">
-                    <button
-                      onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setShowTour(true), 300); }}
-                      className="py-3 border-b border-black/5 text-sm font-medium text-text text-left flex items-center gap-3"
-                    >
-                      <Play className="h-4 w-4" style={{ color: "#13636F" }} /> Quick Tour
-                    </button>
-                    <Link href="/#how-it-works" onClick={() => setIsMobileMenuOpen(false)}
-                      className="py-3 border-b border-black/5 text-sm font-medium text-text flex items-center gap-3">
-                      <BookOpen className="h-4 w-4" style={{ color: "#13636F" }} /> Getting Started
-                    </Link>
-                    <a href="https://www.cireta.com/faqs" target="_blank" rel="noopener noreferrer"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="py-3 border-b border-black/5 text-sm font-medium text-text flex items-center gap-3">
-                      <HelpCircle className="h-4 w-4" style={{ color: "#13636F" }} /> FAQ
-                    </a>
-                    <a href="https://www.cireta.com/contact" target="_blank" rel="noopener noreferrer"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="py-3 text-sm font-medium text-text flex items-center gap-3">
-                      <MessageCircle className="h-4 w-4" style={{ color: "#13636F" }} /> Contact Support
-                    </a>
-                  </nav>
-                </div>
+              {/* Nav groups as accordions */}
+              <div className="space-y-1 mb-4">
+                {navGroupsData.map((group) => {
+                  const isOpen = mobileGroupOpen === group.key;
+                  if (group.type === "link") {
+                    return (
+                      <div key={group.key} className="border-b border-black/5">
+                        <Link
+                          href={group.href || "/"}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="flex items-center w-full py-3 text-sm font-semibold text-black"
+                        >
+                          {group.label}
+                        </Link>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={group.key} className="border-b border-black/5">
+                      <button
+                        onClick={() => setMobileGroupOpen(isOpen ? null : group.key)}
+                        className="flex items-center justify-between w-full py-3 text-sm font-semibold text-black"
+                      >
+                        {group.label}
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+                      </button>
+                      <AnimatePresence>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pl-3 pb-2 space-y-0.5">
+                              {(group.children || []).map((child) => {
+                                const commonClass = "flex items-center gap-2.5 py-2 text-[13px] font-medium text-black/70 hover:text-darkAqua";
+                                const iconEl = <span className="w-4 h-4 text-darkAqua">{child.icon}</span>;
+                                if (child.action === "tour") {
+                                  return (
+                                    <button
+                                      key={child.key}
+                                      onClick={() => { setIsMobileMenuOpen(false); setTimeout(() => setShowTour(true), 300); }}
+                                      className={cn(commonClass, "w-full text-left")}
+                                    >
+                                      {iconEl} {child.title}
+                                    </button>
+                                  );
+                                }
+                                if (child.external) {
+                                  return (
+                                    <a key={child.key} href={child.href} target="_blank" rel="noopener noreferrer" onClick={() => setIsMobileMenuOpen(false)} className={commonClass}>
+                                      {iconEl} {child.title}
+                                    </a>
+                                  );
+                                }
+                                return (
+                                  <Link key={child.key} href={child.href} onClick={() => setIsMobileMenuOpen(false)} className={commonClass}>
+                                    {iconEl} {child.title}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
               </div>
-              {/* Sign Up / Log In (Mobile) */}
-              {!isAuthenticated && (
-                <div className="mt-5 space-y-2">
-                  <Link
-                    href={`/login?redirect=${encodeURIComponent(pathname)}`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors"
-                    style={{ backgroundColor: "#13636F" }}
-                  >
-                    Sign Up / Log In
-                  </Link>
-                </div>
-              )}
-              {/* User Info (Mobile) */}
-              {isAuthenticated && user && (
-                <div className="mt-5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#13636F" }}>Account</p>
+
+              {/* Account section */}
+              {isAuthenticated && user ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2 text-darkAqua">Account</p>
                   <div className="mb-3">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-text">{user.display_name || user.email.split("@")[0]}</p>
+                      <p className="text-sm font-semibold text-black">{user.display_name || user.email.split("@")[0]}</p>
                       {kycBadge && (
                         <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", kycBadge.bg, kycBadge.color)}>
                           <kycBadge.icon className="h-2.5 w-2.5" />
@@ -495,94 +888,61 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     <p className="text-xs text-black/40">{user.email}</p>
                   </div>
                   {!user.onboarding_completed && user.kycStatus !== "approved" && (
-                    <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-                      style={{ color: "#13636F" }}
-                    >
-                      <Shield className="h-4 w-4" />
-                      Complete Profile
+                    <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-darkAqua">
+                      <Shield className="h-4 w-4" /> Complete Profile
                     </Link>
                   )}
-                  {user.onboarding_completed && user.kycStatus !== "approved" && (
-                    <Link href="/verify" onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                      style={{ color: "#13636F" }}
-                    >
-                      <Shield className="h-4 w-4" />
-                      {user.kycStatus === "pending" ? "Verification In Progress" : user.kycStatus === "rejected" ? "Re-submit Verification" : "Renew Verification"}
-                    </Link>
-                  )}
-                  <Link href="/account" onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-text">
-                    <User className="h-4 w-4" style={{ color: "#13636F" }} /> Account
+                  <Link href="/portfolio" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-black">
+                    <User className="h-4 w-4 text-darkAqua" /> Portfolio
                   </Link>
-                  <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-text">
-                    <Settings className="h-4 w-4" style={{ color: "#13636F" }} /> Settings
+                  <Link href="/account" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-black">
+                    <User className="h-4 w-4 text-darkAqua" /> Account
                   </Link>
-                  <button onClick={() => { setIsMobileMenuOpen(false); logout(); }}
-                    className="flex items-center gap-3 py-3 text-sm font-medium text-red-500 w-full">
+                  <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-black">
+                    <Settings className="h-4 w-4 text-darkAqua" /> Settings
+                  </Link>
+                  <button onClick={() => { setIsMobileMenuOpen(false); logout(); }} className="flex items-center gap-3 py-3 text-sm font-medium text-red-500 w-full">
                     <LogOut className="h-4 w-4" /> Sign Out
                   </button>
                 </div>
+              ) : (
+                <div className="mt-5 space-y-2">
+                  <Link
+                    href={`/login?redirect=${encodeURIComponent(pathname)}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-darkAqua"
+                  >
+                    Sign Up / Log In
+                  </Link>
+                </div>
               )}
+
+              {/* Connect Wallet */}
               <div className="mt-3">
                 <ConnectButton.Custom>
-                  {({
-                    account,
-                    chain,
-                    openAccountModal,
-                    openChainModal,
-                    openConnectModal,
-                    mounted,
-                  }) => {
+                  {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
                     const ready = mounted;
                     const connected = ready && account && chain;
-
                     return (
-                      <div
-                        {...(!ready && {
-                          "aria-hidden": true,
-                          style: {
-                            opacity: 0,
-                            pointerEvents: "none",
-                            userSelect: "none",
-                          },
-                        })}
-                        className="w-full"
-                      >
+                      <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none", userSelect: "none" } })} className="w-full">
                         {(() => {
                           if (!connected) {
                             return (
-                              <button
-                                onClick={openConnectModal}
-                                className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90"
-                                style={{ backgroundColor: "#13636F" }}
-                              >
-                                <Wallet className="h-4 w-4" />
-                                Connect Wallet
+                              <button onClick={openConnectModal} className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-darkAqua hover:opacity-90">
+                                <Wallet className="h-4 w-4" /> Connect Wallet
                               </button>
                             );
                           }
-
                           if (chain.unsupported) {
                             return (
-                              <button
-                                onClick={openChainModal}
-                                className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold bg-red-500 text-white transition-all duration-300 hover:opacity-80"
-                              >
+                              <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-red-500 text-white">
                                 Wrong Network
                               </button>
                             );
                           }
-
                           return (
-                            <button
-                              onClick={openAccountModal}
-                              className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold bg-darkAqua text-white transition-all duration-300 hover:opacity-80"
-                            >
-                              <Wallet className="h-5 w-5" />
-                              {account.displayName}
+                            <button onClick={openAccountModal} className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-darkAqua text-white">
+                              <Wallet className="h-5 w-5" /> {account.displayName}
                             </button>
                           );
                         })()}
@@ -595,6 +955,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
       <GuidedTour
         isOpen={showTour}
         onClose={() => {

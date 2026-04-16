@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell, Play,
-  FileText, ChevronDown, ChevronUp, Download, Clock,
+  FileText, ChevronDown, ChevronUp, Download, Clock, Copy, Check, CheckCircle2,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
@@ -85,6 +85,23 @@ const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Team", "FAQ", "Docu
 const VESTED_INSERT = "Vesting" as const;
 type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT;
 
+function ContractAddress({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <p className="flex items-center gap-1.5">
+      <span className="font-mono text-xs truncate">{truncateAddress(address)}</span>
+      <button onClick={copy} className="shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors" title="Copy address">
+        {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400 hover:text-darkAqua" />}
+      </button>
+    </p>
+  );
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -104,6 +121,7 @@ export default function ProjectDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [justSubscribed, setJustSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeEmail, setSubscribeEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
@@ -148,8 +166,12 @@ export default function ProjectDetailPage() {
         apiFetch<FAQ[]>(`/api/v1/sales/${sid}/faqs`, { skipAuthRedirect: true }).then(setFaqs).catch(() => {});
         // Subscriber count (public)
         apiFetch<{ count: number }>(`/api/v1/sales/${sid}/subscriber-count`, { skipAuthRedirect: true }).then((r) => setSubscriberCount(r.count)).catch(() => {});
-        // Check if current user is subscribed (may 401 if not logged in — that's fine)
-        apiFetch<{ subscribed: boolean }>(`/api/v1/sales/${sid}/is-subscribed`, { skipAuthRedirect: true }).then((r) => setSubscribed(r.subscribed)).catch(() => {});
+        // Check if current user is subscribed
+        if (isAuthenticated) {
+          apiFetch<{ subscribed: boolean }>(`/api/v1/sales/${sid}/is-subscribed`, { skipAuthRedirect: true }).then((r) => setSubscribed(r.subscribed)).catch(() => {});
+        } else {
+          try { const subs = JSON.parse(localStorage.getItem("cireta_sale_subs") || "{}"); if (subs[sid]) setSubscribed(true); } catch {}
+        }
       } catch { setError(true); }
       finally { setIsLoading(false); }
     }
@@ -193,19 +215,32 @@ export default function ProjectDetailPage() {
       const email = isAuthenticated ? undefined : subscribeEmail || undefined;
       await apiPost(`/api/v1/sales/${saleRaw.id}/subscribe`, { email });
       setSubscribed(true);
+      setJustSubscribed(true);
       setSubscriberCount((c) => c + 1);
       setShowEmailInput(false);
-    } catch { /* already subscribed or error */ }
-    finally { setSubscribing(false); }
+      if (email) {
+        try { const subs = JSON.parse(localStorage.getItem("cireta_sale_subs") || "{}"); subs[saleRaw.id] = email; localStorage.setItem("cireta_sale_subs", JSON.stringify(subs)); } catch {}
+      }
+    } catch {
+      // 409 = already subscribed
+      setSubscribed(true);
+      setShowEmailInput(false);
+    } finally { setSubscribing(false); }
   };
 
   const handleUnsubscribe = async () => {
     if (!saleRaw) return;
+    setSubscribing(true);
     try {
-      await apiFetch(`/api/v1/sales/${saleRaw.id}/unsubscribe`, { method: "DELETE" });
+      if (isAuthenticated) {
+        await apiFetch(`/api/v1/sales/${saleRaw.id}/unsubscribe`, { method: "DELETE" });
+      }
       setSubscribed(false);
+      setJustSubscribed(false);
       setSubscriberCount((c) => Math.max(0, c - 1));
-    } catch { /* ignore */ }
+      try { const subs = JSON.parse(localStorage.getItem("cireta_sale_subs") || "{}"); delete subs[saleRaw.id]; localStorage.setItem("cireta_sale_subs", JSON.stringify(subs)); } catch {}
+    } catch {}
+    finally { setSubscribing(false); }
   };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Spinner size="xl" /></div>;
@@ -287,7 +322,7 @@ export default function ProjectDetailPage() {
         </aside>
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <header className="sticky top-16 z-20 bg-white border-b border-gray-100 px-6 py-3">
+          <header className="bg-white border-b border-gray-100 px-6 py-3">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Link href="/projects" className="hover:text-text">Sales</Link>
               <span>/</span>
@@ -392,17 +427,21 @@ export default function ProjectDetailPage() {
                     <div className="space-y-2">
                       {subscribed ? (
                         <div>
-                          <button className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 cursor-default">
-                            <Bell className="h-4 w-4" /> Subscribed
-                          </button>
-                          <button onClick={handleUnsubscribe} className="w-full text-xs text-gray-400 hover:text-gray-600 mt-1.5 transition-colors">
+                          <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                          </div>
+                          <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">
                             Unsubscribe
                           </button>
                         </div>
                       ) : isAuthenticated ? (
                         <button onClick={handleSubscribe} disabled={subscribing}
                           className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
-                          <Bell className="h-4 w-4" /> {subscribing ? "Subscribing..." : "Notify Me"}
+                          {subscribing ? (
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
+                          ) : <Bell className="h-4 w-4" />}
+                          {subscribing ? "Subscribing..." : "Notify Me"}
                         </button>
                       ) : !showEmailInput ? (
                         <button onClick={() => setShowEmailInput(true)}
@@ -412,11 +451,15 @@ export default function ProjectDetailPage() {
                       ) : (
                         <div className="space-y-2">
                           <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
-                            placeholder="Enter your email" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30" />
+                            placeholder="Enter your email" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua" autoFocus />
                           <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
-                            className="w-full btn-cta py-3 rounded-xl transition-colors disabled:opacity-60">
+                            className="w-full btn-cta py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                            {subscribing ? (
+                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
+                            ) : null}
                             {subscribing ? "Subscribing..." : "Subscribe"}
                           </button>
+                          <button onClick={() => setShowEmailInput(false)} className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
                         </div>
                       )}
                       {subscriberCount > 0 && (
@@ -482,13 +525,22 @@ export default function ProjectDetailPage() {
               </div>
               {project.isComingSoon ? (
                 subscribed ? (
-                  <button className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 cursor-default">
-                    <Bell className="h-4 w-4" /> Subscribed
-                  </button>
+                  <div>
+                    <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                    </div>
+                    <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">
+                      Unsubscribe
+                    </button>
+                  </div>
                 ) : isAuthenticated ? (
                   <button onClick={handleSubscribe} disabled={subscribing}
                     className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
-                    <Bell className="h-4 w-4" /> {subscribing ? "Subscribing..." : "Notify Me"}
+                    {subscribing ? (
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
+                    ) : <Bell className="h-4 w-4" />}
+                    {subscribing ? "Subscribing..." : "Notify Me"}
                   </button>
                 ) : (
                   <button onClick={() => setShowEmailInput(true)}
@@ -560,7 +612,7 @@ export default function ProjectDetailPage() {
                       ].map(([k, v]) => (
                         <div key={k}><span className="text-gray-500">{k}</span><p className="font-medium capitalize">{v}</p></div>
                       ))}
-                      {token?.contract_address && <div className="col-span-2"><span className="text-gray-500">Contract</span><p className="font-medium font-mono text-xs">{token.contract_address}</p></div>}
+                      {token?.contract_address && <div className="col-span-2"><span className="text-gray-500">Contract</span><ContractAddress address={token.contract_address} /></div>}
                     </div>
                   </div>
 
