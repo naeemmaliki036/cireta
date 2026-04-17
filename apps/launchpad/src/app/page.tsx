@@ -403,12 +403,9 @@ const STEPS = [
   { num: 4, title: "Buy", desc: "Choose from a range of tokenized commodity projects and buy with USDC. Tokens are issued on-chain immediately." },
 ];
 
-function HowItWorksSection() {
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const fillRef = useRef<HTMLDivElement>(null);
-
+function useTimelineAnimation(ref: React.RefObject<HTMLDivElement | null>, fillRef: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
-    const el = timelineRef.current;
+    const el = ref.current;
     const fill = fillRef.current;
     if (!el || !fill) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -416,13 +413,11 @@ function HowItWorksSection() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            // Reset everything
             timers.forEach(clearTimeout);
             timers.length = 0;
             fill.classList.remove("animate");
             const circles = el.querySelectorAll(".step-circle");
             circles.forEach((c) => c.classList.remove("reached"));
-            // Force reflow then start
             void fill.offsetWidth;
             fill.classList.add("animate");
             circles.forEach((circle, i) => {
@@ -435,7 +430,17 @@ function HowItWorksSection() {
     );
     observer.observe(el);
     return () => { observer.disconnect(); timers.forEach(clearTimeout); };
-  }, []);
+  }, [ref, fillRef]);
+}
+
+function HowItWorksSection() {
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const mobileTimelineRef = useRef<HTMLDivElement>(null);
+  const mobileFillRef = useRef<HTMLDivElement>(null);
+
+  useTimelineAnimation(timelineRef, fillRef);
+  useTimelineAnimation(mobileTimelineRef, mobileFillRef);
 
   return (
     <section className="py-16 md:py-20 lg:py-[100px] px-4 md:px-8 bg-white" id="how-it-works">
@@ -488,10 +493,12 @@ function HowItWorksSection() {
         </div>
 
         {/* Mobile vertical timeline */}
-        <div className="steps-timeline md:hidden flex flex-col gap-8 pl-10 relative mb-12">
+        <div ref={mobileTimelineRef} className="steps-timeline md:hidden flex flex-col gap-8 pl-12 relative mb-12">
+          <div className="timeline-track" />
+          <div ref={mobileFillRef} className="timeline-fill" />
           {STEPS.map((s) => (
             <div key={s.num} className="relative z-[2]">
-              <div className="step-circle absolute -left-10 w-[40px] h-[40px] rounded-full bg-white border-[3px] border-box flex items-center justify-center text-sm font-bold text-darkAqua">
+              <div className="step-circle absolute -left-12 w-[40px] h-[40px] rounded-full bg-white border-[3px] border-box flex items-center justify-center text-sm font-bold text-darkAqua">
                 {s.num}
               </div>
               <div className="pl-2">
