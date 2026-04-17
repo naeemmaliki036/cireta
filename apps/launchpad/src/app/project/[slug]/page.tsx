@@ -481,23 +481,25 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : isAuthenticated ? (
                         <button onClick={handleSubscribe} disabled={subscribing}
-                          className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
-                          {subscribing ? <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg> : <Bell className="h-4 w-4" />}
-                          {subscribing ? "Subscribing..." : "Notify Me When Sale Opens"}
+                          className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-60 cursor-pointer">
+                          {subscribing ? <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg> : <Bell className="h-3.5 w-3.5" />}
+                          {subscribing ? "Subscribing..." : "Get Notified on Sale Opening"}
                         </button>
                       ) : !showEmailInput ? (
-                        <button onClick={() => setShowEmailInput(true)} className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                          <Bell className="h-4 w-4" /> Notify Me When Sale Opens
+                        <button onClick={() => setShowEmailInput(true)} className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
+                          <Bell className="h-3.5 w-3.5" /> Get Notified on Sale Opening
                         </button>
                       ) : (
-                        <div className="space-y-2">
-                          <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
-                            placeholder="Enter your email" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua" autoFocus />
-                          <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
-                            className="w-full btn-cta py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                            {subscribing ? "Subscribing..." : "Subscribe"}
-                          </button>
-                          <button onClick={() => setShowEmailInput(false)} className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
+                              placeholder="Your email" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-darkAqua" autoFocus />
+                            <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
+                              className="shrink-0 bg-darkAqua text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer">
+                              {subscribing ? "..." : "Notify"}
+                            </button>
+                          </div>
+                          <button onClick={() => setShowEmailInput(false)} className="w-full text-[11px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">Cancel</button>
                         </div>
                       )}
                     </div>
@@ -571,16 +573,16 @@ export default function ProjectDetailPage() {
                   </div>
                 ) : isAuthenticated ? (
                   <button onClick={handleSubscribe} disabled={subscribing}
-                    className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                    className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-60 cursor-pointer">
                     {subscribing ? (
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
-                    ) : <Bell className="h-4 w-4" />}
-                    {subscribing ? "Subscribing..." : "Notify Me When Sale Opens"}
+                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
+                    ) : <Bell className="h-3.5 w-3.5" />}
+                    {subscribing ? "Subscribing..." : "Get Notified on Sale Opening"}
                   </button>
                 ) : (
                   <button onClick={() => setShowEmailInput(true)}
-                    className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <Bell className="h-4 w-4" /> Notify Me When Sale Opens
+                    className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
+                    <Bell className="h-3.5 w-3.5" /> Get Notified on Sale Opening
                   </button>
                 )
               ) : ap?.deployed_on_chain === false ? (
