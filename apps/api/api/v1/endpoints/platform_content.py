@@ -38,6 +38,7 @@ def _stat_to_response(stat: PlatformStat) -> PlatformStatResponse:
         value=stat.value,
         label=stat.label,
         sort_order=stat.sort_order,
+        is_active=stat.is_active,
     )
 
 
@@ -109,6 +110,18 @@ async def list_team_members(
 # ---------------------------------------------------------------------------
 # Admin — Platform Stats
 # ---------------------------------------------------------------------------
+
+@router.get("/admin/platform/stats", response_model=list[PlatformStatResponse])
+async def list_all_platform_stats(
+    _admin: RequireAdmin,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[PlatformStatResponse]:
+    """Return ALL platform statistics (including inactive) for admin. Ordered by sort_order."""
+    result = await db.execute(
+        select(PlatformStat).order_by(PlatformStat.sort_order)
+    )
+    return [_stat_to_response(s) for s in result.scalars().all()]
+
 
 @router.post(
     "/admin/platform/stats",

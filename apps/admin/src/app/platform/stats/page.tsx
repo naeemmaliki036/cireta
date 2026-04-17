@@ -43,7 +43,7 @@ export default function PlatformStatsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiFetch<PlatformStat[]>("/api/v1/platform/stats");
+      const data = await apiFetch<PlatformStat[]>("/api/v1/admin/platform/stats");
       setStats(data);
       setEdits({});
     } catch (err) {

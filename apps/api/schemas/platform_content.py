@@ -10,6 +10,7 @@ class PlatformStatResponse(BaseModel):
     value: str
     label: str
     sort_order: int
+    is_active: bool = True
 
 
 class PlatformStatCreate(BaseModel):
