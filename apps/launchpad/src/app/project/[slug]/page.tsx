@@ -794,8 +794,16 @@ export default function ProjectDetailPage() {
                                 return next;
                               });
                             };
-                            // Remaining-mode: compute available from on-chain remaining supply
-                            const remainingSupply = onChain.ready ? (onChain.totalTokenSupply - onChain.totalTokenSold) : 0;
+                            // Remaining-mode: compute available from on-chain remaining supply,
+                            // capped by hard-cap constraint so we show what can actually be sold.
+                            const rawRemainingSupply = onChain.ready ? (onChain.totalTokenSupply - onChain.totalTokenSold) : 0;
+                            const phasePrice = parseFloat(phase.price_per_token);
+                            const phaseHardCapMax = onChain.ready && phasePrice > 0
+                              ? Math.floor(Math.max(0, onChain.hardCap - onChain.totalRaised) / phasePrice)
+                              : Infinity;
+                            const remainingSupply = phaseHardCapMax < Infinity
+                              ? Math.min(rawRemainingSupply, phaseHardCapMax)
+                              : rawRemainingSupply;
                             const effectiveAlloc = allocation > 0 ? allocation : remainingSupply;
                             const effectivePct = effectiveAlloc > 0 ? Math.min(100, Math.round((tokensSold / effectiveAlloc) * 100)) : 0;
                             return (

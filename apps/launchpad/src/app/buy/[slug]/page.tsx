@@ -187,9 +187,21 @@ export default function InvestPage() {
   const phaseSoldRaw = onChainPhase
     ? BigInt((onChainPhase as { sold: bigint }).sold ?? 0n)
     : 0n;
-  const phaseRemainingTokens = phaseAllocationRaw > phaseSoldRaw && saleTokenDecimals >= 0
+  const phaseRemainingRaw = phaseAllocationRaw > phaseSoldRaw && saleTokenDecimals >= 0
     ? Number((phaseAllocationRaw - phaseSoldRaw) / BigInt(10 ** saleTokenDecimals))
     : 0;
+  // Cap to hard-cap-constrained max: even if tokens remain, the hard cap may
+  // prevent selling them all. Show only what can actually be purchased.
+  const onChainPriceRaw = onChainPhase
+    ? BigInt((onChainPhase as { pricePerToken: bigint }).pricePerToken ?? 0n)
+    : 0n;
+  const onChainPriceUsdc = onChainPriceRaw > 0n ? Number(formatUnits(onChainPriceRaw, 6)) : 0;
+  const hardCapMaxBuyable = hardCapUsdc > 0 && onChainPriceUsdc > 0
+    ? Math.floor(Math.max(0, hardCapUsdc - totalRaisedUsdc) / onChainPriceUsdc)
+    : Infinity;
+  const phaseRemainingTokens = hardCapMaxBuyable < Infinity
+    ? Math.min(phaseRemainingRaw, hardCapMaxBuyable)
+    : phaseRemainingRaw;
 
   // Read existing USDC allowance — skip approve step if sufficient
   // amountWei = USDC cost for allowance comparison (not token qty)
