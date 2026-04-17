@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
@@ -87,7 +87,7 @@ function downloadCSV(subscribers: Subscriber[]) {
   URL.revokeObjectURL(url);
 }
 
-export default function PlatformSubscribersPage() {
+function PlatformSubscribersContent() {
   const searchParams = useSearchParams();
   const initialSaleId = searchParams.get("sale_id") || "";
 
@@ -184,5 +184,13 @@ export default function PlatformSubscribersPage() {
         )}
       </motion.div>
     </PlatformAdminLayout>
+  );
+}
+
+export default function PlatformSubscribersPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-16"><div className="animate-spin h-6 w-6 border-2 border-zinc-300 border-t-zinc-600 rounded-full" /></div>}>
+      <PlatformSubscribersContent />
+    </Suspense>
   );
 }
