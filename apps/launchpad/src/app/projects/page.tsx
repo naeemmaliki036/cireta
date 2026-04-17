@@ -103,8 +103,6 @@ const SIDEBAR_LINKS = [
 ];
 
 function ActiveProjectCard({ project }: { project: Project }) {
-  // Read totals from the deployed Sale contract so the card reflects the
-  // canonical on-chain numbers, not whatever the DB last cached.
   const onChain = useOnChainSaleStats(
     (project.contract_address ?? null) as `0x${string}` | null,
     0,
@@ -115,13 +113,56 @@ function ActiveProjectCard({ project }: { project: Project }) {
     : (project.targetAmount || 1);
   const progress = hardCap > 0 ? Math.round((raised / hardCap) * 100) : 0;
 
+  const now = Date.now();
+  const hasActivePhase = project.phases.some((p) => {
+    const s = new Date(p.start_time || 0).getTime();
+    const e = new Date(p.end_time || 0).getTime();
+    return now >= s && now < e;
+  });
+
+  // Subscribe state for upcoming (no active phase)
+  const [subscribed, setSubscribed] = useState(false);
+  const [justSubscribed, setJustSubscribed] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [subEmail, setSubEmail] = useState("");
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (hasActivePhase) return;
+    if (isAuthenticated) {
+      apiFetch<{ subscribed: boolean }>(`/api/v1/sales/${project.id}/is-subscribed`, { skipAuthRedirect: true })
+        .then((r) => setSubscribed(r.subscribed)).catch(() => {});
+    } else {
+      const subs = getLocalSubs();
+      if (subs[project.id]) setSubscribed(true);
+    }
+  }, [project.id, isAuthenticated, hasActivePhase]);
+
+  const doSubscribe = useCallback(async (email?: string) => {
+    setSubLoading(true);
+    try {
+      await apiFetch(`/api/v1/sales/${project.id}/subscribe`, { method: "POST", body: email ? { email } : {}, skipAuthRedirect: true });
+      setSubscribed(true); setJustSubscribed(true);
+      if (email) setLocalSub(project.id, email);
+      setShowEmailInput(false);
+    } catch { setSubscribed(true); setJustSubscribed(true); setShowEmailInput(false); }
+    finally { setSubLoading(false); }
+  }, [project.id]);
+
+  const doUnsubscribe = useCallback(async () => {
+    setSubLoading(true);
+    try { if (isAuthenticated) await apiFetch(`/api/v1/sales/${project.id}/unsubscribe`, { method: "DELETE" }); } catch {}
+    setSubscribed(false); setJustSubscribed(false); removeLocalSub(project.id);
+    setSubLoading(false);
+  }, [project.id, isAuthenticated]);
+
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow">
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
       <div className="relative h-72 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4 flex items-center gap-2">
           {(() => {
-            const now = Date.now();
             const ap = project.phases.find((p) => {
               const s = new Date(p.start_time || 0).getTime();
               const e = new Date(p.end_time || 0).getTime();
@@ -151,12 +192,11 @@ function ActiveProjectCard({ project }: { project: Project }) {
           </h3>
         </div>
       </div>
-      <div className="px-5 pb-5 pt-2 space-y-4">
+      <div className="px-5 pb-5 pt-2 space-y-4 flex flex-col flex-1">
         <p className="text-[14px] text-gray-500 leading-relaxed line-clamp-2 min-h-[2lh]">{project.description || "Buy verified tokenized real-world assets backed by institutional issuers."}</p>
         {project.phases.length > 0 && (
           <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
             {project.phases.map((p) => {
-              const now = Date.now();
               const start = new Date(p.start_time || 0).getTime();
               const end = new Date(p.end_time || 0).getTime();
               const status = now < start ? "upcoming" : now >= end ? "ended" : "active";
@@ -174,31 +214,74 @@ function ActiveProjectCard({ project }: { project: Project }) {
             })}
           </div>
         )}
-        {raised > 0 && <div>
-          <div className="flex justify-between text-sm text-gray-500 mb-1.5">
-            <span>Funding progress</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-darkAqua rounded-full" style={{ width: `${Math.min(progress, 100)}%` }} />
-          </div>
-        </div>}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-          <div className="flex items-center gap-6">
+        <div className="mt-auto space-y-4">
+          {/* Progress bar for active sales */}
+          {hasActivePhase && raised > 0 && (
             <div>
-              <p className="text-[12px] text-gray-400 uppercase tracking-wide">Target</p>
-              <p className="text-[14px] font-bold">{hardCap >= 1_000_000 ? `${(hardCap / 1_000_000).toFixed(hardCap % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${hardCap.toLocaleString()} USDC`}</p>
-            </div>
-            {raised > 0 && (
-              <div>
-                <p className="text-[12px] text-gray-400 uppercase tracking-wide">Raised</p>
-                <p className="text-[14px] font-bold text-darkAqua">{raised >= 1_000_000 ? `${(raised / 1_000_000).toFixed(raised % 1_000_000 === 0 ? 0 : 2)}M USDC` : `${raised.toLocaleString()} USDC`}</p>
+              <div className="flex justify-between text-sm text-gray-500 mb-1.5">
+                <span>Funding progress</span>
+                <span>{progress}%</span>
               </div>
-            )}
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-darkAqua rounded-full" style={{ width: `${Math.min(progress, 100)}%` }} />
+              </div>
+            </div>
+          )}
+          {/* Subscribe for upcoming (no active phase) */}
+          {!hasActivePhase && (
+            subscribed ? (
+              justSubscribed ? (
+                <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-green-50 border border-green-200">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                    <span className="text-[11px] text-green-600 font-medium">Subscribed — We&apos;ll notify you</span>
+                  </div>
+                  <button onClick={() => setJustSubscribed(false)} className="text-black/30 hover:text-black/50 transition-colors p-0.5 cursor-pointer"><X className="h-3 w-3" /></button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-box">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-3.5 w-3.5 text-darkAqua shrink-0" />
+                    <span className="text-[11px] text-black/50">Subscribed for updates</span>
+                  </div>
+                  <button onClick={doUnsubscribe} disabled={subLoading} className="text-[10px] text-black/30 hover:text-red-400 transition-colors cursor-pointer">Unsubscribe</button>
+                </div>
+              )
+            ) : showEmailInput ? (
+              <form onSubmit={(e) => { e.preventDefault(); const em = subEmail.trim().toLowerCase(); if (em && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) doSubscribe(em); }} className="flex items-center gap-1.5 w-full rounded-lg bg-box p-1.5">
+                <input type="email" placeholder="Your email" value={subEmail} onChange={(e) => setSubEmail(e.target.value)} autoFocus
+                  className="flex-1 min-w-0 bg-white rounded-md px-2.5 py-1.5 text-[11px] border border-black/10 outline-none focus:border-darkAqua" />
+                <button type="submit" disabled={subLoading} className="shrink-0 bg-darkAqua text-white text-[11px] font-medium px-3 py-1.5 rounded-md hover:opacity-90 disabled:opacity-50 cursor-pointer">
+                  {subLoading ? "..." : "Notify"}
+                </button>
+                <button type="button" onClick={() => setShowEmailInput(false)} className="shrink-0 text-black/30 hover:text-black/60 p-0.5 cursor-pointer"><X className="h-3 w-3" /></button>
+              </form>
+            ) : (
+              <button onClick={() => isAuthenticated ? doSubscribe() : setShowEmailInput(true)} disabled={subLoading}
+                className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 bg-box hover:bg-darkAqua/5 transition-colors cursor-pointer">
+                <Bell className="h-3.5 w-3.5 text-darkAqua shrink-0" />
+                <span className="text-[11px] text-black/50">Get notified when funding opens</span>
+              </button>
+            )
+          )}
+          {/* Target + Raised + View Details */}
+          <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-[12px] text-gray-400 uppercase tracking-wide">Target</p>
+                <p className="text-[14px] font-bold">{hardCap >= 1_000_000 ? `${(hardCap / 1_000_000).toFixed(hardCap % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${hardCap.toLocaleString()} USDC`}</p>
+              </div>
+              {raised > 0 && (
+                <div>
+                  <p className="text-[12px] text-gray-400 uppercase tracking-wide">Raised</p>
+                  <p className="text-[14px] font-bold text-darkAqua">{raised >= 1_000_000 ? `${(raised / 1_000_000).toFixed(raised % 1_000_000 === 0 ? 0 : 2)}M USDC` : `${raised.toLocaleString()} USDC`}</p>
+                </div>
+              )}
+            </div>
+            <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors">
+              View Details <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
-          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors">
-            View Details <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
         </div>
       </div>
     </div>

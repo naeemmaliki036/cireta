@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -84,6 +84,75 @@ const BASE_TABS = ["Overview", "Token & Sale", "Team", "FAQ", "Documents", "My P
 const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
 const VESTED_INSERT = "Vesting" as const;
 type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT;
+
+function PdfThumbnail({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        const pdf = await pdfjsLib.getDocument({ url, withCredentials: false }).promise;
+        const page = await pdf.getPage(1);
+        const canvas = canvasRef.current;
+        if (!canvas || cancelled) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(canvas.width / viewport.width, canvas.height / viewport.height);
+        const scaled = page.getViewport({ scale });
+        canvas.width = scaled.width;
+        canvas.height = scaled.height;
+        await page.render({ canvasContext: ctx, canvas, viewport: scaled }).promise;
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (failed) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-300">
+        <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none">
+          <rect x="8" y="4" width="32" height="40" rx="3" stroke="currentColor" strokeWidth="2" fill="white" />
+          <path d="M8 14h32" stroke="currentColor" strokeWidth="1.5" />
+          <text x="24" y="32" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="700">PDF</text>
+        </svg>
+      </div>
+    );
+  }
+
+  return <canvas ref={canvasRef} width={300} height={200} className="w-full h-full object-contain" />;
+}
+
+function TeamMemberCard({ member: m }: { member: { id: string; name: string; title: string; bio?: string | null; photo_url?: string | null } }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="flex gap-4 p-5 rounded-xl bg-gray-50">
+      <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+        {m.photo_url ? <Image src={m.photo_url} alt={m.name} width={64} height={64} className="object-cover w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-xl font-bold">{m.name[0]}</div>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-bold text-base text-text">{m.name}</p>
+        <p className="text-sm text-darkAqua font-medium mb-2">{m.title}</p>
+        {m.bio && (
+          <>
+            <p className={`text-sm text-gray-500 leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>{m.bio}</p>
+            {m.bio.length > 120 && (
+              <button onClick={() => setExpanded(!expanded)} className="text-xs text-darkAqua font-medium mt-1 hover:underline cursor-pointer">
+                {expanded ? "Show less" : "Read more"}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ContractAddress({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
@@ -636,10 +705,10 @@ export default function ProjectDetailPage() {
               )}
 
               {activeTab === "Token & Sale" && (
-                <div className="space-y-6">
+                <div className="space-y-10">
                   {/* Token Details */}
                   <div className="bg-gray-50 rounded-xl p-5">
-                    <h3 className="font-bold text-text mb-3 text-sm">Token Details</h3>
+                    <h3 className="font-bold text-text mb-4 text-base">Token Details</h3>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       {[
                         ["Name", project.title],
@@ -653,60 +722,62 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
 
-                  {/* Global Sale Progress (gap #4) */}
+                  {/* Sale Details */}
+                  <div className="bg-gray-50 rounded-xl p-5">
+                    <h3 className="font-bold text-text text-base mb-4">Sale Details</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-5">
+                      {[
+                        ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"],
+                        ["Total Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
+                        ["Currency", "USDC"],
+                        ["Current Round", ap ? ap.name : "—"],
+                        ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
+                        ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
+                        ["Start", startTime ? fmtDate(startTime) : "TBD"],
+                        ["End", endTime ? fmtDate(endTime) : "TBD"],
+                      ].map(([k, v]) => (
+                        <div key={k}>
+                          <p className="text-xs text-gray-400 mb-0.5">{k}</p>
+                          <p className="text-sm font-semibold text-text">{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Funding Progress — after sale details */}
                   {!project.isComingSoon && hardCap > 0 && (() => {
                     const raisedPctRaw = Math.min(100, (raised / hardCap) * 100);
                     const raisedPct = raisedPctRaw >= 100 ? 100 : parseFloat(raisedPctRaw.toFixed(2));
                     const softCapPct = softCap > 0 ? Math.min(100, (softCap / hardCap) * 100) : 0;
                     const softCapMet = raised >= softCap;
                     return (
-                      <div className="bg-white border border-gray-100 rounded-2xl p-5">
-                        <div className="flex items-baseline justify-between mb-3">
-                          <h3 className="font-bold text-text text-sm">Sale Progress</h3>
-                          <span className="text-xs text-gray-500">{raisedPct.toFixed(1)}% of hard cap</span>
+                      <div className="bg-gray-50 rounded-xl p-5">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-bold text-text text-base">Funding Progress</h3>
+                          <span className="text-xs font-semibold text-darkAqua bg-darkAqua/10 px-2.5 py-1 rounded-full">{raisedPct.toFixed(1)}%</span>
                         </div>
-                        <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
-                          <div
-                            className="h-full bg-darkAqua rounded-full transition-all"
-                            style={{ width: `${raisedPct}%` }}
-                          />
+                        <div className="relative h-4 bg-gray-100 rounded-full mb-2 group">
+                          <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${raisedPct}%` }} />
                           {softCap > 0 && softCapPct > 0 && softCapPct < 100 && (
-                            <div
-                              className="absolute top-0 bottom-0 w-px bg-amber-500"
-                              style={{ left: `${softCapPct}%` }}
-                              title={`Soft cap: ${fmtUsdc(softCap)} USDC`}
-                            />
+                            <div className="absolute top-0 bottom-0 w-0.5 bg-white cursor-pointer" style={{ left: `${softCapPct}%` }}>
+                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                Soft Cap: {fmtUsdc(softCap)} USDC
+                              </div>
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-text font-semibold">
-                            {fmtUsdc(raised)} <span className="text-gray-400 font-normal">/ {fmtUsdc(hardCap)} USDC raised</span>
-                          </span>
-                          {softCap > 0 && softCapMet && (
-                            <span className="font-medium text-emerald-600">
-                              Soft cap reached ({fmtUsdc(softCap)} USDC)
-                            </span>
-                          )}
+                          <span className="text-text font-medium">{fmtUsdc(raised)} raised</span>
+                          <span className="text-gray-400">{fmtUsdc(hardCap)} target</span>
                         </div>
+                        {softCap > 0 && softCapMet && (
+                          <p className="text-[11px] text-emerald-600 font-medium mt-1.5 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Soft cap reached ({fmtUsdc(softCap)} USDC)
+                          </p>
+                        )}
                       </div>
                     );
                   })()}
-
-                  {/* Sale Details */}
-                  <h3 className="font-bold text-text text-sm">Sale Details</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                    {[
-                      ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC${ap ? ` (${ap.name})` : ""}` : "TBD"],
-                      ["Total Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
-                      ["Currency", "USDC"],
-                      ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
-                      ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
-                      ["Start", startTime ? fmtDate(startTime) : "TBD"],
-                      ["End", endTime ? fmtDate(endTime) : "TBD"],
-                    ].map(([k, v]) => (
-                      <div key={k} className="bg-gray-50 rounded-xl p-4"><p className="text-gray-500 mb-1">{k}</p><p className="font-bold">{v}</p></div>
-                    ))}
-                  </div>
 
                   {project.phases.length > 0 && (() => {
                     // Sort phases by start_time and assign display indices (fixes duplicate phase_number bug)
@@ -715,8 +786,8 @@ export default function ProjectDetailPage() {
                     );
                     const isPriceTiered = (saleRaw?.sale_structure ?? "phase_allocated") === "price_tiered";
                     return (
-                      <div>
-                        <h3 className="font-bold text-text mb-3">Sale Phases</h3>
+                      <div className="bg-gray-50 rounded-xl p-5">
+                        <h3 className="font-bold text-text text-base mb-3">Sale Phases</h3>
                         {/* Structure context banner */}
                         <div className={cn(
                           "rounded-xl px-4 py-3 mb-4 text-xs",
@@ -943,34 +1014,27 @@ export default function ProjectDetailPage() {
                   milestones.push({ label: `Day ${cliffDays + linearDays}`, pct: 100 });
                 }
                 return (
-                  <div className="space-y-6">
+                  <div className="space-y-10">
                     <div className="bg-gray-50 rounded-xl p-5">
-                      <h3 className="font-bold text-text mb-3 text-sm">Vesting Schedule</h3>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-500">Cliff Duration</p>
-                          <p className="font-bold text-base">{cliffDays > 0 ? fmtDur(cliffDays) : "None"}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Total Vesting Duration</p>
-                          <p className="font-bold text-base">{vestingDays > 0 ? fmtDur(vestingDays) : "None"}</p>
-                        </div>
-                        {linearDays > 0 && (
-                          <div>
-                            <p className="text-gray-500">Linear Unlock Period</p>
-                            <p className="font-bold text-base">{fmtDur(linearDays)} (after cliff)</p>
+                      <h3 className="font-bold text-text mb-4 text-base">Vesting Schedule</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-5">
+                        {[
+                          ["Cliff Duration", cliffDays > 0 ? fmtDur(cliffDays) : "None"],
+                          ["Total Duration", vestingDays > 0 ? fmtDur(vestingDays) : "None"],
+                          ...(linearDays > 0 ? [["Linear Unlock", `${fmtDur(linearDays)} (after cliff)`]] : []),
+                          ["Unlock Type", isCliffOnly ? "100% at cliff" : "Linear after cliff"],
+                        ].map(([k, v]) => (
+                          <div key={k}>
+                            <p className="text-xs text-gray-400 mb-0.5">{k}</p>
+                            <p className="text-sm font-semibold text-text">{v}</p>
                           </div>
-                        )}
-                        <div>
-                          <p className="text-gray-500">Unlock Type</p>
-                          <p className="font-bold text-base">{isCliffOnly ? "100% at cliff" : "Linear after cliff"}</p>
-                        </div>
+                        ))}
                       </div>
                     </div>
 
                     {/* Visual timeline */}
-                    <div className="bg-white border border-gray-100 rounded-xl p-5">
-                      <h3 className="font-bold text-text mb-2 text-sm">Unlock Timeline</h3>
+                    <div className="bg-gray-50 rounded-xl p-5">
+                      <h3 className="font-bold text-text mb-2 text-base">Unlock Timeline</h3>
                       <p className="text-xs text-gray-400 mb-5">
                         {cliffDays > 0 && linearDays > 0
                           ? `After purchasing, your tokens are locked for ${fmtDur(cliffDays)} (cliff). Then they unlock linearly over ${fmtDur(linearDays)}. You can claim unlocked tokens at any time.`
@@ -990,8 +1054,8 @@ export default function ProjectDetailPage() {
                             {linearDays > 0 ? `Linear unlock · ${fmtDur(linearDays)}` : "Fully unlocked"}
                           </div>
                         </div>
-                        {/* Slim track */}
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden relative">
+                        {/* Track */}
+                        <div className="h-4 bg-gray-100 rounded-full overflow-hidden relative">
                           {cliffDays > 0 && (
                             <div
                               className="h-full absolute left-0 rounded-l-full"
@@ -1021,8 +1085,8 @@ export default function ProjectDetailPage() {
                     </div>
 
                     {/* Claim schedule table */}
-                    <div className="bg-white border border-gray-100 rounded-xl p-5">
-                      <h3 className="font-bold text-text mb-3 text-sm">Claim Schedule</h3>
+                    <div className="bg-gray-50 rounded-xl p-5">
+                      <h3 className="font-bold text-text mb-3 text-base">Claim Schedule</h3>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
@@ -1070,33 +1134,52 @@ export default function ProjectDetailPage() {
               )}
 
               {activeTab === "Documents" && (
-                <div className="space-y-3">
+                <div>
                   {documents.length === 0 && <p className="text-gray-400 text-center py-8">No documents available yet.</p>}
-                  {documents.map((d) => (
-                    <a key={d.id} href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-darkAqua" />
-                        <div><p className="font-medium text-sm">{d.name}</p><p className="text-xs text-gray-400 capitalize">{d.document_type}</p></div>
-                      </div>
-                      <Download className="h-4 w-4 text-gray-400" />
-                    </a>
-                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {documents.map((d) => {
+                      const isPdf = d.url?.toLowerCase().includes(".pdf") || d.document_type?.toLowerCase().includes("pdf");
+                      const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(d.url || "");
+                      return (
+                        <a
+                          key={d.id}
+                          href={d.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group bg-gray-50 rounded-xl overflow-hidden hover:shadow-card transition-shadow flex flex-col"
+                        >
+                          {/* Preview area */}
+                          <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                            {isImage ? (
+                              <Image src={d.url} alt={d.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                            ) : isPdf ? (
+                              <PdfThumbnail url={d.url} />
+                            ) : (
+                              <FileText className="w-10 h-10 text-gray-300" />
+                            )}
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center">
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-medium text-darkAqua flex items-center gap-1.5 shadow-sm">
+                                <Download className="h-3 w-3" /> Open
+                              </span>
+                            </div>
+                          </div>
+                          {/* Info */}
+                          <div className="p-4">
+                            <p className="font-semibold text-sm text-text truncate">{d.name}</p>
+                            <p className="text-xs text-gray-400 capitalize mt-0.5">{d.document_type || "Document"}</p>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               {activeTab === "Team" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {team.length === 0 && <p className="text-gray-400 text-center py-8 col-span-2">Team information coming soon.</p>}
                   {team.map((m) => (
-                    <div key={m.id} className="flex gap-4 p-4 rounded-xl bg-gray-50">
-                      <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-                        {m.photo_url ? <Image src={m.photo_url} alt={m.name} width={56} height={56} className="object-cover w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg font-bold">{m.name[0]}</div>}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-sm">{m.name}</p>
-                        <p className="text-xs text-darkAqua mb-1">{m.title}</p>
-                        {m.bio && <p className="text-xs text-gray-500 line-clamp-3">{m.bio}</p>}
-                      </div>
-                    </div>
+                    <TeamMemberCard key={m.id} member={m} />
                   ))}
                 </div>
               )}
