@@ -235,12 +235,12 @@ export default function ProjectDetailPage() {
       if (isAuthenticated) {
         await apiFetch(`/api/v1/sales/${saleRaw.id}/unsubscribe`, { method: "DELETE" });
       }
-      setSubscribed(false);
-      setJustSubscribed(false);
-      setSubscriberCount((c) => Math.max(0, c - 1));
-      try { const subs = JSON.parse(localStorage.getItem("cireta_sale_subs") || "{}"); delete subs[saleRaw.id]; localStorage.setItem("cireta_sale_subs", JSON.stringify(subs)); } catch {}
-    } catch {}
-    finally { setSubscribing(false); }
+    } catch { /* ignore API errors for anon users */ }
+    setSubscribed(false);
+    setJustSubscribed(false);
+    setSubscriberCount((c) => Math.max(0, c - 1));
+    try { const subs = JSON.parse(localStorage.getItem("cireta_sale_subs") || "{}"); delete subs[saleRaw.id]; localStorage.setItem("cireta_sale_subs", JSON.stringify(subs)); } catch {}
+    setSubscribing(false);
   };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Spinner size="xl" /></div>;
@@ -400,9 +400,9 @@ export default function ProjectDetailPage() {
                         const nextPhase = project.phases.find((ph) => new Date(ph.start_time).getTime() > Date.now());
                         if (!nextPhase) return null;
                         return (
-                          <p className="text-xs text-blue-600 font-medium mt-1.5 flex items-center gap-1">
+                          <p className="text-xs text-darkAqua font-medium mt-1.5 flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Next phase ({nextPhase.name}) {getTimeUntilStart(nextPhase.start_time).toLowerCase()}
+                            Next phase {getTimeUntilStart(nextPhase.start_time).toLowerCase()}
                           </p>
                         );
                       })()}
@@ -429,12 +429,12 @@ export default function ProjectDetailPage() {
                     <div className="space-y-2">
                       {subscribed ? (
                         <div>
-                          <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
-                            {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                          <div className="w-full bg-green-50 border border-green-200 text-green-600 text-sm font-medium py-2.5 rounded-xl flex items-center justify-center gap-2">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {justSubscribed ? "You'll be notified when this sale opens" : "Subscribed for notifications"}
                           </div>
-                          <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">
-                            Unsubscribe
+                          <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-[11px] text-gray-400 hover:text-red-400 mt-1 transition-colors cursor-pointer">
+                            Remove notification preference
                           </button>
                         </div>
                       ) : isAuthenticated ? (
