@@ -86,47 +86,28 @@ const VESTED_INSERT = "Vesting" as const;
 type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT;
 
 function PdfThumbnail({ url }: { url: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        const pdf = await pdfjsLib.getDocument({ url, withCredentials: false }).promise;
-        const page = await pdf.getPage(1);
-        const canvas = canvasRef.current;
-        if (!canvas || cancelled) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        const viewport = page.getViewport({ scale: 1 });
-        const scale = Math.min(canvas.width / viewport.width, canvas.height / viewport.height);
-        const scaled = page.getViewport({ scale });
-        canvas.width = scaled.width;
-        canvas.height = scaled.height;
-        await page.render({ canvasContext: ctx, canvas, viewport: scaled }).promise;
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [url]);
-
-  if (failed) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-300">
-        <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none">
-          <rect x="8" y="4" width="32" height="40" rx="3" stroke="currentColor" strokeWidth="2" fill="white" />
-          <path d="M8 14h32" stroke="currentColor" strokeWidth="1.5" />
-          <text x="24" y="32" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="700">PDF</text>
-        </svg>
-      </div>
-    );
-  }
-
-  return <canvas ref={canvasRef} width={300} height={200} className="w-full h-full object-contain" />;
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className="relative w-full h-full overflow-hidden">
+      {!loaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300">
+          <svg className="w-8 h-8 animate-pulse" viewBox="0 0 48 48" fill="none">
+            <rect x="8" y="4" width="32" height="40" rx="3" stroke="currentColor" strokeWidth="2" fill="white" />
+            <text x="24" y="30" textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="700">PDF</text>
+          </svg>
+        </div>
+      )}
+      {/* Google Docs viewer rendered in iframe, scaled down and cropped to show just the page */}
+      <iframe
+        src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+        className="absolute border-0 pointer-events-none origin-top-left"
+        style={{ width: "200%", height: "200%", transform: "scale(0.5)", transformOrigin: "top left" }}
+        title="PDF Preview"
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+      />
+    </div>
+  );
 }
 
 function TeamMemberCard({ member: m }: { member: { id: string; name: string; title: string; bio?: string | null; photo_url?: string | null } }) {
@@ -1136,7 +1117,7 @@ export default function ProjectDetailPage() {
               {activeTab === "Documents" && (
                 <div>
                   {documents.length === 0 && <p className="text-gray-400 text-center py-8">No documents available yet.</p>}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {documents.map((d) => {
                       const isPdf = d.url?.toLowerCase().includes(".pdf") || d.document_type?.toLowerCase().includes("pdf");
                       const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(d.url || "");
@@ -1149,7 +1130,7 @@ export default function ProjectDetailPage() {
                           className="group bg-gray-50 rounded-xl overflow-hidden hover:shadow-card transition-shadow flex flex-col"
                         >
                           {/* Preview area */}
-                          <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                          <div className="h-64 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                             {isImage ? (
                               <Image src={d.url} alt={d.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                             ) : isPdf ? (
