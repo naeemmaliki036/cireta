@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Menu, X, Wallet, User, Settings, LogOut, ChevronDown,
+  Menu, X, Wallet, User, Settings, LogOut, ChevronDown, Briefcase,
   ShieldCheck, ShieldAlert, Clock, Shield,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -792,8 +792,9 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             className="fixed inset-0 z-[70] laptop:hidden"
           >
             <div className="absolute inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)} />
-            <div className="absolute right-0 top-0 h-full w-full shadow-2xl px-5 pt-4 pb-6 backdrop-blur-xl overflow-y-auto" style={{ backgroundColor: "rgba(236, 243, 244, 0.96)" }}>
-              <div className="flex items-center justify-between mb-4">
+            <div className="absolute right-0 top-0 h-full w-full shadow-2xl px-5 pt-4 pb-6 backdrop-blur-xl overflow-y-auto flex flex-col" style={{ backgroundColor: "rgba(236, 243, 244, 0.96)" }}>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
                 <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
                   <Image src="/images/logo/cireta-logo.svg" alt="Cireta" width={552} height={146} className="h-7 w-auto" />
                 </Link>
@@ -802,31 +803,51 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                 </button>
               </div>
 
+              {/* User profile card — if logged in */}
+              {isAuthenticated && user && (
+                <div className="bg-white rounded-xl p-4 mb-5 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-darkAqua/10 flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-darkAqua" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-black truncate">{user.display_name || user.email.split("@")[0]}</p>
+                      {kycBadge && (
+                        <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold shrink-0", kycBadge.bg, kycBadge.color)}>
+                          <kycBadge.icon className="h-2 w-2" />
+                          {kycBadge.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-black/40 truncate">{user.email}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Nav groups as accordions */}
-              <div className="space-y-1 mb-4">
+              <div className="space-y-0.5 mb-5">
                 {navGroupsData.map((group) => {
                   const isOpen = mobileGroupOpen === group.key;
                   if (group.type === "link") {
                     return (
-                      <div key={group.key} className="border-b border-black/5">
-                        <Link
-                          href={group.href || "/"}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          className="flex items-center w-full py-3 text-sm font-semibold text-black"
-                        >
-                          {group.label}
-                        </Link>
-                      </div>
+                      <Link
+                        key={group.key}
+                        href={group.href || "/"}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center w-full py-2.5 text-[14px] font-semibold text-black"
+                      >
+                        {group.label}
+                      </Link>
                     );
                   }
                   return (
-                    <div key={group.key} className="border-b border-black/5">
+                    <div key={group.key}>
                       <button
                         onClick={() => setMobileGroupOpen(isOpen ? null : group.key)}
-                        className="flex items-center justify-between w-full py-3 text-sm font-semibold text-black"
+                        className="flex items-center justify-between w-full py-2.5 text-[14px] font-semibold text-black"
                       >
                         {group.label}
-                        <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+                        <ChevronDown className={cn("h-4 w-4 transition-transform text-black/40", isOpen && "rotate-180")} />
                       </button>
                       <AnimatePresence>
                         {isOpen && (
@@ -839,8 +860,8 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                           >
                             <div className="pl-3 pb-2 space-y-0.5">
                               {(group.children || []).map((child) => {
-                                const commonClass = "flex items-center gap-2.5 py-2 text-[13px] font-medium text-black/70 hover:text-darkAqua";
-                                const iconEl = <span className="w-4 h-4 text-darkAqua">{child.icon}</span>;
+                                const commonClass = "flex items-center gap-2.5 py-2 text-[13px] font-medium text-black/60 hover:text-darkAqua";
+                                const iconEl = <span className="w-4 h-4 text-darkAqua/60">{child.icon}</span>;
                                 if (child.action === "tour") {
                                   return (
                                     <button
@@ -874,85 +895,78 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                 })}
               </div>
 
-              {/* Account section */}
+              {/* Account links — if logged in */}
               {isAuthenticated && user ? (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2 text-darkAqua">Account</p>
-                  <div className="mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-black">{user.display_name || user.email.split("@")[0]}</p>
-                      {kycBadge && (
-                        <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold", kycBadge.bg, kycBadge.color)}>
-                          <kycBadge.icon className="h-2.5 w-2.5" />
-                          {kycBadge.label}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-black/40">{user.email}</p>
-                  </div>
+                <div className="border-t border-black/5 pt-4 space-y-0.5">
                   {!user.onboarding_completed && user.kycStatus !== "approved" && (
-                    <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-darkAqua">
+                    <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 text-[13px] font-semibold text-darkAqua">
                       <Shield className="h-4 w-4" /> Complete Profile
                     </Link>
                   )}
-                  <Link href="/portfolio" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-black">
-                    <User className="h-4 w-4 text-darkAqua" /> Portfolio
+                  <Link href="/portfolio" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 text-[14px] font-medium text-black">
+                    <Briefcase className="h-4 w-4 text-black/30" /> Portfolio
                   </Link>
-                  <Link href="/account" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-black">
-                    <User className="h-4 w-4 text-darkAqua" /> Account
+                  <Link href="/account" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 text-[14px] font-medium text-black">
+                    <User className="h-4 w-4 text-black/30" /> Account
                   </Link>
-                  <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 border-b border-black/5 text-sm font-medium text-black">
-                    <Settings className="h-4 w-4 text-darkAqua" /> Settings
+                  <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 text-[14px] font-medium text-black">
+                    <Settings className="h-4 w-4 text-black/30" /> Settings
                   </Link>
-                  <button onClick={() => { setIsMobileMenuOpen(false); logout(); }} className="flex items-center gap-3 py-3 text-sm font-medium text-red-500 w-full">
-                    <LogOut className="h-4 w-4" /> Sign Out
-                  </button>
                 </div>
               ) : (
-                <div className="mt-5 space-y-2">
+                <div className="border-t border-black/5 pt-4">
                   <Link
                     href={`/login?redirect=${encodeURIComponent(pathname)}`}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-darkAqua"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-darkAqua"
                   >
                     Sign Up / Log In
                   </Link>
                 </div>
               )}
 
-              {/* Connect Wallet */}
-              <div className="mt-3">
-                <ConnectButton.Custom>
-                  {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                    const ready = mounted;
-                    const connected = ready && account && chain;
-                    return (
-                      <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none", userSelect: "none" } })} className="w-full">
-                        {(() => {
-                          if (!connected) {
+              {/* Bottom actions — pushed to bottom */}
+              <div className="mt-auto pt-4 space-y-3">
+                {/* Sign Out */}
+                {isAuthenticated && (
+                  <button onClick={() => { setIsMobileMenuOpen(false); logout(); }} className="flex items-center gap-2 text-[13px] text-black/30 hover:text-black/50 transition-colors w-full">
+                    <LogOut className="h-3.5 w-3.5" /> Sign Out
+                  </button>
+                )}
+                {/* Connect Wallet — only for authenticated */}
+                {isAuthenticated && (
+                  <ConnectButton.Custom>
+                    {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+                      const ready = mounted;
+                      const connected = ready && account && chain;
+                      return (
+                        <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none", userSelect: "none" } })} className="w-full">
+                          {(() => {
+                            if (!connected) {
+                              return (
+                                <button onClick={openConnectModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua hover:bg-darkAqua/5 transition-colors">
+                                  <Wallet className="h-4 w-4" /> Connect Wallet
+                                </button>
+                              );
+                            }
+                            if (chain.unsupported) {
+                              return (
+                                <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-red-500 text-white">
+                                  Wrong Network
+                                </button>
+                              );
+                            }
                             return (
-                              <button onClick={openConnectModal} className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-darkAqua hover:opacity-90">
-                                <Wallet className="h-4 w-4" /> Connect Wallet
+                              <button onClick={openAccountModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua">
+                                <Wallet className="h-4 w-4" /> {account.displayName}
                               </button>
-                            );
-                          }
-                          if (chain.unsupported) {
-                            return (
-                              <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-red-500 text-white">
-                                Wrong Network
-                              </button>
-                            );
-                          }
-                          return (
-                            <button onClick={openAccountModal} className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-darkAqua text-white">
-                              <Wallet className="h-5 w-5" /> {account.displayName}
-                            </button>
                           );
                         })()}
                       </div>
                     );
                   }}
                 </ConnectButton.Custom>
+                )}
               </div>
             </div>
           </motion.div>

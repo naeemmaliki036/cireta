@@ -581,67 +581,45 @@ export default function ProjectDetailPage() {
                 </div>
               )}
             </div>
-            {/* Sale widget — mobile only (inline card below banner) */}
-            <div className="lg:hidden bg-white border border-black/10 rounded-2xl mx-4 -mt-8 relative z-10 p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-darkAqua/10 flex items-center justify-center"><Coins className="h-4 w-4 text-darkAqua" /></div>
-                  <div>
-                    <p className="font-bold text-sm">USDC</p>
-                    <p className="text-xs text-gray-500">
-                      {project.isComingSoon
-                        ? "Details announced at launch"
-                        : raised > 0
-                          ? `${fmtUsdc(raised)} raised out of ${fmtUsdc(hardCap)} USDC`
-                          : `Target: ${fmtUsdc(hardCap)} USDC`}
-                    </p>
-                  </div>
+            {/* Sale widget — mobile only (sticky bottom bar) */}
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-black/10 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-area-pb">
+              <div className="flex items-center gap-3">
+                {/* Left: price info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400">
+                    {project.isComingSoon ? "Coming Soon" : pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC / token` : "Price TBD"}
+                  </p>
+                  <p className="text-sm font-bold text-text truncate">
+                    {project.isComingSoon
+                      ? project.title
+                      : raised > 0
+                        ? `${fmtUsdc(raised)} / ${fmtUsdc(hardCap)} raised`
+                        : `Target: ${fmtUsdc(hardCap)} USDC`}
+                  </p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className={cn("w-2 h-2 rounded-full", project.status === "active" ? "bg-green-500" : project.isComingSoon ? "bg-amber-400" : "bg-gray-400")} />
-                  <span className={cn("text-xs font-semibold capitalize", project.isComingSoon ? "text-amber-600" : statusColor[project.status] ?? "text-gray-500")}>
-                    {statusLabel}
-                  </span>
-                </div>
-              </div>
-              {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
-              <div className="space-y-2 text-sm mb-4">
-                <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Available</span><span className="font-medium">{project.isComingSoon ? "TBD" : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "\u2014"}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minTokens} ${project.tokenSymbol}`}</span></div>
-              </div>
-              {project.isComingSoon || !hasActivePhase ? (
-                subscribed ? (
-                  <div>
-                    <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
-                      <CheckCircle2 className="h-4 w-4" />
-                      {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
-                    </div>
-                    <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">
-                      Unsubscribe
+                {/* Right: CTA button */}
+                {project.isComingSoon || !hasActivePhase ? (
+                  subscribed ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-3 py-2 rounded-xl shrink-0">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Subscribed
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => isAuthenticated ? handleSubscribe() : setShowEmailInput(true)}
+                      disabled={subscribing}
+                      className="shrink-0 inline-flex items-center gap-1.5 border border-darkAqua/30 text-darkAqua px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-darkAqua/5 transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      <Bell className="h-3.5 w-3.5" /> Notify Me
                     </button>
-                  </div>
+                  )
+                ) : ap?.deployed_on_chain === false ? (
+                  <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-xl">Not Available</span>
                 ) : isAuthenticated ? (
-                  <button onClick={handleSubscribe} disabled={subscribing}
-                    className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-60 cursor-pointer">
-                    {subscribing ? (
-                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
-                    ) : <Bell className="h-3.5 w-3.5" />}
-                    {subscribing ? "Subscribing..." : "Get Notified on Sale Opening"}
-                  </button>
+                  <Link href={`/buy/${project.slug}`} className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</Link>
                 ) : (
-                  <button onClick={() => setShowEmailInput(true)}
-                    className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
-                    <Bell className="h-3.5 w-3.5" /> Get Notified on Sale Opening
-                  </button>
-                )
-              ) : ap?.deployed_on_chain === false ? (
-                <button disabled className="w-full bg-gray-200 text-gray-500 py-3 rounded-xl cursor-not-allowed">Phase Not Yet Available</button>
-              ) : isAuthenticated ? (
-                <Link href={`/buy/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
-              ) : (
-                <button onClick={() => setShowLoginDialog(true)} className="w-full btn-cta py-3 rounded-xl transition-colors">Buy Now</button>
-              )}
+                  <button onClick={() => setShowLoginDialog(true)} className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</button>
+                )}
+              </div>
             </div>
             {/* Social Links */}
             {saleRaw && (saleRaw.website_url || saleRaw.twitter_url || saleRaw.linkedin_url || saleRaw.telegram_url || saleRaw.discord_url || saleRaw.instagram_url || saleRaw.facebook_url) && (
@@ -1194,96 +1172,58 @@ export default function ProjectDetailPage() {
                     <p className="text-gray-300 text-sm mt-1">{activeTab === "Transactions" ? "Transactions for this sale will appear here as buyers participate." : "Your transactions for this project will appear here after you buy."}</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-100 text-gray-400 text-xs uppercase">
-                            <th className="text-left px-4 py-3">Date</th>
-                            <th className="text-left px-4 py-3">Type</th>
-                            <th className="text-right px-4 py-3">Amount</th>
-                            <th className="text-left px-4 py-3">Status</th>
-                            <th className="text-left px-4 py-3">Tx Hash</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {txs.map((tx) => {
-                            const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
-                            const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
-                            const phaseName = tx.phase_name || "";
-                            const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
-                            const typeStyle: Record<string, string> = {
-                              investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
-                              claim: "bg-green-50 text-green-700",
-                              redemption: "bg-purple-50 text-purple-700",
-                              refund: "bg-orange-50 text-orange-700",
-                            };
-                            const statusStyle: Record<string, string> = {
-                              confirmed: "bg-green-100 text-green-700",
-                              claimed: "bg-green-100 text-green-700",
-                              pending: "bg-yellow-100 text-yellow-700",
-                              processing: "bg-yellow-100 text-yellow-700",
-                              fulfilled: "bg-green-100 text-green-700",
-                              refunded: "bg-orange-100 text-orange-700",
-                              failed: "bg-red-100 text-red-700",
-                              cancelled: "bg-red-100 text-red-700",
-                            };
-                            const d = tx.created_at ? new Date(tx.created_at) : null;
-                            return (
-                              <tr key={tx.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
-                                <td className="px-4 py-3">
-                                  <p className="text-text">{d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</p>
-                                  <p className="text-gray-400 text-xs">{d ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : ""}</p>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
-                                    {typeLabel[tx.type] ?? tx.type}
-                                  </span>
-                                  {phaseName && <p className="text-[10px] text-gray-400 mt-0.5">{phaseName}</p>}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  {isOffPlatform ? (
-                                    <>
-                                      <p className="text-text font-semibold">
-                                        {formatTokenDisplay(tx.tokens_allocated)}{" "}
-                                        <span className="text-gray-400 font-normal text-xs">{tx.token_symbol || "tokens"}</span>
-                                      </p>
-                                      <p className="text-gray-400 text-xs">Off-platform</p>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <p className="text-text font-semibold">
-                                        {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
-                                        <span className="text-gray-400 font-normal text-xs">{isOtc ? "OTC" : "USDC"}</span>
-                                      </p>
-                                      {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && (
-                                        <p className="text-gray-400 text-xs">{formatTokenDisplay(tx.tokens_allocated)} tokens</p>
-                                      )}
-                                    </>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full capitalize", statusStyle[tx.status] ?? "bg-gray-100 text-gray-400")}>
-                                    {tx.status}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
-                                    <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
-                                      {truncateAddress(tx.tx_hash, 6)}
-                                    </a>
-                                  ) : tx.tx_hash?.startsWith("otc-") ? (
-                                    <span className="text-gray-400 text-xs">OTC</span>
-                                  ) : (
-                                    <span className="text-gray-300 text-xs">—</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                  <div className="space-y-3">
+                    {txs.map((tx) => {
+                      const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
+                      const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
+                      const phaseName = tx.phase_name || "";
+                      const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
+                      const typeStyle: Record<string, string> = {
+                        investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
+                        claim: "bg-green-50 text-green-700",
+                        redemption: "bg-purple-50 text-purple-700",
+                        refund: "bg-orange-50 text-orange-700",
+                      };
+                      const statusDot: Record<string, string> = {
+                        confirmed: "bg-green-500", claimed: "bg-green-500", pending: "bg-amber-400",
+                        processing: "bg-amber-400", fulfilled: "bg-green-500", refunded: "bg-orange-400",
+                        failed: "bg-red-500", cancelled: "bg-red-400",
+                      };
+                      const d = tx.created_at ? new Date(tx.created_at) : null;
+                      const amountDisplay = isOffPlatform
+                        ? `${formatTokenDisplay(tx.tokens_allocated)} ${tx.token_symbol || "tokens"}`
+                        : `${Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${isOtc ? "OTC" : "USDC"}`;
+                      return (
+                        <div key={tx.id} className="bg-gray-50 rounded-xl p-4 flex items-start gap-3">
+                          {/* Type badge */}
+                          <span className={cn("text-[10px] font-semibold px-2 py-1 rounded-md mt-0.5 shrink-0", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
+                            {typeLabel[tx.type] ?? tx.type}
+                          </span>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <p className="text-base font-bold text-text">{amountDisplay}</p>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={cn("w-1.5 h-1.5 rounded-full", statusDot[tx.status] ?? "bg-gray-300")} />
+                                <span className="text-xs text-gray-500 capitalize">{tx.status}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                              <span>{d ? `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "—"}</span>
+                              {phaseName && <span>· {phaseName}</span>}
+                              {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && !isOffPlatform && (
+                                <span>· {formatTokenDisplay(tx.tokens_allocated)} tokens</span>
+                              )}
+                            </div>
+                            {tx.tx_hash && !tx.tx_hash.startsWith("otc-") && (
+                              <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono mt-1 inline-block">
+                                {truncateAddress(tx.tx_hash, 6)} ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )
               )}
@@ -1292,6 +1232,8 @@ export default function ProjectDetailPage() {
 
         </div>
       </div>
+      {/* Spacer for mobile sticky bottom bar */}
+      <div className="lg:hidden h-20" />
       <Footer />
 
       {/* Login/Register Dialog */}

@@ -102,11 +102,11 @@ export function WelcomeModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg mx-4"
+            className="fixed z-50 inset-x-0 bottom-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:max-w-lg sm:mx-4"
           >
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
               {/* Header */}
-              <div className="relative bg-gradient-to-br from-[#13636F] to-[#0a3a42] px-8 pt-8 pb-10 text-white">
+              <div className="relative bg-gradient-to-br from-[#13636F] to-[#0a3a42] px-5 sm:px-8 pt-6 sm:pt-8 pb-8 sm:pb-10 text-white">
                 <button
                   onClick={handleRemindLater}
                   className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
@@ -148,7 +148,7 @@ export function WelcomeModal() {
               </div>
 
               {/* Steps */}
-              <div className="px-8 py-6">
+              <div className="px-5 sm:px-8 py-5 sm:py-6">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">What&apos;s next</p>
                 <div className="space-y-3">
                   {STEPS.map((step, i) => {
@@ -198,11 +198,11 @@ export function WelcomeModal() {
               </div>
 
               {/* Actions */}
-              <div className="px-8 pb-6">
+              <div className="px-5 sm:px-8 pb-5 sm:pb-6">
                 <Link
                   href="/onboarding"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full bg-gray-900 text-white font-semibold py-3.5 rounded-xl hover:bg-gray-800 transition-colors text-sm"
+                  className="flex items-center justify-center gap-2 w-full btn-cta py-3.5 rounded-xl transition-colors text-sm"
                 >
                   {completedCount > 0 ? "Continue" : "Get Started"} <ArrowRight className="h-4 w-4" />
                 </Link>
