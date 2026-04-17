@@ -1,21 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Radio, Sparkles, CheckCircle2,
+  Radio, Sparkles, CheckCircle2, Bell, X,
   ArrowRight, ShoppingBag, FolderOpen,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiFetch } from "@/lib/api/client";
 import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import {
   getProjects,
   type Project,
 } from "@/lib/api/repositories/projects.repository";
+
+/* ─── localStorage helpers for anonymous subscriptions ─── */
+const SUB_KEY = "cireta_sale_subs";
+function getLocalSubs(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(SUB_KEY) || "{}"); } catch { return {}; }
+}
+function setLocalSub(saleId: string, email: string) {
+  const subs = getLocalSubs(); subs[saleId] = email; localStorage.setItem(SUB_KEY, JSON.stringify(subs));
+}
+function removeLocalSub(saleId: string) {
+  const subs = getLocalSubs(); delete subs[saleId]; localStorage.setItem(SUB_KEY, JSON.stringify(subs));
+}
 
 // Coming Soon projects now fetched from API (APPROVED_COMING_SOON status)
 
@@ -133,39 +146,30 @@ function ActiveProjectCard({ project }: { project: Project }) {
           })()}
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
-          <h3 className="text-white font-semibold text-base flex items-center gap-1.5">
+          <h3 className="text-white font-semibold text-[18px] flex items-center gap-1.5">
             {project.title} <CheckCircle2 className="h-4 w-4 text-white/70" />
           </h3>
         </div>
       </div>
       <div className="px-5 pb-5 pt-2 space-y-4">
-        <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 min-h-[2lh]">{project.description || "Buy verified tokenized real-world assets backed by institutional issuers."}</p>
+        <p className="text-[14px] text-gray-500 leading-relaxed line-clamp-2 min-h-[2lh]">{project.description || "Buy verified tokenized real-world assets backed by institutional issuers."}</p>
         {project.phases.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
             {project.phases.map((p) => {
               const now = Date.now();
               const start = new Date(p.start_time || 0).getTime();
               const end = new Date(p.end_time || 0).getTime();
               const status = now < start ? "upcoming" : now >= end ? "ended" : "active";
-              const minBuy = parseFloat(p.min_contribution);
               return (
-                <div key={p.id || p.name} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border ${
-                  status === "active" ? "bg-darkAqua/10 border-darkAqua/20 text-darkAqua" :
-                  status === "ended" ? "bg-green-50 border-green-200 text-green-600" :
-                  "bg-box border-black/10 text-black/50"
+                <span key={p.id || p.name} className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded whitespace-nowrap shrink-0 ${
+                  status === "active" ? "bg-darkAqua/10 text-darkAqua" :
+                  status === "ended" ? "bg-green-50 text-green-600" :
+                  "bg-box text-black/40"
                 }`}>
-                  {status === "ended" ? (
-                    <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6l1.5 1.5L8 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  ) : (
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      status === "active" ? "bg-green-500 animate-pulse" : "bg-black/20"
-                    }`} />
-                  )}
-                  <span className="font-medium">{p.name}</span>
-                  {status === "active" && minBuy > 0 && <span className="text-darkAqua/60">· Min ${minBuy >= 1000 ? `${(minBuy/1000).toFixed(0)}K` : minBuy.toLocaleString()}</span>}
-                  {status === "ended" && <span>· Completed</span>}
-                  {status === "upcoming" && <span>· Coming Soon</span>}
-                </div>
+                  {status === "ended" && <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M4 6l1.5 1.5L8 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {status === "active" && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+                  {p.name}
+                </span>
               );
             })}
           </div>
@@ -180,12 +184,20 @@ function ActiveProjectCard({ project }: { project: Project }) {
           </div>
         </div>}
         <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Target</p>
-            <p className="text-lg font-bold">{hardCap >= 1_000_000 ? `${(hardCap / 1_000_000).toFixed(hardCap % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${hardCap.toLocaleString()} USDC`}</p>
+          <div className="flex items-center gap-6">
+            <div>
+              <p className="text-[12px] text-gray-400 uppercase tracking-wide">Target</p>
+              <p className="text-[14px] font-bold">{hardCap >= 1_000_000 ? `${(hardCap / 1_000_000).toFixed(hardCap % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${hardCap.toLocaleString()} USDC`}</p>
+            </div>
+            {raised > 0 && (
+              <div>
+                <p className="text-[12px] text-gray-400 uppercase tracking-wide">Raised</p>
+                <p className="text-[14px] font-bold text-darkAqua">{raised >= 1_000_000 ? `${(raised / 1_000_000).toFixed(raised % 1_000_000 === 0 ? 0 : 2)}M USDC` : `${raised.toLocaleString()} USDC`}</p>
+              </div>
+            )}
           </div>
-          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-sm px-5 py-2.5 rounded-full transition-colors">
-            View Details <ArrowRight className="h-4 w-4" />
+          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors">
+            View Details <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </div>
@@ -194,26 +206,128 @@ function ActiveProjectCard({ project }: { project: Project }) {
 }
 
 function ComingSoonCard({ project }: { project: Project }) {
+  const [subscribed, setSubscribed] = useState(false);
+  const [justSubscribed, setJustSubscribed] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [subEmail, setSubEmail] = useState("");
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiFetch<{ subscribed: boolean }>(`/api/v1/sales/${project.id}/is-subscribed`, { skipAuthRedirect: true })
+        .then((r) => setSubscribed(r.subscribed)).catch(() => {});
+    } else {
+      const subs = getLocalSubs();
+      if (subs[project.id]) setSubscribed(true);
+    }
+  }, [project.id, isAuthenticated]);
+
+  const doSubscribe = useCallback(async (email?: string) => {
+    setSubLoading(true);
+    try {
+      await apiFetch(`/api/v1/sales/${project.id}/subscribe`, { method: "POST", body: email ? { email } : {}, skipAuthRedirect: true });
+      setSubscribed(true); setJustSubscribed(true);
+      if (email) setLocalSub(project.id, email);
+      setShowEmailInput(false);
+    } catch { setSubscribed(true); setJustSubscribed(true); setShowEmailInput(false); }
+    finally { setSubLoading(false); }
+  }, [project.id]);
+
+  const doUnsubscribe = useCallback(async () => {
+    setSubLoading(true);
+    try {
+      if (isAuthenticated) await apiFetch(`/api/v1/sales/${project.id}/unsubscribe`, { method: "DELETE" });
+      setSubscribed(false); setJustSubscribed(false); removeLocalSub(project.id);
+    } catch { setSubscribed(false); removeLocalSub(project.id); }
+    finally { setSubLoading(false); }
+  }, [project.id, isAuthenticated]);
+
+  const target = project.targetAmount || 0;
+  const isUpcoming = !project.isComingSoon;
+
   return (
-    <Link href={`/project/${project.slug}`} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
       <div className="relative h-64 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4">
           <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-            Coming soon
+            <span className="w-2 h-2 rounded-full bg-black/30" />
+            {isUpcoming ? "Upcoming" : "Coming Soon"}
           </span>
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">
-          <h3 className="text-white font-semibold text-base">{project.title}</h3>
+          <h3 className="text-white font-semibold text-[18px]">{project.title}</h3>
         </div>
       </div>
-      <div className="px-5 pb-5 pt-2 flex flex-col flex-1">
-        <p className="text-sm text-gray-500 line-clamp-2 flex-1">{project.description || "Upcoming purchase opportunity — details coming soon."}</p>
-        <span className="w-full inline-flex items-center justify-center gap-2 btn-cta text-sm px-5 py-3 rounded-full transition-colors mt-4">
-          View Details <ArrowRight className="h-4 w-4" />
-        </span>
+      <div className="px-5 pb-5 pt-2 flex flex-col flex-1 space-y-4">
+        <p className="text-[14px] text-gray-500 leading-relaxed line-clamp-2 min-h-[2lh]">{project.description || "Upcoming purchase opportunity — details coming soon."}</p>
+
+        {project.phases.length > 0 && (
+          <div className="flex flex-nowrap gap-1.5 overflow-x-auto">
+            {project.phases.map((p) => (
+              <span key={p.id || p.name} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded whitespace-nowrap shrink-0 bg-box text-black/40">
+                {p.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Subscribe */}
+        <div className="mt-auto">
+          {subscribed ? (
+            justSubscribed ? (
+              <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-green-50 border border-green-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  <span className="text-[11px] text-green-600 font-medium">Subscribed — We&apos;ll notify you</span>
+                </div>
+                <button onClick={() => setJustSubscribed(false)} className="text-black/30 hover:text-black/50 transition-colors p-0.5"><X className="h-3 w-3" /></button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-box">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-3.5 w-3.5 text-darkAqua shrink-0" />
+                  <span className="text-[11px] text-black/50">Subscribed for updates</span>
+                </div>
+                <button onClick={doUnsubscribe} disabled={subLoading} className="text-[10px] text-black/30 hover:text-red-400 transition-colors">Unsubscribe</button>
+              </div>
+            )
+          ) : showEmailInput ? (
+            <div>
+              <form onSubmit={(e) => { e.preventDefault(); const em = subEmail.trim().toLowerCase(); if (em && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) doSubscribe(em); }} className="flex items-center gap-1.5 w-full rounded-lg bg-box p-1.5">
+                <input type="email" placeholder="Enter your email" value={subEmail} onChange={(e) => setSubEmail(e.target.value)} autoFocus
+                  className="flex-1 min-w-0 bg-white rounded-md px-2.5 py-1.5 text-[11px] border border-black/10 outline-none focus:border-darkAqua" />
+                <button type="submit" disabled={subLoading} className="shrink-0 bg-darkAqua text-white text-[11px] font-medium px-3 py-1.5 rounded-md hover:opacity-90 disabled:opacity-50">
+                  {subLoading ? "..." : "Subscribe"}
+                </button>
+                <button type="button" onClick={() => setShowEmailInput(false)} className="shrink-0 text-black/30 hover:text-black/60 p-0.5"><X className="h-3 w-3" /></button>
+              </form>
+            </div>
+          ) : (
+            <button
+              onClick={() => isAuthenticated ? doSubscribe() : setShowEmailInput(true)}
+              disabled={subLoading}
+              className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 bg-box hover:bg-darkAqua/5 transition-colors"
+            >
+              <Bell className="h-3.5 w-3.5 text-darkAqua shrink-0" />
+              <span className="text-[11px] text-black/50">{project.isComingSoon ? "Subscribe for launch updates" : "Get notified when funding opens"}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Target + View Details */}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+          <div>
+            <p className="text-[12px] text-gray-400 uppercase tracking-wide">Target</p>
+            <p className="text-[14px] font-bold">{target > 0 ? (target >= 1_000_000 ? `${(target / 1_000_000).toFixed(target % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${target.toLocaleString()} USDC`) : "TBD"}</p>
+          </div>
+          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors">
+            View Details <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -286,8 +400,8 @@ export default function ExplorePage() {
             <p className="text-sm text-gray-500 ml-9 mb-8">Live purchase opportunities ready for funding</p>
 
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {[1, 2].map((i) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[1, 2, 3].map((i) => (
                   <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
                     <div className="h-56 bg-gray-100" />
                     <div className="p-5 space-y-3">
@@ -305,7 +419,7 @@ export default function ExplorePage() {
             ) : activeProjects.length === 0 ? (
               <p className="text-gray-400 text-sm ml-9">No active opportunities at the moment.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {activeProjects.map((p) => (
                   <ActiveProjectCard key={p.id} project={p} />
                 ))}

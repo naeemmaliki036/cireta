@@ -252,11 +252,13 @@ export default function ProjectDetailPage() {
   );
   // Time-based active phase: find the phase whose window contains "now"
   const _now = new Date();
-  const ap = project.phases?.find((p) => {
+  const activePhase = project.phases?.find((p) => {
     const start = new Date(p.start_time).getTime();
     const end = new Date(p.end_time).getTime();
     return _now.getTime() >= start && _now.getTime() < end;
-  }) ?? project.phases?.[0] ?? null;
+  }) ?? null;
+  const hasActivePhase = !!activePhase;
+  const ap = activePhase ?? project.phases?.[0] ?? null;
   const pricePerToken = ap ? parseFloat(ap.price_per_token) : 0;
   const minTokens = ap ? parseInt(ap.min_tokens || "1", 10) : 1;
   const maxTokensInvestor = ap ? parseInt(ap.max_tokens || "0", 10) : 0;
@@ -466,6 +468,39 @@ export default function ProjectDetailPage() {
                         <p className="text-center text-xs text-gray-400">{subscriberCount} buyer{subscriberCount !== 1 ? "s" : ""} interested</p>
                       )}
                     </div>
+                  ) : !hasActivePhase ? (
+                    /* No active phase — show subscribe */
+                    <div className="space-y-2">
+                      {subscribed ? (
+                        <div>
+                          <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                          </div>
+                          <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">Unsubscribe</button>
+                        </div>
+                      ) : isAuthenticated ? (
+                        <button onClick={handleSubscribe} disabled={subscribing}
+                          className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                          {subscribing ? <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg> : <Bell className="h-4 w-4" />}
+                          {subscribing ? "Subscribing..." : "Notify Me When Sale Opens"}
+                        </button>
+                      ) : !showEmailInput ? (
+                        <button onClick={() => setShowEmailInput(true)} className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                          <Bell className="h-4 w-4" /> Notify Me When Sale Opens
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
+                            placeholder="Enter your email" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua" autoFocus />
+                          <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
+                            className="w-full btn-cta py-3 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                            {subscribing ? "Subscribing..." : "Subscribe"}
+                          </button>
+                          <button onClick={() => setShowEmailInput(false)} className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
+                        </div>
+                      )}
+                    </div>
                   ) : ap?.deployed_on_chain === false ? (
                     <button disabled className="w-full bg-gray-200 text-gray-500 py-3 rounded-xl cursor-not-allowed">Phase Not Yet Available</button>
                   ) : isAuthenticated ? (
@@ -523,7 +558,7 @@ export default function ProjectDetailPage() {
                 <div className="flex justify-between"><span className="text-gray-500">Available</span><span className="font-medium">{project.isComingSoon ? "TBD" : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "\u2014"}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minTokens} ${project.tokenSymbol}`}</span></div>
               </div>
-              {project.isComingSoon ? (
+              {project.isComingSoon || !hasActivePhase ? (
                 subscribed ? (
                   <div>
                     <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
@@ -540,12 +575,12 @@ export default function ProjectDetailPage() {
                     {subscribing ? (
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg>
                     ) : <Bell className="h-4 w-4" />}
-                    {subscribing ? "Subscribing..." : "Notify Me"}
+                    {subscribing ? "Subscribing..." : "Notify Me When Sale Opens"}
                   </button>
                 ) : (
                   <button onClick={() => setShowEmailInput(true)}
                     className="w-full btn-cta py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <Bell className="h-4 w-4" /> Notify Me
+                    <Bell className="h-4 w-4" /> Notify Me When Sale Opens
                   </button>
                 )
               ) : ap?.deployed_on_chain === false ? (

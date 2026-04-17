@@ -376,15 +376,15 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                             data-tour-id="connect-wallet"
                             onClick={openConnectModal}
                             className={cn(
-                              "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-300 hover:opacity-80",
+                              "inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-all duration-300 hover:opacity-80",
                               effectiveScrolled
-                                ? "h-8 md:h-9 px-4 text-xsm bg-darkAqua text-white"
+                                ? "px-3 py-1.5 text-[13px] bg-darkAqua text-white"
                                 : variant === "light"
                                   ? "px-5 py-2 text-sm btn-cta"
                                   : "px-5 py-2 text-sm bg-white text-black"
                             )}
                           >
-                            <Wallet className="h-4 w-4" />
+                            <Wallet className={effectiveScrolled ? "h-3.5 w-3.5" : "h-4 w-4"} />
                             Connect Wallet
                           </button>
                         );
@@ -458,7 +458,10 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             {isAuthenticated && user && !user.onboarding_completed && user.kycStatus !== "approved" && (
               <Link
                 href="/onboarding"
-                className="hidden sm:inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold text-white transition-all duration-300 animate-pulse bg-darkAqua"
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-1.5 rounded-full font-semibold text-white transition-all duration-300 animate-pulse bg-darkAqua",
+                  effectiveScrolled ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-[13px]"
+                )}
               >
                 Complete Profile
               </Link>
