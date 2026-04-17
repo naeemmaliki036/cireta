@@ -220,15 +220,61 @@ class SaleContributeService:
                     },
                 )
 
-        # Pre-flight limit checks (defense in depth — contract also checks)
-        if active_phase.min_contribution > 0 and contrib_amount < active_phase.min_contribution:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "code": "BELOW_MINIMUM",
-                    "message": f"Minimum contribution is {active_phase.min_contribution}",
-                },
+        # Pre-flight limit checks (defense in depth — contract also checks).
+        # Mirrors Sale.sol _checkMinTokens: first-time buyers use min_contribution,
+        # repeat buyers use top_up_min. Last-chunk exception: if remaining tokens
+        # < effective min, buying exactly the remaining amount is allowed.
+        from sqlalchemy import func as sa_func
+
+        existing_tokens_result = await self.db.execute(
+            select(sa_func.coalesce(sa_func.sum(Contribution.tokens_allocated), 0)).where(
+                Contribution.user_id == user_id,
+                Contribution.sale_id == sale_id,
             )
+        )
+        investor_tokens = existing_tokens_result.scalar()
+
+        effective_min = (
+            getattr(active_phase, "top_up_min", active_phase.min_contribution)
+            if investor_tokens > 0
+            else active_phase.min_contribution
+        )
+
+        if effective_min > 0 and contrib_amount < effective_min:
+            # Last-chunk exception: compute remaining tokens in USDC terms.
+            # If the buyer is purchasing exactly what's left, allow it.
+            total_sold_result = await self.db.execute(
+                select(sa_func.coalesce(sa_func.sum(Contribution.tokens_allocated), 0)).where(
+                    Contribution.sale_id == sale_id,
+                )
+            )
+            total_tokens_sold = total_sold_result.scalar()
+            total_supply = getattr(sale, "total_token_supply", Decimal("0")) or Decimal("0")
+            remaining_tokens = max(Decimal("0"), total_supply - total_tokens_sold)
+            remaining_usdc = remaining_tokens * active_phase.price_per_token
+
+            is_last_chunk = (
+                remaining_tokens > 0
+                and remaining_usdc > 0
+                and (
+                    # Case 1: buying exactly all remaining tokens
+                    contrib_amount == remaining_usdc
+                    # Case 2: remaining is below min (any amount up to remaining is last-chunk)
+                    or (remaining_usdc < effective_min and contrib_amount <= remaining_usdc)
+                )
+            )
+
+            if not is_last_chunk:
+                error_code = "BELOW_MINIMUM" if investor_tokens == 0 else "TOP_UP_BELOW_MIN"
+                error_msg = (
+                    f"Minimum contribution is {active_phase.min_contribution}"
+                    if investor_tokens == 0
+                    else f"Minimum top-up is {getattr(active_phase, 'top_up_min', active_phase.min_contribution)}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"code": error_code, "message": error_msg},
+                )
 
         if active_phase.max_contribution > 0:
             # Read on-chain cumulative total for authoritative check

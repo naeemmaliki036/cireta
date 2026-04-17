@@ -231,6 +231,139 @@ class TestSaleServiceContribute:
         assert exc_info.value.status_code == 409
 
 
+class TestLastChunkException:
+    """Tests for the last-chunk exception — buy remaining tokens below minimum."""
+
+    async def test_last_chunk_new_investor_below_min_allowed(
+        self,
+        db_session: AsyncSession,
+        test_sale: TokenSale,
+        test_user: User,
+    ) -> None:
+        """New investor can buy exactly the remaining tokens even if below min."""
+        service = SaleService(db_session)
+
+        # Set total_token_supply and simulate most tokens already sold.
+        # Phase has min_contribution=100 (price=1.00, so min 100 tokens).
+        # We'll set supply to 103 and pre-sell 100, leaving 3.
+        test_sale.total_token_supply = Decimal("103")
+        await db_session.commit()
+
+        # Create a second user to pre-sell 100 tokens
+        from apps.api.models.enums import KYCStatus
+        from apps.api.models.user import User as UserModel
+
+        bulk_buyer = UserModel()
+        bulk_buyer.id = uuid4()
+        bulk_buyer.email = "bulk@test.com"
+        bulk_buyer.hashed_password = "hashed"
+        bulk_buyer.kyc_level = 2
+        bulk_buyer.kyc_status = KYCStatus.APPROVED
+        db_session.add(bulk_buyer)
+        await db_session.commit()
+
+        await service.contribute(
+            user_id=bulk_buyer.id,
+            sale_id=test_sale.id,
+            amount=Decimal("100"),
+            tx_hash=make_tx_hash(),
+        )
+
+        # Now test_user tries to buy 3 tokens ($3) — below $100 min.
+        # Should succeed because it's exactly the remaining supply.
+        contribution = await service.contribute(
+            user_id=test_user.id,
+            sale_id=test_sale.id,
+            amount=Decimal("3"),
+            tx_hash=make_tx_hash(),
+        )
+        assert contribution.amount == Decimal("3")
+
+    async def test_last_chunk_repeat_buyer_below_topup_min_allowed(
+        self,
+        db_session: AsyncSession,
+        test_sale: TokenSale,
+        test_user: User,
+    ) -> None:
+        """Repeat buyer can top up with remaining tokens even if below top_up_min."""
+        service = SaleService(db_session)
+
+        # Set supply to 203, phase top_up_min=1000 (default).
+        # First buy 200 tokens, leaving 3 remaining.
+        test_sale.total_token_supply = Decimal("203")
+        await db_session.commit()
+
+        # First buy — meets min_contribution ($100 min, buying $200)
+        await service.contribute(
+            user_id=test_user.id,
+            sale_id=test_sale.id,
+            amount=Decimal("200"),
+            tx_hash=make_tx_hash(),
+        )
+
+        # Top-up: $3 — below top_up_min, but it's the last 3 tokens
+        contribution = await service.contribute(
+            user_id=test_user.id,
+            sale_id=test_sale.id,
+            amount=Decimal("3"),
+            tx_hash=make_tx_hash(),
+        )
+        assert contribution.amount == Decimal("3")
+
+    async def test_non_last_chunk_below_min_still_rejected(
+        self,
+        db_session: AsyncSession,
+        test_sale: TokenSale,
+        test_user: User,
+    ) -> None:
+        """Below-min buy when plenty of tokens remain is still rejected."""
+        service = SaleService(db_session)
+
+        test_sale.total_token_supply = Decimal("100000")
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service.contribute(
+                user_id=test_user.id,
+                sale_id=test_sale.id,
+                amount=Decimal("10"),  # Below $100 min, 100k tokens remain
+                tx_hash=make_tx_hash(),
+            )
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["code"] == "BELOW_MINIMUM"
+
+    async def test_repeat_buyer_below_topup_min_not_last_chunk_rejected(
+        self,
+        db_session: AsyncSession,
+        test_sale: TokenSale,
+        test_user: User,
+    ) -> None:
+        """Repeat buyer below top_up_min with plenty remaining is rejected."""
+        service = SaleService(db_session)
+
+        test_sale.total_token_supply = Decimal("100000")
+        await db_session.commit()
+
+        # First buy
+        await service.contribute(
+            user_id=test_user.id,
+            sale_id=test_sale.id,
+            amount=Decimal("1000"),
+            tx_hash=make_tx_hash(),
+        )
+
+        # Top-up below top_up_min with plenty of tokens left
+        with pytest.raises(HTTPException) as exc_info:
+            await service.contribute(
+                user_id=test_user.id,
+                sale_id=test_sale.id,
+                amount=Decimal("5"),
+                tx_hash=make_tx_hash(),
+            )
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["code"] == "TOP_UP_BELOW_MIN"
+
+
 class TestSaleServiceList:
     """Tests for listing sales."""
 
