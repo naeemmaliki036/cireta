@@ -171,7 +171,7 @@ html, body { height: 100%; scroll-behavior: smooth; }
 .marquee-track {
   display: flex;
   width: max-content;
-  animation: marquee 25s linear infinite;
+  animation: marquee 40s linear infinite;
 }
 @media (min-width: 768px) {
   .marquee-track {
