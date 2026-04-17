@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.models.issuer import Issuer
 from apps.api.models.sale_subscription import SaleSubscription
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.user import User
@@ -17,6 +18,7 @@ from packages.common.core.auth_deps import CurrentUserId, RequireIssuerOrAdmin
 from packages.common.db.session import get_db
 
 router = APIRouter(prefix="/sales/{sale_id}", tags=["sale-subscriptions"])
+all_subs_router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
 
 # --- Schemas ---
@@ -41,6 +43,21 @@ class SubscriberCountResponse(BaseModel):
 
 class SubscriberListResponse(BaseModel):
     items: list[SubscriptionResponse]
+    total: int
+
+
+class SubscriptionWithSaleResponse(BaseModel):
+    id: str
+    sale_id: str
+    email: str
+    display_name: str | None
+    subscribed_at: str
+    notified_at: str | None = None
+    sale_title: str | None = None
+
+
+class AllSubscribersResponse(BaseModel):
+    items: list[SubscriptionWithSaleResponse]
     total: int
 
 
@@ -245,3 +262,59 @@ async def check_subscribed(
         )
     )
     return {"subscribed": sub.scalar_one_or_none() is not None}
+
+
+# --- Cross-sale subscriber listing ---
+
+
+@all_subs_router.get("", response_model=AllSubscribersResponse)
+async def list_all_subscribers(
+    user_id: RequireIssuerOrAdmin,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    sale_id: UUID | None = None,
+) -> AllSubscribersResponse:
+    """List subscribers across all sales. Admins see all; issuers see only their own sales."""
+    from apps.api.models.enums import UserRole
+
+    # Determine user role
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    is_admin = user and user.role == UserRole.ADMIN
+
+    query = (
+        select(SaleSubscription, TokenSale.title)
+        .join(TokenSale, SaleSubscription.sale_id == TokenSale.id)
+    )
+
+    if not is_admin:
+        # Issuer: filter to their own sales
+        issuer_result = await db.execute(
+            select(Issuer.id).where(Issuer.user_id == user_id)
+        )
+        issuer_id = issuer_result.scalar_one_or_none()
+        if not issuer_id:
+            return AllSubscribersResponse(items=[], total=0)
+        query = query.where(TokenSale.issuer_id == issuer_id)
+
+    if sale_id:
+        query = query.where(SaleSubscription.sale_id == sale_id)
+
+    query = query.order_by(SaleSubscription.created_at.desc())
+    result = await db.execute(query)
+    rows = result.all()
+
+    return AllSubscribersResponse(
+        items=[
+            SubscriptionWithSaleResponse(
+                id=str(sub.id),
+                sale_id=str(sub.sale_id),
+                email=sub.email,
+                display_name=sub.display_name,
+                subscribed_at=sub.created_at.isoformat(),
+                notified_at=sub.notified_at.isoformat() if sub.notified_at else None,
+                sale_title=sale_title,
+            )
+            for sub, sale_title in rows
+        ],
+        total=len(rows),
+    )

@@ -16,6 +16,7 @@ import {
   Lock,
   Trash2,
   ShieldAlert,
+  Bell,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button } from "@/components/atoms";
@@ -30,6 +31,7 @@ const SIDEBAR_LINKS = [
   { href: "/issuer/tokens", label: "Tokens", icon: Coins, requiresOnboarding: true },
   { href: "/issuer/sales", label: "Token Sales", icon: ShoppingCart, requiresOnboarding: true },
   { href: "/issuer/buyers", label: "Buyers", icon: Users, requiresOnboarding: true },
+  { href: "/issuer/subscribers", label: "Subscribers", icon: Bell, requiresOnboarding: true },
   { href: "/issuer/compliance", label: "Compliance", icon: Shield, requiresOnboarding: true },
   { href: "/issuer/compliance/wallet-deletions", label: "Wallet Removals", icon: Trash2, requiresOnboarding: true },
   { href: "/issuer/compliance/identity-registry", label: "Identity Registry", icon: ShieldAlert, requiresOnboarding: true },

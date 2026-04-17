@@ -589,7 +589,7 @@ const PRESS = [
     badge: "Press",
     date: "Jan 6, 2026",
     color: "bg-[#2d1b69]",
-    image: null,
+    image: "https://cdn.cireta.com/cireta-home/press/mpost_card.webp",
     title: "Cireta\u2019s Global Debut Puts Real Gold On-Chain With Delivery Rights",
     excerpt: "Cireta has launched globally with Wassa Gold, a tokenized gold project providing fractional ownership backed by physical delivery rights...",
     url: "https://mpost.io/ciretas-global-debut-puts-real-gold-on-chain-with-delivery-rights/",
@@ -750,29 +750,27 @@ export default function HomePage() {
               </motion.p>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-            {[
-              { value: "$209M+", label: "Funds Raised" },
-              { value: "15+", label: "Partnerships" },
-              { value: "6+", label: "Live Projects" },
-            ].map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                className="bg-white rounded-2xl border border-black/10 p-6 md:p-8 text-center transition-shadow duration-300 hover:shadow-lg"
-                initial={{ opacity: 0, scale: 0.85 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ type: "spring", stiffness: 200, damping: 20, delay: i * 0.12 }}
-              >
-                <p className="text-[40px]/[44px] md:text-[56px]/[60px] font-bold text-darkAqua tracking-tight">
-                  {stat.value}
-                </p>
-                <p className="text-sm md:text-base text-black/40 mt-2 font-medium">
-                  {stat.label}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+          {stats.length > 0 && (
+            <div className={`grid grid-cols-1 gap-4 md:gap-6 ${stats.length === 1 ? "sm:grid-cols-1 max-w-sm mx-auto" : stats.length === 2 ? "sm:grid-cols-2 max-w-2xl mx-auto" : stats.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
+              {stats.sort((a, b) => a.sort_order - b.sort_order).map((stat, i) => (
+                <motion.div
+                  key={stat.key}
+                  className="bg-white rounded-2xl border border-black/10 p-6 md:p-8 text-center transition-shadow duration-300 hover:shadow-lg"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ type: "spring", stiffness: 200, damping: 20, delay: i * 0.12 }}
+                >
+                  <p className="text-[40px]/[44px] md:text-[56px]/[60px] font-bold text-darkAqua tracking-tight">
+                    {stat.value}
+                  </p>
+                  <p className="text-sm md:text-base text-black/40 mt-2 font-medium">
+                    {stat.label}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

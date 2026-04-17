@@ -21,6 +21,7 @@ import {
   Handshake,
   FileText,
   Package,
+  Bell,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button, Badge } from "@/components/atoms";
@@ -32,6 +33,7 @@ const PLATFORM_LINKS = [
   { href: "/platform/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/platform/tokens", label: "Tokens", icon: Coins },
   { href: "/platform/sales", label: "Sales", icon: ShoppingCart },
+  { href: "/platform/subscribers", label: "Subscribers", icon: Bell },
   { href: "/platform/redemptions", label: "Redemptions", icon: Package },
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
   { href: "/platform/audit-logs", label: "Audit Logs", icon: FileText },

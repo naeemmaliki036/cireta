@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  Clock, ArrowLeft, AlertCircle, Coins,
+  Clock, ArrowLeft, AlertCircle, Coins, Bell,
   Pencil, X, Check, Upload, ImageIcon, Globe, Star, Rocket,
 } from "lucide-react";
 import Link from "next/link";
@@ -68,8 +68,9 @@ interface SaleImage {
   video_url?: string;
 }
 
-function SubscribersSection({ saleId }: { saleId: string }) {
-  const [subscribers, setSubscribers] = useState<{ email: string; display_name: string | null; subscribed_at: string; notified_at: string | null }[]>([]);
+function SubscribersSummary({ saleId }: { saleId: string }) {
+  const [count, setCount] = useState(0);
+  const [unnotified, setUnnotified] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notifying, setNotifying] = useState(false);
   const [notifyResult, setNotifyResult] = useState<string | null>(null);
@@ -77,8 +78,9 @@ function SubscribersSection({ saleId }: { saleId: string }) {
   useEffect(() => {
     (async () => {
       try {
-        const data = await apiFetch<{ items: typeof subscribers; total: number }>(`/api/v1/sales/${saleId}/subscribers`);
-        setSubscribers(data.items);
+        const data = await apiFetch<{ items: { notified_at: string | null }[]; total: number }>(`/api/v1/sales/${saleId}/subscribers`);
+        setCount(data.total);
+        setUnnotified(data.items.filter((s) => !s.notified_at).length);
       } catch { /* ignore */ }
       finally { setLoading(false); }
     })();
@@ -90,43 +92,35 @@ function SubscribersSection({ saleId }: { saleId: string }) {
     try {
       const result = await apiFetch<{ notified: number; message: string }>(`/api/v1/sales/${saleId}/notify-subscribers`, { method: "POST", body: {} });
       setNotifyResult(result.message);
+      setUnnotified((prev) => Math.max(0, prev - result.notified));
     } catch { setNotifyResult("Failed to send notifications"); }
     finally { setNotifying(false); }
   };
 
-  if (loading) return null;
-  if (subscribers.length === 0) return null;
-
-  const unnotified = subscribers.filter((s) => !s.notified_at).length;
+  if (loading || count === 0) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg border border-zinc-100 p-6 mt-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Interested Buyers</h2>
-          <p className="text-xs text-black/30 mt-0.5">{subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}{unnotified > 0 ? ` · ${unnotified} not yet notified` : ""}</p>
+      className="bg-white rounded-lg border border-zinc-100 p-4 mt-6">
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/issuer/subscribers?sale_id=${saleId}`}
+          className="flex items-center gap-2 text-sm font-medium text-darkAqua hover:underline"
+        >
+          <Bell className="h-4 w-4" />
+          {count} subscriber{count !== 1 ? "s" : ""}
+          {unnotified > 0 && (
+            <span className="text-xs text-black/40 font-normal">({unnotified} not yet notified)</span>
+          )}
+        </Link>
+        <div className="flex items-center gap-3">
+          {notifyResult && <span className="text-xs text-green-600">{notifyResult}</span>}
+          {unnotified > 0 && (
+            <Button variant="primary" size="sm" onClick={handleNotify} isLoading={notifying}>
+              Notify {unnotified}
+            </Button>
+          )}
         </div>
-        {unnotified > 0 && (
-          <Button variant="primary" size="sm" onClick={handleNotify} isLoading={notifying}>
-            Notify {unnotified} Subscriber{unnotified !== 1 ? "s" : ""}
-          </Button>
-        )}
-      </div>
-      {notifyResult && <p className="text-xs text-green-600 mb-3">{notifyResult}</p>}
-      <div className="space-y-2">
-        {subscribers.map((s) => (
-          <div key={s.email} className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-50 text-sm">
-            <div>
-              <p className="font-medium text-text">{s.display_name || s.email}</p>
-              {s.display_name && <p className="text-xs text-black/40">{s.email}</p>}
-            </div>
-            <div className="text-xs text-black/30 text-right">
-              <p>{new Date(s.subscribed_at).toLocaleDateString()}</p>
-              {s.notified_at && <p className="text-green-600">Notified</p>}
-            </div>
-          </div>
-        ))}
       </div>
     </motion.div>
   );
@@ -1011,7 +1005,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       )}
 
       {/* Subscribers / Waitlist */}
-      <SubscribersSection saleId={sale.id} />
+      <SubscribersSummary saleId={sale.id} />
 
       {/* Sale Content: description, gallery, team, FAQ, documents */}
       <div className="mt-6">
