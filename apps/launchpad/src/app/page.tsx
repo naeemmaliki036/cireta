@@ -1039,22 +1039,52 @@ export default function HomePage() {
 
       {/* ── 10. Partners ── */}
       {partners.length > 0 && (
-        <section className="py-20 px-4 bg-white">
+        <section className="py-16 md:py-20 lg:py-[100px] px-4 md:px-8 bg-white">
           <div className="max-w-inner mx-auto">
-            <div className="text-center mb-14">
-              <p className="text-sm font-semibold text-darkAqua uppercase tracking-wider mb-2">Trusted By</p>
-              <h2 className="text-4xl font-bold text-text tracking-tight mb-4">Institutional &amp; Strategic Partners</h2>
+            <div className="text-center mb-12 max-w-[768px] xl:max-w-[1020px] mx-auto">
+              <motion.span
+                className="text-xs font-semibold uppercase tracking-widest text-black/40 block"
+                initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+                whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              >
+                Trusted By
+              </motion.span>
+              <motion.h2
+                className="font-semibold text-text -tracking-[0.96px] mt-2"
+                style={{ fontSize: "clamp(1.875rem, 1.1852rem + 2.94314vw, 3rem)", lineHeight: "clamp(32px, 1.1852rem + 2.94314vw, 3.25rem)" }}
+                initial={{ opacity: 0, y: 30, scale: 0.97, filter: "blur(6px)" }}
+                whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+              >
+                Institutional &amp; Strategic Partners
+              </motion.h2>
             </div>
 
-            <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-10">
-              {partners.sort((a, b) => a.sort_order - b.sort_order).map((p) => (
-                <div key={p.id} className="flex items-center justify-center" style={{ minWidth: "140px" }}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+              {partners.sort((a, b) => a.sort_order - b.sort_order).map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ type: "spring", stiffness: 200, damping: 20, delay: i * 0.05 }}
+                  className="bg-white rounded-2xl border border-black/10 p-6 flex items-center justify-center h-24 md:h-28 transition-shadow duration-300 hover:shadow-lg group"
+                >
                   {p.logo_url ? (
-                    <Image src={p.logo_url} alt={p.name} width={140} height={48} className="h-10 md:h-12 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
+                    <Image
+                      src={p.logo_url}
+                      alt={p.name}
+                      width={140}
+                      height={48}
+                      className="max-h-10 md:max-h-12 w-auto object-contain opacity-60 group-hover:opacity-100 transition-opacity duration-300"
+                    />
                   ) : (
-                    <span className="text-sm font-semibold text-black/40">{p.name}</span>
+                    <span className="text-sm font-semibold text-black/30 group-hover:text-black/60 transition-colors">{p.name}</span>
                   )}
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
