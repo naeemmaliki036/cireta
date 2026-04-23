@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, User } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
-import { safeRedirectPath } from "@/lib/utils";
+import { isValidEmail, safeRedirectPath } from "@/lib/utils";
 
 function RegisterForm() {
   const _router = useRouter();
@@ -33,6 +33,7 @@ function RegisterForm() {
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidEmail(email)) { setError("Please enter a valid email address."); return; }
     if (!agreed) { setError("Please read and agree to the Terms of Service and Privacy Policy"); return; }
     setLoading(true);
     setError(null);

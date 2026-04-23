@@ -9,6 +9,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Validate an email with the same shape FastAPI's Pydantic EmailStr
+ * expects: non-empty local part, @, domain with a dot, TLD of 2+ chars.
+ * The browser's built-in type="email" validator accepts things like
+ * `foo@bar` which the server then rejects — hence this stricter
+ * client-side check.
+ */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+export function isValidEmail(email: string): boolean {
+  return EMAIL_RE.test(email.trim().toLowerCase());
+}
+
+/**
  * Format a number with locale-specific separators
  */
 export function formatNumber(

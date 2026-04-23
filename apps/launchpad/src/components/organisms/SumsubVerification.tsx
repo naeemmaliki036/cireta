@@ -204,7 +204,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="relative rounded-2xl overflow-hidden border border-black/10 min-h-[600px]">
+      <div className="relative rounded-2xl overflow-hidden border border-black/10 min-h-[780px]">
         {!sdkMounted && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm pointer-events-none z-10">
             <Spinner size="lg" />
@@ -217,15 +217,22 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
           config={{
             lang: "en",
             uiConf: {
+              // Only hide the Sumsub branding bar. Earlier selectors for
+              // the reuse-account flow were hiding the content body but
+              // leaving the Continue button + footer dangling — a "broken
+              // sliver" UI. Let Sumsub render that screen fully; to stop
+              // it from appearing at all, disable reusable KYC on the
+              // verification level in the Sumsub dashboard.
               customCssStr: `
                 .sumsub-logo, .powered-by { display: none !important; }
-                #sumsub-websdk-reuse-account-container { display: none !important; }
-                .reuse-account, .reuse-account-container { display: none !important; }
-                [class*="reuse"], [class*="ReuseAccount"] { display: none !important; }
               `,
             },
           }}
-          options={{ addViewportTag: false, adaptIframeHeight: false }}
+          // adaptIframeHeight=true lets Sumsub resize the iframe to match
+          // its internal content height, so the container grows naturally
+          // instead of clipping. Combined with the min-h above it also
+          // prevents the initial shrink-then-expand jump.
+          options={{ addViewportTag: false, adaptIframeHeight: true }}
           onMessage={handleMessage}
           onError={handleError}
         />
