@@ -93,7 +93,25 @@ class KYCService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "USER_NOT_FOUND", "message": "User not found"},
             )
+
+        # Reconcile before minting a new session. If a webhook was lost or
+        # the user completed verification via the account-reuse flow (which
+        # creates a sibling applicant whose webhook may not have landed),
+        # the authoritative status lives on Sumsub. Without this, initiate
+        # hands back a fresh access token for an already-verified user.
+        if user.sumsub_applicant_id and user.kyc_status not in (
+            KYCStatus.APPROVED,
+            KYCStatus.REJECTED,
+        ):
+            pre_app = await self.db.execute(
+                select(KYCApplication)
+                .where(KYCApplication.user_id == user_id)
+                .order_by(KYCApplication.created_at.desc())
+            )
+            await self._reconcile_from_sumsub(user, pre_app.scalar_one_or_none())
+
         if user.kyc_status == KYCStatus.APPROVED:
+            await self.db.commit()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "ALREADY_VERIFIED", "message": "KYC already approved"},
@@ -109,6 +127,8 @@ class KYCService:
 
         settings = get_settings()
 
+        # Re-read after reconcile — L2 may have advanced us to a
+        # reuse-chain applicant id.
         existing_applicant_id = user.sumsub_applicant_id
         applicant_id = existing_applicant_id or f"cireta-{user_id}"
         access_token = f"dev-token-{user_id}"
@@ -264,6 +284,41 @@ class KYCService:
             return
 
         review_status = resp.get("reviewStatus")
+
+        # Sumsub account-reuse flow: if our applicant is still "init" but
+        # the user submitted via the reuse screen, a downstream applicant
+        # exists with externalUserId == our original applicant id. Walk
+        # the chain to find the authoritative status.
+        if review_status == "init":
+            try:
+                chain = await _sumsub_request(
+                    "GET",
+                    f"/resources/applicants/-;externalUserId={user.sumsub_applicant_id}/one",
+                    settings.sumsub_app_token,
+                    settings.sumsub_secret_key,
+                )
+                chain_id = chain.get("id")
+                if chain_id and chain_id != user.sumsub_applicant_id:
+                    log.info(
+                        "Following Sumsub reuse chain for user %s: %s -> %s",
+                        user.id, user.sumsub_applicant_id, chain_id,
+                    )
+                    user.sumsub_applicant_id = chain_id
+                    if application and not application.sumsub_review_id:
+                        application.sumsub_review_id = chain_id
+                    resp = await _sumsub_request(
+                        "GET",
+                        f"/resources/applicants/{chain_id}/status",
+                        settings.sumsub_app_token,
+                        settings.sumsub_secret_key,
+                    )
+                    review_status = resp.get("reviewStatus")
+            except Exception as exc:
+                # 404 here is the common case (no reuse applicant exists) —
+                # not worth surfacing. Anything else we log but keep the
+                # original applicant's status.
+                log.debug("No reuse-chain applicant for user %s: %s", user.id, exc)
+
         review_result = resp.get("reviewResult") or {}
         review_answer = review_result.get("reviewAnswer")
         reject_type = review_result.get("reviewRejectType")
@@ -327,9 +382,42 @@ class KYCService:
                 result = await self.db.execute(select(User).where(User.id == user_uuid))
                 user = result.scalar_one_or_none()
             except ValueError:
-                log.debug("Invalid UUID in webhook payload externalUserId: %s", external_user_id)
+                # Sumsub's account-reuse flow creates a NEW applicant whose
+                # externalUserId is the ORIGINAL applicant's id (not a UUID).
+                # Recover the user by walking back through that chain.
+                result = await self.db.execute(
+                    select(User).where(User.sumsub_applicant_id == external_user_id)
+                )
+                user = result.scalar_one_or_none()
+                if user:
+                    log.info(
+                        "Recovered user %s via reuse-flow chain (prev=%s new=%s)",
+                        user.id, external_user_id, applicant_id,
+                    )
+                    # Point the user at the new applicant so future
+                    # reconciles and webhooks resolve directly.
+                    user.sumsub_applicant_id = applicant_id
 
         if not user:
+            # Audit the drop so ops can see what slipped through instead of
+            # finding out via support ticket.
+            log.warning(
+                "Sumsub webhook unmatched (applicant=%s externalUserId=%s event=%s)",
+                applicant_id, external_user_id, event_type,
+            )
+            await self._write_audit(
+                actor_id=None,
+                action="kyc_webhook_unmatched",
+                target_type="sumsub_applicant",
+                target_id=str(applicant_id),
+                payload={
+                    "event_type": event_type,
+                    "review_status": review_status,
+                    "external_user_id": external_user_id,
+                },
+                ip_address=ip_address,
+            )
+            await self.db.commit()
             return
 
         app_result = await self.db.execute(
@@ -341,6 +429,10 @@ class KYCService:
         if application:
             application.status = review_status or event_type
             application.result_payload = payload
+            # Keep the application pointing at whichever applicant last
+            # reported — matters for reuse-chain users where the webhook
+            # arrives with a different id than the one we created.
+            application.sumsub_review_id = applicant_id
             if review_status == "completed":
                 application.reviewed_at = datetime.now(UTC)
             elif (
@@ -539,7 +631,21 @@ class KYCService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "USER_NOT_FOUND", "message": "User not found"},
             )
+
+        # Reconcile before minting a new session (same reasoning as initiate()).
+        if user.sumsub_applicant_id and user.kyc_status not in (
+            KYCStatus.APPROVED,
+            KYCStatus.REJECTED,
+        ):
+            pre_app = await self.db.execute(
+                select(KYCApplication)
+                .where(KYCApplication.user_id == user_id)
+                .order_by(KYCApplication.created_at.desc())
+            )
+            await self._reconcile_from_sumsub(user, pre_app.scalar_one_or_none())
+
         if user.kyc_status == KYCStatus.APPROVED and user.kyc_level >= 4:
+            await self.db.commit()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "ALREADY_VERIFIED", "message": "Corporate KYB already approved"},
@@ -550,6 +656,7 @@ class KYCService:
         settings = get_settings()
 
         # Idempotent re-initiate (same reasoning as individual KYC).
+        # Re-read after reconcile — may have advanced to reuse-chain id.
         existing_applicant_id = user.sumsub_applicant_id
         applicant_id = existing_applicant_id or f"cireta-corp-{user_id}"
         access_token = f"dev-corp-token-{user_id}"
@@ -686,8 +793,35 @@ class KYCService:
                 )
                 user = result.scalar_one_or_none()
             except ValueError:
-                log.debug("Invalid UUID in corporate webhook externalUserId: %s", external_user_id)
+                # Reuse-flow chain (see handle_webhook for rationale).
+                result = await self.db.execute(
+                    select(User).where(User.sumsub_applicant_id == external_user_id)
+                )
+                user = result.scalar_one_or_none()
+                if user:
+                    log.info(
+                        "Recovered corporate user %s via reuse-flow chain (prev=%s new=%s)",
+                        user.id, external_user_id, applicant_id,
+                    )
+                    user.sumsub_applicant_id = applicant_id
         if not user:
+            log.warning(
+                "Sumsub corporate webhook unmatched (applicant=%s externalUserId=%s event=%s)",
+                applicant_id, external_user_id, event_type,
+            )
+            await self._write_audit(
+                actor_id=None,
+                action="kyb_webhook_unmatched",
+                target_type="sumsub_applicant",
+                target_id=str(applicant_id),
+                payload={
+                    "event_type": event_type,
+                    "review_status": payload.get("reviewStatus"),
+                    "external_user_id": external_user_id,
+                },
+                ip_address=ip_address,
+            )
+            await self.db.commit()
             return
 
         app_result = await self.db.execute(

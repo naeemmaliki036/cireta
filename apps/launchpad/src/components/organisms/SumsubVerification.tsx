@@ -100,23 +100,32 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
       // First message from the SDK = iframe successfully mounted; clear the watchdog.
       setSdkMounted(true);
       if (
-        type === "idCheck.applicantReviewComplete" ||
-        type === "idCheck.onApplicantStatusChanged"
+        type !== "idCheck.applicantReviewComplete" &&
+        type !== "idCheck.onApplicantStatusChanged" &&
+        type !== "idCheck.onApplicantSubmitted"
       ) {
-        setState("processing");
-        // Poll for final status after a short delay
-        setTimeout(async () => {
-          try {
-            const status = await getKYCStatus("");
-            if (status.status === "approved") {
-              setState("approved");
-              setTimeout(() => router.push("/projects"), 2000);
-            }
-          } catch {
-            // Keep processing state
-          }
-        }, 3000);
+        return;
       }
+      // Don't optimistically flip to "processing". Sumsub's account-reuse
+      // screen fires these same events when the user clicked "Reuse my
+      // data" without actually submitting docs to THIS applicant. The
+      // backend is the source of truth — poll it and let it drive UI
+      // state. If the backend hasn't received the webhook yet, we stay
+      // on the current screen; a subsequent SDK event or page reload
+      // (which re-runs the reconcile in get_status) will catch up.
+      setTimeout(async () => {
+        try {
+          const latest = await getKYCStatus("");
+          if (latest.status === "approved") {
+            setState("approved");
+            setTimeout(() => router.push("/projects"), 2000);
+          } else if (latest.status === "pending" || latest.submitted_at) {
+            setState("processing");
+          }
+        } catch {
+          // Leave state unchanged; next reconcile or reload recovers.
+        }
+      }, 3000);
     },
     [router],
   );
@@ -204,7 +213,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="relative rounded-2xl overflow-hidden border border-black/10 min-h-[780px]">
+      <div className="relative rounded-2xl overflow-hidden border border-black/10 min-h-[624px]">
         {!sdkMounted && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm pointer-events-none z-10">
             <Spinner size="lg" />
