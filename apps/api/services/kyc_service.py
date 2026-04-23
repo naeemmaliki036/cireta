@@ -357,7 +357,10 @@ class KYCService:
             log.warning("Failed to enqueue identity sync for user %s: %s", user.id, exc)
 
         # Inline fast-path — best-effort, errors are swallowed because the
-        # queued job will retry independently.
+        # queued job will retry independently. Errors are logged at WARNING
+        # with an exception stack *and* written to the audit log so ops can
+        # see why a user's wallet never hit `registered_on_chain=true`
+        # instead of only discovering it in a support ticket.
         try:
             from apps.api.services.simple_identity_bridge_service import (
                 SimpleIdentityBridgeService,
@@ -371,8 +374,20 @@ class KYCService:
         except Exception as exc:
             log.warning(
                 "Inline simple identity registration failed for user %s: %s — "
-                "queued job will retry", user.id, exc,
+                "queued job will retry", user.id, exc, exc_info=True,
             )
+            try:
+                await self._write_audit(
+                    actor_id=None,
+                    action="identity_sync_inline_failed",
+                    target_type="user",
+                    target_id=str(user.id),
+                    payload={"error": str(exc)[:500]},
+                    ip_address=None,
+                    reason="Inline on-chain identity registration raised; arq job will retry",
+                )
+            except Exception:
+                pass
 
     async def _register_erc3643_identity(self, user: User, settings: object) -> None:
         """Full ERC-3643 mode — deploy ONCHAINID + issue claims."""

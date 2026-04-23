@@ -18,6 +18,7 @@ import { getToken, type Token } from "@/lib/api/repositories/tokens";
 import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
 import { apiPost, apiFetch } from "@/lib/api/client";
 import { truncateAddress } from "@/lib/utils";
+import { richDescriptionToHtml } from "@/lib/richText";
 import { getTxUrl } from "@/lib/contracts/addresses";
 import { useChainId } from "wagmi";
 
@@ -76,7 +77,7 @@ function getTimeUntilStart(startTime: string): string {
 }
 
 const SIDEBAR_LINKS = [
-  { href: "/explore", label: "Sales", icon: ShoppingBag },
+  { href: "/projects", label: "Sales", icon: ShoppingBag },
   { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
 ];
 
@@ -164,7 +165,6 @@ export default function ProjectDetailPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [openPhases, setOpenPhases] = useState<Set<string>>(new Set());
@@ -222,7 +222,7 @@ export default function ProjectDetailPage() {
         } else {
           try { const subs = JSON.parse(localStorage.getItem("cireta_sale_subs") || "{}"); if (subs[sid]) setSubscribed(true); } catch {}
         }
-      } catch { setError(true); }
+      } catch { /* fetch failed — stay on loading/empty; "not found" only renders after isLoading completes and project is still null */ }
       finally { setIsLoading(false); }
     }
     if (slug) load();
@@ -294,7 +294,10 @@ export default function ProjectDetailPage() {
   };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Spinner size="xl" /></div>;
-  if (error || !project) return (
+  // Only show the "not found" screen once loading is done AND we actually
+  // have no project data — prevents a transient red banner during slow
+  // remote-DB fetches that later succeed.
+  if (!project) return (
     <div className="min-h-screen flex flex-col items-center justify-center">
       <h1 className="text-2xl font-bold mb-2">Project Not Found</h1>
       <Link href="/projects" className="text-darkAqua font-semibold hover:underline">Back to Sales</Link>
@@ -646,7 +649,7 @@ export default function ProjectDetailPage() {
                   return baseTabs;
                 })().map((tab) => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={cn("px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTab === tab ? "text-white" : "text-gray-500 hover:bg-gray-100 hover:text-text")} style={activeTab === tab ? { backgroundColor: "#13636F" } : undefined}>
-                    {tab}
+                    {tab === "Team" ? "Project Team" : tab}
                   </button>
                 ))}
               </div>
@@ -656,7 +659,7 @@ export default function ProjectDetailPage() {
               {activeTab === "Overview" && (
                 <div className="space-y-6">
                   {(saleRaw as unknown as Record<string, unknown>)?.full_description ? (
-                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: (saleRaw as unknown as Record<string, unknown>).full_description as string }} />
+                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: richDescriptionToHtml((saleRaw as unknown as Record<string, unknown>).full_description as string) }} />
                   ) : (
                     <p className="text-gray-600 leading-relaxed">{project.description || "Project details coming soon."}</p>
                   )}
@@ -1093,7 +1096,7 @@ export default function ProjectDetailPage() {
               {activeTab === "OTC & Bank" && saleRaw?.otc_enabled && (
                 <div className="prose prose-sm max-w-none">
                   {saleRaw.otc_content ? (
-                    <div dangerouslySetInnerHTML={{ __html: saleRaw.otc_content }} />
+                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: richDescriptionToHtml(saleRaw.otc_content) }} />
                   ) : (
                     <p className="text-gray-400 text-center py-8">OTC & Bank Transfer instructions coming soon.</p>
                   )}

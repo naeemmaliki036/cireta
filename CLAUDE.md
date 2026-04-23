@@ -162,3 +162,27 @@ Maintain docs/BUILD_LOG.md. After every step append:
 ### Decisions / Issues
 - any deviation and why, what broke
 ```
+
+---
+
+## E2E UI Testing Methodology (NON-NEGOTIABLE)
+
+All end-to-end user-flow testing of the launchpad/admin apps follows this protocol:
+
+**Tools — UI only.**
+- `mcp__claude-in-chrome__*` — every click, form input, navigation, network/console read on the launchpad/admin web apps.
+- `mcp__computer-use__*` — only for surfaces the browser extension cannot reach: native wallet extension popups (MetaMask/Rainbow sign/approve/confirm), OS-level modals, screenshots of native state.
+- **Forbidden:** Playwright, Cypress, direct curl/HTTPie to API, DB writes to bypass validation, injecting values into localStorage/cookies to skip steps, any shortcut that avoids the UI. If a flow cannot be completed via the UI, that is a **finding**, not a reason to bypass.
+
+**Document format — DoD (Definition of Done).**
+- Every test case is a checkbox with: preconditions → UI steps → expected result → evidence (screenshot or console log ref) → expected-vs-actual → driver sign-off → blank `SWEEP:` column for the human reviewer.
+- No item is closed without a concrete validation artifact.
+- Findings log kept alongside the checklist: ID · phase · severity · repro · expected vs actual · evidence.
+
+**Roles.**
+- Claude **drives** (executes every step, captures evidence, checks items off).
+- A human teammate **sweeps** (independently validates each item, signs the `SWEEP:` column).
+
+**Stop-and-ask triggers.** Halt and request manual help if any of: wallet extension missing from the Chrome profile · Sumsub keys blank and no dev-approve · RPC unreachable · no ACTIVE sale available. Config issues are solved by the user, not worked around. **Do NOT treat a remote/shared DB as a blocker** — UI testing mimics a real user, and real users don't get DB permission. The DB is invisible to the UI test.
+
+**Tracking.** Mirror the DoD checklist to `TaskCreate` tasks while driving — one task per phase.

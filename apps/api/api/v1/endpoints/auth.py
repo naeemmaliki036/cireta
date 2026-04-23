@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # from apps.api.core.tokens import generate_email_verify_token  # replaced by OTP flow
@@ -148,14 +149,21 @@ async def login(
 # ==================== Passwordless OTP Auth ====================
 
 
+# Stricter email pattern than Pydantic's default EmailStr — requires a dot in
+# the domain with at least a 2-char TLD so `foo@bar` (no TLD) is rejected.
+# Deliberately conservative; bans IP/IDN/local domains which are not relevant
+# for investor registration on this platform.
+_EMAIL_RE = r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
+
+
 class OTPRequestBody(PydanticBaseModel):
-    email: str
+    email: str = Field(..., pattern=_EMAIL_RE, max_length=254)
     purpose: str = "login"
     audience: str | None = None  # "admin" restricts to admin/issuer, "investor" restricts to investor
 
 
 class OTPVerifyBody(PydanticBaseModel):
-    email: str
+    email: str = Field(..., pattern=_EMAIL_RE, max_length=254)
     code: str
     purpose: str = "login"
     display_name: str | None = None

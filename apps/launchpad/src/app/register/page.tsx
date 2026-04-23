@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, User } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
+import { safeRedirectPath } from "@/lib/utils";
 
 function RegisterForm() {
   const _router = useRouter();
@@ -99,8 +100,7 @@ function RegisterForm() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail?.message ?? "Verification failed");
       }
-      const redirectTo = searchParams.get("redirect") || "/projects";
-      window.location.href = redirectTo;
+      window.location.href = safeRedirectPath(searchParams.get("redirect"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setLoading(false);
@@ -161,8 +161,17 @@ function RegisterForm() {
 
       {step === "otp" && (
         <form onSubmit={handleVerifyOtp} className="space-y-5">
-          <div>
+          <div className="flex items-baseline justify-between">
             <label htmlFor="otp" className="mb-2 block text-sm font-semibold text-text">Verification Code</label>
+            <button
+              type="button"
+              onClick={() => { setOtp(""); setError(null); setDevOtp(null); setStep("info"); }}
+              className="text-xs text-darkAqua hover:underline"
+            >
+              ← Change email
+            </button>
+          </div>
+          <div>
             <input id="otp" type="text" inputMode="numeric" maxLength={6} value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="000000" required autoFocus
@@ -210,7 +219,7 @@ function RegisterForm() {
       <div className="mt-8 text-center">
         <p className="text-sm text-gray-500">
           Already have an account?{" "}
-          <Link href={`/login?redirect=${encodeURIComponent(searchParams.get("redirect") || "/projects")}`} className="font-semibold text-darkAqua hover:underline">Sign in</Link>
+          <Link href={`/login?redirect=${encodeURIComponent(safeRedirectPath(searchParams.get("redirect")))}`} className="font-semibold text-darkAqua hover:underline">Sign in</Link>
         </p>
       </div>
     </SplitAuthLayout>

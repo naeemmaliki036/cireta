@@ -363,7 +363,10 @@ export default function InvestPage() {
         // If OTC is not enabled, auto-select crypto
         if (!raw.otc_enabled) setPaymentMethod("crypto");
       } catch {
-        setError("Project not found");
+        // Don't set "Project not found" here — transient fetch failures on
+        // slow remote DBs were showing a false-positive red banner above a
+        // fully-working buy form. The "not found" screen only renders
+        // further down, gated on `!loading && !project`.
       } finally {
         setLoading(false);
       }

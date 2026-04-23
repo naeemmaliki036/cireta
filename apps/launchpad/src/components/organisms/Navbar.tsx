@@ -359,8 +359,11 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 md:gap-3">
-            {/* Connect Wallet — only for authenticated users */}
-            {isAuthenticated && <ConnectButton.Custom>
+            {/* Connect Wallet — available to everyone. For guests, the
+                connection is purely client-side (wagmi state only); SIWE
+                ownership-link to a Cireta account happens only after they
+                sign in and hit the wallet-link flow. */}
+            <ConnectButton.Custom>
               {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
                 const ready = mounted;
                 const connected = ready && account && chain;
@@ -419,7 +422,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   </div>
                 );
               }}
-            </ConnectButton.Custom>}
+            </ConnectButton.Custom>
 
             {/* Auth CTAs */}
             {!isAuthenticated && (
@@ -933,40 +936,38 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     <LogOut className="h-3.5 w-3.5" /> Sign Out
                   </button>
                 )}
-                {/* Connect Wallet — only for authenticated */}
-                {isAuthenticated && (
-                  <ConnectButton.Custom>
-                    {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                      const ready = mounted;
-                      const connected = ready && account && chain;
-                      return (
-                        <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none", userSelect: "none" } })} className="w-full">
-                          {(() => {
-                            if (!connected) {
-                              return (
-                                <button onClick={openConnectModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua hover:bg-darkAqua/5 transition-colors">
-                                  <Wallet className="h-4 w-4" /> Connect Wallet
-                                </button>
-                              );
-                            }
-                            if (chain.unsupported) {
-                              return (
-                                <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-red-500 text-white">
-                                  Wrong Network
-                                </button>
-                              );
-                            }
+                {/* Connect Wallet — available to guests too */}
+                <ConnectButton.Custom>
+                  {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+                    const ready = mounted;
+                    const connected = ready && account && chain;
+                    return (
+                      <div {...(!ready && { "aria-hidden": true, style: { opacity: 0, pointerEvents: "none", userSelect: "none" } })} className="w-full">
+                        {(() => {
+                          if (!connected) {
                             return (
-                              <button onClick={openAccountModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua">
-                                <Wallet className="h-4 w-4" /> {account.displayName}
+                              <button onClick={openConnectModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua hover:bg-darkAqua/5 transition-colors">
+                                <Wallet className="h-4 w-4" /> Connect Wallet
                               </button>
+                            );
+                          }
+                          if (chain.unsupported) {
+                            return (
+                              <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-red-500 text-white">
+                                Wrong Network
+                              </button>
+                            );
+                          }
+                          return (
+                            <button onClick={openAccountModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua">
+                              <Wallet className="h-4 w-4" /> {account.displayName}
+                            </button>
                           );
                         })()}
                       </div>
                     );
                   }}
                 </ConnectButton.Custom>
-                )}
               </div>
             </div>
           </motion.div>

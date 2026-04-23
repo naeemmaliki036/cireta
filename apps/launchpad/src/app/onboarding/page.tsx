@@ -18,30 +18,12 @@ import {
   completeOnboarding,
   type OnboardingStatus,
 } from "@/lib/api/repositories/auth.repository";
+import { COUNTRY_OPTIONS } from "@/lib/countries";
 
 type Step = "type" | "details" | "wallet" | "kyc" | "complete";
 
-const COUNTRIES = [
-  "Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria",
-  "Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia",
-  "Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cambodia","Cameroon","Canada",
-  "Cape Verde","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo","Costa Rica","Croatia","Cuba",
-  "Cyprus","Czech Republic","Denmark","Djibouti","Dominica","Dominican Republic","East Timor","Ecuador","Egypt","El Salvador",
-  "Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany",
-  "Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India",
-  "Indonesia","Iran","Iraq","Ireland","Israel","Italy","Ivory Coast","Jamaica","Japan","Jordan","Kazakhstan","Kenya",
-  "Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania",
-  "Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico",
-  "Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal",
-  "Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau",
-  "Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia",
-  "Rwanda","Saint Kitts and Nevis","Saint Lucia","Saint Vincent and the Grenadines","Samoa","San Marino","Sao Tome and Principe",
-  "Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia",
-  "South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan",
-  "Tajikistan","Tanzania","Thailand","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda",
-  "Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela",
-  "Vietnam","Yemen","Zambia","Zimbabwe",
-];
+// Country list moved to lib/countries.ts so values are ISO 3166-1 alpha-2
+// codes (e.g. "GB") instead of display strings.
 
 const STEPS: { id: Step; label: string; required: boolean }[] = [
   { id: "type", label: "Buyer Type", required: true },
@@ -95,6 +77,12 @@ export default function OnboardingPage() {
         if (data.steps.type?.completed && data.investor_type) {
           setInvestorType(data.investor_type as "individual" | "corporate");
           setTypeConfirmed(true);
+          // Preserve wallet-linked state across refreshes so a reload on the
+          // wallet step doesn't force the user to re-sign a message for a
+          // wallet that's already persisted server-side.
+          if (data.steps.wallet?.completed) {
+            setWalletLinked(true);
+          }
           if (data.steps.details?.completed) {
             if (data.steps.wallet && !data.steps.wallet.completed && !data.steps.kyc?.completed) {
               setStep("wallet");
@@ -286,23 +274,23 @@ export default function OnboardingPage() {
             {STEPS.map((s, i) => (
               <div key={s.id} className="flex items-center">
                 <div className="flex flex-col items-center">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                    i < currentStepIndex ? "bg-green-500 text-white"
-                    : i === currentStepIndex ? "bg-gray-900 text-white"
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors text-white ${
+                    i < currentStepIndex ? "bg-darkAqua"
+                    : i === currentStepIndex ? "bg-darkAqua"
                     : "bg-gray-200 text-gray-400"
                   }`}>
                     {i < currentStepIndex ? <CheckCircle2 className="h-5 w-5" /> : i + 1}
                   </div>
                   <span className={`text-xs font-medium mt-1.5 whitespace-nowrap ${
-                    i < currentStepIndex ? "text-green-600"
-                    : i === currentStepIndex ? "text-gray-900"
+                    i < currentStepIndex ? "text-darkAqua"
+                    : i === currentStepIndex ? "text-darkAqua"
                     : "text-gray-400"
                   }`}>
                     {s.label}
                   </span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`w-12 sm:w-20 h-0.5 mx-1 mb-5 ${i < currentStepIndex ? "bg-green-500" : "bg-gray-200"}`} />
+                  <div className={`w-12 sm:w-20 h-0.5 mx-1 mb-5 ${i < currentStepIndex ? "bg-darkAqua" : "bg-gray-200"}`} />
                 )}
               </div>
             ))}
@@ -413,7 +401,7 @@ export default function OnboardingPage() {
                     disabled={isDetailsCompleted}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed">
                     <option value="">Select nationality</option>
-                    {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -422,7 +410,7 @@ export default function OnboardingPage() {
                     disabled={isDetailsCompleted}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed">
                     <option value="">Select country</option>
-                    {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -454,7 +442,7 @@ export default function OnboardingPage() {
                     disabled={isDetailsCompleted}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed">
                     <option value="">Select country of incorporation</option>
-                    {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -528,33 +516,59 @@ export default function OnboardingPage() {
               </div>
             )}
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => setStep("details")} variant="outline" className="rounded-xl">
+              <Button onClick={() => { setWalletLinked(false); setWalletError(null); setStep("details"); }} variant="outline" className="rounded-xl">
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back
               </Button>
               <Button onClick={async () => {
-                if (isConnected && address && !walletLinked) {
-                  try {
-                    setSaving(true);
-                    setWalletError(null);
-                    const nonce = crypto.randomUUID();
-                    const message = `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}`;
-                    const signature = await signMessageAsync({ message });
-                    await apiFetch("/api/v1/wallets", { method: "POST", body: { address, signature, nonce, label: "Primary" } });
-                    setWalletLinked(true);
-                  } catch (err) {
-                    if (err instanceof Error && err.message.includes("User rejected")) {
-                      setWalletError("Signature rejected. Sign the message to link your wallet, or skip for now.");
-                      return;
-                    }
-                    // Wallet may already be linked
-                    setWalletLinked(true);
-                  } finally {
-                    setSaving(false);
-                  }
+                // No wallet connected → explicit skip
+                if (!isConnected || !address) {
+                  setStep("kyc");
+                  return;
                 }
-                setStep("kyc");
+                // Already linked → advance
+                if (walletLinked) {
+                  setStep("kyc");
+                  return;
+                }
+                // Wallet connected, not yet linked → sign + link, only advance on success
+                try {
+                  setSaving(true);
+                  setWalletError(null);
+                  const nonce = crypto.randomUUID();
+                  const message = `I confirm that I am the owner of this wallet and authorize Cireta (cireta.com) to link it to my account.\n\nThis signature is only used for verification and does not grant access to your funds.\n\nNonce: ${nonce}`;
+                  const signature = await signMessageAsync({ message });
+                  await apiFetch("/api/v1/wallets", { method: "POST", body: { address, signature, nonce, label: "Primary" } });
+                  setWalletLinked(true);
+                  setStep("kyc");
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "Failed to link wallet";
+                  const code = (err as { code?: string }).code ?? "";
+                  if (msg.includes("User rejected")) {
+                    setWalletError("Signature rejected. Sign the message to link your wallet, or disconnect and skip.");
+                  } else if (code === "WALLET_EXISTS" || msg.includes("already linked")) {
+                    // Backend says "wallet exists" — could be this user OR another user.
+                    // Only advance if this wallet is actually in this user's list.
+                    try {
+                      const mine = await apiFetch<{ wallets: Array<{ address: string }> }>("/api/v1/wallets");
+                      const lower = address.toLowerCase();
+                      const owned = mine.wallets.some((w) => w.address.toLowerCase() === lower);
+                      if (owned) {
+                        setWalletLinked(true);
+                        setStep("kyc");
+                      } else {
+                        setWalletError("This wallet is already linked to a different Cireta account. Use another wallet or disconnect and skip.");
+                      }
+                    } catch {
+                      setWalletError("Wallet conflict — could not verify ownership. Use another wallet or disconnect and skip.");
+                    }
+                  } else {
+                    setWalletError(`Could not link wallet: ${msg}`);
+                  }
+                } finally {
+                  setSaving(false);
+                }
               }} className="bg-gray-900 text-white rounded-xl hover:bg-gray-800" size="lg" disabled={saving}>
-                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing...</> : <>{isConnected ? "Sign & Continue" : "Skip for now"} <ArrowRight className="h-4 w-4 ml-2" /></>}
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing...</> : <>{isConnected ? (walletLinked ? "Continue" : "Sign & Continue") : "Skip for now"} <ArrowRight className="h-4 w-4 ml-2" /></>}
               </Button>
             </div>
             <ExitLink />

@@ -86,6 +86,24 @@ export function truncateAddress(address: string, chars = 4): string {
 }
 
 /**
+ * Sanitize a `?redirect=` query param from the URL.
+ * Only relative paths rooted at "/" are allowed to prevent open-redirect
+ * phishing. Anything else (external URLs, protocol-relative `//evil.com`,
+ * `javascript:` schemes, empty strings) collapses to the provided default.
+ */
+export function safeRedirectPath(raw: string | null | undefined, fallback = "/projects"): string {
+  if (!raw) return fallback;
+  const decoded = decodeURIComponent(raw).trim();
+  if (!decoded) return fallback;
+  // Reject absolute URLs, protocol-relative, and dangerous schemes
+  if (/^[a-z][a-z0-9+.-]*:/i.test(decoded)) return fallback;
+  if (decoded.startsWith("//")) return fallback;
+  if (decoded.startsWith("\\")) return fallback;
+  if (!decoded.startsWith("/")) return fallback;
+  return decoded;
+}
+
+/**
  * Format relative time (e.g., "2 hours ago")
  */
 export function formatRelativeTime(date: Date | string): string {

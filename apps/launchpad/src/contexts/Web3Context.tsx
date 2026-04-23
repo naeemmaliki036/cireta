@@ -101,8 +101,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       });
 
     return () => { cancelled = true; };
-    // Only run when address changes — NOT when isAuthenticated changes
-  }, [address, isConnected]);
+  }, [address, isConnected, isAuthenticated]);
 
   // Reset on disconnect or auth change
   useEffect(() => {

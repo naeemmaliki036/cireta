@@ -443,9 +443,9 @@ function HowItWorksSection() {
   useTimelineAnimation(mobileTimelineRef, mobileFillRef);
 
   return (
-    <section className="py-16 md:py-20 lg:py-[100px] px-4 md:px-8 bg-white" id="how-it-works">
+    <section className="py-16 md:py-24 lg:py-[120px] px-4 md:px-8 bg-white" id="how-it-works">
       <div className="max-w-inner mx-auto">
-        <div className="text-center mb-14 max-w-[768px] xl:max-w-[1020px] mx-auto">
+        <div className="text-center mb-16 max-w-[768px] xl:max-w-[1020px] mx-auto">
           <motion.span
             className="text-xs font-semibold uppercase tracking-widest text-black/40 block"
             initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
@@ -510,7 +510,7 @@ function HowItWorksSection() {
         </div>
 
         <motion.div
-          className="mt-12 md:mt-16 max-w-[700px] mx-auto bg-white rounded-2xl border border-black/10 overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.04)]"
+          className="mt-16 md:mt-20 max-w-[700px] mx-auto bg-white rounded-2xl border border-black/10 overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.04)]"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}

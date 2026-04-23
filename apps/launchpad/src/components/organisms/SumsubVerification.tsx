@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 const SumsubWebSdk = dynamic(() => import("@sumsub/websdk-react"), { ssr: false });
@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type VerificationState = "loading" | "ready" | "processing" | "approved" | "error";
 
+const SDK_WATCHDOG_MS = 30_000;
+
 interface SumsubVerificationProps {
   className?: string;
 }
@@ -20,7 +22,11 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
   const { user } = useAuth();
   const [state, setState] = useState<VerificationState>("loading");
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [sdkMounted, setSdkMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Idempotency guard — StrictMode double-fires the init effect in dev;
+  // without this we open two Sumsub applicants and race their tokens.
+  const initStartedRef = useRef(false);
 
   // Fast-path: if auth context already knows KYC is approved, skip API calls
   useEffect(() => {
@@ -29,16 +35,21 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
     }
   }, [user?.kycStatus]);
 
-  // Fetch SDK token on mount (auth handled by httpOnly cookie via proxy)
+  // Fetch SDK token on mount (auth handled by httpOnly cookie via proxy).
+  // We intentionally DO NOT short-circuit on unmount here — StrictMode's
+  // synthetic mount → unmount → remount pattern would otherwise leave the
+  // component stuck in "loading" because the first run's cancelled flag
+  // suppresses setState while the idempotency guard blocks the second run.
+  // Safe because setState on an unmounted component is a no-op warning in
+  // React 18+, not an error.
   useEffect(() => {
-    // Skip if auth context already says approved
     if (user?.kycStatus === "approved") return;
+    if (initStartedRef.current) return;
+    initStartedRef.current = true;
 
-    let cancelled = false;
     (async () => {
       try {
         const kycStatus = await getKYCStatus("");
-        if (cancelled) return;
         if (kycStatus.status === "approved") {
           setState("approved");
           return;
@@ -51,15 +62,11 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         // Status endpoint failed — continue to initiate
       }
 
-      if (cancelled) return;
-
       try {
         const result = await initiateKYC("");
-        if (cancelled) return;
         setAccessToken(result.access_token);
         setState("ready");
       } catch (err) {
-        if (cancelled) return;
         const msg = err instanceof Error ? err.message : "Failed to start verification";
         const code = (err as { code?: string }).code ?? "";
         if (code === "ALREADY_VERIFIED" || msg.includes("already approved")) {
@@ -72,11 +79,26 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         }
       }
     })();
-    return () => { cancelled = true; };
   }, [user?.kycStatus]);
+
+  // Watchdog: if the Sumsub iframe hasn't reported mounted within SDK_WATCHDOG_MS,
+  // surface a recoverable error instead of leaving the user on a frozen-looking page.
+  useEffect(() => {
+    if (state !== "ready") return;
+    if (sdkMounted) return;
+    const timer = window.setTimeout(() => {
+      setError(
+        "Verification widget took too long to load. Check your network connection and try again.",
+      );
+      setState("error");
+    }, SDK_WATCHDOG_MS);
+    return () => window.clearTimeout(timer);
+  }, [state, sdkMounted]);
 
   const handleMessage = useCallback(
     (type: string) => {
+      // First message from the SDK = iframe successfully mounted; clear the watchdog.
+      setSdkMounted(true);
       if (
         type === "idCheck.applicantReviewComplete" ||
         type === "idCheck.onApplicantStatusChanged"
@@ -104,6 +126,24 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
     setError("Verification encountered an error. Please try again.");
     setState("error");
   }, []);
+
+  // Expiration handler returns the existing applicant's refreshed token.
+  // If initiateKYC is called after one already exists the backend replies
+  // with APPLICATION_PENDING (409). Swallow that so the SDK doesn't retry
+  // on a rejected promise, which can deadlock the widget.
+  const handleExpiration = useCallback(async () => {
+    try {
+      const result = await initiateKYC("");
+      return result.access_token;
+    } catch (err) {
+      const code = (err as { code?: string }).code ?? "";
+      const msg = err instanceof Error ? err.message : "";
+      if (code === "APPLICATION_PENDING" || msg.includes("pending")) {
+        setState("processing");
+      }
+      return accessToken ?? "";
+    }
+  }, [accessToken]);
 
   if (state === "loading") {
     return (
@@ -164,10 +204,16 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="rounded-2xl overflow-hidden border border-black/10 min-h-[600px]">
+      <div className="relative rounded-2xl overflow-hidden border border-black/10 min-h-[600px]">
+        {!sdkMounted && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm pointer-events-none z-10">
+            <Spinner size="lg" />
+            <p className="mt-4 text-sm text-black/50">Loading verification widget…</p>
+          </div>
+        )}
         <SumsubWebSdk
           accessToken={accessToken}
-          expirationHandler={() => initiateKYC("").then((r) => r.access_token)}
+          expirationHandler={handleExpiration}
           config={{
             lang: "en",
             uiConf: {
@@ -179,7 +225,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
               `,
             },
           }}
-          options={{ addViewportTag: false, adaptIframeHeight: true }}
+          options={{ addViewportTag: false, adaptIframeHeight: false }}
           onMessage={handleMessage}
           onError={handleError}
         />

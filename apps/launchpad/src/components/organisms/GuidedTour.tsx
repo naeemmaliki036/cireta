@@ -63,38 +63,129 @@ interface GuidedTourProps {
   onClose: () => void;
 }
 
-function Tooltip({ targetId, title, description }: { targetId: string; title: string; description: string }) {
-  const [pos, setPos] = useState<{ top: number; left: number; width: number; arrowLeft: number } | null>(null);
+interface TargetRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  /** Horizontal centre of the target in viewport coordinates — used by the
+   *  tooltip to anchor its arrow so rewriting the position math for each
+   *  piece doesn't drift. */
+  centerX: number;
+  /** True once the target has been scrolled into view; the spotlight
+   *  renders at full opacity only after this flips so the first frame
+   *  doesn't flash in the wrong place while we scroll. */
+  stable: boolean;
+}
+
+/**
+ * Measure the tour target on mount / resize / scroll and scroll it into
+ * view. Returns `null` until the element is in the DOM.
+ */
+function useTargetRect(targetId: string | undefined): TargetRect | null {
+  const [rect, setRect] = useState<TargetRect | null>(null);
 
   const measure = useCallback(() => {
+    if (!targetId) { setRect(null); return; }
     const el = document.querySelector(`[data-tour-id="${targetId}"]`);
-    if (!el) { setPos(null); return; }
-    const rect = el.getBoundingClientRect();
-    // Clamp tooltip left so it doesn't overflow the viewport
-    const centerX = rect.left + rect.width / 2;
-    const clampedLeft = Math.min(Math.max(centerX, 120), window.innerWidth - 120);
-    setPos({ top: rect.bottom + 10, left: clampedLeft, width: rect.width, arrowLeft: centerX });
+    if (!el) { setRect(null); return; }
+    const r = el.getBoundingClientRect();
+    setRect({
+      top: r.top,
+      left: r.left,
+      width: r.width,
+      height: r.height,
+      centerX: r.left + r.width / 2,
+      stable: true,
+    });
   }, [targetId]);
 
   useEffect(() => {
-    measure();
+    if (!targetId) { setRect(null); return; }
+    const el = document.querySelector(`[data-tour-id="${targetId}"]`);
+    if (el && "scrollIntoView" in el) {
+      (el as HTMLElement).scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    // Measure shortly after scrolling settles to avoid a jumpy first frame.
+    const t = window.setTimeout(measure, 250);
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
+      window.clearTimeout(t);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [measure]);
+  }, [targetId, measure]);
 
-  if (!pos) return null;
+  return rect;
+}
 
-  // Position tooltip so it doesn't overflow, arrow always points at target center
+/**
+ * Dim the whole viewport except a rectangular cutout around the target.
+ * The cutout is achieved with a single pointer-events-none div that has
+ * a huge box-shadow — ring-of-shadow trick so no SVG mask is needed and
+ * pointer events still reach the highlighted element.
+ */
+function Spotlight({ rect, onClick }: { rect: TargetRect | null; onClick: () => void }) {
+  // When no target, fall back to a flat dim layer so clicking anywhere dismisses
+  if (!rect) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-40 bg-black/80"
+        onClick={onClick}
+      />
+    );
+  }
+
+  const PAD = 10; // visual padding around the target so the ring isn't flush
+  const top = Math.max(0, rect.top - PAD);
+  const left = Math.max(0, rect.left - PAD);
+  const w = rect.width + PAD * 2;
+  const h = rect.height + PAD * 2;
+
+  return (
+    <>
+      {/* Click catcher behind the spotlight so clicking outside the target
+          dismisses the tour. The cutout itself has pointer-events-none so
+          the target underneath stays clickable. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-40"
+        onClick={onClick}
+        aria-hidden="true"
+      />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        className="fixed z-40 rounded-xl pointer-events-none"
+        style={{
+          top, left, width: w, height: h,
+          boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.8)",
+          transition: "top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease",
+        }}
+        aria-hidden="true"
+      />
+    </>
+  );
+}
+
+function Tooltip({ rect, title, description }: { rect: TargetRect | null; title: string; description: string }) {
+  if (!rect) return null;
+
   const tooltipWidth = 220;
   const tooltipLeft = Math.min(
-    Math.max(pos.arrowLeft - tooltipWidth / 2, 12),
+    Math.max(rect.centerX - tooltipWidth / 2, 12),
     window.innerWidth - tooltipWidth - 12
   );
-  const arrowOffset = pos.arrowLeft - tooltipLeft;
+  const arrowOffset = rect.centerX - tooltipLeft;
 
   return (
     <motion.div
@@ -102,7 +193,7 @@ function Tooltip({ targetId, title, description }: { targetId: string; title: st
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       className="fixed z-[60]"
-      style={{ top: pos.top, left: tooltipLeft, width: tooltipWidth }}
+      style={{ top: rect.top + rect.height + 18, left: tooltipLeft, width: tooltipWidth }}
       data-testid="tour-tooltip"
     >
       {/* Arrow — positioned to point at the target element */}
@@ -145,6 +236,9 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
 
   const activeStep = steps[currentStep];
   const isLast = currentStep === steps.length - 1;
+  // Measure the active step's target element. Spotlight + Tooltip both
+  // read this so they stay aligned as the window scrolls/resizes.
+  const targetRect = useTargetRect(activeStep?.targetId);
 
   const handleNext = () => {
     if (isLast) {
@@ -164,12 +258,20 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Spotlight: dims the viewport everywhere except a ring around
+              the active step's target element. When no target exists (e.g.
+              the "How To?" intro or the final "Buy Token" step), falls
+              back to a flat dim overlay. Hidden on mobile where the
+              modal is full-screen and the cutout would be confusing. */}
+          <div className="hidden sm:block">
+            <Spotlight rect={activeStep?.targetId ? targetRect : null} onClick={handleClose} />
+          </div>
+          {/* Mobile backdrop — flat dim since spotlight is off on small screens */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/10 z-50"
+            className="fixed inset-0 bg-black/80 z-40 sm:hidden"
             onClick={handleClose}
           />
 
@@ -177,7 +279,7 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
           <div className="hidden sm:block">
             {activeStep?.targetId && (
               <Tooltip
-                targetId={activeStep.targetId}
+                rect={targetRect}
                 title={activeStep.title}
                 description={activeStep.description}
               />
@@ -189,7 +291,7 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed z-50 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-sm sm:rounded-2xl inset-x-0 bottom-0 sm:inset-auto rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto"
+            className="fixed z-[70] sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-sm sm:rounded-2xl inset-x-0 bottom-0 sm:inset-auto rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto"
             style={{ backgroundColor: "#FFFFFF" }}
           >
             {/* Close button */}
@@ -252,7 +354,7 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
                         }}
                       >
                         {step.title}
-                        {isDone && <span className="ml-2 text-xs font-normal text-emerald-600">Done</span>}
+                        {isDone && <span className="ml-2 text-xs font-normal text-emerald-600">Complete</span>}
                       </p>
                       <p
                         className="text-xs mt-0.5"

@@ -36,18 +36,17 @@ export function SplitAuthLayout({
 
           <div>
             <h1 className="text-3xl xl:text-4xl font-semibold text-white leading-tight mb-5 -tracking-[1px]">
-              Buy the Future of{" "}
-              <span className="text-white/70">Real World Assets</span>
+              Own a Part of{" "}
+              <span className="text-white/70">Real-World Assets</span>
             </h1>
 
             <p className="text-base text-white/50 leading-relaxed">
-              Regulated security tokens for commodities, infrastructure, and real-world projects.
-              <br />Buy with confidence.
+              Explore opportunities backed by tangible assets, designed to be simple and transparent.
             </p>
 
             <div className="mt-8 space-y-3">
               {[
-                "Regulated RWA security tokens",
+                "Regulated RWA project tokens",
                 "Institutional-grade compliance",
                 "Transparent on-chain ownership & redemption",
               ].map((feature, index) => (

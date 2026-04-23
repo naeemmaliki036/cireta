@@ -11,17 +11,29 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../../"),
   output: "standalone",
   skipTrailingSlashRedirect: true,
+  poweredByHeader: false,
   async headers() {
-    return [
+    const isProd = process.env.NODE_ENV === "production";
+    const securityHeaders = [
       {
-        source: "/:path*",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' https://app.safe.global https://safe-client.safe.global",
-          },
-        ],
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self' https://app.safe.global https://safe-client.safe.global",
       },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(), payment=()",
+      },
+    ];
+    if (isProd) {
+      securityHeaders.push({
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      });
+    }
+    return [
+      { source: "/:path*", headers: securityHeaders },
       {
         source: "/manifest.json",
         headers: [

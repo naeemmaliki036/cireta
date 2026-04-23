@@ -24,18 +24,34 @@ if (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID === "placeholder") {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Don't leak framework info in response headers.
+  poweredByHeader: false,
   async headers() {
-    return [
+    const isProd = process.env.NODE_ENV === "production";
+    const securityHeaders = [
+      // Allow Safe app to embed this site in an iframe; reject everything else.
       {
-        source: "/:path*",
-        headers: [
-          // Allow Safe app to embed this site in an iframe
-          {
-            key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' https://app.safe.global https://safe-client.safe.global",
-          },
-        ],
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self' https://app.safe.global https://safe-client.safe.global",
       },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        // Broad default-deny; camera/microphone are enabled for the same origin
+        // so Sumsub's embedded WebSDK can do liveness capture.
+        value: "camera=(self), microphone=(self), geolocation=(), payment=()",
+      },
+    ];
+    // HSTS only in prod — dev uses http://localhost, HSTS would break it.
+    if (isProd) {
+      securityHeaders.push({
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      });
+    }
+    return [
+      { source: "/:path*", headers: securityHeaders },
       {
         source: "/manifest.json",
         headers: [

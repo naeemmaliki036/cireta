@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { SplitAuthLayout } from "@/components/templates";
+import { safeRedirectPath } from "@/lib/utils";
 
 function LoginForm() {
   const _router = useRouter();
@@ -100,8 +101,7 @@ function LoginForm() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail?.message ?? "Verification failed");
       }
-      const redirectTo = searchParams.get("redirect") || "/projects";
-      window.location.href = redirectTo;
+      window.location.href = safeRedirectPath(searchParams.get("redirect"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setLoading(false);
@@ -146,8 +146,17 @@ function LoginForm() {
 
       {step === "otp" && (
         <form onSubmit={handleVerifyOtp} className="space-y-5">
-          <div>
+          <div className="flex items-baseline justify-between">
             <label htmlFor="otp" className="mb-2 block text-sm font-semibold text-text">Verification Code</label>
+            <button
+              type="button"
+              onClick={() => { setOtp(""); setError(null); setDevOtp(null); setStep("email"); }}
+              className="text-xs text-darkAqua hover:underline"
+            >
+              ← Change email
+            </button>
+          </div>
+          <div>
             <input id="otp" type="text" inputMode="numeric" maxLength={6} value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="000000" required autoFocus
@@ -195,7 +204,7 @@ function LoginForm() {
       <div className="mt-8 text-center">
         <p className="text-sm text-gray-500">
           Don&apos;t have an account?{" "}
-          <Link href={`/register?redirect=${encodeURIComponent(searchParams.get("redirect") || "/projects")}`} className="font-semibold text-darkAqua hover:underline">Create account</Link>
+          <Link href={`/register?redirect=${encodeURIComponent(safeRedirectPath(searchParams.get("redirect")))}`} className="font-semibold text-darkAqua hover:underline">Create account</Link>
         </p>
       </div>
     </SplitAuthLayout>
