@@ -499,8 +499,23 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               </div>
             )}
 
-            {/* Complete Profile CTA */}
-            {isAuthenticated && user && !user.onboarding_completed && user.kycStatus !== "approved" && (
+            {/* Profile / verification CTA. While KYC/KYB is under review
+                we swap the urgent "Complete Profile" pulse for a calmer
+                "Verification In Review" pill that deep-links to the
+                Sumsub widget page (which renders the live status). */}
+            {isAuthenticated && user && !user.onboarding_completed && user.kycStatus === "pending" && (
+              <Link
+                href={user.investor_type === "corporate" ? "/verify/corporate" : "/verify"}
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-1.5 rounded-full font-semibold transition-all duration-300 border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                  effectiveScrolled ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-[13px]"
+                )}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                {user.investor_type === "corporate" ? "KYB In Review" : "KYC In Review"}
+              </Link>
+            )}
+            {isAuthenticated && user && !user.onboarding_completed && user.kycStatus !== "approved" && user.kycStatus !== "pending" && (
               <Link
                 href="/onboarding"
                 className={cn(
@@ -943,7 +958,16 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               {/* Account links — if logged in */}
               {isAuthenticated && user ? (
                 <div className="border-t border-black/5 pt-4 space-y-0.5">
-                  {!user.onboarding_completed && user.kycStatus !== "approved" && (
+                  {!user.onboarding_completed && user.kycStatus === "pending" && (
+                    <Link
+                      href={user.investor_type === "corporate" ? "/verify/corporate" : "/verify"}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 py-2.5 text-[13px] font-semibold text-amber-700"
+                    >
+                      <Clock className="h-4 w-4" /> {user.investor_type === "corporate" ? "KYB In Review" : "KYC In Review"}
+                    </Link>
+                  )}
+                  {!user.onboarding_completed && user.kycStatus !== "approved" && user.kycStatus !== "pending" && (
                     <Link href="/onboarding" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 text-[13px] font-semibold text-darkAqua">
                       <Shield className="h-4 w-4" /> Complete Profile
                     </Link>

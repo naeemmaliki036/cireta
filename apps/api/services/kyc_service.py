@@ -98,20 +98,19 @@ class KYCService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "ALREADY_VERIFIED", "message": "KYC already approved"},
             )
-        if user.kyc_status == KYCStatus.PENDING:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "APPLICATION_PENDING",
-                    "message": "KYC application already pending",
-                },
-            )
 
+        # Idempotent re-initiate. Opening the widget is NOT a submission —
+        # Sumsub keeps the applicant at reviewStatus=init until documents
+        # are actually uploaded + submitted, at which point they fire
+        # applicantPending (or applicantReviewed) webhooks. Previously we
+        # flipped user.kyc_status=PENDING here which caused the "stuck in
+        # review" state when users closed the widget without submitting.
         from packages.common.core.config import get_settings
 
         settings = get_settings()
 
-        applicant_id = f"cireta-{user_id}"
+        existing_applicant_id = user.sumsub_applicant_id
+        applicant_id = existing_applicant_id or f"cireta-{user_id}"
         access_token = f"dev-token-{user_id}"
 
         if not _has_sumsub_credentials(settings):
@@ -126,17 +125,18 @@ class KYCService:
             log.warning("Sumsub credentials missing in development — returning mock token for user %s", user_id)
         else:
             try:
-                # Create applicant
-                applicant_resp = await _sumsub_request(
-                    "POST",
-                    f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
-                    settings.sumsub_app_token,
-                    settings.sumsub_secret_key,
-                    json={"externalUserId": str(user_id), "email": user.email},
-                )
-                applicant_id = applicant_resp.get("id", applicant_id)
+                # Create applicant only on first initiate; subsequent calls
+                # reuse the existing one and just refresh the access token.
+                if not existing_applicant_id:
+                    applicant_resp = await _sumsub_request(
+                        "POST",
+                        f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
+                        settings.sumsub_app_token,
+                        settings.sumsub_secret_key,
+                        json={"externalUserId": str(user_id), "email": user.email},
+                    )
+                    applicant_id = applicant_resp.get("id", applicant_id)
 
-                # Get access token
                 token_resp = await _sumsub_request(
                     "POST",
                     f"/resources/accessTokens?userId={applicant_id}&levelName={getattr(settings, 'sumsub_kyc_level', 'id-and-liveness')}",
@@ -151,15 +151,24 @@ class KYCService:
                     detail={"code": "KYC_PROVIDER_ERROR", "message": "KYC provider unavailable"},
                 ) from exc
 
-        # Persist application
-        application = KYCApplication()
-        application.user_id = user_id
-        application.sumsub_review_id = applicant_id
-        application.status = "pending"
-        application.submitted_at = datetime.now(UTC)
-        self.db.add(application)
+        # Create the KYCApplication row only once; reuse on subsequent opens.
+        # Status starts as "init" (matches Sumsub's reviewStatus) and is
+        # updated via webhook or the status-reconcile in get_status().
+        app_result = await self.db.execute(
+            select(KYCApplication)
+            .where(KYCApplication.user_id == user_id)
+            .order_by(KYCApplication.created_at.desc())
+        )
+        application = app_result.scalar_one_or_none()
+        if not application:
+            application = KYCApplication()
+            application.user_id = user_id
+            application.sumsub_review_id = applicant_id
+            application.status = "init"
+            self.db.add(application)
+        elif not application.sumsub_review_id:
+            application.sumsub_review_id = applicant_id
 
-        user.kyc_status = KYCStatus.PENDING
         user.sumsub_applicant_id = applicant_id
         await self.db.commit()
 
@@ -194,7 +203,13 @@ class KYCService:
         return {"status": "approved", "kyc_level": 2}
 
     async def get_status(self, user_id: UUID) -> dict[str, Any]:
-        """Get KYC status for a user."""
+        """Get KYC status for a user.
+
+        If the user has an active Sumsub applicant and the local state
+        isn't already terminal (APPROVED / REJECTED), we poll Sumsub's
+        applicant-status endpoint and reconcile — that way a delayed or
+        lost webhook doesn't leave the UI stuck at a stale status.
+        """
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
@@ -208,6 +223,13 @@ class KYCService:
             .order_by(KYCApplication.created_at.desc())
         )
         application = app_result.scalar_one_or_none()
+
+        if (
+            user.sumsub_applicant_id
+            and user.kyc_status not in (KYCStatus.APPROVED, KYCStatus.REJECTED)
+        ):
+            await self._reconcile_from_sumsub(user, application)
+
         return {
             "status": user.kyc_status.value
             if hasattr(user.kyc_status, "value")
@@ -217,6 +239,73 @@ class KYCService:
             "submitted_at": application.submitted_at if application else None,
             "reviewed_at": application.reviewed_at if application else None,
         }
+
+    async def _reconcile_from_sumsub(
+        self, user: User, application: KYCApplication | None
+    ) -> None:
+        """Fetch the authoritative reviewStatus from Sumsub and mirror it
+        locally. Silently no-ops if Sumsub is unreachable or credentials
+        aren't configured — the cached local state is fine as a fallback.
+        """
+        from packages.common.core.config import get_settings
+
+        settings = get_settings()
+        if not _has_sumsub_credentials(settings):
+            return
+        try:
+            resp = await _sumsub_request(
+                "GET",
+                f"/resources/applicants/{user.sumsub_applicant_id}/status",
+                settings.sumsub_app_token,
+                settings.sumsub_secret_key,
+            )
+        except Exception as exc:
+            log.warning("Sumsub status reconcile failed for user %s: %s", user.id, exc)
+            return
+
+        review_status = resp.get("reviewStatus")
+        review_result = resp.get("reviewResult") or {}
+        review_answer = review_result.get("reviewAnswer")
+        reject_type = review_result.get("reviewRejectType")
+
+        # Map Sumsub's lifecycle onto our four-state local enum.
+        # See https://docs.sumsub.com/docs/applicant-statuses
+        new_local_status: KYCStatus | None = None
+        if review_status == "init":
+            new_local_status = KYCStatus.NONE
+        elif review_status in (
+            "pending",
+            "queued",
+            "prechecked",
+            "onHold",
+            "awaitingService",
+            "awaitingUser",
+        ):
+            new_local_status = KYCStatus.PENDING
+        elif review_status == "completed":
+            if review_answer == "GREEN":
+                new_local_status = KYCStatus.APPROVED
+            elif review_answer == "RED":
+                # RETRY = resubmission requested — keep user in PENDING so
+                # they can upload again; only FINAL is terminal rejection.
+                new_local_status = (
+                    KYCStatus.REJECTED if reject_type == "FINAL" else KYCStatus.PENDING
+                )
+
+        changed = False
+        if new_local_status is not None and user.kyc_status != new_local_status:
+            user.kyc_status = new_local_status
+            changed = True
+            # Don't self-approve here; on-chain claim issuance is driven by
+            # the applicantReviewed webhook which has the full reviewResult
+            # and also enqueues the ONCHAINID deployment job.
+
+        if application and review_status and application.status != review_status:
+            application.status = review_status
+            changed = True
+
+        if changed:
+            await self.db.commit()
 
     async def handle_webhook(self, payload: dict[str, Any], ip_address: str | None = None) -> None:
         """Handle Sumsub webhook (HMAC must be validated before calling this)."""
@@ -254,6 +343,23 @@ class KYCService:
             application.result_payload = payload
             if review_status == "completed":
                 application.reviewed_at = datetime.now(UTC)
+            elif (
+                review_status in ("pending", "queued", "prechecked")
+                or event_type == "applicantPending"
+            ) and application.submitted_at is None:
+                # Docs have actually been submitted — record the timestamp
+                # now (not at initiate time, which only opens the widget).
+                application.submitted_at = datetime.now(UTC)
+
+        # applicantPending = user finished uploading docs; Sumsub has
+        # queued the review. Transition local state to PENDING so the UI
+        # reflects the "under review" badge driven by Sumsub, not by the
+        # user merely opening the widget.
+        if (
+            event_type == "applicantPending"
+            or review_status in ("pending", "queued", "prechecked")
+        ) and user.kyc_status not in (KYCStatus.APPROVED, KYCStatus.REJECTED):
+            user.kyc_status = KYCStatus.PENDING
 
         if event_type == "applicantReviewed" and review_result:
             review_answer = review_result.get("reviewAnswer")
@@ -443,7 +549,9 @@ class KYCService:
 
         settings = get_settings()
 
-        applicant_id = f"cireta-corp-{user_id}"
+        # Idempotent re-initiate (same reasoning as individual KYC).
+        existing_applicant_id = user.sumsub_applicant_id
+        applicant_id = existing_applicant_id or f"cireta-corp-{user_id}"
         access_token = f"dev-corp-token-{user_id}"
 
         if not _has_sumsub_credentials(settings):
@@ -458,25 +566,26 @@ class KYCService:
             log.warning("Sumsub credentials missing in development — returning mock corporate token for user %s", user_id)
         else:
             try:
-                applicant_resp = await _sumsub_request(
-                    "POST",
-                    f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
-                    settings.sumsub_app_token,
-                    settings.sumsub_secret_key,
-                    json={
-                        "externalUserId": str(user_id),
-                        "email": user.email,
-                        "type": "company",
-                        "info": {
-                            "companyInfo": {
-                                "companyName": body.company_name,
-                                "registrationNumber": body.registration_number,
-                                "country": body.jurisdiction,
-                            }
+                if not existing_applicant_id:
+                    applicant_resp = await _sumsub_request(
+                        "POST",
+                        f"/resources/applicants?levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
+                        settings.sumsub_app_token,
+                        settings.sumsub_secret_key,
+                        json={
+                            "externalUserId": str(user_id),
+                            "email": user.email,
+                            "type": "company",
+                            "info": {
+                                "companyInfo": {
+                                    "companyName": body.company_name,
+                                    "registrationNumber": body.registration_number,
+                                    "country": body.jurisdiction,
+                                }
+                            },
                         },
-                    },
-                )
-                applicant_id = applicant_resp.get("id", applicant_id)
+                    )
+                    applicant_id = applicant_resp.get("id", applicant_id)
                 token_resp = await _sumsub_request(
                     "POST",
                     f"/resources/accessTokens?userId={applicant_id}&levelName={getattr(settings, 'sumsub_kyb_level', 'business-kyb-level')}",
@@ -491,12 +600,13 @@ class KYCService:
                     detail={"code": "KYC_PROVIDER_ERROR", "message": "KYC provider unavailable"},
                 ) from exc
 
-        application = KYCApplication()
-        application.user_id = user_id
-        application.sumsub_review_id = applicant_id
-        application.status = "pending"
-        application.submitted_at = datetime.now(UTC)
-        application.result_payload = {
+        app_result = await self.db.execute(
+            select(KYCApplication)
+            .where(KYCApplication.user_id == user_id)
+            .order_by(KYCApplication.created_at.desc())
+        )
+        application = app_result.scalar_one_or_none()
+        corporate_payload = {
             "type": "corporate",
             "company_name": body.company_name,
             "registration_number": body.registration_number,
@@ -504,9 +614,18 @@ class KYCService:
             "directors": body.directors,
             "ubo_list": body.ubo_list,
         }
-        self.db.add(application)
+        if not application:
+            application = KYCApplication()
+            application.user_id = user_id
+            application.sumsub_review_id = applicant_id
+            application.status = "init"
+            application.result_payload = corporate_payload
+            self.db.add(application)
+        else:
+            if not application.sumsub_review_id:
+                application.sumsub_review_id = applicant_id
+            application.result_payload = corporate_payload
 
-        user.kyc_status = KYCStatus.PENDING
         user.sumsub_applicant_id = applicant_id
         user.investor_type = "corporate"
         await self.db.commit()
