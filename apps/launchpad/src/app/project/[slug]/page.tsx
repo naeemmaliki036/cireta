@@ -5,8 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeft, ShoppingBag, FolderOpen, Coins, Bell, Play,
+  ArrowLeft, ArrowRight, ShoppingBag, FolderOpen, Coins, Bell, Play,
   FileText, ChevronDown, ChevronUp, Download, Clock, Copy, Check, CheckCircle2,
+  User,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
@@ -239,10 +240,11 @@ export default function ProjectDetailPage() {
     setTxsError(null);
 
     if (activeTab === "Transactions" && saleRaw?.id) {
-      // Public endpoint — all sale transactions, no auth needed
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-      fetch(`${apiBase}/api/v1/sales/${saleRaw.id}/transactions?limit=100`)
-        .then(r => r.json())
+      // Public endpoint — all sale transactions, no auth needed. Routed
+      // through apiFetch (which goes via /api/proxy) so it works uniformly
+      // across local/staging/prod without depending on the client-side
+      // env var resolving correctly.
+      apiFetch<Transaction[]>(`/api/v1/sales/${saleRaw.id}/transactions?limit=100`, { skipAuthRedirect: true })
         .then((data) => { if (!cancelled) setTxs(Array.isArray(data) ? data : []); })
         .catch(() => { if (!cancelled) setTxsError("Failed to load transactions."); })
         .finally(() => { if (!cancelled) setTxsLoading(false); });
@@ -1169,9 +1171,20 @@ export default function ProjectDetailPage() {
               )}
               {(activeTab === "My Position" || activeTab === "Transactions") && (
                 (activeTab === "My Position" && !isAuthenticated) ? (
-                  <div className="bg-gray-50 rounded-xl p-10 text-center">
-                    <p className="text-gray-400 font-medium">Sign in to view your position</p>
-                    <Link href={`/login?redirect=/project/${slug}`} className="inline-block mt-3 text-darkAqua text-sm font-semibold hover:underline">Sign In</Link>
+                  <div className="bg-gradient-to-br from-darkAqua/5 to-darkAqua/[0.02] border border-darkAqua/10 rounded-2xl p-8 sm:p-10 text-center">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-darkAqua/10 flex items-center justify-center mb-4">
+                      <User className="h-5 w-5 text-darkAqua" />
+                    </div>
+                    <p className="text-text font-semibold text-base">Sign in to view your position</p>
+                    <p className="text-gray-500 text-sm mt-1 max-w-sm mx-auto">See your holdings, vesting schedule, and transaction history for this project.</p>
+                    <div className="flex items-center justify-center gap-3 mt-5">
+                      <Link
+                        href={`/login?redirect=/project/${slug}`}
+                        className="inline-flex items-center gap-1.5 btn-cta px-6 py-2.5 rounded-full text-sm font-semibold transition-colors"
+                      >
+                        Sign In <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 ) : txsLoading ? (
                   <div className="flex justify-center py-12"><Spinner size="lg" /></div>
@@ -1183,59 +1196,153 @@ export default function ProjectDetailPage() {
                     <p className="text-gray-300 text-sm mt-1">{activeTab === "Transactions" ? "Transactions for this sale will appear here as buyers participate." : "Your transactions for this project will appear here after you buy."}</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {txs.map((tx) => {
-                      const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
-                      const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
-                      const phaseName = tx.phase_name || "";
-                      const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
-                      const typeStyle: Record<string, string> = {
-                        investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
-                        claim: "bg-green-50 text-green-700",
-                        redemption: "bg-purple-50 text-purple-700",
-                        refund: "bg-orange-50 text-orange-700",
-                      };
-                      const statusDot: Record<string, string> = {
-                        confirmed: "bg-green-500", claimed: "bg-green-500", pending: "bg-amber-400",
-                        processing: "bg-amber-400", fulfilled: "bg-green-500", refunded: "bg-orange-400",
-                        failed: "bg-red-500", cancelled: "bg-red-400",
-                      };
-                      const d = tx.created_at ? new Date(tx.created_at) : null;
-                      const amountDisplay = isOffPlatform
-                        ? `${formatTokenDisplay(tx.tokens_allocated)} ${tx.token_symbol || "tokens"}`
-                        : `${Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${isOtc ? "OTC" : "USDC"}`;
-                      return (
-                        <div key={tx.id} className="bg-gray-50 rounded-xl p-4 flex items-start gap-3">
-                          {/* Type badge */}
-                          <span className={cn("text-[10px] font-semibold px-2 py-1 rounded-md mt-0.5 shrink-0", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
-                            {typeLabel[tx.type] ?? tx.type}
-                          </span>
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <p className="text-base font-bold text-text">{amountDisplay}</p>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className={cn("w-1.5 h-1.5 rounded-full", statusDot[tx.status] ?? "bg-gray-300")} />
-                                <span className="text-xs text-gray-500 capitalize">{tx.status}</span>
+                  <>
+                    {/* Desktop: table */}
+                    <div className="hidden lg:block bg-white rounded-xl border border-gray-100 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-100 text-gray-400 text-xs uppercase">
+                              <th className="text-left px-4 py-3">Date</th>
+                              <th className="text-left px-4 py-3">Type</th>
+                              <th className="text-right px-4 py-3">Amount</th>
+                              <th className="text-left px-4 py-3">Status</th>
+                              <th className="text-left px-4 py-3">Tx Hash</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {txs.map((tx) => {
+                              const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
+                              const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
+                              const phaseName = tx.phase_name || "";
+                              const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
+                              const typeStyle: Record<string, string> = {
+                                investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
+                                claim: "bg-green-50 text-green-700",
+                                redemption: "bg-purple-50 text-purple-700",
+                                refund: "bg-orange-50 text-orange-700",
+                              };
+                              const statusStyle: Record<string, string> = {
+                                confirmed: "bg-green-100 text-green-700",
+                                claimed: "bg-green-100 text-green-700",
+                                pending: "bg-yellow-100 text-yellow-700",
+                                processing: "bg-yellow-100 text-yellow-700",
+                                fulfilled: "bg-green-100 text-green-700",
+                                refunded: "bg-orange-100 text-orange-700",
+                                failed: "bg-red-100 text-red-700",
+                                cancelled: "bg-red-100 text-red-700",
+                              };
+                              const d = tx.created_at ? new Date(tx.created_at) : null;
+                              return (
+                                <tr key={tx.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+                                  <td className="px-4 py-3">
+                                    <p className="text-text">{d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}</p>
+                                    <p className="text-gray-400 text-xs">{d ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : ""}</p>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
+                                      {typeLabel[tx.type] ?? tx.type}
+                                    </span>
+                                    {phaseName && <p className="text-[10px] text-gray-400 mt-0.5">{phaseName}</p>}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    {isOffPlatform ? (
+                                      <>
+                                        <p className="text-text font-semibold">
+                                          {formatTokenDisplay(tx.tokens_allocated)}{" "}
+                                          <span className="text-gray-400 font-normal text-xs">{tx.token_symbol || "tokens"}</span>
+                                        </p>
+                                        <p className="text-gray-400 text-xs">Off-platform</p>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <p className="text-text font-semibold">
+                                          {Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
+                                          <span className="text-gray-400 font-normal text-xs">{isOtc ? "OTC" : "USDC"}</span>
+                                        </p>
+                                        {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && (
+                                          <p className="text-gray-400 text-xs">{formatTokenDisplay(tx.tokens_allocated)} tokens</p>
+                                        )}
+                                      </>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full capitalize", statusStyle[tx.status] ?? "bg-gray-100 text-gray-400")}>
+                                      {tx.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
+                                      <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
+                                        {truncateAddress(tx.tx_hash, 6)}
+                                      </a>
+                                    ) : tx.tx_hash?.startsWith("otc-") ? (
+                                      <span className="text-gray-400 text-xs">OTC</span>
+                                    ) : (
+                                      <span className="text-gray-300 text-xs">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Mobile: cards */}
+                    <div className="lg:hidden space-y-3">
+                      {txs.map((tx) => {
+                        const isOtc = tx.is_otc === true || (tx.tx_hash?.startsWith("otc-") ?? false);
+                        const isOffPlatform = tx.tx_hash?.startsWith("otc-") ?? false;
+                        const phaseName = tx.phase_name || "";
+                        const typeLabel: Record<string, string> = { investment: isOtc ? "OTC Buy" : "Buy", claim: "Claim", redemption: "Redemption", refund: "Refund" };
+                        const typeStyle: Record<string, string> = {
+                          investment: isOtc ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700",
+                          claim: "bg-green-50 text-green-700",
+                          redemption: "bg-purple-50 text-purple-700",
+                          refund: "bg-orange-50 text-orange-700",
+                        };
+                        const statusDot: Record<string, string> = {
+                          confirmed: "bg-green-500", claimed: "bg-green-500", pending: "bg-amber-400",
+                          processing: "bg-amber-400", fulfilled: "bg-green-500", refunded: "bg-orange-400",
+                          failed: "bg-red-500", cancelled: "bg-red-400",
+                        };
+                        const d = tx.created_at ? new Date(tx.created_at) : null;
+                        const amountDisplay = isOffPlatform
+                          ? `${formatTokenDisplay(tx.tokens_allocated)} ${tx.token_symbol || "tokens"}`
+                          : `${Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${isOtc ? "OTC" : "USDC"}`;
+                        return (
+                          <div key={tx.id} className="bg-gray-50 rounded-xl p-4 flex items-start gap-3">
+                            <span className={cn("text-[10px] font-semibold px-2 py-1 rounded-md mt-0.5 shrink-0", typeStyle[tx.type] ?? "bg-gray-100 text-gray-500")}>
+                              {typeLabel[tx.type] ?? tx.type}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className="text-base font-bold text-text">{amountDisplay}</p>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className={cn("w-1.5 h-1.5 rounded-full", statusDot[tx.status] ?? "bg-gray-300")} />
+                                  <span className="text-xs text-gray-500 capitalize">{tx.status}</span>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                              <span>{d ? `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "—"}</span>
-                              {phaseName && <span>· {phaseName}</span>}
-                              {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && !isOffPlatform && (
-                                <span>· {formatTokenDisplay(tx.tokens_allocated)} tokens</span>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                <span>{d ? `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "—"}</span>
+                                {phaseName && <span>· {phaseName}</span>}
+                                {tx.tokens_allocated && Number(tx.tokens_allocated) > 0 && tx.type === "investment" && !isOffPlatform && (
+                                  <span>· {formatTokenDisplay(tx.tokens_allocated)} tokens</span>
+                                )}
+                              </div>
+                              {tx.tx_hash && !tx.tx_hash.startsWith("otc-") && (
+                                <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono mt-1 inline-block">
+                                  {truncateAddress(tx.tx_hash, 6)} ↗
+                                </a>
                               )}
                             </div>
-                            {tx.tx_hash && !tx.tx_hash.startsWith("otc-") && (
-                              <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono mt-1 inline-block">
-                                {truncateAddress(tx.tx_hash, 6)} ↗
-                              </a>
-                            )}
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )
               )}
             </div>
