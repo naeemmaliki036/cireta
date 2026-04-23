@@ -131,6 +131,16 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
 
+  // Small transient "Sign in to connect" hint shown when a guest taps the
+  // Connect Wallet button. Auto-dismisses a few seconds later so the nav
+  // doesn't stay cluttered if the user never acts on it.
+  const [walletHint, setWalletHint] = useState(false);
+  useEffect(() => {
+    if (!walletHint) return;
+    const t = window.setTimeout(() => setWalletHint(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [walletHint]);
+
   // Pill state only when user has scrolled.
   const effectiveScrolled = isScrolled;
   // Text color class at the top of the page (before scroll). White on dark hero, black on light pages.
@@ -374,22 +384,53 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                   >
                     {(() => {
                       if (!connected) {
+                        // Wallet connection is gated behind sign-in so a user
+                        // can never sign an on-chain tx without first having a
+                        // Cireta account to link it to. Guests see the same
+                        // "Connect Wallet" label; tapping it pops a small
+                        // transient hint pointing them at the Sign In flow.
+                        const connectClasses = cn(
+                          "inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-all duration-300 hover:opacity-80",
+                          effectiveScrolled
+                            ? "px-3 py-1.5 text-[13px] bg-darkAqua text-white"
+                            : variant === "light"
+                              ? "px-5 py-2 text-sm btn-cta"
+                              : "px-5 py-2 text-sm bg-white text-black"
+                        );
+                        const icon = <Wallet className={effectiveScrolled ? "h-3.5 w-3.5" : "h-4 w-4"} />;
                         return (
-                          <button
-                            data-tour-id="connect-wallet"
-                            onClick={openConnectModal}
-                            className={cn(
-                              "inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition-all duration-300 hover:opacity-80",
-                              effectiveScrolled
-                                ? "px-3 py-1.5 text-[13px] bg-darkAqua text-white"
-                                : variant === "light"
-                                  ? "px-5 py-2 text-sm btn-cta"
-                                  : "px-5 py-2 text-sm bg-white text-black"
-                            )}
-                          >
-                            <Wallet className={effectiveScrolled ? "h-3.5 w-3.5" : "h-4 w-4"} />
-                            Connect Wallet
-                          </button>
+                          <div className="relative">
+                            <button
+                              data-tour-id="connect-wallet"
+                              onClick={() => {
+                                if (isAuthenticated) openConnectModal();
+                                else setWalletHint(true);
+                              }}
+                              className={connectClasses}
+                            >
+                              {icon}
+                              Connect Wallet
+                            </button>
+                            <AnimatePresence>
+                              {!isAuthenticated && walletHint && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -4 }}
+                                  className="absolute right-0 mt-2 z-50 w-56 rounded-xl border border-black/10 bg-white shadow-lg p-3 text-xs text-black"
+                                >
+                                  Sign in to connect your wallet.
+                                  <Link
+                                    href={`/login?redirect=${encodeURIComponent(pathname)}`}
+                                    className="block mt-2 text-darkAqua font-medium hover:underline"
+                                    onClick={() => setWalletHint(false)}
+                                  >
+                                    Sign in →
+                                  </Link>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
                         );
                       }
                       if (chain.unsupported) {
@@ -404,6 +445,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                       }
                       return (
                         <button
+                          data-tour-id="connect-wallet"
                           onClick={openAccountModal}
                           className={cn(
                             "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-medium transition-all duration-200",
@@ -474,7 +516,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
             {isAuthenticated && user && (
               <div className="relative hidden sm:block" ref={userMenuRef}>
                 <button
-                  data-tour-id="user-menu"
+                  data-tour-id="user-menu register"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-all duration-200",
@@ -946,9 +988,29 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                         {(() => {
                           if (!connected) {
                             return (
-                              <button onClick={openConnectModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua hover:bg-darkAqua/5 transition-colors">
-                                <Wallet className="h-4 w-4" /> Connect Wallet
-                              </button>
+                              <div className="w-full">
+                                <button
+                                  onClick={() => {
+                                    if (isAuthenticated) openConnectModal();
+                                    else setWalletHint(true);
+                                  }}
+                                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium border border-darkAqua/30 text-darkAqua hover:bg-darkAqua/5 transition-colors"
+                                >
+                                  <Wallet className="h-4 w-4" /> Connect Wallet
+                                </button>
+                                {!isAuthenticated && walletHint && (
+                                  <div className="mt-2 rounded-xl border border-black/10 bg-white p-3 text-xs text-black">
+                                    Sign in to connect your wallet.
+                                    <Link
+                                      href={`/login?redirect=${encodeURIComponent(pathname)}`}
+                                      className="block mt-2 text-darkAqua font-medium hover:underline"
+                                      onClick={() => setWalletHint(false)}
+                                    >
+                                      Sign in →
+                                    </Link>
+                                  </div>
+                                )}
+                              </div>
                             );
                           }
                           if (chain.unsupported) {

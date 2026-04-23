@@ -559,9 +559,9 @@ export default function ProjectDetailPage() {
                   ) : ap?.deployed_on_chain === false ? (
                     <button disabled className="w-full bg-gray-200 text-gray-500 py-3 rounded-xl cursor-not-allowed">Phase Not Yet Available</button>
                   ) : isAuthenticated ? (
-                    <Link href={`/buy/${project.slug}`} className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
+                    <Link href={`/buy/${project.slug}`} data-tour-id="buy-button" className="block w-full btn-cta py-3 rounded-xl transition-colors text-center">Buy Now</Link>
                   ) : (
-                    <button onClick={() => setShowLoginDialog(true)} className="w-full btn-cta py-3 rounded-xl transition-colors">Buy Now</button>
+                    <button onClick={() => setShowLoginDialog(true)} data-tour-id="buy-button" className="w-full btn-cta py-3 rounded-xl transition-colors">Buy Now</button>
                   )}
                 </div>
               </div>
@@ -618,9 +618,9 @@ export default function ProjectDetailPage() {
                 ) : ap?.deployed_on_chain === false ? (
                   <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-xl">Not Available</span>
                 ) : isAuthenticated ? (
-                  <Link href={`/buy/${project.slug}`} className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</Link>
+                  <Link href={`/buy/${project.slug}`} data-tour-id="buy-button" className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</Link>
                 ) : (
-                  <button onClick={() => setShowLoginDialog(true)} className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</button>
+                  <button onClick={() => setShowLoginDialog(true)} data-tour-id="buy-button" className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</button>
                 )}
               </div>
             </div>

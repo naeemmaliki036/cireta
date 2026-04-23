@@ -182,7 +182,7 @@ export function WelcomeModal() {
                               <span className="text-[9px] font-medium text-gray-300 bg-gray-100 px-1.5 py-0.5 rounded">OPTIONAL</span>
                             )}
                           </div>
-                          <p className={`text-sm font-semibold ${done ? "text-gray-400 line-through" : "text-gray-900"}`}>{step.title}</p>
+                          <p className={`text-sm font-semibold ${done ? "text-gray-400" : "text-gray-900"}`}>{step.title}</p>
                           {!done && (
                             <p className="text-xs text-gray-500 mt-0.5">
                               {isKycPending

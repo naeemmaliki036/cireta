@@ -105,7 +105,7 @@ const SIDEBAR_LINKS = [
   { href: "/portfolio", label: "Portfolio", icon: FolderOpen },
 ];
 
-function ActiveProjectCard({ project }: { project: Project }) {
+function ActiveProjectCard({ project, isFirst }: { project: Project; isFirst?: boolean }) {
   const onChain = useOnChainSaleStats(
     (project.contract_address ?? null) as `0x${string}` | null,
     0,
@@ -161,7 +161,10 @@ function ActiveProjectCard({ project }: { project: Project }) {
   }, [project.id, isAuthenticated]);
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
+    <div
+      {...(isFirst ? { "data-tour-id": "first-project-card" } : {})}
+      className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full"
+    >
       <div className="relative h-72 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4 flex items-center gap-2">
@@ -281,7 +284,10 @@ function ActiveProjectCard({ project }: { project: Project }) {
                 </div>
               )}
             </div>
-            <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors">
+            <Link
+              href={`/project/${project.slug}`}
+              className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors"
+            >
               View Details <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -291,7 +297,7 @@ function ActiveProjectCard({ project }: { project: Project }) {
   );
 }
 
-function ComingSoonCard({ project }: { project: Project }) {
+function ComingSoonCard({ project, isFirst }: { project: Project; isFirst?: boolean }) {
   const [subscribed, setSubscribed] = useState(false);
   const [justSubscribed, setJustSubscribed] = useState(false);
   const [subLoading, setSubLoading] = useState(false);
@@ -333,7 +339,10 @@ function ComingSoonCard({ project }: { project: Project }) {
   const isUpcoming = !project.isComingSoon;
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full">
+    <div
+      {...(isFirst ? { "data-tour-id": "first-project-card" } : {})}
+      className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-card transition-shadow flex flex-col h-full"
+    >
       <div className="relative h-64 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4">
@@ -408,7 +417,10 @@ function ComingSoonCard({ project }: { project: Project }) {
             <p className="text-[12px] text-gray-400 uppercase tracking-wide">Target</p>
             <p className="text-[14px] font-bold">{target > 0 ? (target >= 1_000_000 ? `${(target / 1_000_000).toFixed(target % 1_000_000 === 0 ? 0 : 1)}M USDC` : `${target.toLocaleString()} USDC`) : "TBD"}</p>
           </div>
-          <Link href={`/project/${project.slug}`} className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors">
+          <Link
+            href={`/project/${project.slug}`}
+            className="inline-flex items-center gap-2 btn-cta text-[12px] px-4 py-2 rounded-full transition-colors"
+          >
             View Details <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -506,8 +518,8 @@ export default function ExplorePage() {
               <p className="text-gray-400 text-sm ml-9">No active opportunities at the moment.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {activeProjects.map((p) => (
-                  <ActiveProjectCard key={p.id} project={p} />
+                {activeProjects.map((p, i) => (
+                  <ActiveProjectCard key={p.id} project={p} isFirst={i === 0} />
                 ))}
               </div>
             )}
@@ -538,8 +550,12 @@ export default function ExplorePage() {
               <p className="text-gray-400 text-sm ml-9">No upcoming projects at the moment.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {comingSoonProjects.map((p) => (
-                  <ComingSoonCard key={p.id} project={p} />
+                {comingSoonProjects.map((p, i) => (
+                  <ComingSoonCard
+                    key={p.id}
+                    project={p}
+                    isFirst={i === 0 && activeProjects.length === 0}
+                  />
                 ))}
               </div>
             )}

@@ -817,6 +817,7 @@ export default function HomePage() {
               {projects.slice(0, 4).map((p, i) => (
                 <motion.div
                   key={p.id}
+                  {...(i === 0 ? { "data-tour-id": "first-project-card" } : {})}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
