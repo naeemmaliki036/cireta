@@ -172,7 +172,7 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         <h2 className="text-2xl font-semibold text-text mb-2">Identity Verified</h2>
         <p className="text-black/50 mb-8">Your KYC verification has been approved</p>
         <Button variant="primary" onClick={() => router.push("/projects")}>
-          Start Investing
+          Explore Projects
         </Button>
       </div>
     );
