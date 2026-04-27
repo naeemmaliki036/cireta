@@ -604,17 +604,34 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             </Button>
           )}
           {(sale.contract_address || syncDone) && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
-              <p className="font-semibold">Deployed</p>
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <p className="font-semibold">Sale Contract Deployed</p>
+              </div>
               {sale.contract_address && (
-                <button
-                  onClick={() => navigator.clipboard.writeText(sale.contract_address!)}
-                  title="Click to copy"
-                  className="inline-flex items-center gap-1.5 font-mono text-xs bg-green-100 hover:bg-green-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                >
-                  {sale.contract_address.slice(0, 6)}...{sale.contract_address.slice(-4)}
-                  <svg className="h-3 w-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigator.clipboard.writeText(sale.contract_address!)}
+                    title="Click to copy address"
+                    className="inline-flex items-center gap-1.5 font-mono text-xs bg-green-100 hover:bg-green-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {sale.contract_address.slice(0, 6)}...{sale.contract_address.slice(-4)}
+                    <svg className="h-3 w-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  </button>
+                  <a
+                    href={`https://basescan.org/address/${sale.contract_address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View on BaseScan"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800 transition-colors"
+                  >
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    View on BaseScan
+                  </a>
+                </div>
               )}
             </div>
           )}
