@@ -120,7 +120,7 @@ function SaleRow({ sale }: { sale: Sale }) {
 export default function SalesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -198,13 +198,13 @@ export default function SalesPage() {
             <Input placeholder="Search sales…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
-            <button onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
             <button onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
               <List className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
+              <LayoutGrid className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -229,19 +229,19 @@ export default function SalesPage() {
           )}
         </div>
       ) : (
-        viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((sale, i) => (
-              <motion.div key={sale.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                <SaleCard sale={sale} />
-              </motion.div>
-            ))}
-          </div>
-        ) : (
+        viewMode === "list" ? (
           <div className="flex flex-col gap-2">
             {filtered.map((sale, i) => (
               <motion.div key={sale.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
                 <SaleRow sale={sale} />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((sale, i) => (
+              <motion.div key={sale.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                <SaleCard sale={sale} />
               </motion.div>
             ))}
           </div>

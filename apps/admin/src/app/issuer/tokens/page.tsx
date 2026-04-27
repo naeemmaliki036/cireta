@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Abi } from "viem";
-import { Plus, ArrowUpRight, Coins, Pause, Play, Shield, Copy, Rocket } from "lucide-react";
+import { Plus, ArrowUpRight, Coins, Pause, Play, Shield, Copy, Rocket, LayoutGrid, List } from "lucide-react";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
@@ -203,8 +203,49 @@ function OTCTokenSection() {
   );
 }
 
+function TokenRow({ token }: { token: Token }) {
+  const addr = token.contract_address;
+  const deployed = addr && addr !== "0x0000000000000000000000000000000000000000";
+  const masked = deployed ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : null;
+
+  return (
+    <Link href={`/issuer/tokens/${token.id}`}
+      className="flex items-center gap-4 px-4 py-3 bg-white border border-zinc-100 rounded-lg hover:border-darkAqua/30 hover:shadow-sm transition-all group">
+      <div className="min-w-0 flex-1">
+        <h3 className="font-semibold text-text text-sm">{token.name}</h3>
+        <p className="text-xs text-black/40 mt-0.5">{token.symbol} · {token.asset_type} · {token.decimals} decimals</p>
+      </div>
+      <div className="text-xs text-black/30 shrink-0">
+        <p className="font-semibold text-text">{parseFloat(token.total_supply).toLocaleString()}</p>
+        <p>Total Supply</p>
+      </div>
+      <div className="text-xs text-black/30 shrink-0">
+        {masked ? (
+          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(addr!); }}
+            className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
+            {masked} <Copy className="h-3 w-3 text-black/20" />
+          </button>
+        ) : (
+          <p className="font-semibold text-black/30">Not Deployed</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {token.is_paused ? (
+          <Badge variant="pending" size="sm"><Pause className="h-3 w-3 mr-1" />Paused</Badge>
+        ) : deployed ? (
+          <Badge variant="active" size="sm"><Play className="h-3 w-3 mr-1" />Active</Badge>
+        ) : (
+          <Badge variant="pending" size="sm">Not Deployed</Badge>
+        )}
+      </div>
+      <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors shrink-0" />
+    </Link>
+  );
+}
+
 export default function TokensPage() {
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -255,10 +296,20 @@ export default function TokensPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4 mb-4">
+      {/* Search + View Toggle */}
+      <div className="flex items-center justify-between gap-4 mb-4">
         <div className="flex-1 max-w-xs">
           <Input placeholder="Search by name, symbol, or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
+          <button onClick={() => setViewMode("list")}
+            className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
+            <List className="h-4 w-4" />
+          </button>
+          <button onClick={() => setViewMode("grid")}
+            className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
+            <LayoutGrid className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -281,13 +332,23 @@ export default function TokensPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((token, i) => (
-            <motion.div key={token.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-              <TokenCard token={token} />
-            </motion.div>
-          ))}
-        </div>
+        viewMode === "list" ? (
+          <div className="flex flex-col gap-2">
+            {filtered.map((token, i) => (
+              <motion.div key={token.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
+                <TokenRow token={token} />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((token, i) => (
+              <motion.div key={token.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                <TokenCard token={token} />
+              </motion.div>
+            ))}
+          </div>
+        )
       )}
 
       {/* OTC Token Section — independent of sales */}
