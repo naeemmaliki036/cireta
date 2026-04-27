@@ -48,9 +48,9 @@ export function TermsModal({ isOpen, onClose, onAccept, title = "Terms & Conditi
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-darkAqua focus:ring-darkAqua mt-0.5"
+              className="w-4 h-4 rounded border-gray-300 text-darkAqua focus:ring-darkAqua mt-0.5 flex-shrink-0"
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 leading-relaxed">
               I&apos;ve read and agree to the{" "}
               <a
                 href="https://www.cireta.com/terms-of-service"
@@ -77,13 +77,13 @@ export function TermsModal({ isOpen, onClose, onAccept, title = "Terms & Conditi
         <div className="flex gap-3">
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 rounded-full"
             onClick={onClose}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 btn-cta"
+            className="flex-1 btn-cta rounded-full"
             onClick={handleAccept}
             disabled={!agreed}
           >
