@@ -41,15 +41,18 @@ const PLATFORM_LINKS = [
   { href: "/platform/audit-logs", label: "Audit Logs", icon: FileText },
   { href: "/platform/fees", label: "Fees", icon: DollarSign },
   { href: "/platform/analytics", label: "Analytics", icon: TrendingUp },
-  { href: "/platform/stats", label: "Stats", icon: BarChart3 },
-  { href: "/platform/partners", label: "Partners", icon: Handshake },
-  { href: "/platform/team", label: "Team", icon: Users },
 ];
 
 const MANAGE_LINKS = [
   { href: "/platform/issuers", label: "Issuers", icon: Building2 },
   { href: "/platform/issuers/whitelist", label: "Issuer Whitelist", icon: ListChecks },
   { href: "/platform/users", label: "Users", icon: Users },
+];
+
+const WEBSITE_CMS_LINKS = [
+  { href: "/platform/stats", label: "Stats", icon: BarChart3 },
+  { href: "/platform/partners", label: "Partners", icon: Handshake },
+  { href: "/platform/team", label: "Team", icon: Users },
 ];
 
 export interface PlatformAdminLayoutProps {
@@ -118,8 +121,16 @@ export function PlatformAdminLayout({
 
           {/* Manage section */}
           <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mb-2">Manage</p>
-          <nav className="space-y-0.5">
+          <nav className="space-y-0.5 mb-5">
             {MANAGE_LINKS.map((link) => (
+              <NavLink key={link.href} {...link} />
+            ))}
+          </nav>
+
+          {/* Website CMS section */}
+          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mb-2">Website CMS</p>
+          <nav className="space-y-0.5">
+            {WEBSITE_CMS_LINKS.map((link) => (
               <NavLink key={link.href} {...link} />
             ))}
           </nav>
