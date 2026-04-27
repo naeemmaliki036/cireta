@@ -127,6 +127,48 @@ class RedemptionService:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
+    async def cancel_request(
+        self,
+        user_id: UUID,
+        request_id: UUID,
+    ) -> RedemptionRequest:
+        """Cancel a pending redemption request (investor-initiated).
+
+        Only the requester may cancel, and only while still PENDING.
+        Issuer/admin cancellations go through update_fulfillment.
+        """
+        result = await self.db.execute(
+            select(RedemptionRequest).where(RedemptionRequest.id == request_id)
+        )
+        redemption = result.scalar_one_or_none()
+
+        if not redemption:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "REQUEST_NOT_FOUND", "message": "Redemption request not found"},
+            )
+
+        if redemption.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "NOT_OWNER", "message": "You can only cancel your own redemption requests"},
+            )
+
+        current = redemption.status if isinstance(redemption.status, RedemptionStatus) else RedemptionStatus(redemption.status)
+        if current != RedemptionStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "code": "NOT_CANCELLABLE",
+                    "message": f"Cannot cancel request in {current.value} state — only pending requests can be cancelled.",
+                },
+            )
+
+        redemption.status = RedemptionStatus.CANCELLED
+        await self.db.commit()
+        await self.db.refresh(redemption)
+        return redemption
+
     async def update_fulfillment(
         self,
         request_id: UUID,

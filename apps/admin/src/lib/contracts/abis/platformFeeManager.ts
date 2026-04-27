@@ -49,4 +49,11 @@ export const PLATFORM_FEE_MANAGER_ABI = [
     ],
     outputs: [],
   },
+  {
+    name: "removeIssuerCustomFee",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "issuer", type: "address" }],
+    outputs: [],
+  },
 ] as const;

@@ -31,11 +31,9 @@ export default function CorporateVerifyPage() {
   });
 
   useEffect(() => {
-    const token = "";
-    if (!token) { setError("Please log in first"); setStep("error"); return; }
     (async () => {
       try {
-        const status = await getCorporateKYBStatus(token);
+        const status = await getCorporateKYBStatus("");
         if (status.status === "approved" && status.level >= 4) { setStep("approved"); return; }
         if (status.review_status === "pending") { setStep("processing"); }
       } catch (err) { console.error("Failed to check KYB status:", err); }
@@ -43,10 +41,8 @@ export default function CorporateVerifyPage() {
   }, []);
 
   const handleSubmit = async () => {
-    const token = "";
-    if (!token) { setError("Please log in first"); setStep("error"); return; }
     try {
-      const result = await initiateCorporateKYB(token, form);
+      const result = await initiateCorporateKYB("", form);
       setAccessToken(result.access_token);
       setStep("sdk");
     } catch (err) {
@@ -61,10 +57,8 @@ export default function CorporateVerifyPage() {
     if (type === "idCheck.applicantReviewComplete" || type === "idCheck.onApplicantStatusChanged") {
       setStep("processing");
       setTimeout(async () => {
-        const token = "";
-        if (!token) return;
         try {
-          const status = await getCorporateKYBStatus(token);
+          const status = await getCorporateKYBStatus("");
           if (status.status === "approved") {
             setStep("approved");
             setTimeout(() => router.push("/projects"), 2000);
@@ -130,9 +124,7 @@ export default function CorporateVerifyPage() {
                 <SumsubWebSdk
                   accessToken={accessToken}
                   expirationHandler={async () => {
-                    const t = "";
-                    if (!t) throw new Error("Not authenticated");
-                    return initiateCorporateKYB(t, form).then((r) => r.access_token);
+                    return initiateCorporateKYB("", form).then((r) => r.access_token);
                   }}
                   config={{ lang: "en" }}
                   options={{ addViewportTag: false, adaptIframeHeight: true }}

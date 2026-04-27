@@ -19,6 +19,7 @@ import { MODULAR_COMPLIANCE_ABI } from "@/lib/contracts/abis/modularCompliance";
 import { ALL_COMPLIANCE_MODULES } from "@/lib/contracts/complianceModules";
 import { ModuleCard } from "./ComplianceModuleCards";
 import { AvailableModulesList } from "./AvailableModulesList";
+import { AdvancedModuleConfigurator } from "./AdvancedModuleConfigurator";
 
 // CountryAllowModule ABI — for auto-configuring system access after attach
 const COUNTRY_ALLOW_ABI = [
@@ -242,6 +243,13 @@ export default function TokenCompliancePage({
           <p className="text-sm text-zinc-400">No modules attached yet.</p>
           <p className="text-xs text-zinc-300 mt-1">Attach a module above to start enforcing transfer rules.</p>
         </div>
+      )}
+
+      {complianceAddr && compliance && compliance.modules.length > 0 && (
+        <AdvancedModuleConfigurator
+          complianceAddress={complianceAddr}
+          attachedModules={compliance.modules.map((m) => ({ address: m.address, name: m.name }))}
+        />
       )}
     </IssuerDashboardLayout>
   );

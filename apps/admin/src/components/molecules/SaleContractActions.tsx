@@ -27,6 +27,7 @@ export function SaleContractActions({
 }: SaleContractActionsProps) {
   const withdrawFundsAction = useContractAction();
   const withdrawTokensAction = useContractAction();
+  const withdrawUnsoldAction = useContractAction();
   const pauseAction = useContractAction();
   const finalizeAction = useContractAction();
 
@@ -39,10 +40,11 @@ export function SaleContractActions({
   const isActive = saleStatus === "active";
 
   const showWithdrawFunds = isFinalizedSuccess;
+  const showWithdrawUnsold = isFinalizedSuccess;
   const showWithdrawTokens = (isDraft || isRejected) && !!contractAddress;
   const showPauseFinalize = isActive && !!contractAddress;
 
-  if (!showWithdrawFunds && !showWithdrawTokens && !showPauseFinalize) return null;
+  if (!showWithdrawFunds && !showWithdrawUnsold && !showWithdrawTokens && !showPauseFinalize) return null;
 
   const handleWithdrawFunds = async () => {
     const receipt = await withdrawFundsAction.execute({
@@ -58,6 +60,15 @@ export function SaleContractActions({
       address: addr,
       abi,
       functionName: "withdrawTokens",
+    });
+    if (receipt) onSuccess?.();
+  };
+
+  const handleWithdrawUnsold = async () => {
+    const receipt = await withdrawUnsoldAction.execute({
+      address: addr,
+      abi,
+      functionName: "withdrawUnsoldTokens",
     });
     if (receipt) onSuccess?.();
   };
@@ -120,6 +131,39 @@ export function SaleContractActions({
               txUrl={withdrawFundsAction.txUrl}
               error={withdrawFundsAction.error}
               successMessage="USDC proceeds withdrawn to your wallet."
+            />
+          </div>
+        )}
+
+        {/* Sweep Unsold Tokens (Vested mode, post-success) */}
+        {showWithdrawUnsold && (
+          <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="font-medium text-text">Sweep Unsold Tokens</p>
+                <p className="text-sm text-black/50">
+                  Reclaim project tokens not sold during the sale (vested mode calls vault.withdrawExcess).
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleWithdrawUnsold}
+                disabled={withdrawUnsoldAction.isPending || withdrawUnsoldAction.isConfirming}
+                isLoading={withdrawUnsoldAction.isPending || withdrawUnsoldAction.isConfirming}
+                leftIcon={<Download className="h-4 w-4" />}
+              >
+                Sweep Unsold
+              </Button>
+            </div>
+            <TransactionStatus
+              isPending={withdrawUnsoldAction.isPending}
+              isConfirming={withdrawUnsoldAction.isConfirming}
+              isConfirmed={withdrawUnsoldAction.isConfirmed}
+              txHash={withdrawUnsoldAction.txHash}
+              txUrl={withdrawUnsoldAction.txUrl}
+              error={withdrawUnsoldAction.error}
+              successMessage="Unsold tokens swept back to your wallet."
             />
           </div>
         )}

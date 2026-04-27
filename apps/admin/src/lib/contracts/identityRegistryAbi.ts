@@ -22,6 +22,23 @@ export const SIMPLE_IDENTITY_REGISTRY_ABI = [
     outputs: [],
   },
   {
+    name: "batchAddToWhitelist",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "wallets", type: "address[]" },
+      { name: "countries", type: "uint16[]" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "batchRemoveFromWhitelist",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "wallets", type: "address[]" }],
+    outputs: [],
+  },
+  {
     name: "isVerified",
     type: "function",
     stateMutability: "view",

@@ -8,6 +8,7 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { SALE_ABI } from "@/lib/contracts/abis/sale";
 import { updatePhase, deletePhase } from "@/lib/api/repositories/sales";
 import type { Abi } from "viem";
+import { PhaseWhitelistManager } from "./PhaseWhitelistManager";
 
 interface PhaseActionsProps {
   saleId: string;
@@ -272,6 +273,15 @@ export function PhaseActions({
       )}
 
       {message && !showEditForm && <p className="text-xs text-red-500">{message}</p>}
+
+      <PhaseWhitelistManager
+        contractAddress={contractAddress}
+        phaseIndex={phaseIndex}
+        phaseName={phase.name}
+        whitelistOnly={!!phase.whitelist_only}
+        isDeployed={isDeployed}
+        phaseStatus={phaseStatus}
+      />
     </div>
   );
 }

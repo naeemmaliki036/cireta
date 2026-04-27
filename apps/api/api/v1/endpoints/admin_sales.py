@@ -409,3 +409,118 @@ async def record_otc_transfer(
         block_number=log.block_number,
         created_at=log.created_at,
     )
+
+
+# ── Per-sale Buyer View ────────────────────────────────────────────────
+
+
+class SaleBuyerRow(BaseModel):
+    wallet_address: str
+    user_email: str | None = None
+    is_otc: bool
+    total_usdc_contributed: str
+    total_tokens_allocated: str
+    contribution_count: int
+    last_contribution_at: str | None = None
+    fractions_delivered: bool
+
+
+@router.get("/{sale_id}/buyers", response_model=list[SaleBuyerRow])
+async def list_sale_buyers(
+    sale_id: UUID,
+    admin_id: RequireAdmin,  # noqa: ARG001
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[SaleBuyerRow]:
+    """List all buyers for a sale, aggregated per wallet, with on-chain vs OTC attribution.
+
+    For OTC buyers, `fractions_delivered` is True if there's a matching OtcTransferLog
+    entry for this wallet — useful for ops to know who still needs fractions delivered.
+    """
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.contribution import Contribution
+    from apps.api.models.user import User
+    from apps.api.models.wallet import Wallet
+
+    sale = (
+        await db.execute(select(TokenSale).where(TokenSale.id == sale_id))
+    ).scalar_one_or_none()
+    if not sale:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"},
+        )
+
+    contribs = (
+        await db.execute(
+            select(Contribution)
+            .options(selectinload(Contribution.phase))
+            .where(Contribution.sale_id == sale_id)
+            .order_by(Contribution.created_at.desc())
+        )
+    ).scalars().all()
+
+    delivered_logs = (
+        await db.execute(
+            select(OtcTransferLog).where(OtcTransferLog.sale_id == sale_id)
+        )
+    ).scalars().all()
+    delivered_set = {log.buyer_address.lower() for log in delivered_logs}
+
+    # Build wallet -> user_email lookup
+    wallet_addresses = {(c.wallet_address or "").lower() for c in contribs if c.wallet_address}
+    if wallet_addresses:
+        wallet_rows = (
+            await db.execute(
+                select(Wallet, User)
+                .join(User, Wallet.user_id == User.id)
+                .where(Wallet.address.in_(wallet_addresses))
+            )
+        ).all()
+        wallet_to_email = {w.address.lower(): u.email for w, u in wallet_rows}
+    else:
+        wallet_to_email = {}
+
+    # Aggregate per (wallet, is_otc)
+    buckets: dict[tuple[str, bool], dict] = {}
+    for c in contribs:
+        if not c.wallet_address:
+            continue
+        key = (c.wallet_address.lower(), bool(getattr(c, "is_otc", False)))
+        b = buckets.setdefault(
+            key,
+            {
+                "wallet_address": c.wallet_address,
+                "is_otc": key[1],
+                "total_usdc": 0,
+                "total_tokens": 0,
+                "count": 0,
+                "last_at": None,
+            },
+        )
+        try:
+            b["total_usdc"] += float(c.amount or 0)
+            b["total_tokens"] += float(c.tokens_allocated or 0)
+        except (TypeError, ValueError):
+            pass
+        b["count"] += 1
+        if c.created_at and (b["last_at"] is None or c.created_at > b["last_at"]):
+            b["last_at"] = c.created_at
+
+    rows: list[SaleBuyerRow] = []
+    for (wallet_lower, is_otc), b in buckets.items():
+        rows.append(
+            SaleBuyerRow(
+                wallet_address=b["wallet_address"],
+                user_email=wallet_to_email.get(wallet_lower),
+                is_otc=is_otc,
+                total_usdc_contributed=str(b["total_usdc"]),
+                total_tokens_allocated=str(b["total_tokens"]),
+                contribution_count=b["count"],
+                last_contribution_at=b["last_at"].isoformat() if b["last_at"] else None,
+                fractions_delivered=(wallet_lower in delivered_set) if is_otc else True,
+            )
+        )
+
+    rows.sort(key=lambda r: r.last_contribution_at or "", reverse=True)
+    return rows

@@ -22,6 +22,8 @@ import {
   FileText,
   Package,
   Bell,
+  TrendingUp,
+  ListChecks,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button, Badge } from "@/components/atoms";
@@ -38,6 +40,7 @@ const PLATFORM_LINKS = [
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
   { href: "/platform/audit-logs", label: "Audit Logs", icon: FileText },
   { href: "/platform/fees", label: "Fees", icon: DollarSign },
+  { href: "/platform/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/platform/stats", label: "Stats", icon: BarChart3 },
   { href: "/platform/partners", label: "Partners", icon: Handshake },
   { href: "/platform/team", label: "Team", icon: Users },
@@ -45,6 +48,7 @@ const PLATFORM_LINKS = [
 
 const MANAGE_LINKS = [
   { href: "/platform/issuers", label: "Issuers", icon: Building2 },
+  { href: "/platform/issuers/whitelist", label: "Issuer Whitelist", icon: ListChecks },
   { href: "/platform/users", label: "Users", icon: Users },
 ];
 

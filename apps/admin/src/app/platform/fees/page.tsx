@@ -48,6 +48,8 @@ export default function FeesPage() {
   const setReceiverAction = useContractAction();
   const setDefaultFeeAction = useContractAction();
   const setIssuerFeeAction = useContractAction();
+  const removeIssuerFeeAction = useContractAction();
+  const [removingIssuer, setRemovingIssuer] = useState<string | null>(null);
 
   // Form state
   const [newReceiver, setNewReceiver] = useState("");
@@ -142,6 +144,22 @@ export default function FeesPage() {
       setNewDefaultFee("");
       refetchFee();
     }
+  };
+
+  const handleRemoveIssuerFee = async (issuerAddress: string) => {
+    if (!feeManagerAddress) return;
+    removeIssuerFeeAction.reset();
+    setRemovingIssuer(issuerAddress);
+    const receipt = await removeIssuerFeeAction.execute({
+      address: feeManagerAddress,
+      abi: PLATFORM_FEE_MANAGER_ABI as unknown as Abi,
+      functionName: "removeIssuerCustomFee",
+      args: [issuerAddress as `0x${string}`],
+    });
+    if (receipt) {
+      setIssuerOverrides((prev) => prev.filter((o) => o.issuer_address !== issuerAddress));
+    }
+    setRemovingIssuer(null);
   };
 
   const handleSetIssuerFee = async () => {
@@ -300,15 +318,31 @@ export default function FeesPage() {
 
           {issuerOverrides.length > 0 ? (
             <div className="space-y-3 mb-5">
-              {issuerOverrides.map((o) => (
-                <div key={o.issuer_address} className="flex items-center justify-between p-3 rounded-lg bg-box">
-                  <div>
-                    <p className="text-sm font-medium text-text">{o.issuer_name || "Unknown Issuer"}</p>
-                    <p className="text-xs text-zinc-400 font-mono">{o.issuer_address.slice(0, 10)}...{o.issuer_address.slice(-6)}</p>
+              {issuerOverrides.map((o) => {
+                const isRemoving = removingIssuer === o.issuer_address &&
+                  (removeIssuerFeeAction.isPending || removeIssuerFeeAction.isConfirming);
+                return (
+                  <div key={o.issuer_address} className="flex items-center justify-between p-3 rounded-lg bg-box">
+                    <div>
+                      <p className="text-sm font-medium text-text">{o.issuer_name || "Unknown Issuer"}</p>
+                      <p className="text-xs text-zinc-400 font-mono">{o.issuer_address.slice(0, 10)}...{o.issuer_address.slice(-6)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" size="sm">{(o.fee_bps / 100).toFixed(2)}%</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveIssuerFee(o.issuer_address)}
+                        disabled={!feeManagerAddress || isRemoving}
+                        isLoading={isRemoving}
+                      >
+                        Revert to default
+                      </Button>
+                    </div>
                   </div>
-                  <Badge variant="default" size="sm">{(o.fee_bps / 100).toFixed(2)}%</Badge>
-                </div>
-              ))}
+                );
+              })}
+              <TransactionStatus {...removeIssuerFeeAction} successMessage="Custom fee removed; issuer reverts to default." />
             </div>
           ) : (
             <p className="text-sm text-zinc-400 mb-5">No per-issuer fee overrides configured.</p>

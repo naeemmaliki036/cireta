@@ -1,26 +1,91 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Coins, CheckCircle2, RefreshCw } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { Coins, CheckCircle2, RefreshCw, Camera } from "lucide-react";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { Button, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { getDividends, type DividendEntry } from "@/lib/api/repositories/portfolio.repository";
 
-const DIVIDEND_CLAIM_ABI = [
+// Minimal ABI for the dividend distributor's two-step claim flow.
+// snapshotBalance must be called for each unclaimed epoch before claim() succeeds.
+const DIVIDEND_DISTRIBUTOR_ABI = [
   { inputs: [], name: "claim", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [{ name: "epochIndex", type: "uint256" }],
+    name: "snapshotBalance",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "epochCount",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "holder", type: "address" }],
+    name: "lastClaimedEpoch",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "epochIndex", type: "uint256" },
+      { name: "holder", type: "address" },
+    ],
+    name: "hasSnapshot",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export default function DividendsPage() {
   const [dividends, setDividends] = useState<DividendEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [claimingIdx, setClaimingIdx] = useState<number | null>(null);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [actionMode, setActionMode] = useState<"snapshot" | "claim" | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
 
   const { writeContract, data: claimHash, isPending, error: claimWriteError } = useWriteContract();
   const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
+
+  // For the currently-selected entry, peek at the contract to see whether the user
+  // needs to snapshot before claiming. The contract's claim() reverts with
+  // NothingToClaim if the user hasn't called snapshotBalance for any unclaimed epoch.
+  const activeEntry = activeIdx !== null ? dividends[activeIdx] : null;
+  const distributorAddr = activeEntry?.contract_address as `0x${string}` | undefined;
+  const { data: epochCountData } = useReadContract({
+    address: distributorAddr,
+    abi: DIVIDEND_DISTRIBUTOR_ABI,
+    functionName: "epochCount",
+    query: { enabled: !!distributorAddr },
+  });
+  const { data: lastClaimedData } = useReadContract({
+    address: distributorAddr,
+    abi: DIVIDEND_DISTRIBUTOR_ABI,
+    functionName: "lastClaimedEpoch",
+    args: address ? [address] : undefined,
+    query: { enabled: !!distributorAddr && !!address },
+  });
+  const epochCount = typeof epochCountData === "bigint" ? Number(epochCountData) : 0;
+  const lastClaimed = typeof lastClaimedData === "bigint" ? Number(lastClaimedData) : 0;
+  const nextEpochToSnapshot = lastClaimed < epochCount ? lastClaimed : null;
+  const { data: nextSnapshotTaken } = useReadContract({
+    address: distributorAddr,
+    abi: DIVIDEND_DISTRIBUTOR_ABI,
+    functionName: "hasSnapshot",
+    args: address && nextEpochToSnapshot !== null
+      ? [BigInt(nextEpochToSnapshot), address]
+      : undefined,
+    query: { enabled: !!distributorAddr && !!address && nextEpochToSnapshot !== null },
+  });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -37,24 +102,48 @@ export default function DividendsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    if (isClaimSuccess && claimingIdx !== null) {
+    if (isClaimSuccess && activeIdx !== null && actionMode === "claim") {
       setDividends((prev) =>
-        prev.map((d, i) => (i === claimingIdx ? { ...d, claimable_usdc: "0" } : d))
+        prev.map((d, i) => (i === activeIdx ? { ...d, claimable_usdc: "0" } : d))
       );
-      setClaimingIdx(null);
+      setActiveIdx(null);
+      setActionMode(null);
+    } else if (isClaimSuccess && actionMode === "snapshot") {
+      // Snapshot succeeded — refresh dividend list and on-chain reads
+      setActionMode(null);
+      fetchData();
     }
-  }, [isClaimSuccess, claimingIdx]);
+  }, [isClaimSuccess, activeIdx, actionMode]);
 
   useEffect(() => {
     if (claimWriteError) {
       setClaimError(
         claimWriteError.message.includes("User rejected")
           ? "Transaction rejected"
-          : "Claim failed — check your wallet and try again"
+          : "Transaction failed — check your wallet and try again"
       );
-      setClaimingIdx(null);
+      setActiveIdx(null);
+      setActionMode(null);
     }
   }, [claimWriteError]);
+
+  const handleSnapshot = (idx: number) => {
+    const d = dividends[idx];
+    if (!d?.contract_address || nextEpochToSnapshot === null) return;
+    setClaimError(null);
+    if (!isConnected) {
+      setClaimError("Please connect your wallet first");
+      return;
+    }
+    setActiveIdx(idx);
+    setActionMode("snapshot");
+    writeContract({
+      address: d.contract_address as `0x${string}`,
+      abi: DIVIDEND_DISTRIBUTOR_ABI,
+      functionName: "snapshotBalance",
+      args: [BigInt(nextEpochToSnapshot)],
+    });
+  };
 
   const handleClaim = (idx: number) => {
     const d = dividends[idx];
@@ -64,15 +153,22 @@ export default function DividendsPage() {
       setClaimError("Please connect your wallet first");
       return;
     }
-    setClaimingIdx(idx);
+    setActiveIdx(idx);
+    setActionMode("claim");
     writeContract({
       address: d.contract_address as `0x${string}`,
-      abi: DIVIDEND_CLAIM_ABI,
+      abi: DIVIDEND_DISTRIBUTOR_ABI,
       functionName: "claim",
     });
   };
 
-  const isClaimLoading = isPending || isClaimConfirming;
+  const isTxLoading = isPending || isClaimConfirming;
+  // The user must snapshot before they can claim. We surface the next-action hint
+  // for the currently-active distributor only.
+  const needsSnapshot =
+    activeEntry !== null &&
+    nextEpochToSnapshot !== null &&
+    nextSnapshotTaken === false;
 
   return (
     <DashboardLayout>
@@ -99,34 +195,75 @@ export default function DividendsPage() {
             <p className="text-black/20 text-sm mt-1">Dividends appear here when issuers distribute revenue to token holders.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {dividends.map((d, i) => (
-              <div key={i} className="bg-white rounded-xl border border-black/10 p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-text font-medium">{d.token_name}</p>
-                  <p className="text-black/40 text-sm">{d.token_symbol}</p>
-                  <p className="text-black/30 text-xs mt-1">Total earned: {d.total_earned} USDC</p>
-                </div>
-                <div className="text-right">
-                  {parseFloat(d.claimable_usdc) > 0 ? (
-                    <>
-                      <p className="text-green-600 font-bold text-lg">{d.claimable_usdc} USDC</p>
-                      <Button variant="primary" size="sm" className="mt-2"
-                        onClick={() => handleClaim(i)} disabled={isClaimLoading || !d.contract_address}>
-                        {claimingIdx === i && isClaimLoading ? "Claiming..." : "Claim"}
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-1 text-black/30">
-                      <CheckCircle2 className="w-4 h-4" /><span className="text-sm">All claimed</span>
+          <>
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 mb-4 text-sm text-blue-800">
+              <p className="font-medium mb-1">Two-step flow</p>
+              <p className="text-blue-700/80">
+                1. <span className="font-semibold">Snapshot Balance</span> records your token balance for each open dividend epoch.
+                2. <span className="font-semibold">Claim</span> pulls the USDC owed across all snapshotted epochs. You may need to repeat snapshot if more than one epoch is unclaimed.
+              </p>
+            </div>
+            <div className="space-y-4">
+              {dividends.map((d, i) => {
+                const isActive = activeIdx === i;
+                const showSnapshotPrompt = isActive && needsSnapshot;
+                return (
+                  <div key={i} className="bg-white rounded-xl border border-black/10 p-6 flex items-center justify-between">
+                    <div>
+                      <p className="text-text font-medium">{d.token_name}</p>
+                      <p className="text-black/40 text-sm">{d.token_symbol}</p>
+                      <p className="text-black/30 text-xs mt-1">Total earned: {d.total_earned} USDC</p>
+                      {showSnapshotPrompt && (
+                        <p className="text-amber-600 text-xs mt-2">
+                          Epoch {nextEpochToSnapshot} needs a balance snapshot before you can claim.
+                        </p>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {claimError && <p className="text-sm text-red-500 text-center">{claimError}</p>}
-            {isClaimConfirming && <p className="text-sm text-gray-400 text-center">Confirming on-chain&hellip;</p>}
-          </div>
+                    <div className="text-right">
+                      {parseFloat(d.claimable_usdc) > 0 ? (
+                        <>
+                          <p className="text-green-600 font-bold text-lg">{d.claimable_usdc} USDC</p>
+                          <div className="flex items-center justify-end gap-2 mt-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => { setActiveIdx(i); }}
+                              disabled={isTxLoading || !d.contract_address}
+                            >
+                              {isActive ? "Selected" : "Select"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSnapshot(i)}
+                              disabled={isTxLoading || !d.contract_address || !isActive || nextEpochToSnapshot === null}
+                              leftIcon={<Camera className="w-3.5 h-3.5" />}
+                            >
+                              {isActive && actionMode === "snapshot" && isTxLoading ? "Snapshotting..." : "Snapshot"}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleClaim(i)}
+                              disabled={isTxLoading || !d.contract_address}
+                            >
+                              {isActive && actionMode === "claim" && isTxLoading ? "Claiming..." : "Claim"}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1 text-black/30">
+                          <CheckCircle2 className="w-4 h-4" /><span className="text-sm">All claimed</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {claimError && <p className="text-sm text-red-500 text-center">{claimError}</p>}
+              {isClaimConfirming && <p className="text-sm text-gray-400 text-center">Confirming on-chain&hellip;</p>}
+            </div>
+          </>
         )}
       </div>
     </DashboardLayout>

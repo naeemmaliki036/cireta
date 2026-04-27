@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldCheck, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { isAddress } from "viem";
+import { isAddress, type Abi } from "viem";
+import { useReadContract } from "wagmi";
 import {
   recoverTokens,
   recoverFractions,
   forceTransferERC3643,
   type RecoveryResponse,
 } from "@/lib/api/repositories/compliance";
+import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 
 type TokenType = "erc3643_recovery" | "erc3643_force" | "fraction_1155";
 
@@ -33,6 +35,19 @@ export default function TokenRecoveryPage() {
   const isFraction = tokenType === "fraction_1155";
   const isForceTransfer = tokenType === "erc3643_force";
   const isRecovery = tokenType === "erc3643_recovery";
+
+  // Pre-flight KYC check for the destination wallet using platform default registry.
+  // The actual on-chain call uses the per-token / per-sale registry, but the simple-mode
+  // default registry is the canonical source of truth for whitelist status.
+  const defaultRegistry = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS;
+  const toWalletValid = form.to_wallet && isAddress(form.to_wallet);
+  const { data: toIsVerified } = useReadContract({
+    address: defaultRegistry as `0x${string}` | undefined,
+    abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
+    functionName: "isVerified",
+    args: toWalletValid ? [form.to_wallet as `0x${string}`] : undefined,
+    query: { enabled: !!defaultRegistry && !!toWalletValid },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,11 +117,27 @@ export default function TokenRecoveryPage() {
       >
         <ArrowLeft className="w-4 h-4" /> Back to Compliance
       </Link>
-      <h1 className="text-2xl font-bold text-text mb-2">Token Recovery</h1>
+      <h1 className="text-2xl font-bold text-text mb-2">Token Recovery & Settlement Transfers</h1>
       <p className="text-black/40 text-sm mb-6">
-        Force-transfer tokens between wallets. Supports cross-user transfers for
-        inheritance, court orders, and compliance actions. All actions are logged.
+        Force-transfer tokens or fractions between wallets. Use cases:
+        OTC fraction settlement (deliver ID-2 fractions to verified buyers after off-chain payment),
+        wallet recovery (lost keys), inheritance, court orders, compliance actions.
+        All actions are recorded in the audit log.
       </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 text-xs">
+        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+          <p className="font-semibold text-emerald-900 mb-1">OTC settlement</p>
+          <p className="text-emerald-800/80">Pick &ldquo;Fraction (ERC-1155)&rdquo;, fraction id 2, deliver from operator wallet to buyer.</p>
+        </div>
+        <div className="rounded-lg border border-purple-100 bg-purple-50 p-3">
+          <p className="font-semibold text-purple-900 mb-1">Wallet recovery</p>
+          <p className="text-purple-800/80">Pick &ldquo;ERC-3643 Wallet Recovery&rdquo; to move all tokens from a lost wallet to the same user&apos;s new wallet.</p>
+        </div>
+        <div className="rounded-lg border border-amber-100 bg-amber-50 p-3">
+          <p className="font-semibold text-amber-900 mb-1">Compliance / court order</p>
+          <p className="text-amber-800/80">Pick &ldquo;ERC-3643 Force Transfer&rdquo; for cross-user moves (sanctions, inheritance, etc).</p>
+        </div>
+      </div>
 
       {/* Token type selector */}
       <div className="flex gap-2 mb-6">
@@ -220,6 +251,19 @@ export default function TokenRecoveryPage() {
             }`}
             required
           />
+          {toWalletValid && defaultRegistry && (
+            <div className="mt-2">
+              {toIsVerified === true ? (
+                <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-3 py-2 rounded-lg">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Recipient is whitelisted on the identity registry.
+                </div>
+              ) : toIsVerified === false ? (
+                <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 px-3 py-2 rounded-lg">
+                  <ShieldAlert className="h-3.5 w-3.5" /> Recipient is NOT whitelisted on the platform default registry. The transfer will revert unless they are whitelisted on the per-sale/per-token registry.
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* Token ID (ERC-3643) or Sale ID (fractions) */}

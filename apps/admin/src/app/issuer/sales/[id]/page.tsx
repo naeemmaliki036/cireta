@@ -554,6 +554,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               <Pencil className="h-4 w-4 mr-2" /> Edit Details
             </Button>
           )}
+          <Link href={`/issuer/sales/${resolvedId}/buyers`}>
+            <Button variant="secondary">Buyers</Button>
+          </Link>
           {sale.otc_enabled && (
             <Link href={`/issuer/sales/${resolvedId}/otc-mint`}>
               <Button variant="secondary">

@@ -38,4 +38,24 @@ export const MODULAR_COMPLIANCE_ABI = [
     inputs: [],
     outputs: [{ name: "", type: "address" }],
   },
+  {
+    name: "callModuleFunction",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "callData", type: "bytes" },
+      { name: "module", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "setAllowedSelector",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "selector", type: "bytes4" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
 ] as const;

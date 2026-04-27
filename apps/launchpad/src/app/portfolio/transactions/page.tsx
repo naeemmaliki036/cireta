@@ -216,13 +216,24 @@ export default function TransactionsPage() {
 
                         {/* Type */}
                         <td className="px-2 sm:px-4 py-3">
-                          <span
-                            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                              TYPE_STYLES[tx.type] ?? "bg-black/5 text-black/50"
-                            }`}
-                          >
-                            {TYPE_LABELS[tx.type] ?? tx.type}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                TYPE_STYLES[tx.type] ?? "bg-black/5 text-black/50"
+                              }`}
+                            >
+                              {TYPE_LABELS[tx.type] ?? tx.type}
+                            </span>
+                            {(tx.is_otc || tx.tx_hash?.startsWith("otc-")) ? (
+                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                                OTC
+                              </span>
+                            ) : tx.type === "investment" ? (
+                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+                                On-chain
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
 
                         {/* Token */}

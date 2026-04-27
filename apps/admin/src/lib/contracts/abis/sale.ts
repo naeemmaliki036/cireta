@@ -181,6 +181,13 @@ export const SALE_ABI = [
     outputs: [],
   },
   {
+    name: "withdrawUnsoldTokens",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
     name: "depositProjectTokens",
     type: "function",
     stateMutability: "nonpayable",

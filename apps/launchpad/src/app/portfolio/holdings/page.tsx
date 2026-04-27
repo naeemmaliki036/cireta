@@ -29,8 +29,22 @@ function HoldingsTable({ rows, locked }: { rows: Holding[]; locked: boolean }) {
                   <Badge variant="outline" size="sm">{h.asset_type}</Badge>
                 </div>
               </td>
-              <td className="px-2 sm:px-4 py-4 text-right font-semibold text-text">
-                {Number(h.balance).toLocaleString()}
+              <td className="px-2 sm:px-4 py-4 text-right">
+                <p className="font-semibold text-text">{Number(h.balance).toLocaleString()}</p>
+                {(h.balance_usdc || h.balance_otc) && (
+                  <div className="flex items-center justify-end gap-1.5 mt-1 flex-wrap">
+                    {h.balance_usdc && Number(h.balance_usdc) > 0 && (
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+                        On-chain {Number(h.balance_usdc).toLocaleString()}
+                      </span>
+                    )}
+                    {h.balance_otc && Number(h.balance_otc) > 0 && (
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                        OTC {Number(h.balance_otc).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
               </td>
               <td className="hidden sm:table-cell px-2 sm:px-4 py-4 text-right text-text">
                 {formatCurrency(parseFloat(h.value_usd))}

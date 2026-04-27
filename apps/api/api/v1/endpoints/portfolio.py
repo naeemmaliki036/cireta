@@ -218,6 +218,32 @@ async def create_redemption(
     return _redemption_to_response(redemption)
 
 
+@router.post("/redemptions/{request_id}/cancel", response_model=RedemptionResponse)
+async def cancel_redemption(
+    request_id: UUID,
+    user_id: CurrentUserId,
+    redemption_service: Annotated[RedemptionService, Depends(get_redemption_service)],
+) -> RedemptionResponse:
+    """Cancel a pending redemption request (investor-initiated).
+
+    Only the original requester may cancel; only PENDING requests are cancellable.
+    """
+    redemption = await redemption_service.cancel_request(user_id=user_id, request_id=request_id)
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.redemption_request import RedemptionRequest
+
+    result = await redemption_service.db.execute(
+        select(RedemptionRequest)
+        .options(selectinload(RedemptionRequest.token))
+        .where(RedemptionRequest.id == redemption.id)
+    )
+    redemption = result.scalar_one()
+    return _redemption_to_response(redemption)
+
+
 @router.get("/vesting/{sale_id}/claimable", response_model=VaultClaimableResponse)
 async def get_vault_claimable(
     sale_id: UUID,

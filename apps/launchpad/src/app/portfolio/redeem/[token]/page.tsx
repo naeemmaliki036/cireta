@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Package, Truck, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Package, Truck, Clock, X } from "lucide-react";
 import { Button, Input, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
-import { getPortfolio, createRedemption, getRedemptions, type Holding, type RedemptionRequest } from "@/lib/api/repositories/portfolio.repository";
+import { getPortfolio, createRedemption, cancelRedemption, getRedemptions, type Holding, type RedemptionRequest } from "@/lib/api/repositories/portfolio.repository";
 
 export default function RedeemTokenPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
   const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
@@ -17,6 +17,7 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [existingRedemptions, setExistingRedemptions] = useState<RedemptionRequest[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     paramsPromise.then(setResolvedParams);
@@ -43,10 +44,14 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
   const handleRedeem = async () => {
     if (!holding || !amount) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await createRedemption({ token_id: holding.token_id, amount, fulfillment_method: method });
       setShowSuccess(true);
-    } catch { /* TODO: toast */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to submit redemption";
+      setSubmitError(msg);
+    }
     setSubmitting(false);
   };
 
@@ -123,6 +128,12 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
             </div>
           )}
 
+          {submitError && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
+
           <div className="flex gap-4">
             <Link href="/portfolio" className="flex-1">
               <Button variant="outline" className="w-full">Cancel</Button>
@@ -140,7 +151,15 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
             <h3 className="text-lg font-semibold text-text mb-4">Your Redemption Requests</h3>
             <div className="space-y-4">
               {existingRedemptions.map((r) => (
-                <RedemptionStatusCard key={r.id} redemption={r} />
+                <RedemptionStatusCard
+                  key={r.id}
+                  redemption={r}
+                  onCancelled={(updated) => {
+                    setExistingRedemptions((prev) =>
+                      prev.map((x) => (x.id === updated.id ? updated : x))
+                    );
+                  }}
+                />
               ))}
             </div>
           </motion.div>
@@ -152,9 +171,25 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
 
 const STATUS_STEPS = ["pending", "processing", "shipped", "fulfilled"];
 
-function RedemptionStatusCard({ redemption: r }: { redemption: RedemptionRequest }) {
+function RedemptionStatusCard({ redemption: r, onCancelled }: { redemption: RedemptionRequest; onCancelled: (updated: RedemptionRequest) => void }) {
   const idx = STATUS_STEPS.indexOf(r.status);
   const isPhysical = r.fulfillment_method === "physical";
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const handleCancel = async () => {
+    if (!confirm("Cancel this redemption request? Your tokens stay in your wallet.")) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const updated = await cancelRedemption(r.id);
+      onCancelled(updated);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Failed to cancel redemption");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div className="border border-black/5 rounded-xl p-4">
@@ -162,14 +197,28 @@ function RedemptionStatusCard({ redemption: r }: { redemption: RedemptionRequest
         <span className="text-sm font-medium text-text">
           {Number(r.amount).toLocaleString()} tokens
         </span>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-          r.status === "fulfilled" ? "bg-green-100 text-green-700" :
-          r.status === "shipped" ? "bg-blue-100 text-blue-700" :
-          r.status === "processing" ? "bg-yellow-100 text-yellow-700" :
-          "bg-gray-100 text-gray-500"
-        }`}>
-          {r.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            r.status === "fulfilled" ? "bg-green-100 text-green-700" :
+            r.status === "shipped" ? "bg-blue-100 text-blue-700" :
+            r.status === "processing" ? "bg-yellow-100 text-yellow-700" :
+            r.status === "cancelled" ? "bg-zinc-100 text-zinc-500 line-through" :
+            "bg-gray-100 text-gray-500"
+          }`}>
+            {r.status}
+          </span>
+          {r.status === "pending" && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+              title="Cancel this pending redemption"
+            >
+              <X className="h-3 w-3" /> {cancelling ? "Cancelling..." : "Cancel"}
+            </button>
+          )}
+        </div>
       </div>
 
       {isPhysical && (
@@ -202,6 +251,7 @@ function RedemptionStatusCard({ redemption: r }: { redemption: RedemptionRequest
         {r.fulfilled_at && (
           <p className="text-green-600">Delivered: {new Date(r.fulfilled_at).toLocaleDateString()}</p>
         )}
+        {cancelError && <p className="text-red-500 mt-1">{cancelError}</p>}
       </div>
     </div>
   );

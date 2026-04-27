@@ -56,7 +56,11 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
       <Link href={`/issuer/sales/${id}`} className="flex items-center gap-2 text-black/40 hover:text-text text-sm mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Sale
       </Link>
-      <h1 className="text-2xl font-bold text-text mb-8">OTC Allocation</h1>
+      <h1 className="text-2xl font-bold text-text mb-2">OTC Allocation</h1>
+      <p className="text-sm text-black/50 mb-6">
+        Record off-chain bank/wire payments. After recording the allocation here, deliver fraction tokens
+        on-chain via the <Link href="/issuer/compliance/recovery" className="text-darkAqua hover:underline">Recovery & Settlement</Link> page (Fraction 1155, ID 2).
+      </p>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-lg border border-black/10 p-6">
           <h2 className="text-text font-semibold mb-4">New OTC Allocation</h2>

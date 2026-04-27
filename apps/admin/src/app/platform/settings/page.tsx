@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Shield, Bell } from "lucide-react";
 import { PlatformAdminLayout } from "@/components/templates";
 import { Button } from "@/components/atoms";
 import { apiFetch } from "@/lib/api/client";
@@ -15,8 +14,6 @@ const RichTextEditor = dynamic(
 const TABS = [
   { id: "general", label: "General" },
   { id: "otc", label: "OTC Template" },
-  { id: "compliance", label: "Compliance" },
-  { id: "notifications", label: "Notifications" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -203,25 +200,6 @@ export default function PlatformSettingsPage() {
           </div>
         )}
 
-        {/* Compliance Tab — placeholder */}
-        {activeTab === "compliance" && (
-          <div className="bg-white rounded-xl border border-zinc-200 p-8 text-center">
-            <Shield className="h-8 w-8 text-zinc-300 mx-auto mb-3" />
-            <h2 className="text-sm font-semibold text-zinc-800 mb-1">Compliance Settings</h2>
-            <p className="text-xs text-zinc-400">AML thresholds, compliance rules, and automated screening configuration.</p>
-            <p className="text-[11px] text-zinc-300 mt-3">Coming soon</p>
-          </div>
-        )}
-
-        {/* Notifications Tab — placeholder */}
-        {activeTab === "notifications" && (
-          <div className="bg-white rounded-xl border border-zinc-200 p-8 text-center">
-            <Bell className="h-8 w-8 text-zinc-300 mx-auto mb-3" />
-            <h2 className="text-sm font-semibold text-zinc-800 mb-1">Notification Settings</h2>
-            <p className="text-xs text-zinc-400">Email templates, webhook configuration, and alert preferences.</p>
-            <p className="text-[11px] text-zinc-300 mt-3">Coming soon</p>
-          </div>
-        )}
       </div>
     </PlatformAdminLayout>
   );

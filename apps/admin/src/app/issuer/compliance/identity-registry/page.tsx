@@ -18,6 +18,7 @@ import {
   recordEmergencyManualSync,
   type IdentitySyncJob,
 } from "@/lib/api/repositories/identity-registry";
+import { BatchAddressInput, useBatchRows } from "@/components/molecules/BatchAddressInput";
 
 const REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS ?? "") as `0x${string}`;
 
@@ -34,6 +35,15 @@ export default function IdentityRegistryAdminPage() {
   const [country, setCountry] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [pendingTxHash, setPendingTxHash] = useState<`0x${string}` | undefined>();
+
+  // Batch form
+  const [batchInput, setBatchInput] = useState("");
+  const [batchAction, setBatchAction] = useState<"add" | "remove">("add");
+  const [batchCountry, setBatchCountry] = useState(0);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchPendingTx, setBatchPendingTx] = useState<`0x${string}` | undefined>();
+  const batchRows = useBatchRows(batchInput, false);
+  const { isSuccess: batchTxConfirmed, isLoading: batchTxConfirming } = useWaitForTransactionReceipt({ hash: batchPendingTx });
 
   const { writeContractAsync } = useWriteContract();
   const { isSuccess: txConfirmed, isLoading: txConfirming } = useWaitForTransactionReceipt({
@@ -119,6 +129,48 @@ export default function IdentityRegistryAdminPage() {
         setError(msg);
       }
       setSubmitting(false);
+    }
+  };
+
+  // Batch handler
+  useEffect(() => {
+    if (!batchTxConfirmed || !batchPendingTx) return;
+    setBatchPendingTx(undefined);
+    setBatchSubmitting(false);
+    setBatchInput("");
+    fetchJobs();
+  }, [batchTxConfirmed, batchPendingTx, fetchJobs]);
+
+  const handleBatchSync = async () => {
+    if (!isConnected) { setError("Connect your admin wallet first."); return; }
+    if (!REGISTRY_ADDRESS) { setError("NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS not configured."); return; }
+    const valid = batchRows.filter((r) => r.addressValid);
+    if (valid.length === 0) { setError("Add at least one valid wallet."); return; }
+    if (valid.length !== batchRows.length) { setError("Fix invalid rows before submitting."); return; }
+    setError(null);
+    setBatchSubmitting(true);
+    try {
+      const wallets = valid.map((r) => r.address as `0x${string}`);
+      const hash = batchAction === "add"
+        ? await writeContractAsync({
+            address: REGISTRY_ADDRESS,
+            abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+            functionName: "batchAddToWhitelist",
+            args: [wallets, wallets.map(() => batchCountry)],
+          })
+        : await writeContractAsync({
+            address: REGISTRY_ADDRESS,
+            abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+            functionName: "batchRemoveFromWhitelist",
+            args: [wallets],
+          });
+      setBatchPendingTx(hash);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Tx failed";
+      if (!msg.toLowerCase().includes("user rejected") && !msg.toLowerCase().includes("user denied")) {
+        setError(msg);
+      }
+      setBatchSubmitting(false);
     }
   };
 
@@ -232,6 +284,57 @@ export default function IdentityRegistryAdminPage() {
                 <span className="text-xs text-amber-400 self-center">Connect wallet first</span>
               )}
             </div>
+          </div>
+        </section>
+
+        {/* Batch whitelist */}
+        <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-1">Batch Whitelist</h2>
+          <p className="text-xs text-white/50 mb-4">
+            Add or remove many wallets in a single transaction. One wallet per line. For removes, the country code is ignored.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className="block text-xs text-white/50 mb-1">Action</label>
+              <select
+                value={batchAction}
+                onChange={(e) => setBatchAction(e.target.value as "add" | "remove")}
+                className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 text-white rounded-lg"
+              >
+                <option value="add">Add to whitelist</option>
+                <option value="remove">Remove from whitelist</option>
+              </select>
+            </div>
+            {batchAction === "add" && (
+              <div>
+                <label className="block text-xs text-white/50 mb-1">Country code (numeric)</label>
+                <input
+                  type="number"
+                  value={batchCountry}
+                  onChange={(e) => setBatchCountry(parseInt(e.target.value || "0", 10))}
+                  min={0}
+                  max={999}
+                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 text-white rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+          <BatchAddressInput value={batchInput} onChange={setBatchInput} placeholder={"0xabc...\n0xdef...\n# comments allowed"} />
+          <div className="mt-3 flex items-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleBatchSync}
+              disabled={batchSubmitting || batchTxConfirming || !isConnected || batchRows.length === 0}
+            >
+              {batchTxConfirming
+                ? "Confirming on chain…"
+                : batchSubmitting
+                  ? "Sign in your wallet…"
+                  : batchAction === "add"
+                    ? `Sign + Add ${batchRows.length} wallet${batchRows.length !== 1 ? "s" : ""}`
+                    : `Sign + Remove ${batchRows.length} wallet${batchRows.length !== 1 ? "s" : ""}`}
+            </Button>
           </div>
         </section>
 

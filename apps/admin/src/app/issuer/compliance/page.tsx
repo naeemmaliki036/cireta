@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Lock, Unlock, ArrowLeftRight, RotateCcw, X, AlertTriangle, Pause, Play } from "lucide-react";
+import { Lock, Unlock, ArrowLeftRight, RotateCcw, X, AlertTriangle, Pause, Play, ShieldOff, Shield } from "lucide-react";
 import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi, isAddress } from "viem";
@@ -18,11 +18,13 @@ import type { ComplianceAction } from "@/components/molecules";
 import { useContractAction } from "@/hooks/useContractAction";
 import { CIRETA_TOKEN_ABI } from "@/lib/contracts/abis/ciretaToken";
 
-type ActionType = "freeze" | "unfreeze" | "forced_transfer" | "recover" | "pause" | "unpause" | null;
+type ActionType = "freeze" | "unfreeze" | "freeze_partial" | "unfreeze_partial" | "forced_transfer" | "recover" | "pause" | "unpause" | null;
 
 const ACTION_CARDS = [
   { action: "freeze" as const, icon: Lock, title: "Freeze Address", desc: "Prevent an address from transferring tokens", color: "text-red-600", bg: "bg-red-100" },
   { action: "unfreeze" as const, icon: Unlock, title: "Unfreeze Address", desc: "Restore transfer rights to an address", color: "text-green-600", bg: "bg-green-100" },
+  { action: "freeze_partial" as const, icon: ShieldOff, title: "Freeze Partial", desc: "Freeze a specific token amount on an address", color: "text-orange-600", bg: "bg-orange-100" },
+  { action: "unfreeze_partial" as const, icon: Shield, title: "Unfreeze Partial", desc: "Release a specific frozen amount", color: "text-teal-600", bg: "bg-teal-100" },
   { action: "forced_transfer" as const, icon: ArrowLeftRight, title: "Forced Transfer", desc: "Forcibly move tokens between addresses", color: "text-amber-600", bg: "bg-amber-100" },
   { action: "recover" as const, icon: RotateCcw, title: "Recover Tokens", desc: "Recover tokens from a lost wallet", color: "text-purple-600", bg: "bg-purple-100" },
 ];
@@ -90,6 +92,24 @@ export default function CompliancePage() {
         abi: CIRETA_TOKEN_ABI as unknown as Abi,
         functionName: "setAddressFrozen",
         args: [targetAddress as `0x${string}`, false],
+      });
+    } else if (modalAction === "freeze_partial") {
+      const decimals = selectedToken?.decimals ?? 6;
+      const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** decimals));
+      await action.execute({
+        address: selectedTokenAddr as `0x${string}`,
+        abi: CIRETA_TOKEN_ABI as unknown as Abi,
+        functionName: "freezePartialTokens",
+        args: [targetAddress as `0x${string}`, rawAmount],
+      });
+    } else if (modalAction === "unfreeze_partial") {
+      const decimals = selectedToken?.decimals ?? 6;
+      const rawAmount = BigInt(Math.round(parseFloat(amount) * 10 ** decimals));
+      await action.execute({
+        address: selectedTokenAddr as `0x${string}`,
+        abi: CIRETA_TOKEN_ABI as unknown as Abi,
+        functionName: "unfreezePartialTokens",
+        args: [targetAddress as `0x${string}`, rawAmount],
       });
     } else if (modalAction === "forced_transfer") {
       const decimals = selectedToken?.decimals ?? 6;
@@ -165,7 +185,7 @@ export default function CompliancePage() {
 
       {/* Action Cards — only show when token selected */}
       {selectedTokenAddr && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {ACTION_CARDS.map((card) => (
             <motion.button key={card.action} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
               onClick={() => { action.reset(); setModalAction(card.action); }}
@@ -299,7 +319,7 @@ export default function CompliancePage() {
                     error={destinationAddress && !isAddress(destinationAddress) ? "Invalid EVM address" : undefined} />
                 )}
 
-                {modalAction === "forced_transfer" && (
+                {(modalAction === "forced_transfer" || modalAction === "freeze_partial" || modalAction === "unfreeze_partial") && (
                   <Input label={`Amount (${selectedToken?.symbol ?? "tokens"})`} type="number" value={amount}
                     onChange={(e) => setAmount(e.target.value)} placeholder="0" />
                 )}
@@ -307,7 +327,14 @@ export default function CompliancePage() {
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" className="flex-1" onClick={resetModal}>Cancel</Button>
                   <Button variant="primary" className="flex-1" onClick={handleSubmit}
-                    disabled={action.isPending || action.isConfirming || !targetAddress || !isAddress(targetAddress)}
+                    disabled={
+                      action.isPending ||
+                      action.isConfirming ||
+                      !targetAddress ||
+                      !isAddress(targetAddress) ||
+                      ((modalAction === "freeze_partial" || modalAction === "unfreeze_partial" || modalAction === "forced_transfer") && (!amount || Number(amount) <= 0)) ||
+                      ((modalAction === "forced_transfer" || modalAction === "recover") && (!destinationAddress || !isAddress(destinationAddress)))
+                    }
                     isLoading={action.isPending || action.isConfirming}>
                     {!isConnected ? "Connect Wallet" : "Confirm"}
                   </Button>

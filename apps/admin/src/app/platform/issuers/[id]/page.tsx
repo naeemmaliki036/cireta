@@ -235,9 +235,18 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
           {issuer.status === "active" ? (
             <div className="space-y-3">
               <p className="text-xs text-green-600 font-medium">Fully activated. Can deploy tokens and create sales.</p>
-              <Button variant="outline" size="sm" className="w-full text-red-500 border-red-200 hover:bg-red-50"
+              <Button variant="outline" size="sm" className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => handleAction("revoke")} isLoading={actionLoading === "revoke"}>
-                Revoke Issuer
+                Suspend Issuer
+              </Button>
+            </div>
+          ) : issuer.status === "suspended" ? (
+            <div className="space-y-3">
+              <p className="text-xs text-amber-700 font-medium">Issuer is suspended. They can&apos;t deploy tokens or create sales until reactivated.</p>
+              <Button variant="primary" size="sm" className="w-full"
+                disabled={!canActivate}
+                onClick={() => handleAction("activate")} isLoading={actionLoading === "activate"}>
+                {canActivate ? "Reactivate Issuer" : "Cannot Reactivate Yet"}
               </Button>
             </div>
           ) : (

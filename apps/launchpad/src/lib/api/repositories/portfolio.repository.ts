@@ -20,6 +20,9 @@ export interface Holding {
   is_redeemable?: boolean;
   /** Sale mode — "vested" means holder has fraction tokens, "direct" means project tokens. */
   sale_mode?: "direct" | "vested";
+  /** Per-source balance breakdown (vested mode only). Optional; backend may not populate. */
+  balance_usdc?: string;
+  balance_otc?: string;
 }
 
 export interface VestingSchedule {
@@ -160,4 +163,8 @@ export async function createRedemption(data: {
   fulfillment_method: "physical" | "cash";
 }): Promise<RedemptionRequest> {
   return apiPost<RedemptionRequest>("/api/v1/portfolio/redemptions", data);
+}
+
+export async function cancelRedemption(requestId: string): Promise<RedemptionRequest> {
+  return apiPost<RedemptionRequest>(`/api/v1/portfolio/redemptions/${requestId}/cancel`, {});
 }

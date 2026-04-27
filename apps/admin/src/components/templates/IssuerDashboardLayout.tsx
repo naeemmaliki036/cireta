@@ -17,6 +17,9 @@ import {
   Trash2,
   ShieldAlert,
   Bell,
+  Banknote,
+  FileText,
+  RefreshCcw,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button } from "@/components/atoms";
@@ -33,9 +36,13 @@ const SIDEBAR_LINKS = [
   { href: "/issuer/buyers", label: "Buyers", icon: Users, requiresOnboarding: true },
   { href: "/issuer/subscribers", label: "Subscribers", icon: Bell, requiresOnboarding: true },
   { href: "/issuer/compliance", label: "Compliance", icon: Shield, requiresOnboarding: true },
+  { href: "/issuer/compliance/recovery", label: "Recovery", icon: RefreshCcw, requiresOnboarding: true },
   { href: "/issuer/compliance/wallet-deletions", label: "Wallet Removals", icon: Trash2, requiresOnboarding: true },
   { href: "/issuer/compliance/identity-registry", label: "Identity Registry", icon: ShieldAlert, requiresOnboarding: true },
   { href: "/issuer/withdrawals", label: "Withdrawals", icon: Wallet, requiresOnboarding: true },
+  { href: "/issuer/dividends", label: "Dividends", icon: Banknote, requiresOnboarding: true },
+  { href: "/issuer/redemptions", label: "Redemptions", icon: RefreshCcw, requiresOnboarding: true },
+  { href: "/issuer/reports", label: "Reports", icon: FileText, requiresOnboarding: true },
 ];
 
 export interface IssuerDashboardLayoutProps {
