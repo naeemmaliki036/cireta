@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import {
   Wallet, Pause, StopCircle, Download,
 } from "lucide-react";
+import { useAccount } from "wagmi";
 import type { Abi } from "viem";
 import { Button } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
@@ -25,6 +26,9 @@ export function SaleContractActions({
   saleStatus,
   onSuccess,
 }: SaleContractActionsProps) {
+  const { isConnected } = useAccount();
+
+  // Only initialize wagmi hooks when wallet is connected to prevent console errors
   const withdrawFundsAction = useContractAction();
   const withdrawTokensAction = useContractAction();
   const withdrawUnsoldAction = useContractAction();
@@ -45,6 +49,28 @@ export function SaleContractActions({
   const showPauseFinalize = isActive && !!contractAddress;
 
   if (!showWithdrawFunds && !showWithdrawUnsold && !showWithdrawTokens && !showPauseFinalize) return null;
+
+  // Show wallet connection prompt when not connected
+  if (!isConnected) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-lg border border-zinc-100 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-md bg-zinc-100 flex items-center justify-center">
+            <Wallet className="h-4 w-4 text-zinc-400" />
+          </div>
+          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">On-Chain Actions</h2>
+        </div>
+        <div className="text-center py-6">
+          <div className="w-12 h-12 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+            <Wallet className="h-6 w-6 text-zinc-300" />
+          </div>
+          <p className="text-sm text-black/40 mb-1">Connect Wallet Required</p>
+          <p className="text-xs text-black/25">Connect your wallet to manage on-chain sale actions</p>
+        </div>
+      </motion.div>
+    );
+  }
 
   const handleWithdrawFunds = async () => {
     const receipt = await withdrawFundsAction.execute({
