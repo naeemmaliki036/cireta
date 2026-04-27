@@ -1085,8 +1085,8 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           {/* Subscribers Summary */}
           <SubscribersSummary saleId={sale.id} />
 
-          {/* Per-Phase Whitelist Management */}
-          {sale.contract_address && sale.phases.some((p) => p.whitelist_only) && (
+          {/* Per-Phase Whitelist Management - Hidden until needed for other issuers */}
+          {false && sale.contract_address && sale.phases.some((p) => p.whitelist_only) && (
             <WhitelistManager
               saleContractAddress={sale.contract_address as `0x${string}`}
               phases={sale.phases}
