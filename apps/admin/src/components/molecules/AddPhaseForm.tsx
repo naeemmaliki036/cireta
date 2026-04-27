@@ -373,18 +373,21 @@ export function AddPhaseForm({
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
           />
         </div>
-        <div className="flex items-center gap-2 pt-5">
-          <input
-            type="checkbox"
-            id="whitelistOnly"
-            checked={form.whitelistOnly}
-            onChange={(e) => updateField("whitelistOnly", e.target.checked)}
-            className="rounded border-zinc-300 text-darkAqua focus:ring-darkAqua/30"
-          />
-          <label htmlFor="whitelistOnly" className="text-sm text-zinc-600">
-            Whitelist Only
-          </label>
-        </div>
+        {/* Whitelist Only checkbox - Hidden until needed for other issuers */}
+        {false && (
+          <div className="flex items-center gap-2 pt-5">
+            <input
+              type="checkbox"
+              id="whitelistOnly"
+              checked={form.whitelistOnly}
+              onChange={(e) => updateField("whitelistOnly", e.target.checked)}
+              className="rounded border-zinc-300 text-darkAqua focus:ring-darkAqua/30"
+            />
+            <label htmlFor="whitelistOnly" className="text-sm text-zinc-600">
+              Whitelist Only
+            </label>
+          </div>
+        )}
       </div>
 
       {validationError && (
