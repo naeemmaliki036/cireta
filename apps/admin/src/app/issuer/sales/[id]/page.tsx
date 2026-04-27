@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   Clock, ArrowLeft, AlertCircle, Coins, Bell,
   Pencil, X, Check, Upload, ImageIcon, Globe, Star, Rocket,
+  BarChart3, Users, Settings, Blocks,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -146,6 +147,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncDone, setSyncDone] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Tab management
+  const [activeTab, setActiveTab] = useState<"overview" | "phases" | "onchain" | "investors">("overview");
 
   // On-chain deployment
   const { isConnected, address: walletAddress } = useAccount();
@@ -557,6 +561,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const isFailed = sale.status === "finalized_failed" || sale.status === "failed";
   const isRejected = sale.status === "rejected";
 
+  // Tab configuration
+  const tabs = [
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "phases", label: "Phases", icon: Clock },
+    { id: "onchain", label: "On-Chain", icon: Blocks },
+    { id: "investors", label: "Investors", icon: Users },
+  ] as const;
+
   return (
     <IssuerDashboardLayout
       title={sale.title || sale.token_name || "Sale Details"}
@@ -681,22 +693,6 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         successMessage="Sale contract deployed on-chain. Address recorded."
       />
 
-      {/* Setup Checklist — shown for draft/rejected sales with contract */}
-      <SaleSetupChecklist
-        sale={sale as Parameters<typeof SaleSetupChecklist>[0]["sale"]}
-        onReload={reload}
-        onSubmitForApproval={handleSubmitForApproval}
-        isSubmitting={actionLoading === "submit"}
-      />
-
-      {/* On-Chain Contract Actions (Withdraw Funds, Withdraw Tokens, Pause, Finalize) */}
-      {sale.contract_address && (
-        <SaleContractActions
-          contractAddress={sale.contract_address}
-          saleStatus={sale.status}
-          onSuccess={reload}
-        />
-      )}
 
       {/* Status Banner */}
       {isPending && <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">Pending admin approval. You&apos;ll be notified once reviewed.</div>}
@@ -809,9 +805,135 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         </motion.div>
       )}
 
-      {/* Phases — moved above gallery for visibility */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="border-b border-zinc-200">
+          <nav className="flex space-x-8">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.id
+                      ? "border-darkAqua text-darkAqua"
+                      : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {/* Sale Overview Card */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-lg border border-zinc-100 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Funding Progress</h2>
+              <Badge variant={isActive ? "active" : isDraft ? "pending" : "default"} size="sm" className="capitalize">
+                {sale.status === "approved_coming_soon" ? "Coming Soon" : sale.status === "pending_approval" ? "Pending" : sale.status.replace(/_/g, " ")}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              {[
+                { label: "Total Raised", value: formatCurrency(raised), color: "text-darkAqua", bg: "bg-darkAqua/10" },
+                { label: "Hard Cap", value: formatCurrency(cap), color: "text-blue-600", bg: "bg-blue-50" },
+                { label: "Soft Cap", value: formatCurrency(soft), color: "text-amber-600", bg: "bg-amber-50" },
+              ].map((s) => (
+                <div key={s.label} className="text-center">
+                  <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide mb-1">{s.label}</p>
+                  <p className="text-lg font-bold text-text">{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <ProgressBar value={pct} size="md" />
+            <div className="flex justify-between text-xs mt-2 text-black/40">
+              <span>{formatCurrency(raised)} raised</span>
+              <span>{pct.toFixed(1)}% of {formatCurrency(cap)}</span>
+            </div>
+          </motion.div>
+
+          {/* Media Gallery */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-lg border border-zinc-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" /> Media Gallery
+              </h2>
+              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+                <Upload className="h-4 w-4" />
+                {uploading ? `Uploading ${uploadProgress}%` : "Upload Media"}
+                <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+              </label>
+            </div>
+
+            {images.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((img) => (
+                  <div key={img.id} className={`relative rounded-lg overflow-hidden border-2 group ${img.is_banner ? "border-darkAqua ring-2 ring-darkAqua/20" : "border-zinc-100"}`}>
+                    <div className="relative h-32">
+                      {img.media_type === "video" ? (
+                        <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                          <video src={resolveMediaUrl(img.url)} className="w-full h-full object-cover" muted />
+                        </div>
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={resolveMediaUrl(img.url)} alt={img.caption || ""} className="w-full h-full object-cover" />
+                      )}
+                      {img.is_banner && (
+                        <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">HERO</span>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                        {!img.is_banner && (
+                          <button
+                            onClick={() => handleSetHero(img.id)}
+                            className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center text-darkAqua hover:bg-white"
+                            title="Set as hero"
+                          >
+                            <Star className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleRemoveImage(img.id)}
+                          className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center text-red-500 hover:bg-white"
+                          title="Remove"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {img.caption && <p className="text-[11px] text-zinc-500 px-2 py-1.5 truncate">{img.caption}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <ImageIcon className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
+                <p className="text-zinc-400 text-sm">No media uploaded. Upload an image or video to set as the hero.</p>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Sale Content Review */}
+          <div>
+            <SaleContentReview saleId={sale.id} description={sale.description_text} fullDescription={sale.full_description} editable />
+          </div>
+        </div>
+      )}
+
+      {activeTab === "phases" && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-lg border border-zinc-100 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Phases</h2>
           <div className="flex items-center gap-2">
@@ -934,127 +1056,53 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           </div>
           );
         })()}
-      </motion.div>
-
-      {/* Hero Image / Gallery Management */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide flex items-center gap-2">
-            <ImageIcon className="h-4 w-4" /> Media Gallery
-          </h2>
-          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
-            <Upload className="h-4 w-4" />
-            {uploading ? `Uploading ${uploadProgress}%` : "Upload Media"}
-            <input type="file" accept="image/*,video/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-          </label>
-        </div>
-
-        {images.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((img) => (
-              <div key={img.id} className={`relative rounded-lg overflow-hidden border-2 group ${img.is_banner ? "border-darkAqua ring-2 ring-darkAqua/20" : "border-zinc-100"}`}>
-                <div className="relative h-32">
-                  {img.media_type === "video" ? (
-                    <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                      <video src={resolveMediaUrl(img.url)} className="w-full h-full object-cover" muted />
-                    </div>
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={resolveMediaUrl(img.url)} alt={img.caption || ""} className="w-full h-full object-cover" />
-                  )}
-                  {img.is_banner && (
-                    <span className="absolute top-1.5 left-1.5 bg-darkAqua text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">HERO</span>
-                  )}
-                  {/* Hover actions */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                    {!img.is_banner && (
-                      <button
-                        onClick={() => handleSetHero(img.id)}
-                        className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center text-darkAqua hover:bg-white"
-                        title="Set as hero"
-                      >
-                        <Star className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleRemoveImage(img.id)}
-                      className="w-8 h-8 rounded-md bg-white/90 flex items-center justify-center text-red-500 hover:bg-white"
-                      title="Remove"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                {img.caption && <p className="text-[11px] text-zinc-500 px-2 py-1.5 truncate">{img.caption}</p>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <ImageIcon className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
-            <p className="text-zinc-400 text-sm">No media uploaded. Upload an image or video to set as the hero.</p>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Stats + Progress */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Funding Progress</h2>
-          <Badge variant={isActive ? "active" : isDraft ? "pending" : "default"} size="sm" className="capitalize">
-            {sale.status === "approved_coming_soon" ? "Coming Soon" : sale.status === "pending_approval" ? "Pending" : sale.status.replace(/_/g, " ")}
-          </Badge>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mb-5">
-          {[
-            { label: "Total Raised", value: formatCurrency(raised), color: "text-darkAqua", bg: "bg-darkAqua/10" },
-            { label: "Hard Cap", value: formatCurrency(cap), color: "text-blue-600", bg: "bg-blue-50" },
-            { label: "Soft Cap", value: formatCurrency(soft), color: "text-amber-600", bg: "bg-amber-50" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide mb-1">{s.label}</p>
-              <p className="text-lg font-bold text-text">{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <ProgressBar value={pct} size="md" />
-        <div className="flex justify-between text-xs mt-2 text-black/40">
-          <span>{formatCurrency(raised)} raised</span>
-          <span>{pct.toFixed(1)}% of {formatCurrency(cap)}</span>
-        </div>
-      </motion.div>
-
-      {/* Per-Phase Whitelist Management — show when deployed and has whitelist phases */}
-      {sale.contract_address && sale.phases.some((p) => p.whitelist_only) && (
-        <div className="mt-6">
-          <WhitelistManager
-            saleContractAddress={sale.contract_address as `0x${string}`}
-            phases={sale.phases}
-          />
         </div>
       )}
 
-      {/* OTC Token Manager — show when deployed and draft */}
-      {sale.contract_address && isDraft && (
-        <div className="mt-6">
-          <OTCTokenManager
-            saleContractAddress={sale.contract_address as `0x${string}`}
-            currentOTCTokenAddress={sale.otc_token_address}
+      {activeTab === "onchain" && (
+        <div className="space-y-6">
+          {/* Setup Checklist */}
+          <SaleSetupChecklist
+            sale={sale as Parameters<typeof SaleSetupChecklist>[0]["sale"]}
+            onReload={reload}
+            onSubmitForApproval={handleSubmitForApproval}
+            isSubmitting={actionLoading === "submit"}
           />
+
+          {/* On-Chain Contract Actions */}
+          {sale.contract_address && (
+            <SaleContractActions
+              contractAddress={sale.contract_address}
+              saleStatus={sale.status}
+              onSuccess={reload}
+            />
+          )}
         </div>
       )}
 
-      {/* Subscribers / Waitlist */}
-      <SubscribersSummary saleId={sale.id} />
+      {activeTab === "investors" && (
+        <div className="space-y-6">
+          {/* Subscribers Summary */}
+          <SubscribersSummary saleId={sale.id} />
 
-      {/* Sale Content: description, gallery, team, FAQ, documents */}
-      <div className="mt-6">
-        <SaleContentReview saleId={sale.id} description={sale.description_text} fullDescription={sale.full_description} editable />
-      </div>
+          {/* Per-Phase Whitelist Management */}
+          {sale.contract_address && sale.phases.some((p) => p.whitelist_only) && (
+            <WhitelistManager
+              saleContractAddress={sale.contract_address as `0x${string}`}
+              phases={sale.phases}
+            />
+          )}
+
+          {/* OTC Token Manager */}
+          {sale.contract_address && isDraft && (
+            <OTCTokenManager
+              saleContractAddress={sale.contract_address as `0x${string}`}
+              currentOTCTokenAddress={sale.otc_token_address}
+            />
+          )}
+        </div>
+      )}
+
     </IssuerDashboardLayout>
   );
 }
