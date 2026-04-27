@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   Clock, ArrowLeft, AlertCircle, Coins, Bell,
   Pencil, X, Check, Upload, ImageIcon, Globe, Star, Rocket,
-  BarChart3, Users, Settings, Blocks,
+  BarChart3, Users, Blocks,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -921,7 +921,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                 <ImageIcon className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
                 <p className="text-zinc-400 text-sm">No media uploaded. Upload an image or video to set as the hero.</p>
               </div>
-            ))}
+            )}
           </motion.div>
 
           {/* Sale Content Review */}
@@ -1056,7 +1056,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           </div>
           );
         })()}
-        </div>
+        </motion.div>
       )}
 
       {activeTab === "onchain" && (
