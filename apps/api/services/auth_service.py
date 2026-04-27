@@ -122,7 +122,7 @@ class CiretaAuthService(BaseAuthService):
 
     async def login(
         self, email: str, password: str
-    ) -> tuple[User, str, str, bool]:
+    ) -> tuple[User, str, str]:
         """Authenticate user and return tokens.
 
         Args:
@@ -130,9 +130,7 @@ class CiretaAuthService(BaseAuthService):
             password: Plain text password.
 
         Returns:
-            Tuple of (user, access_token, refresh_token, requires_mfa).
-            If requires_mfa is True, access_token is a partial MFA token
-            that can only be used with the /auth/mfa/verify endpoint.
+            Tuple of (user, access_token, refresh_token).
 
         Raises:
             HTTPException: If credentials are invalid.
@@ -150,19 +148,12 @@ class CiretaAuthService(BaseAuthService):
                 },
             )
 
-        if user.mfa_enabled:
-            # Return partial MFA token — short-lived, type=mfa
-            mfa_token = self.create_token(
-                user.id, token_type="mfa", expire_seconds=300
-            )
-            return user, mfa_token, "", True
-
         # Generate tokens (role-aware: admin/issuer get shorter sessions)
         user_role = user.role.value if hasattr(user.role, "value") else user.role
         access_token = self.create_access_token(user.id, role=user_role)
         refresh_token = self.create_refresh_token(user.id, role=user_role)
 
-        return user, access_token, refresh_token, False
+        return user, access_token, refresh_token
 
     def create_token(self, user_id: UUID, token_type: str, expire_seconds: int) -> str:
         """Create a JWT with custom type and expiry."""

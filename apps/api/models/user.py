@@ -80,13 +80,6 @@ class User(BaseModel):
         DateTime(timezone=True), nullable=True, default=None
     )
 
-    # MFA
-    mfa_secret: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True, default=None)
-    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
-    mfa_backup_codes: Mapped[str | None] = mapped_column(
-        EncryptedString(), nullable=True, default=None
-    )
-
     # Accreditation
     is_accredited: Mapped[bool] = mapped_column(Boolean, default=False)
 
