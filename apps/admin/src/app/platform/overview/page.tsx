@@ -38,7 +38,7 @@ export default function PlatformOverviewPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await apiFetch<PlatformStats>("/api/v1/admin/platform/stats");
+        const data = await apiFetch<PlatformStats>("/api/v1/admin/platform/dashboard");
         setStats(data);
       } catch {
         // Use defaults
@@ -48,18 +48,19 @@ export default function PlatformOverviewPage() {
     })();
   }, []);
 
-  const formatUsd = (val: string) => {
-    const num = parseFloat(val);
+  const formatUsd = (val: number | string | null | undefined) => {
+    const num = typeof val === 'number' ? val : parseFloat(String(val || 0));
+    if (isNaN(num) || num === null || num === undefined) return "$0";
     if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
     if (num >= 1_000) return `$${(num / 1_000).toFixed(0)}K`;
     return `$${num.toFixed(0)}`;
   };
 
   const statCards = [
-    { label: "Total Raised", value: formatUsd(String(stats.total_raised_usdc)), icon: TrendingUp, color: "text-blue-600" },
-    { label: "Active Sales", value: stats.active_sales, icon: ShoppingCart, color: "text-amber-600" },
-    { label: "Total Users", value: stats.total_users, icon: Users, color: "text-zinc-600" },
-    { label: "Fees Earned", value: formatUsd(String(stats.platform_fees_collected_usdc)), icon: Coins, color: "text-teal-600" },
+    { label: "Total Raised", value: formatUsd(stats.total_raised_usdc), icon: TrendingUp, color: "text-blue-600" },
+    { label: "Active Sales", value: stats.active_sales || 0, icon: ShoppingCart, color: "text-amber-600" },
+    { label: "Total Users", value: stats.total_users || 0, icon: Users, color: "text-zinc-600" },
+    { label: "Fees Earned", value: formatUsd(stats.platform_fees_collected_usdc), icon: Coins, color: "text-teal-600" },
   ];
 
   return (

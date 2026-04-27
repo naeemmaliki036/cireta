@@ -7,11 +7,13 @@ via _sanitize_cell(). All endpoints require platform admin role.
 import csv
 import io
 import logging
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -28,6 +30,61 @@ router = APIRouter(tags=["admin-reports"])
 
 # Maximum rows per report to prevent OOM on large datasets
 _MAX_REPORT_ROWS = 10_000
+
+
+class PlatformDashboardStats(BaseModel):
+    """Dashboard metrics for platform overview page."""
+    total_users: int
+    total_issuers: int
+    active_sales: int
+    tvl_usdc: float
+    total_raised_usdc: float
+    platform_fees_collected_usdc: float
+
+
+@router.get("/admin/platform/dashboard", response_model=PlatformDashboardStats)
+async def get_platform_dashboard_stats(
+    _admin: RequireAdmin,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PlatformDashboardStats:
+    """Get aggregated platform metrics for the dashboard overview."""
+
+    # Count total users
+    user_count = await db.execute(select(func.count(User.id)))
+    total_users = user_count.scalar() or 0
+
+    # Count issuers (users with issuer role)
+    issuer_count = await db.execute(
+        select(func.count(User.id)).where(User.role == "issuer")
+    )
+    total_issuers = issuer_count.scalar() or 0
+
+    # Count active sales (status = ACTIVE)
+    active_sales_count = await db.execute(
+        select(func.count(TokenSale.id)).where(TokenSale.status == "ACTIVE")
+    )
+    active_sales = active_sales_count.scalar() or 0
+
+    # Sum total raised across all sales
+    total_raised_result = await db.execute(
+        select(func.coalesce(func.sum(TokenSale.total_raised_on_platform), 0))
+    )
+    total_raised_usdc = float(total_raised_result.scalar() or 0)
+
+    # Sum platform fees collected (assume 2% of total raised for now)
+    platform_fees_collected_usdc = total_raised_usdc * 0.02
+
+    # TVL calculation (simplified - sum of all tokens issued)
+    tvl_usdc = total_raised_usdc  # For now, same as total raised
+
+    return PlatformDashboardStats(
+        total_users=total_users,
+        total_issuers=total_issuers,
+        active_sales=active_sales,
+        tvl_usdc=tvl_usdc,
+        total_raised_usdc=total_raised_usdc,
+        platform_fees_collected_usdc=platform_fees_collected_usdc,
+    )
 
 
 def _sanitize_cell(value: str) -> str:
