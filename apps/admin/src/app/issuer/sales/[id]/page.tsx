@@ -156,13 +156,27 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
   // Read on-chain phase count for deployed sales
   const phaseDeployAction = useContractAction();
-  const { data: onChainPhaseCount, refetch: refetchPhaseCount } = useReadContract({
+  const { data: onChainPhaseCount, refetch: refetchPhaseCount, error: phaseCountError, isLoading: phaseCountLoading } = useReadContract({
     address: (sale?.contract_address as `0x${string}`) || undefined,
     abi: SALE_ABI as unknown as Abi,
     functionName: "getPhaseCount",
     query: { enabled: !!sale?.contract_address },
   });
   const chainPhases = Number(onChainPhaseCount ?? 0);
+
+  // Log contract call details for debugging
+  useEffect(() => {
+    if (sale?.contract_address) {
+      console.log("[Phase Count Debug]", {
+        contractAddress: sale.contract_address,
+        onChainPhaseCount,
+        chainPhases,
+        error: phaseCountError,
+        isLoading: phaseCountLoading,
+        salePhaseLength: sale.phases.length
+      });
+    }
+  }, [sale?.contract_address, onChainPhaseCount, chainPhases, phaseCountError, phaseCountLoading, sale?.phases.length]);
 
   // Read issuer fee from PlatformFeeManager
   const feeManagerAddr = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || undefined;
@@ -783,17 +797,27 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide">Phases</h2>
-          {sale.contract_address && sale.phases.length > chainPhases && (
-            <Button variant="outline" size="sm" onClick={handleDeployAllPhases}
-              disabled={phaseDeployAction.isPending || phaseDeployAction.isConfirming}
-              isLoading={phaseDeployAction.isPending || phaseDeployAction.isConfirming}>
-              Deploy All On-Chain ({sale.phases.length - chainPhases} pending)
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {sale.contract_address && (
+              <Button variant="secondary" size="sm" onClick={() => refetchPhaseCount()}>
+                🔄 Refresh Status
+              </Button>
+            )}
+            {sale.contract_address && sale.phases.length > chainPhases && (
+              <Button variant="outline" size="sm" onClick={handleDeployAllPhases}
+                disabled={phaseDeployAction.isPending || phaseDeployAction.isConfirming}
+                isLoading={phaseDeployAction.isPending || phaseDeployAction.isConfirming}>
+                Deploy All On-Chain ({sale.phases.length - chainPhases} pending)
+              </Button>
+            )}
+          </div>
         </div>
         {sale.contract_address && (
           <div className="mb-3 text-xs text-black/40">
             {chainPhases} of {sale.phases.length} phase{sale.phases.length !== 1 ? "s" : ""} deployed on-chain
+            <span className="ml-2 text-blue-500 font-mono">
+              [Debug: chainPhases={chainPhases}, onChainPhaseCount={String(onChainPhaseCount)}, enabled={!!sale?.contract_address}]
+            </span>
           </div>
         )}
         <TransactionStatus
