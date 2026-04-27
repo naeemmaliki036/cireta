@@ -51,7 +51,7 @@ function RegisterForm() {
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to send code");
       if (data.dev_otp) setDevOtp(data.dev_otp);
       setStep("otp");
-      setResendCountdown(60);
+      setResendCountdown(300); // 5 minutes to match API rate limiting
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send code");
     } finally {
@@ -61,9 +61,9 @@ function RegisterForm() {
 
   const handleResendOtp = async () => {
     if (resendCountdown > 0 || resendLocked) return;
-    if (resendCount >= 2) {
+    if (resendCount >= 1) {
       setResendLocked(true);
-      setError("Too many attempts. Please wait 5 minutes before trying again.");
+      setError("Maximum verification codes reached. Please wait 5 minutes before trying again.");
       setTimeout(() => { setResendLocked(false); setResendCount(0); setError(null); }, 5 * 60 * 1000);
       return;
     }
@@ -80,7 +80,7 @@ function RegisterForm() {
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to resend code");
       if (data.dev_otp) setDevOtp(data.dev_otp);
       setResendCount((c) => c + 1);
-      setResendCountdown(60);
+      setResendCountdown(300); // 5 minutes to match API rate limiting
       setOtp("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resend code");
@@ -198,7 +198,9 @@ function RegisterForm() {
             {resendLocked ? (
               <span className="text-red-400">Locked — try again in 5 minutes</span>
             ) : resendCountdown > 0 ? (
-              <span className="text-gray-300">Resend in {resendCountdown}s</span>
+              <span className="text-gray-300">
+                Resend in {Math.floor(resendCountdown / 60)}:{String(resendCountdown % 60).padStart(2, '0')}
+              </span>
             ) : (
               <button type="button" onClick={handleResendOtp} disabled={loading} className="text-darkAqua hover:underline">
                 Resend code

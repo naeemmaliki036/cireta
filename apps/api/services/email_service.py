@@ -35,7 +35,7 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             '<p style="color:#555;margin-bottom:24px">Enter this code to continue:</p>'
             '<div style="background:#f5f5f5;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">'
             '<span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#111">{{code}}</span></div>'
-            '<p style="color:#888;font-size:13px">This code expires in 10 minutes.</p>'
+            '<p style="color:#888;font-size:13px">This code expires in 5 minutes.</p>'
             '<hr style="border:none;border-top:1px solid #eee;margin:24px 0">'
             '<p style="color:#aaa;font-size:12px">Cireta</p></div>'
         ),

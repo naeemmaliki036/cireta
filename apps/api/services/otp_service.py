@@ -20,8 +20,9 @@ from packages.common.core.config import settings
 logger = logging.getLogger(__name__)
 
 OTP_LENGTH = 6
-OTP_EXPIRY_MINUTES = 10
-OTP_RATE_LIMIT_PER_HOUR = 20
+OTP_EXPIRY_MINUTES = 5  # Code expires in 5 minutes
+OTP_RATE_LIMIT_MAX = 3  # Max 3 OTPs per email
+OTP_RATE_LIMIT_WINDOW_MINUTES = 5  # Within 5 minutes
 
 
 class OTPService:
@@ -52,23 +53,23 @@ class OTPService:
         """
         email = email.lower().strip()
 
-        # Rate limit: max 5 per email per hour
-        one_hour_ago = datetime.now(UTC) - timedelta(hours=1)
+        # Rate limit: max 3 OTPs per email within 5 minutes
+        five_minutes_ago = datetime.now(UTC) - timedelta(minutes=OTP_RATE_LIMIT_WINDOW_MINUTES)
         count_result = await self.db.execute(
             select(func.count()).select_from(AuthOTP).where(
                 and_(
                     AuthOTP.email == email,
-                    AuthOTP.created_at > one_hour_ago,
+                    AuthOTP.created_at > five_minutes_ago,
                 )
             )
         )
         count = count_result.scalar() or 0
-        if count >= OTP_RATE_LIMIT_PER_HOUR:
+        if count >= OTP_RATE_LIMIT_MAX:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail={
                     "code": "OTP_RATE_LIMITED",
-                    "message": "Too many verification codes requested. Try again later.",
+                    "message": f"Too many verification codes requested. Please wait 5 minutes before requesting another code.",
                 },
             )
 
