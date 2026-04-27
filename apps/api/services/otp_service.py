@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.auth_otp import AuthOTP
 from apps.api.services.email_service import EmailService
+from packages.common.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,9 @@ class OTPService:
     ) -> dict:
         """Generate OTP, send via email, return result.
 
-        In dev mode without Resend, returns dev_otp for UI notification.
+        When EXPOSE_DEV_OTP=true, returns dev_otp in response so the UI can show
+        the code without an inbox round-trip — independent of whether email
+        actually sent. Off by default.
 
         Args:
             email: Recipient email.
@@ -82,23 +85,19 @@ class OTPService:
         await self.db.commit()
 
         # Send via email — never let email failure block OTP creation
-        send_result: dict = {}
         try:
             email_svc = EmailService(self.db)
-            send_result = await email_svc.send(
+            await email_svc.send(
                 "otp_code",
                 email,
                 variables={"code": code},
             )
         except Exception:
-            import logging
-            logging.getLogger(__name__).warning("Email send failed for OTP to %s — OTP still created", email)
-            send_result = {"status": "email_failed", "dev_otp": code}
+            logger.warning("Email send failed for OTP to %s — OTP still created", email)
 
         result: dict = {"status": "sent", "expires_in_seconds": OTP_EXPIRY_MINUTES * 60}
-        # In dev mode, return OTP for UI toast notification
-        if "dev_otp" in send_result:
-            result["dev_otp"] = send_result["dev_otp"]
+        if settings.expose_dev_otp:
+            result["dev_otp"] = code
         return result
 
     async def verify_otp(self, email: str, code: str, purpose: str) -> AuthOTP:

@@ -112,6 +112,7 @@ class Settings(BaseSettings):
     resend_api_key: str = Field(default="")
     frontend_url: str = Field(default="https://cireta.com")
     smtp_from: str = Field(default="noreply@cireta.com")
+    expose_dev_otp: bool = Field(default=False)
 
     # KYC levels
     kyc_min_level_invest: int = Field(default=DEFAULTS["KYC_MIN_LEVEL_INVEST"])

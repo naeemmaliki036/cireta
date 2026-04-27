@@ -1,7 +1,7 @@
 """Email Service — sends transactional emails via Resend.
 
 Loads templates from DB (admin-editable). Falls back to built-in defaults.
-In dev mode without RESEND_API_KEY, logs emails and returns dev_otp for UI toast.
+In dev mode without RESEND_API_KEY, logs emails instead of sending.
 """
 
 import logging
@@ -396,7 +396,7 @@ class EmailService:
     ) -> dict:
         """Send an email using a template.
 
-        Returns dict with status. In dev without Resend, returns dev_otp for UI toast.
+        Returns dict with status. In dev without Resend, logs the email instead.
         If template is inactive (is_active=False), email is silently skipped.
         """
         variables = variables or {}
@@ -411,17 +411,14 @@ class EmailService:
         subject = self._render(template["subject"], variables)
         html_body = self._render(template["html_body"], variables)
 
-        # Dev mode: log and return OTP for UI notification
+        # Dev mode without Resend: log and return.
         if not self._configured:
             logger.info(
                 "DEV EMAIL [%s] to=%s subject='%s' %s",
                 template_key, to_email, subject,
                 f"code={variables.get('code')}" if "code" in variables else "",
             )
-            result: dict = {"status": "dev_logged", "to": to_email, "subject": subject}
-            if "code" in variables:
-                result["dev_otp"] = variables["code"]
-            return result
+            return {"status": "dev_logged", "to": to_email, "subject": subject}
 
         try:
             response = resend.Emails.send({
