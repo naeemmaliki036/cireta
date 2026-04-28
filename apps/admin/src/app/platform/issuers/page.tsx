@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { DataTable } from "@/components/molecules";
+import { ToastContainer, useToast } from "@/components/molecules/Toast";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
@@ -45,6 +46,7 @@ export default function IssuersPage() {
   const [registeringId, setRegisteringId] = useState<string | null>(null);
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const { toasts, showError, showSuccess, removeToast } = useToast();
   const issuerRegistryAddr = getAddresses().issuerRegistry;
 
   const { writeContract: registerIssuer, data: registerHash } = useWriteContract();
@@ -78,10 +80,15 @@ export default function IssuersPage() {
   // After activate tx confirms, mark as registered
   useEffect(() => {
     if (activateConfirmed && registeringId) {
+      const issuer = apiIssuers.find(i => i.id === registeringId);
       setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
+      showSuccess(
+        "On-Chain Registration Complete",
+        `${issuer?.name || "Issuer"} has been successfully registered and activated on the Issuer Registry contract.`
+      );
       setRegisteringId(null);
     }
-  }, [activateConfirmed]);
+  }, [activateConfirmed, registeringId, apiIssuers, showSuccess]);
 
   const handleRegisterOnChain = (issuer: Issuer) => {
     if (registeringId) return;
@@ -90,11 +97,17 @@ export default function IssuersPage() {
       return;
     }
     if (!issuerRegistryAddr) {
-      alert("Issuer Registry contract address not configured");
+      showError(
+        "Configuration Error",
+        "Issuer Registry contract address not configured. Please check your environment settings."
+      );
       return;
     }
     if (issuer.wallet === "—") {
-      alert("Issuer has no wallet address");
+      showError(
+        "Wallet Missing",
+        `${issuer.name} has no wallet address configured. The issuer must connect a wallet before registration.`
+      );
       return;
     }
     setRegisteringId(issuer.id);
@@ -106,8 +119,20 @@ export default function IssuersPage() {
     }, {
       onError: (err) => {
         console.error("On-chain registration failed:", err);
-        const msg = err.message.includes("user rejected") ? "Transaction rejected" : err.message;
-        alert(`Registration failed: ${msg}`);
+        const isRejected = err.message.includes("user rejected") || err.message.includes("User denied");
+        if (isRejected) {
+          showError("Transaction Rejected", "You cancelled the transaction in your wallet.");
+        } else if (err.message.includes("exceeds max transaction gas limit")) {
+          showError(
+            "Gas Limit Exceeded",
+            "The transaction requires too much gas. This usually means the contract function is expensive or there's a network issue. Please try again or contact support."
+          );
+        } else {
+          showError(
+            "On-Chain Registration Failed",
+            `The contract function "registerIssuer" reverted with the following reason: ${err.message}`
+          );
+        }
         setRegisteringId(null);
       },
     });
@@ -157,18 +182,19 @@ export default function IssuersPage() {
   const pendingCount = apiIssuers.filter((i) => i.status === "pending").length;
 
   return (
-    <PlatformAdminLayout
-      title="Issuer Management"
-      description="Manage platform issuers, fees, and approvals"
-      actions={
-        <Link href="/platform/issuers/whitelist">
-          <Button variant="outline" size="sm">
-            <ListChecks className="h-4 w-4 mr-2" />
-            Manage Issuer Whitelist
-          </Button>
-        </Link>
-      }
-    >
+    <>
+      <PlatformAdminLayout
+        title="Issuer Management"
+        description="Manage platform issuers, fees, and approvals"
+        actions={
+          <Link href="/platform/issuers/whitelist">
+            <Button variant="outline" size="sm">
+              <ListChecks className="h-4 w-4 mr-2" />
+              Manage Issuer Whitelist
+            </Button>
+          </Link>
+        }
+      >
       {/* Inline stats + Whitelist button */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {[
@@ -281,6 +307,9 @@ export default function IssuersPage() {
         onConfirm={handleAction}
         onClose={() => { setModalType(null); setSelectedIssuer(null); }}
       />
-    </PlatformAdminLayout>
+      </PlatformAdminLayout>
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </>
   );
 }

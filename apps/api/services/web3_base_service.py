@@ -116,16 +116,37 @@ class Web3BaseService:
             function = getattr(contract.functions, function_name)
             nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
             gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
+
+            # Build transaction with higher initial gas limit
             tx = function(*args).build_transaction(
                 {
                     "chainId": self.chain_id,
                     "from": self._account.address,
-                    "gas": 500000,
+                    "gas": 2000000,  # Increased from 500k to 2M for complex operations
                     "gasPrice": gas_price,
                     "nonce": nonce,
                 }
             )
-            tx["gas"] = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
+
+            # Estimate gas and add 20% buffer for safety
+            try:
+                estimated_gas = await asyncio.to_thread(self.w3.eth.estimate_gas, tx)
+                # Add 20% buffer to estimated gas, with minimum of 1M gas
+                buffered_gas = max(int(estimated_gas * 1.2), 1000000)
+                # Cap at 5M gas to prevent runaway transactions
+                tx["gas"] = min(buffered_gas, 5000000)
+                logger.info(
+                    "Gas estimation for %s.%s: estimated=%d, buffered=%d, final=%d",
+                    contract_address, function_name, estimated_gas, buffered_gas, tx["gas"]
+                )
+            except Exception as gas_error:
+                logger.warning(
+                    "Gas estimation failed for %s.%s: %s. Using fallback gas limit.",
+                    contract_address, function_name, gas_error
+                )
+                # Use high fallback gas limit if estimation fails
+                tx["gas"] = 3000000
+
             signed = self._account.sign_transaction(tx)
             tx_hash = await asyncio.to_thread(self.w3.eth.send_raw_transaction, signed.raw_transaction)
             return await asyncio.to_thread(self.w3.eth.wait_for_transaction_receipt, tx_hash)
