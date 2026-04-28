@@ -11,6 +11,7 @@ import {
   Clock,
   Globe,
   Loader2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { DataTable } from "@/components/molecules";
@@ -292,7 +293,16 @@ export default function IssuersPage() {
                     <div className="flex items-center gap-3">
                       <div>
                         <p className="text-sm font-medium text-zinc-900">{issuer.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono">{issuer.wallet.slice(0, 6)}...{issuer.wallet.slice(-4)}</p>
+                        <span className="flex items-center gap-1">
+                          <p className="text-xs text-zinc-500 font-mono">{issuer.wallet}</p>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(issuer.wallet)}
+                            className="text-zinc-400 hover:text-zinc-700 transition-colors"
+                            title="Copy address"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </span>
                         {txHash && (
                           <a
                             href={`https://sepolia.basescan.org/tx/${txHash}`}
