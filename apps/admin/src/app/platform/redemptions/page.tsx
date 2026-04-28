@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { PlatformAdminLayout } from "@/components/templates";
 import { listRedemptions, type Redemption } from "@/lib/api/repositories/redemptions";
@@ -51,8 +52,8 @@ function DeliveryPanel({ r, onClose }: { r: Redemption; onClose: () => void }) {
           {r.delivery_address && <Row label="Address" value={r.delivery_address} />}
           {r.delivery_phone && <Row label="Phone" value={r.delivery_phone} />}
           {r.tracking_number && <Row label="Tracking #" value={r.tracking_number} />}
-          {r.shipped_at && <Row label="Shipped" value={new Date(r.shipped_at).toLocaleDateString()} />}
-          {r.fulfilled_at && <Row label="Fulfilled" value={new Date(r.fulfilled_at).toLocaleDateString()} />}
+          {r.shipped_at && <Row label="Shipped" value={parseApiDate(r.shipped_at).toLocaleDateString()} />}
+          {r.fulfilled_at && <Row label="Fulfilled" value={parseApiDate(r.fulfilled_at).toLocaleDateString()} />}
         </div>
         <button
           onClick={onClose}
@@ -182,7 +183,7 @@ export default function PlatformRedemptionsPage() {
                     className="border-b border-zinc-50 hover:bg-[#ECF3F4] cursor-pointer transition-colors"
                   >
                     <td className="px-5 py-3 text-xs text-zinc-600 whitespace-nowrap">
-                      {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
+                      {r.created_at ? parseApiDate(r.created_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-5 py-3 text-xs text-zinc-700 font-medium">
                       {truncateId(r.token_id)}

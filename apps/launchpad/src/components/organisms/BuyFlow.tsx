@@ -539,7 +539,7 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
             label="Tx Hash"
             value={
               <a
-                href={getTxUrl(chainId, txHash)}
+                href={getTxUrl(chainId, txHash) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-darkAqua underline font-mono text-xs"

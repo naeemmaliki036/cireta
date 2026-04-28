@@ -12,12 +12,13 @@ import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi, isAddress } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { StatCard } from "@/components/molecules";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { SaleContentReview } from "@/components/molecules/SaleContentReview";
 import { ProgressBar } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, parseApiDate } from "@/lib/utils";
 import { getSale, type Sale } from "@/lib/api/repositories/sales";
 import { apiFetch, getAccessToken } from "@/lib/api/client";
 import { useContractAction } from "@/hooks/useContractAction";
@@ -282,7 +283,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           </h2>
           {hasContract && (
             <p className="text-sm text-amber-700 mb-1">
-              Sale deployed at <code className="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
+              Sale deployed at <CopyableAddress address={sale.contract_address!} className="text-xs bg-amber-100 px-1.5 py-0.5 rounded" />
             </p>
           )}
           <p className="text-sm text-amber-700 mb-4">
@@ -310,7 +311,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-teal-50 rounded-lg p-6 border border-teal-200 mb-6">
           <h2 className="text-lg font-semibold text-teal-800 mb-2">Approved — Ready to Activate</h2>
           <p className="text-sm text-teal-700 mb-1">
-            Deployed at <code className="font-mono text-xs bg-teal-100 px-1.5 py-0.5 rounded">{sale.contract_address}</code>
+            Deployed at <CopyableAddress address={sale.contract_address!} className="text-xs bg-teal-100 px-1.5 py-0.5 rounded" />
           </p>
           <p className="text-sm text-teal-700 mb-3">Activate on-chain to enable purchases. You can control launchpad visibility after activation.</p>
           {(chainPhases === 0 || !tokensDeposited) && (
@@ -435,7 +436,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           )}
           {sale.refunds_activated_at && (
             <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Refunds activated on {new Date(sale.refunds_activated_at).toLocaleDateString()}
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> Refunds activated on {parseApiDate(sale.refunds_activated_at).toLocaleDateString()}
             </div>
           )}
           <TransactionStatus isPending={activateRefundsAction.isPending} isConfirming={activateRefundsAction.isConfirming} isConfirmed={activateRefundsAction.isConfirmed} txHash={activateRefundsAction.txHash} txUrl={activateRefundsAction.txUrl} error={activateRefundsAction.error} successMessage="Refunds activated — buyers can now claim USDC refunds." />
@@ -542,16 +543,16 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg p-6 border border-black/10 mb-6">
         <h2 className="text-lg font-semibold text-text mb-4">Sale Details</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
-          {[
+          {([
             ["Token", sale.token_name ? `${sale.token_name} (${sale.token_symbol})` : "Not assigned"],
             ["Issuer", sale.issuer_name ?? "—"],
             ["Payment Token", sale.payment_token],
             ["Sale Mode", sale.sale_mode ?? "vested"],
             ["Sale Type", isOpenEnded ? "Open-Ended" : "Fixed Window"],
-            ["Contract", sale.contract_address ? `${sale.contract_address.slice(0, 10)}...${sale.contract_address.slice(-8)}` : "Not deployed"],
+            ["Contract", sale.contract_address ? <CopyableAddress address={sale.contract_address} truncate className="text-xs" /> : "Not deployed"],
             ["Phases", `${sale.phases.length} configured`],
-          ].map(([label, value]) => (
-            <div key={String(label)} className="flex justify-between py-2 border-b border-black/5">
+          ] as Array<[string, React.ReactNode]>).map(([label, value]) => (
+            <div key={label} className="flex justify-between py-2 border-b border-black/5">
               <span className="text-black/50">{label}</span>
               <span className="font-medium text-text">{value}</span>
             </div>

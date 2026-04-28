@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 
 interface OTCRecord {
   id: string;
@@ -101,7 +102,7 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
             <div className="space-y-3">
               {records.map((r) => (
                 <div key={r.id} className="border-b border-black/5 pb-3 last:border-0">
-                  <p className="text-text font-mono text-sm">{r.wallet_address.slice(0, 10)}...</p>
+                  <CopyableAddress address={r.wallet_address} truncate className="text-text text-sm" />
                   <p className="text-black/40 text-xs">{r.tokens_allocated} tokens · Ref: {r.otc_reference}</p>
                 </div>
               ))}

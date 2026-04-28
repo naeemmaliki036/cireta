@@ -11,7 +11,7 @@ import { PlatformAdminLayout } from "@/components/templates";
 import { getIssuer, activateIssuer, revokeIssuer, type Issuer } from "@/lib/api/repositories/issuers";
 import { approveIssuerWallet, rejectIssuerWallet, skipIssuerIdentity } from "@/lib/api/repositories/issuer-onboarding";
 import { getSales, type Sale } from "@/lib/api/repositories/sales";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, parseApiDate } from "@/lib/utils";
 
 function StatusPill({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
@@ -140,7 +140,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
             { label: "Fee", value: `${issuer.fee_bps / 100}%` },
             { label: "Sales", value: sales.length.toString() },
             { label: "Total Raised", value: formatCurrency(totalRaised) },
-            { label: "Created", value: new Date(issuer.created_at).toLocaleDateString() },
+            { label: "Created", value: parseApiDate(issuer.created_at).toLocaleDateString() },
           ].map((item) => (
             <div key={item.label}>
               <p className="text-[11px] text-zinc-400 uppercase tracking-wide">{item.label}</p>
@@ -206,7 +206,7 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
           <div className="text-xs text-zinc-500 space-y-1.5 mb-3">
             <p>Type: <span className="font-medium text-text capitalize">{issuer.issuer_type}</span></p>
             {issuer.identity_verified_at && (
-              <p>Verified: <span className="font-medium text-text">{new Date(issuer.identity_verified_at).toLocaleDateString()}</span></p>
+              <p>Verified: <span className="font-medium text-text">{parseApiDate(issuer.identity_verified_at).toLocaleDateString()}</span></p>
             )}
             {issuer.identity_status === "none" && <p className="text-zinc-400">Not started</p>}
             {issuer.identity_status === "pending" && <p className="text-amber-600">Under review</p>}

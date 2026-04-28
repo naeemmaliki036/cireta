@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { useContractAction } from "@/hooks/useContractAction";
+import { getChainId, getChainName } from "@/lib/chain";
 import { useToast, ToastContainer } from "@/components/molecules/Toast";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits, formatUnits, zeroAddress } from "viem";
@@ -44,21 +45,10 @@ export default function InvestPage() {
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
   const { openConnectModal } = useConnectModal();
 
-  // Expected chain from env — required, no default. Misconfiguration must fail loudly.
-  if (!process.env.NEXT_PUBLIC_CHAIN_ID) {
-    throw new Error("NEXT_PUBLIC_CHAIN_ID is not set. Configure it in the launchpad environment.");
-  }
-  const expectedChainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
-  if (!Number.isFinite(expectedChainId) || expectedChainId <= 0) {
-    throw new Error(`NEXT_PUBLIC_CHAIN_ID is invalid: "${process.env.NEXT_PUBLIC_CHAIN_ID}"`);
-  }
+  // Expected chain from env — getChainId() throws if missing/invalid.
+  const expectedChainId = getChainId();
   const isWrongChain = isConnected && chainId !== expectedChainId;
-  const expectedChainName =
-    expectedChainId === 8453 ? "Base"
-    : expectedChainId === 84532 ? "Base Sepolia"
-    : expectedChainId === 11155111 ? "Ethereum Sepolia"
-    : expectedChainId === 1 ? "Ethereum Mainnet"
-    : `Chain ${expectedChainId}`;
+  const expectedChainName = getChainName();
   const { user, isAuthenticated } = useAuth();
   const { isVerified: isWalletLinkedToProfile } = useWeb3();
 

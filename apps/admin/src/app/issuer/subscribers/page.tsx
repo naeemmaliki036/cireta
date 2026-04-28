@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
@@ -50,7 +51,7 @@ const columns: Column<Subscriber>[] = [
     header: "Subscribed",
     render: (row) => (
       <span className="text-[13px] text-zinc-500">
-        {new Date(row.subscribed_at).toLocaleDateString()}
+        {parseApiDate(row.subscribed_at).toLocaleDateString()}
       </span>
     ),
   },
@@ -73,7 +74,7 @@ function downloadCSV(subscribers: Subscriber[]) {
       `"${s.email}"`,
       `"${s.display_name || ""}"`,
       `"${s.sale_title || ""}"`,
-      new Date(s.subscribed_at).toLocaleDateString(),
+      parseApiDate(s.subscribed_at).toLocaleDateString(),
       s.notified_at ? "Yes" : "No",
     ].join(",")
   );

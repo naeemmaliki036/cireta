@@ -10,6 +10,8 @@ import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getOnboardingStatus, type OnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
 import { apiFetch } from "@/lib/api/client";
+import { getAddressUrl } from "@/lib/contracts/addresses";
+import { getChainId } from "@/lib/chain";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -201,7 +203,7 @@ export default function IssuerSettingsPage() {
                       <Copy className="h-3.5 w-3.5" />
                     </button>
                     <a
-                      href={`https://basescan.org/address/${address}`}
+                      href={getAddressUrl(getChainId(), address) ?? undefined}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded hover:bg-green-100 text-green-600 transition-colors"

@@ -9,14 +9,15 @@ import {
 } from "@rainbow-me/rainbowkit/wallets";
 import { base, baseSepolia } from "wagmi/chains";
 import { http, createConfig, type Config } from "wagmi";
+import { getChainId, getRpcUrl } from "@/lib/chain";
 
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
-const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? "84532");
-const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? "";
+const chainId = getChainId();
+const rpcUrl = getRpcUrl();
 
 const chains =
-  chainId === 84532
+  chainId === baseSepolia.id
     ? ([baseSepolia, base] as const)
     : ([base, baseSepolia] as const);
 
@@ -45,8 +46,8 @@ export function getWagmiConfig(): Config {
       connectors,
       chains,
       transports: {
-        [base.id]: http(rpcUrl || undefined),
-        [baseSepolia.id]: http(rpcUrl || undefined),
+        [base.id]: http(chainId === base.id ? rpcUrl : undefined),
+        [baseSepolia.id]: http(chainId === baseSepolia.id ? rpcUrl : undefined),
       },
       multiInjectedProviderDiscovery: true,
       ssr: true,

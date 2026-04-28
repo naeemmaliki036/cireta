@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Shield, Globe, Lock, Search } from "lucide-react";
 import { Badge, Spinner } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { DataTable, type Column } from "@/components/molecules";
 import { PlatformAdminLayout } from "@/components/templates";
 import { getFrozenAddresses, getAuditLogs, type FrozenAddress, type AuditLogEntry } from "@/lib/api/repositories/compliance";
@@ -13,7 +14,7 @@ function getToken() {
 }
 
 const frozenCols: Column<FrozenAddress>[] = [
-  { key: "wallet_address", header: "Address", render: (r) => <code className="text-xs bg-zinc-100 px-2 py-1 rounded">{r.wallet_address.slice(0, 12)}\u2026</code> },
+  { key: "wallet_address", header: "Address", render: (r) => <CopyableAddress address={r.wallet_address} truncate className="text-xs bg-zinc-100 px-2 py-1 rounded" /> },
   { key: "reason", header: "Reason", render: (r) => <span className="text-sm text-zinc-500">{r.reason}</span> },
   { key: "frozen_at", header: "Frozen At", render: (r) => <span className="text-sm text-zinc-400">{r.frozen_at.slice(0, 10)}</span> },
 ];

@@ -114,7 +114,7 @@ function TransactionRow({ tx, chainId }: { tx: Transaction; chainId: number }) {
           </span>
           {isOnChain && (
             <a
-              href={getTxUrl(chainId, tx.tx_hash as string)}
+              href={getTxUrl(chainId, tx.tx_hash as string) ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-darkAqua hover:underline"

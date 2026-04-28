@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { Plus, Trash2, Mail, Building2, User, ShieldCheck, ShieldOff, CheckCircle2, Clock, Check, X } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
@@ -241,7 +242,7 @@ export default function WhitelistPage() {
                       </span>
                     )}
                     <span className="text-[10px] text-zinc-400">
-                      {new Date(entry.created_at).toLocaleDateString()}
+                      {parseApiDate(entry.created_at).toLocaleDateString()}
                     </span>
                     {!entry.registered_at && (
                       <button

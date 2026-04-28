@@ -237,7 +237,7 @@ export default function TransferPage() {
             </p>
             <div className="space-y-3">
               {txHash && (
-                <a href={getTxUrl(chainId, txHash)} target="_blank" rel="noopener noreferrer">
+                <a href={getTxUrl(chainId, txHash) ?? undefined} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="w-full" size="lg">View Transaction</Button>
                 </a>
               )}

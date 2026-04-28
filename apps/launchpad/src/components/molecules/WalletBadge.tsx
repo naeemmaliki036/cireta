@@ -4,6 +4,7 @@ import React from "react";
 import { Wallet, Copy, ExternalLink, Check } from "lucide-react";
 import { cn, truncateAddress } from "@/lib/utils";
 import { useState } from "react";
+import { getAddressUrl } from "@/lib/contracts/addresses";
 
 export interface WalletBadgeProps {
   address: string;
@@ -21,12 +22,6 @@ const CHAIN_NAMES: Record<number, string> = {
   42161: "Arbitrum",
 };
 
-const EXPLORER_URLS: Record<number, string> = {
-  1: "https://etherscan.io/address/",
-  8453: "https://basescan.org/address/",
-  137: "https://polygonscan.com/address/",
-  42161: "https://arbiscan.io/address/",
-};
 
 export function WalletBadge({
   address,
@@ -45,8 +40,7 @@ export function WalletBadge({
   };
 
   const openExplorer = () => {
-    const baseUrl = EXPLORER_URLS[chainId] || EXPLORER_URLS[8453];
-    window.open(`${baseUrl}${address}`, "_blank");
+    const _addrUrl = getAddressUrl(chainId, address); if (_addrUrl) window.open(_addrUrl, "_blank");
   };
 
   return (

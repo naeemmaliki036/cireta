@@ -103,7 +103,8 @@ export function PlatformAdminLayout({
         "fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-zinc-200 flex flex-col transition-transform duration-300 lg:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex flex-col h-full px-4 py-5 overflow-y-auto">
+        {/* Scrollable nav region */}
+        <div className="flex-1 flex flex-col px-4 pt-5 pb-3 overflow-y-auto min-h-0">
           {/* Logo */}
           <Link href="/platform/overview" className="flex items-center gap-2 mb-6 px-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -129,20 +130,23 @@ export function PlatformAdminLayout({
 
           {/* Website CMS section */}
           <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mb-2">Website CMS</p>
-          <nav className="space-y-0.5">
+          <nav className="space-y-0.5 mb-5">
             {WEBSITE_CMS_LINKS.map((link) => (
               <NavLink key={link.href} {...link} />
             ))}
           </nav>
 
-          {/* Navigation bottom */}
-          <div className="mt-auto pt-4 border-t border-zinc-200 space-y-0.5">
+          {/* Settings/Email/Admins — shown after Website CMS so they always appear,
+              but the user profile below is pinned outside this scroll region. */}
+          <div className="pt-4 border-t border-zinc-200 space-y-0.5">
             <NavLink href="/platform/email-templates" label="Email Management" icon={Mail} />
             <NavLink href="/platform/admins" label="Admin Accounts" icon={UserCog} />
             <NavLink href="/platform/settings" label="Settings" icon={Settings} />
           </div>
+        </div>
 
-          {/* User profile */}
+        {/* User profile — pinned bottom, outside scroll */}
+        <div className="shrink-0 px-4 py-3 border-t border-zinc-200 bg-white">
           <SidebarUserProfile />
         </div>
       </aside>

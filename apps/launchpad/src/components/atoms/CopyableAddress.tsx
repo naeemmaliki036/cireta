@@ -29,15 +29,15 @@ export function CopyableAddress({ address, truncate = false, className = "" }: C
       <button
         onClick={handleCopy}
         title={copied ? "Copied!" : "Copy address"}
-        className="shrink-0 p-0.5 rounded hover:bg-zinc-200/50 transition-colors cursor-pointer"
+        className="shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors cursor-pointer"
       >
         {copied
           ? <Check className="h-3 w-3 text-green-500" />
-          : <Copy className="h-3 w-3 text-zinc-400 hover:text-zinc-600" />
+          : <Copy className="h-3 w-3 text-gray-400 hover:text-gray-600" />
         }
       </button>
       {copied && (
-        <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-sans font-medium bg-zinc-900 text-white rounded shadow-md whitespace-nowrap pointer-events-none z-10">
+        <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] font-sans font-medium bg-black text-white rounded shadow-md whitespace-nowrap pointer-events-none z-10">
           Copied!
         </span>
       )}

@@ -3,6 +3,8 @@
 import { Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { cn, truncateAddress } from "@/lib/utils";
+import { getAddressUrl } from "@/lib/contracts/addresses";
+import { getChainId } from "@/lib/chain";
 
 export interface WalletBadgeProps {
   address: string;
@@ -27,7 +29,7 @@ export function WalletBadge({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const explorerUrl = `https://basescan.org/address/${address}`;
+  const explorerUrl = getAddressUrl(getChainId(), address);
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
@@ -65,7 +67,7 @@ export function WalletBadge({
             )}
           </button>
         )}
-        {showExplorer && (
+        {showExplorer && explorerUrl && (
           <a
             href={explorerUrl}
             target="_blank"

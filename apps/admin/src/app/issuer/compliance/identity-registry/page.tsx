@@ -17,6 +17,8 @@ import {
   recordEmergencyManualSync,
   type IdentitySyncJob,
 } from "@/lib/api/repositories/identity-registry";
+import { getTxUrl } from "@/lib/contracts/addresses";
+import { getChainId } from "@/lib/chain";
 import { BatchAddressInput, useBatchRows } from "@/components/molecules/BatchAddressInput";
 
 const REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS ?? "") as `0x${string}`;
@@ -395,7 +397,7 @@ export default function IdentityRegistryAdminPage() {
                       )}
                       {job.tx_hash && (
                         <a
-                          href={`https://sepolia.basescan.org/tx/${job.tx_hash}`}
+                          href={getTxUrl(getChainId(), job.tx_hash) ?? undefined}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-darkAqua hover:underline mt-1"

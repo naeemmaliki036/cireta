@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { listDistributions, depositDividend, type Distribution } from "@/lib/api/repositories/dividends";
 
 export default function DividendsPage() {
@@ -76,7 +77,7 @@ export default function DividendsPage() {
               {distributions.map((d) => (
                 <div key={d.id} className="border-b border-white/5 pb-3 last:border-0">
                   <p className="text-white text-sm font-medium">{Number(d.total_amount).toLocaleString()} USDC</p>
-                  <p className="text-white/30 text-xs">Epoch {d.epoch_index} · {new Date(d.created_at).toLocaleDateString()}</p>
+                  <p className="text-white/30 text-xs">Epoch {d.epoch_index} · {parseApiDate(d.created_at).toLocaleDateString()}</p>
                 </div>
               ))}
             </div>

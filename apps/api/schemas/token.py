@@ -74,6 +74,7 @@ class TokenResponse(BaseModel):
     sale_contract_address: str | None = None
     vault_address: str | None = None
     fraction_token_address: str | None = None
+    created_at: str | None = None
 
     class Config:
         from_attributes = True

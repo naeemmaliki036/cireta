@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { CheckCircle2, Rocket } from "lucide-react";
 import { Input, Select, Textarea, Badge } from "@/components/atoms";
 import { CountrySelector } from "@/components/molecules/CountrySelector";
+import { getChainName } from "@/lib/chain";
 
 export interface TokenFormData {
   name: string;
@@ -349,11 +350,7 @@ export function StepDeploy({
           )}
           <div className="flex justify-between">
             <span className="text-gray-500">Network</span>
-            <span className="font-medium">{
-              typeof window !== "undefined" && parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453") === 84532
-                ? "Base Sepolia (Testnet)"
-                : "Base (Mainnet)"
-            }</span>
+            <span className="font-medium">{getChainName()}</span>
           </div>
         </div>
       </div>

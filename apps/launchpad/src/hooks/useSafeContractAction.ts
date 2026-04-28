@@ -5,6 +5,7 @@ import { useAccount, useChainId } from "wagmi";
 import { encodeFunctionData, type Abi } from "viem";
 import { proposeTransaction, getTransaction, getSafeTxUrl } from "@/lib/safe/safeClient";
 import type { SafeTxState } from "@/components/molecules/SafeTransactionStatus";
+import { getTxUrl } from "@/lib/contracts/addresses";
 
 export interface SafeContractActionState {
   execute: (params: {
@@ -65,11 +66,7 @@ export function useSafeContractAction(): SafeContractActionState {
     }
   }, [safeTxHash]);
 
-  // Build Safe app tx URL
-  const getTxExplorerUrl = (hash: string): string => {
-    const prefix = chainId === 84532 ? "sepolia.basescan.org" : "basescan.org";
-    return `https://${prefix}/tx/${hash}`;
-  };
+  const getTxExplorerUrl = (hash: string): string | null => getTxUrl(chainId, hash);
 
   const execute = useCallback(
     async (params: {

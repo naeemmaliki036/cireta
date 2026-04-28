@@ -3,6 +3,7 @@
 import React from "react";
 import { ExternalLink, CheckCircle2, Clock, XCircle, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { cn, formatCurrency, truncateAddress } from "@/lib/utils";
+import { getTxUrl } from "@/lib/contracts/addresses";
 
 export type TxStatus = "pending" | "confirmed" | "failed";
 export type TxType = "contribution" | "claim" | "refund" | "transfer";
@@ -59,12 +60,6 @@ const STATUS_CONFIG = {
   },
 };
 
-const EXPLORER_URLS: Record<number, string> = {
-  1: "https://etherscan.io/tx/",
-  8453: "https://basescan.org/tx/",
-  137: "https://polygonscan.com/tx/",
-  42161: "https://arbiscan.io/tx/",
-};
 
 export function TxRow({
   txHash,
@@ -91,8 +86,7 @@ export function TxRow({
   };
 
   const openExplorer = () => {
-    const baseUrl = EXPLORER_URLS[chainId] || EXPLORER_URLS[8453];
-    window.open(`${baseUrl}${txHash}`, "_blank");
+    const _txUrl = getTxUrl(chainId, txHash); if (_txUrl) window.open(_txUrl, "_blank");
   };
 
   return (

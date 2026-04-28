@@ -20,12 +20,12 @@ import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
 import { useAccount } from "wagmi";
-import { createPublicClient, http } from "viem";
-import { baseSepolia } from "viem/chains";
+import { createPublicClient } from "viem";
+import { getChain, getTransport, getChainId } from "@/lib/chain";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
-import { getAddresses } from "@/lib/contracts/addresses";
+import { getAddresses, getTxUrl } from "@/lib/contracts/addresses";
 import { useContractAction } from "@/hooks/useContractAction";
 
 function mapIssuer(i: APIIssuer): Issuer {
@@ -69,8 +69,7 @@ export default function IssuersPage() {
     if (!issuerRegistryAddr) return;
     const active = apiIssuers.filter(i => i.status === "active" && i.wallet !== "—");
     if (active.length === 0) return;
-    const rpc = process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia.base.org";
-    const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
+    const client = createPublicClient({ chain: getChain(), transport: getTransport() });
     active.forEach(issuer => {
       setOnChainStatus(prev => ({ ...prev, [issuer.id]: "checking" }));
       client.readContract({
@@ -309,7 +308,7 @@ export default function IssuersPage() {
                         </span>
                         {txHash && (
                           <a
-                            href={`https://sepolia.basescan.org/tx/${txHash}`}
+                            href={getTxUrl(getChainId(), txHash) ?? undefined}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-blue-600 hover:underline font-mono"

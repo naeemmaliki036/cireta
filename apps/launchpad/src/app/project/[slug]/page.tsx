@@ -10,6 +10,7 @@ import {
   User,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency, formatTokenDisplay } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -137,22 +138,6 @@ function TeamMemberCard({ member: m }: { member: { id: string; name: string; tit
   );
 }
 
-function ContractAddress({ address }: { address: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <p className="flex items-center gap-1.5">
-      <span className="font-mono text-xs truncate">{truncateAddress(address)}</span>
-      <button onClick={copy} className="shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors" title="Copy address">
-        {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400 hover:text-darkAqua" />}
-      </button>
-    </p>
-  );
-}
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -682,7 +667,7 @@ export default function ProjectDetailPage() {
                       ].map(([k, v]) => (
                         <div key={k}><span className="text-gray-500">{k}</span><p className="font-medium capitalize">{v}</p></div>
                       ))}
-                      {token?.contract_address && <div className="col-span-2"><span className="text-gray-500">Contract</span><ContractAddress address={token.contract_address} /></div>}
+                      {token?.contract_address && <div className="col-span-2"><span className="text-gray-500">Contract</span><CopyableAddress address={token.contract_address} truncate className="text-xs" /></div>}
                     </div>
                   </div>
 
@@ -1273,7 +1258,7 @@ export default function ProjectDetailPage() {
                                   </td>
                                   <td className="px-4 py-3">
                                     {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
-                                      <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
+                                      <a href={getTxUrl(chainId, tx.tx_hash) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono">
                                         {truncateAddress(tx.tx_hash, 6)}
                                       </a>
                                     ) : tx.tx_hash?.startsWith("otc-") ? (
@@ -1333,7 +1318,7 @@ export default function ProjectDetailPage() {
                                 )}
                               </div>
                               {tx.tx_hash && !tx.tx_hash.startsWith("otc-") && (
-                                <a href={getTxUrl(chainId, tx.tx_hash)} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono mt-1 inline-block">
+                                <a href={getTxUrl(chainId, tx.tx_hash) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-darkAqua hover:text-darkAqua/80 text-xs font-mono mt-1 inline-block">
                                   {truncateAddress(tx.tx_hash, 6)} ↗
                                 </a>
                               )}

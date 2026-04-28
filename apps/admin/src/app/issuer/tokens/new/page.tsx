@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CheckCircle2, Coins, Shield, Rocket, Zap, AlertCircle, Wallet, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useAccount, useReadContract, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { type Abi } from "viem";
+import { type Abi, createPublicClient } from "viem";
+import { getChain, getTransport } from "@/lib/chain";
 import { Button } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
@@ -49,15 +50,34 @@ export default function CreateTokenPage() {
   const { disconnect } = useDisconnect();
   const deployAction = useContractAction();
 
-  // Check if connected wallet is a registered issuer on-chain
+  // Check if connected wallet is a registered issuer on-chain.
+  // Uses a direct RPC client (bypassing wagmi) so the check is independent of
+  // wallet connection state or which chain the wallet is currently on.
   const issuerRegistryAddr = getAddresses().issuerRegistry;
-  const { data: isActiveIssuer, isLoading: isCheckingIssuer } = useReadContract({
-    address: issuerRegistryAddr as `0x${string}`,
-    abi: ISSUER_REGISTRY_ABI as unknown as Abi,
-    functionName: "isActiveIssuer",
-    args: walletAddress ? [walletAddress] : undefined,
-    query: { enabled: !!walletAddress && !!issuerRegistryAddr },
-  });
+  const [isActiveIssuer, setIsActiveIssuer] = useState<boolean | undefined>(undefined);
+  const [isCheckingIssuer, setIsCheckingIssuer] = useState(false);
+
+  useEffect(() => {
+    if (!walletAddress || !issuerRegistryAddr) {
+      setIsActiveIssuer(undefined);
+      return;
+    }
+    setIsCheckingIssuer(true);
+    const client = createPublicClient({ chain: getChain(), transport: getTransport() });
+    client.readContract({
+      address: issuerRegistryAddr,
+      abi: ISSUER_REGISTRY_ABI as unknown as Abi,
+      functionName: "isActiveIssuer",
+      args: [walletAddress],
+    }).then((result) => {
+      setIsActiveIssuer(result === true);
+    }).catch((err) => {
+      console.error("[tokens/new] isActiveIssuer read failed:", err);
+      setIsActiveIssuer(false);
+    }).finally(() => {
+      setIsCheckingIssuer(false);
+    });
+  }, [walletAddress, issuerRegistryAddr]);
 
   const walletIsVerifiedIssuer = isActiveIssuer === true;
 

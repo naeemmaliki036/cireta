@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button, Input, Spinner, Badge } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { me, updateProfile, type User } from "@/lib/api/repositories/auth.repository";
 import { listWallets, type Wallet } from "@/lib/api/repositories/wallets.repository";
 
@@ -107,9 +108,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             {wallets.map((w) => (
               <div key={w.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-                <span className="text-gray-900 font-mono text-sm">
-                  {w.address.slice(0, 6)}...{w.address.slice(-4)}
-                </span>
+                <CopyableAddress address={w.address} truncate className="text-gray-900 text-sm" />
                 {w.is_primary && <Badge variant="active" size="sm">Primary</Badge>}
                 {w.screening_status && (
                   <Badge variant={w.screening_status === "clear" ? "success" : "pending"} size="sm">

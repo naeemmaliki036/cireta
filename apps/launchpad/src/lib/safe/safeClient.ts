@@ -11,12 +11,20 @@ import {
   type MetaTransactionData,
   OperationType,
 } from "@safe-global/types-kit";
+import { getChainId } from "@/lib/chain";
 
-// Base Mainnet chain ID
-const BASE_CHAIN_ID = 8453n;
+// Configured chain ID
+const BASE_CHAIN_ID = BigInt(getChainId());
 
-// Base chain tx service URL
-const TX_SERVICE_URL = "https://safe-transaction-base.safe.global";
+// Safe transaction service URL — picked by chain ID
+const TX_SERVICE_URLS: Record<number, string> = {
+  8453: "https://safe-transaction-base.safe.global",
+  84532: "https://safe-transaction-base-sepolia.safe.global",
+};
+const TX_SERVICE_URL = TX_SERVICE_URLS[Number(BASE_CHAIN_ID)];
+if (!TX_SERVICE_URL) {
+  throw new Error(`No Safe tx-service URL configured for chain ID ${BASE_CHAIN_ID}`);
+}
 
 /**
  * Initialize Safe Protocol Kit for a given Safe address.
@@ -111,8 +119,16 @@ export async function getSafeInfo(safeAddress: string) {
   return apiKit.getSafeInfo(safeAddress);
 }
 
+const SAFE_CHAIN_PREFIXES: Record<number, string> = {
+  8453: "base",
+  84532: "base-sepolia",
+};
+
 /** Build the Safe App URL for a specific transaction */
 export function getSafeTxUrl(safeAddress: string, safeTxHash: string): string {
-  const chainPrefix = Number(BASE_CHAIN_ID) === 84532 ? "base-sepolia" : "base";
+  const chainPrefix = SAFE_CHAIN_PREFIXES[Number(BASE_CHAIN_ID)];
+  if (!chainPrefix) {
+    throw new Error(`No Safe app prefix configured for chain ID ${BASE_CHAIN_ID}`);
+  }
   return `https://app.safe.global/transactions/tx?safe=${chainPrefix}:${safeAddress}&id=multisig_${safeAddress}_${safeTxHash}`;
 }

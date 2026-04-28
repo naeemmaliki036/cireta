@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, use } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { ArrowLeft, Coins, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
@@ -279,7 +280,7 @@ export default function OTCMintPage({ params }: { params: Promise<{ id: string }
                   <div className="min-w-0">
                     <p className="text-sm font-mono text-text truncate">{r.wallet_address}</p>
                     <p className="text-xs text-black/40 mt-0.5">
-                      {new Date(r.created_at).toLocaleDateString()}
+                      {parseApiDate(r.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <Badge variant="outline" size="sm">

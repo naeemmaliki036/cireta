@@ -128,14 +128,15 @@ export function IssuerDashboardLayout({
         "fixed inset-y-0 left-0 z-40 w-56 bg-white border-r border-zinc-200 flex flex-col transition-transform duration-300 lg:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex flex-col h-full px-4 py-5 overflow-y-auto">
+        {/* Scrollable nav region */}
+        <div className="flex-1 flex flex-col px-4 pt-5 pb-3 overflow-y-auto min-h-0">
           <Link href="/issuer/overview" className="flex items-center gap-2 mb-6 px-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/logo/cireta-logo.svg" alt="Cireta" className="h-7 w-auto" />
             <span className="text-xs text-zinc-400 font-medium ml-auto">Issuer</span>
           </Link>
 
-          <nav className="space-y-0.5 flex-1">
+          <nav className="space-y-0.5">
             {SIDEBAR_LINKS.map((link) => (
               <NavLink
                 key={link.href}
@@ -149,14 +150,14 @@ export function IssuerDashboardLayout({
 
           {/* Locked notice */}
           {isLocked && (
-            <div className="mx-1 mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+            <div className="mx-1 mt-3 p-2.5 rounded-lg bg-amber-50 border border-amber-100">
               <p className="text-[11px] text-amber-700 leading-tight">
                 Complete onboarding and get admin approval to unlock all features.
               </p>
             </div>
           )}
 
-          <div className="pt-4 border-t border-zinc-200 space-y-0.5">
+          <div className="mt-4 pt-4 border-t border-zinc-200 space-y-0.5">
             {isAdmin && (
               <Link
                 href="/platform/overview"
@@ -168,8 +169,10 @@ export function IssuerDashboardLayout({
             )}
             <NavLink href="/issuer/settings" label="Settings" icon={Settings} />
           </div>
+        </div>
 
-          {/* User profile */}
+        {/* User profile — pinned bottom, outside scroll */}
+        <div className="shrink-0 px-4 py-3 border-t border-zinc-200 bg-white">
           <SidebarUserProfile />
         </div>
       </aside>

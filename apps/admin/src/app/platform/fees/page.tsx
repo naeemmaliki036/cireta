@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { DollarSign, Users, Settings, ExternalLink, RefreshCw } from "lucide-react";
 import { useReadContract, useChainId } from "wagmi";
 import { isAddress, type Abi } from "viem";
@@ -242,7 +243,7 @@ export default function FeesPage() {
               <div className="flex items-center gap-2">
                 <CopyableAddress address={feeReceiver} truncate className="text-sm" />
                 <a
-                  href={getAddressUrl(chainId, feeReceiver)}
+                  href={getAddressUrl(chainId, feeReceiver) ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-zinc-400 hover:text-zinc-600"
@@ -325,7 +326,7 @@ export default function FeesPage() {
                   <div key={o.issuer_address} className="flex items-center justify-between p-3 rounded-lg bg-box">
                     <div>
                       <p className="text-sm font-medium text-text">{o.issuer_name || "Unknown Issuer"}</p>
-                      <p className="text-xs text-zinc-400 font-mono">{o.issuer_address.slice(0, 10)}...{o.issuer_address.slice(-6)}</p>
+                      <CopyableAddress address={o.issuer_address} truncate className="text-xs text-zinc-400" />
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="default" size="sm">{(o.fee_bps / 100).toFixed(2)}%</Badge>
@@ -398,7 +399,7 @@ export default function FeesPage() {
                   )}
                 </div>
                 <span className="text-xs text-zinc-400 whitespace-nowrap">
-                  {new Date(log.created_at).toLocaleString()}
+                  {parseApiDate(log.created_at).toLocaleString()}
                 </span>
               </div>
             ))}

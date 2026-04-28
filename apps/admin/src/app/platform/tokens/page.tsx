@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Coins, LayoutGrid, List, Copy, Shield } from "lucide-react";
+import { Coins, LayoutGrid, List, Shield } from "lucide-react";
 import { Badge, Input } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { PlatformAdminLayout } from "@/components/templates";
 import { apiFetch } from "@/lib/api/client";
+import { parseApiDate } from "@/lib/utils";
 
 interface Token {
   id: string;
@@ -20,7 +22,6 @@ interface Token {
 
 function TokenCard({ token }: { token: Token }) {
   const deployed = !!token.contract_address;
-  const masked = deployed ? `${token.contract_address!.slice(0, 6)}...${token.contract_address!.slice(-4)}` : null;
 
   return (
     <div className="bg-white rounded-lg border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group p-5">
@@ -45,11 +46,8 @@ function TokenCard({ token }: { token: Token }) {
         </div>
         <div className="bg-zinc-50 rounded-md px-3 py-2">
           <p className="text-black/40 mb-0.5">Contract</p>
-          {masked ? (
-            <button onClick={() => navigator.clipboard.writeText(token.contract_address!)}
-              className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
-              {masked} <Copy className="h-3 w-3 text-black/20" />
-            </button>
+          {token.contract_address ? (
+            <CopyableAddress address={token.contract_address} truncate className="text-xs text-text" />
           ) : (
             <p className="font-semibold text-black/30">—</p>
           )}
@@ -59,7 +57,7 @@ function TokenCard({ token }: { token: Token }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-black/30">
           {deployed && <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> ERC-3643</span>}
-          <span>{new Date(token.created_at).toLocaleDateString()}</span>
+          <span>{parseApiDate(token.created_at).toLocaleDateString()}</span>
         </div>
       </div>
     </div>
@@ -173,13 +171,13 @@ export default function PlatformTokensPage() {
                         <Badge variant="pending" size="sm">Draft</Badge>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-xs font-mono text-zinc-500">
-                      {token.contract_address
-                        ? `${token.contract_address.slice(0, 6)}...${token.contract_address.slice(-4)}`
-                        : "—"}
+                    <td className="px-5 py-3 text-xs text-zinc-500">
+                      {token.contract_address ? (
+                        <CopyableAddress address={token.contract_address} truncate />
+                      ) : "—"}
                     </td>
                     <td className="px-5 py-3 text-sm text-zinc-500">
-                      {new Date(token.created_at).toLocaleDateString()}
+                      {parseApiDate(token.created_at).toLocaleDateString()}
                     </td>
                   </tr>
                 ))}

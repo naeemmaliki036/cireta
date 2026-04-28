@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { Plus, Trash2, Shield, ShieldCheck, UserCog, Mail } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
@@ -160,7 +161,7 @@ export default function AdminAccountsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-zinc-400">
-                      {new Date(admin.created_at).toLocaleDateString()}
+                      {parseApiDate(admin.created_at).toLocaleDateString()}
                     </span>
                     {!admin.is_super_admin && (
                       <button

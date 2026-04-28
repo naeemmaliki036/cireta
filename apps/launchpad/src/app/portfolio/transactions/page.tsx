@@ -278,7 +278,7 @@ export default function TransactionsPage() {
                         <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
                           {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
                             <a
-                              href={getTxUrl(chainId, tx.tx_hash)}
+                              href={getTxUrl(chainId, tx.tx_hash) ?? undefined}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-darkAqua hover:text-darkAqua/80 inline-flex items-center gap-1 text-xs font-mono"

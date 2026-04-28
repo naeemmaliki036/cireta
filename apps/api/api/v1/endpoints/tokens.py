@@ -56,6 +56,7 @@ def _token_to_response(token) -> TokenResponse:
         slug=token.slug,
         description=token.description,
         image_url=token.image_url,
+        created_at=token.created_at.isoformat() if token.created_at else None,
     )
 
 

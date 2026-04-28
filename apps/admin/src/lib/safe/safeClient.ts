@@ -12,8 +12,10 @@ import {
   OperationType,
 } from "@safe-global/types-kit";
 
-// Base chain — configurable via env
-const BASE_CHAIN_ID = BigInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
+import { getChainId } from "@/lib/chain";
+
+// Configured chain ID
+const BASE_CHAIN_ID = BigInt(getChainId());
 
 // Safe transaction service URLs per chain
 const TX_SERVICE_URLS: Record<string, string> = {
@@ -88,8 +90,16 @@ export async function getSafeInfo(safeAddress: string) {
   return apiKit.getSafeInfo(safeAddress);
 }
 
+const SAFE_CHAIN_PREFIXES: Record<number, string> = {
+  8453: "base",
+  84532: "base-sepolia",
+};
+
 /** Build the Safe App URL for a specific transaction */
 export function getSafeTxUrl(safeAddress: string, safeTxHash: string): string {
-  const chainPrefix = BASE_CHAIN_ID === 84532n ? "base-sepolia" : "base";
+  const chainPrefix = SAFE_CHAIN_PREFIXES[Number(BASE_CHAIN_ID)];
+  if (!chainPrefix) {
+    throw new Error(`No Safe app prefix configured for chain ID ${BASE_CHAIN_ID}`);
+  }
   return `https://app.safe.global/transactions/tx?safe=${chainPrefix}:${safeAddress}&id=multisig_${safeAddress}_${safeTxHash}`;
 }

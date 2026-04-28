@@ -8,6 +8,7 @@ import { useSafeDetection } from "@/hooks/useSafeDetection";
 import { useSafeContractAction } from "@/hooks/useSafeContractAction";
 import type { SafeTxState } from "@/components/molecules/SafeTransactionStatus";
 import { parseRevertReason } from "@/lib/contracts/revertReasons";
+import { getTxUrl as getExplorerTxUrl } from "@/lib/contracts/addresses";
 
 export interface ContractActionState {
   /** Execute a contract write. Returns the receipt on success, null on error. */
@@ -51,18 +52,6 @@ export interface ContractActionState {
   safeThreshold: number;
 }
 
-function getTxUrl(chainId: number, txHash: string): string {
-  switch (chainId) {
-    case 8453: // Base mainnet
-      return `https://basescan.org/tx/${txHash}`;
-    case 84532: // Base Sepolia
-      return `https://sepolia.basescan.org/tx/${txHash}`;
-    case 11155111: // Sepolia
-      return `https://sepolia.etherscan.io/tx/${txHash}`;
-    default:
-      return `https://etherscan.io/tx/${txHash}`;
-  }
-}
 
 /**
  * Unified contract action hook for launchpad.
@@ -170,7 +159,7 @@ export function useContractAction(): ContractActionState {
     [writeContractAsync, config, isSafe, safeAction],
   );
 
-  const txUrl = txHash ? getTxUrl(chainId, txHash) : null;
+  const txUrl = txHash ? getExplorerTxUrl(chainId, txHash) : null;
 
   return {
     execute,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { parseApiDate } from "@/lib/utils";
 import { Trash2, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
 import { Button, Spinner, Badge } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
@@ -151,7 +152,7 @@ export default function WalletDeletionsPage() {
                     </div>
                     <div className="text-xs text-white/40 space-y-0.5">
                       <p>Buyer: <span className="text-white/70">{req.user_email}</span></p>
-                      <p>Requested: {new Date(req.requested_at).toLocaleString()}</p>
+                      <p>Requested: {parseApiDate(req.requested_at).toLocaleString()}</p>
                       {req.reason && (
                         <p className="mt-1.5 text-white/60 italic">&ldquo;{req.reason}&rdquo;</p>
                       )}
@@ -161,7 +162,7 @@ export default function WalletDeletionsPage() {
                         </p>
                       )}
                       {req.reviewed_at && (
-                        <p>Reviewed: {new Date(req.reviewed_at).toLocaleString()}</p>
+                        <p>Reviewed: {parseApiDate(req.reviewed_at).toLocaleString()}</p>
                       )}
                     </div>
                   </div>

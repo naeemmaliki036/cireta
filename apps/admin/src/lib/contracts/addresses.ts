@@ -48,16 +48,21 @@ export function getAddresses(): ContractAddresses {
 /**
  * BaseScan URL helpers.
  */
-export function getExplorerUrl(chainId: number): string {
+export function getExplorerUrl(chainId?: number): string | null {
+  if (process.env.NEXT_PUBLIC_EXPLORER_URL) return process.env.NEXT_PUBLIC_EXPLORER_URL;
   if (chainId === 84532) return "https://sepolia.basescan.org";
   if (chainId === 11155111) return "https://sepolia.etherscan.io";
-  return "https://basescan.org";
+  if (chainId === 8453) return "https://basescan.org";
+  if (chainId === 1) return "https://etherscan.io";
+  return null;
 }
 
-export function getTxUrl(chainId: number, txHash: string): string {
-  return `${getExplorerUrl(chainId)}/tx/${txHash}`;
+export function getTxUrl(chainId: number, txHash: string): string | null {
+  const base = getExplorerUrl(chainId);
+  return base ? `${base}/tx/${txHash}` : null;
 }
 
-export function getAddressUrl(chainId: number, address: string): string {
-  return `${getExplorerUrl(chainId)}/address/${address}`;
+export function getAddressUrl(chainId: number, address: string): string | null {
+  const base = getExplorerUrl(chainId);
+  return base ? `${base}/address/${address}` : null;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { parseApiDate } from "@/lib/utils";
 import {
   listRedemptions,
   updateRedemptionStatus,
@@ -83,13 +84,13 @@ function ShippingInfo({ r }: { r: Redemption }) {
         {r.shipped_at && (
           <p className="text-white/60">
             <span className="text-white/30">Shipped:</span>{" "}
-            {new Date(r.shipped_at).toLocaleDateString()}
+            {parseApiDate(r.shipped_at).toLocaleDateString()}
           </p>
         )}
         {r.fulfilled_at && (
           <p className="text-white/60">
             <span className="text-white/30">Fulfilled:</span>{" "}
-            {new Date(r.fulfilled_at).toLocaleDateString()}
+            {parseApiDate(r.fulfilled_at).toLocaleDateString()}
           </p>
         )}
       </div>
@@ -118,7 +119,7 @@ function RedemptionCard({
             {Number(r.amount).toLocaleString()} tokens
           </p>
           <p className="text-white/40 text-xs mt-0.5">
-            {r.created_at ? new Date(r.created_at).toLocaleDateString() : "\u2014"}
+            {r.created_at ? parseApiDate(r.created_at).toLocaleDateString() : "\u2014"}
             {isPhysical && (
               <span className="ml-2 text-blue-400">Physical Delivery</span>
             )}

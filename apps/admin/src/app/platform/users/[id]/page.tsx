@@ -24,6 +24,7 @@ import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi } from "viem";
 import { Button, Badge } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { PlatformAdminLayout } from "@/components/templates";
 import {
@@ -270,7 +271,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           <div className="bg-zinc-50 rounded-lg p-3">
             <p className="text-zinc-400 text-xs">On-chain ID</p>
-            <p className="font-mono text-xs font-bold truncate">{user.onchain_id ? `${user.onchain_id.slice(0, 10)}...` : "—"}</p>
+            {user.onchain_id ? <CopyableAddress address={user.onchain_id} truncate className="text-xs font-bold" /> : <p className="text-xs font-bold">—</p>}
           </div>
         </div>
 
@@ -433,9 +434,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             <div className="space-y-2">
               {user.wallets.slice(0, 5).map((w) => (
                 <div key={w.id} className="flex items-center justify-between bg-zinc-50 rounded-lg px-3 py-2">
-                  <span className="font-mono text-xs text-zinc-700">
-                    {w.address.slice(0, 6)}...{w.address.slice(-4)}
-                  </span>
+                  <CopyableAddress address={w.address} truncate className="text-xs text-zinc-700" />
                   <div className="flex items-center gap-2">
                     {w.is_primary && <Badge variant="success" size="sm">Primary</Badge>}
                     {isApproved && (

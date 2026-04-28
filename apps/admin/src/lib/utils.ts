@@ -101,8 +101,14 @@ export function formatPercentage(value: number, decimals = 1): string {
 /**
  * Format date
  */
+/** Parse API timestamp strings that may use a space instead of "T" (Safari-safe). */
+export function parseApiDate(ts: string | null | undefined): Date {
+  if (!ts) return new Date(NaN);
+  return new Date(ts.replace(" ", "T"));
+}
+
 export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === "string" ? parseApiDate(date) : date;
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
