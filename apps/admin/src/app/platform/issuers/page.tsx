@@ -49,11 +49,10 @@ export default function IssuersPage() {
   const { toasts, showError, showSuccess, removeToast } = useToast();
   const issuerRegistryAddr = getAddresses().issuerRegistry;
 
-  const { writeContract: registerIssuer, data: registerHash } = useWriteContract();
-  const { writeContract: activateIssuerOnChain, data: activateHash } = useWriteContract();
+  const registerIssuerAction = useContractAction();
+  const activateIssuerAction = useContractAction();
 
-  const { isSuccess: registerConfirmed } = useWaitForTransactionReceipt({ hash: registerHash });
-  const { isSuccess: activateConfirmed } = useWaitForTransactionReceipt({ hash: activateHash });
+  // Transaction confirmations handled by useContractAction internally
 
   useEffect(() => {
     (async () => {
@@ -64,22 +63,23 @@ export default function IssuersPage() {
 
   // After register tx confirms, send activate tx
   useEffect(() => {
-    if (registerConfirmed && registeringId) {
+    if (registerIssuerAction.isConfirmed && registeringId) {
       const issuer = apiIssuers.find(i => i.id === registeringId);
       if (issuer && issuer.wallet !== "—" && issuerRegistryAddr) {
-        activateIssuerOnChain({
+        activateIssuerAction.execute({
           address: issuerRegistryAddr,
           abi: ISSUER_REGISTRY_ABI,
           functionName: "activateIssuer",
           args: [issuer.wallet as `0x${string}`],
+          gas: 1_000_000n,
         });
       }
     }
-  }, [registerConfirmed]);
+  }, [registerIssuerAction.isConfirmed, registeringId]);
 
   // After activate tx confirms, mark as registered
   useEffect(() => {
-    if (activateConfirmed && registeringId) {
+    if (activateIssuerAction.isConfirmed && registeringId) {
       const issuer = apiIssuers.find(i => i.id === registeringId);
       setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
       showSuccess(
@@ -87,11 +87,13 @@ export default function IssuersPage() {
         `${issuer?.name || "Issuer"} has been successfully registered and activated on the Issuer Registry contract.`
       );
       setRegisteringId(null);
+      registerIssuerAction.reset();
+      activateIssuerAction.reset();
     }
-  }, [activateConfirmed, registeringId, apiIssuers, showSuccess]);
+  }, [activateIssuerAction.isConfirmed, registeringId, apiIssuers, showSuccess]);
 
-  const handleRegisterOnChain = (issuer: Issuer) => {
-    if (registeringId) return;
+  const handleRegisterOnChain = async (issuer: Issuer) => {
+    if (registeringId || registerIssuerAction.isPending) return;
     if (!isConnected) {
       openConnectModal?.();
       return;
@@ -110,32 +112,36 @@ export default function IssuersPage() {
       );
       return;
     }
+
     setRegisteringId(issuer.id);
-    registerIssuer({
-      address: issuerRegistryAddr,
-      abi: ISSUER_REGISTRY_ABI,
-      functionName: "registerIssuer",
-      args: [issuer.wallet as `0x${string}`, issuer.name, issuer.jurisdiction || ""],
-    }, {
-      onError: (err) => {
-        console.error("On-chain registration failed:", err);
-        const isRejected = err.message.includes("user rejected") || err.message.includes("User denied");
-        if (isRejected) {
-          showError("Transaction Rejected", "You cancelled the transaction in your wallet.");
-        } else if (err.message.includes("exceeds max transaction gas limit")) {
-          showError(
-            "Gas Limit Exceeded",
-            "The transaction requires too much gas. This usually means the contract function is expensive or there's a network issue. Please try again or contact support."
-          );
-        } else {
-          showError(
-            "On-Chain Registration Failed",
-            `The contract function "registerIssuer" reverted with the following reason: ${err.message}`
-          );
-        }
-        setRegisteringId(null);
-      },
-    });
+
+    try {
+      await registerIssuerAction.execute({
+        address: issuerRegistryAddr,
+        abi: ISSUER_REGISTRY_ABI,
+        functionName: "registerIssuer",
+        args: [issuer.wallet as `0x${string}`, issuer.name, issuer.jurisdiction || ""],
+        gas: 1_000_000n,
+      });
+    } catch (err: any) {
+      console.error("On-chain registration failed:", err);
+      const isRejected = err.message?.includes("user rejected") || err.message?.includes("User denied");
+      if (isRejected) {
+        showError("Transaction Rejected", "You cancelled the transaction in your wallet.");
+      } else if (err.message?.includes("exceeds max transaction gas limit")) {
+        showError(
+          "Gas Limit Exceeded",
+          "The transaction requires too much gas. This usually means the contract function is expensive or there's a network issue. Please try again or contact support."
+        );
+      } else {
+        showError(
+          "On-Chain Registration Failed",
+          `The contract function "registerIssuer" reverted: ${err.message || 'Unknown error'}`
+        );
+      }
+      setRegisteringId(null);
+      registerIssuerAction.reset();
+    }
   };
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -271,13 +277,18 @@ export default function IssuersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={registeringId === issuer.id}
+                          disabled={registeringId === issuer.id || registerIssuerAction.isPending || activateIssuerAction.isPending}
                           onClick={() => handleRegisterOnChain(issuer)}
                         >
-                          {registeringId === issuer.id ? (
+                          {(registeringId === issuer.id && registerIssuerAction.isPending) ? (
                             <>
                               <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                               Registering...
+                            </>
+                          ) : (registeringId === issuer.id && activateIssuerAction.isPending) ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              Activating...
                             </>
                           ) : (
                             <>

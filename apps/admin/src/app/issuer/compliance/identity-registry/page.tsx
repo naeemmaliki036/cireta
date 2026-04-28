@@ -4,12 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   useAccount,
   useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
 } from "wagmi";
 import { isAddress } from "viem";
 import { ShieldAlert, RefreshCw, ExternalLink } from "lucide-react";
 import { Button, Spinner, Badge } from "@/components/atoms";
+import { useContractAction } from "@/hooks/useContractAction";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/identityRegistryAbi";
 import {
@@ -33,22 +32,16 @@ export default function IdentityRegistryAdminPage() {
   const [walletAddress, setWalletAddress] = useState("");
   const [action, setAction] = useState<"add" | "remove">("add");
   const [country, setCountry] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [pendingTxHash, setPendingTxHash] = useState<`0x${string}` | undefined>();
 
   // Batch form
   const [batchInput, setBatchInput] = useState("");
   const [batchAction, setBatchAction] = useState<"add" | "remove">("add");
   const [batchCountry, setBatchCountry] = useState(0);
-  const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchPendingTx, setBatchPendingTx] = useState<`0x${string}` | undefined>();
   const batchRows = useBatchRows(batchInput, false);
-  const { isSuccess: batchTxConfirmed, isLoading: batchTxConfirming } = useWaitForTransactionReceipt({ hash: batchPendingTx });
 
-  const { writeContractAsync } = useWriteContract();
-  const { isSuccess: txConfirmed, isLoading: txConfirming } = useWaitForTransactionReceipt({
-    hash: pendingTxHash,
-  });
+  // Contract actions with proper gas handling
+  const manualSyncAction = useContractAction();
+  const batchSyncAction = useContractAction();
 
   const { data: onChainStatus, refetch: refetchStatus } = useReadContract({
     address: REGISTRY_ADDRESS,
@@ -75,26 +68,25 @@ export default function IdentityRegistryAdminPage() {
     fetchJobs();
   }, [fetchJobs]);
 
-  // After tx confirmation, record on the backend.
+  // After manual sync tx confirmation, record on the backend.
   useEffect(() => {
-    if (!txConfirmed || !pendingTxHash) return;
+    if (!manualSyncAction.isConfirmed || !manualSyncAction.txHash) return;
     (async () => {
       try {
         await recordEmergencyManualSync({
           wallet_address: walletAddress,
           action,
-          tx_hash: pendingTxHash,
+          tx_hash: manualSyncAction.txHash,
         });
         await refetchStatus();
         await fetchJobs();
+        setWalletAddress("");
+        manualSyncAction.reset();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to record sync");
-      } finally {
-        setPendingTxHash(undefined);
-        setSubmitting(false);
       }
     })();
-  }, [txConfirmed, pendingTxHash, walletAddress, action, fetchJobs, refetchStatus]);
+  }, [manualSyncAction.isConfirmed, manualSyncAction.txHash, walletAddress, action, fetchJobs, refetchStatus]);
 
   const handleManualSync = async () => {
     if (!isConnected) {
@@ -109,68 +101,83 @@ export default function IdentityRegistryAdminPage() {
       setError("NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS not configured.");
       return;
     }
+
     setError(null);
-    setSubmitting(true);
+
     try {
-      const hash = await writeContractAsync({
+      await manualSyncAction.execute({
         address: REGISTRY_ADDRESS,
         abi: SIMPLE_IDENTITY_REGISTRY_ABI,
         functionName: action === "add" ? "addToWhitelist" : "removeFromWhitelist",
         args: action === "add"
           ? [walletAddress as `0x${string}`, country]
           : [walletAddress as `0x${string}`],
+        gas: 200_000n, // Whitelist operations are simple
       });
-      setPendingTxHash(hash);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Tx failed";
-      if (msg.toLowerCase().includes("user rejected") || msg.toLowerCase().includes("user denied")) {
-        // No-op on cancel
-      } else {
-        setError(msg);
-      }
-      setSubmitting(false);
-    }
-  };
-
-  // Batch handler
-  useEffect(() => {
-    if (!batchTxConfirmed || !batchPendingTx) return;
-    setBatchPendingTx(undefined);
-    setBatchSubmitting(false);
-    setBatchInput("");
-    fetchJobs();
-  }, [batchTxConfirmed, batchPendingTx, fetchJobs]);
-
-  const handleBatchSync = async () => {
-    if (!isConnected) { setError("Connect your admin wallet first."); return; }
-    if (!REGISTRY_ADDRESS) { setError("NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS not configured."); return; }
-    const valid = batchRows.filter((r) => r.addressValid);
-    if (valid.length === 0) { setError("Add at least one valid wallet."); return; }
-    if (valid.length !== batchRows.length) { setError("Fix invalid rows before submitting."); return; }
-    setError(null);
-    setBatchSubmitting(true);
-    try {
-      const wallets = valid.map((r) => r.address as `0x${string}`);
-      const hash = batchAction === "add"
-        ? await writeContractAsync({
-            address: REGISTRY_ADDRESS,
-            abi: SIMPLE_IDENTITY_REGISTRY_ABI,
-            functionName: "batchAddToWhitelist",
-            args: [wallets, wallets.map(() => batchCountry)],
-          })
-        : await writeContractAsync({
-            address: REGISTRY_ADDRESS,
-            abi: SIMPLE_IDENTITY_REGISTRY_ABI,
-            functionName: "batchRemoveFromWhitelist",
-            args: [wallets],
-          });
-      setBatchPendingTx(hash);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Tx failed";
+    } catch (e: any) {
+      const msg = e.message || "Transaction failed";
       if (!msg.toLowerCase().includes("user rejected") && !msg.toLowerCase().includes("user denied")) {
         setError(msg);
       }
-      setBatchSubmitting(false);
+    }
+  };
+
+  // After batch sync tx confirmation, reset form and refresh
+  useEffect(() => {
+    if (!batchSyncAction.isConfirmed) return;
+    setBatchInput("");
+    batchSyncAction.reset();
+    fetchJobs();
+  }, [batchSyncAction.isConfirmed, fetchJobs]);
+
+  const handleBatchSync = async () => {
+    if (!isConnected) {
+      setError("Connect your admin wallet first.");
+      return;
+    }
+    if (!REGISTRY_ADDRESS) {
+      setError("NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS not configured.");
+      return;
+    }
+    const valid = batchRows.filter((r) => r.addressValid);
+    if (valid.length === 0) {
+      setError("Add at least one valid wallet.");
+      return;
+    }
+    if (valid.length !== batchRows.length) {
+      setError("Fix invalid rows before submitting.");
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const wallets = valid.map((r) => r.address as `0x${string}`);
+      // Dynamic gas calculation: 150k per address + 100k base
+      const estimatedGas = BigInt(150_000 * valid.length + 100_000);
+
+      if (batchAction === "add") {
+        await batchSyncAction.execute({
+          address: REGISTRY_ADDRESS,
+          abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+          functionName: "batchAddToWhitelist",
+          args: [wallets, wallets.map(() => batchCountry)],
+          gas: estimatedGas,
+        });
+      } else {
+        await batchSyncAction.execute({
+          address: REGISTRY_ADDRESS,
+          abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+          functionName: "batchRemoveFromWhitelist",
+          args: [wallets],
+          gas: estimatedGas,
+        });
+      }
+    } catch (e: any) {
+      const msg = e.message || "Transaction failed";
+      if (!msg.toLowerCase().includes("user rejected") && !msg.toLowerCase().includes("user denied")) {
+        setError(msg);
+      }
     }
   };
 
@@ -270,11 +277,11 @@ export default function IdentityRegistryAdminPage() {
                 variant="primary"
                 size="md"
                 onClick={handleManualSync}
-                disabled={submitting || txConfirming || !isConnected || !walletAddress}
+                disabled={manualSyncAction.isPending || manualSyncAction.isConfirming || !isConnected || !walletAddress}
               >
-                {txConfirming
+                {manualSyncAction.isConfirming
                   ? "Confirming on chain…"
-                  : submitting
+                  : manualSyncAction.isPending
                     ? "Sign in your wallet…"
                     : action === "add"
                       ? "Sign + Add to Registry"
@@ -325,11 +332,11 @@ export default function IdentityRegistryAdminPage() {
               variant="primary"
               size="sm"
               onClick={handleBatchSync}
-              disabled={batchSubmitting || batchTxConfirming || !isConnected || batchRows.length === 0}
+              disabled={batchSyncAction.isPending || batchSyncAction.isConfirming || !isConnected || batchRows.length === 0}
             >
-              {batchTxConfirming
+              {batchSyncAction.isConfirming
                 ? "Confirming on chain…"
-                : batchSubmitting
+                : batchSyncAction.isPending
                   ? "Sign in your wallet…"
                   : batchAction === "add"
                     ? `Sign + Add ${batchRows.length} wallet${batchRows.length !== 1 ? "s" : ""}`

@@ -119,8 +119,9 @@ export function useContractAction(): ContractActionState {
       // --- EOA wallet: existing direct-execution flow ---
       try {
         // Step 1: Send transaction (user signs in wallet)
-        // Default gas: 500k for simple calls. Deploy calls should pass explicit higher values.
-        const gas = params.gas ?? 500_000n;
+        // Increased default gas: 1M for better reliability. Complex operations should pass explicit higher values.
+        // Most operations on Base mainnet are relatively inexpensive even with higher gas limits.
+        const gas = params.gas ?? 1_000_000n;
         const hash = await writeContractAsync({
           address: params.address,
           abi: params.abi,

@@ -108,25 +108,46 @@ class Web3BaseService:
     async def execute_contract(
         self, contract_address: str, abi: list, function_name: str, *args: Any
     ) -> TxReceipt:
-        """Execute a state-changing contract function."""
+        """Execute a state-changing contract function with EIP-1559 gas pricing."""
         if not self._account:
             raise ValueError("No deployer account configured")
         try:
             contract = self.w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
             function = getattr(contract.functions, function_name)
             nonce = await asyncio.to_thread(self.w3.eth.get_transaction_count, self._account.address)
-            gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
 
-            # Build transaction with higher initial gas limit
-            tx = function(*args).build_transaction(
-                {
-                    "chainId": self.chain_id,
-                    "from": self._account.address,
-                    "gas": 2000000,  # Increased from 500k to 2M for complex operations
-                    "gasPrice": gas_price,
-                    "nonce": nonce,
-                }
-            )
+            # Use EIP-1559 gas pricing (Base chain supports this)
+            latest_block = await asyncio.to_thread(self.w3.eth.get_block, "latest")
+            base_fee = getattr(latest_block, 'baseFeePerGas', None)
+
+            if base_fee is not None:
+                # EIP-1559 transaction
+                max_priority_fee = 2_000_000_000  # 2 gwei priority fee
+                max_fee_per_gas = base_fee * 3 + max_priority_fee  # 3x base fee + priority
+
+                tx = function(*args).build_transaction(
+                    {
+                        "chainId": self.chain_id,
+                        "from": self._account.address,
+                        "gas": 2000000,  # Initial high gas limit
+                        "maxFeePerGas": max_fee_per_gas,
+                        "maxPriorityFeePerGas": max_priority_fee,
+                        "nonce": nonce,
+                        "type": 2,  # EIP-1559 transaction type
+                    }
+                )
+            else:
+                # Legacy transaction fallback
+                gas_price = await asyncio.to_thread(lambda: self.w3.eth.gas_price)
+                tx = function(*args).build_transaction(
+                    {
+                        "chainId": self.chain_id,
+                        "from": self._account.address,
+                        "gas": 2000000,
+                        "gasPrice": gas_price,
+                        "nonce": nonce,
+                    }
+                )
 
             # Estimate gas and add 20% buffer for safety
             try:
@@ -136,8 +157,9 @@ class Web3BaseService:
                 # Cap at 5M gas to prevent runaway transactions
                 tx["gas"] = min(buffered_gas, 5000000)
                 logger.info(
-                    "Gas estimation for %s.%s: estimated=%d, buffered=%d, final=%d",
-                    contract_address, function_name, estimated_gas, buffered_gas, tx["gas"]
+                    "Gas estimation for %s.%s: estimated=%d, buffered=%d, final=%d, fee_type=%s",
+                    contract_address, function_name, estimated_gas, buffered_gas, tx["gas"],
+                    "EIP-1559" if base_fee else "legacy"
                 )
             except Exception as gas_error:
                 logger.warning(
