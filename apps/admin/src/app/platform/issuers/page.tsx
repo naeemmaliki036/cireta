@@ -19,7 +19,9 @@ import { ToastContainer, useToast } from "@/components/molecules/Toast";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
-import { useAccount, usePublicClient } from "wagmi";
+import { useAccount } from "wagmi";
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
@@ -51,7 +53,6 @@ export default function IssuersPage() {
   const { toasts, showError, showSuccess, removeToast } = useToast();
   const issuerRegistryAddr = getAddresses().issuerRegistry;
 
-  const publicClient = usePublicClient();
   const registerIssuerAction = useContractAction();
   const activateIssuerAction = useContractAction();
 
@@ -62,14 +63,17 @@ export default function IssuersPage() {
     })();
   }, []);
 
-  // Check on-chain status for all active issuers with a wallet
+  // Check on-chain status for all active issuers — uses a direct RPC client
+  // so it works regardless of wallet connection state.
   useEffect(() => {
-    if (!publicClient || !issuerRegistryAddr) return;
+    if (!issuerRegistryAddr) return;
     const active = apiIssuers.filter(i => i.status === "active" && i.wallet !== "—");
     if (active.length === 0) return;
+    const rpc = process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia.base.org";
+    const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
     active.forEach(issuer => {
       setOnChainStatus(prev => ({ ...prev, [issuer.id]: "checking" }));
-      publicClient.readContract({
+      client.readContract({
         address: issuerRegistryAddr,
         abi: ISSUER_REGISTRY_ABI,
         functionName: "isActiveIssuer",
@@ -80,7 +84,7 @@ export default function IssuersPage() {
         setOnChainStatus(prev => ({ ...prev, [issuer.id]: "not_registered" }));
       });
     });
-  }, [apiIssuers, publicClient, issuerRegistryAddr]);
+  }, [apiIssuers, issuerRegistryAddr]);
 
   // After register tx confirms, send activate tx
   useEffect(() => {
