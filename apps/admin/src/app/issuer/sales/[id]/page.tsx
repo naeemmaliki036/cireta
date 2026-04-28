@@ -35,7 +35,6 @@ import { SALE_FACTORY_ABI } from "@/lib/contracts/abis/saleFactory";
 import { requireAddress } from "@/lib/contracts/addresses";
 import { PLATFORM_FEE_MANAGER_ABI } from "@/lib/contracts/abis/platformFeeManager";
 import { readContract } from "wagmi/actions";
-import { WhitelistManager } from "@/components/organisms/WhitelistManager";
 import { OTCTokenManager } from "@/components/organisms/OTCTokenManager";
 
 /** Read fee from PlatformFeeManager on-chain (fallback when useReadContract hook didn't fire) */
@@ -1085,13 +1084,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           {/* Subscribers Summary */}
           <SubscribersSummary saleId={sale.id} />
 
-          {/* Per-Phase Whitelist Management - Hidden until needed for other issuers */}
-          {false && sale.contract_address && sale.phases.some((p) => p.whitelist_only) && (
+          {/* Per-Phase Whitelist Management - Hidden until needed for other issuers
+          {sale?.contract_address && sale.phases.some((p) => p.whitelist_only) && (
             <WhitelistManager
               saleContractAddress={sale.contract_address as `0x${string}`}
               phases={sale.phases}
             />
           )}
+          */}
 
           {/* OTC Token Manager */}
           {sale.contract_address && isDraft && (
