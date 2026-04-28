@@ -29,6 +29,7 @@ from apps.api.models.notification import Notification
 from apps.api.models.notification_preferences import NotificationPreferences
 from apps.api.models.otc_transfer_log import OtcTransferLog
 from apps.api.models.partner import Partner
+from apps.api.models.payment_token import PaymentToken
 from apps.api.models.platform_setting import PlatformSetting
 from apps.api.models.platform_stat import PlatformStat
 from apps.api.models.recovery_log import RecoveryLog
@@ -90,6 +91,7 @@ __all__ = [
     "SaleDocument",
     "TokenDocument",
     "Partner",
+    "PaymentToken",
     "PlatformSetting",
     "PlatformStat",
     "WalletAuditLog",

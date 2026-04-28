@@ -7,6 +7,7 @@ import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Abi } from "viem";
 import { Plus, ArrowUpRight, Coins, Pause, Play, Shield, Copy, Rocket, LayoutGrid, List } from "lucide-react";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
+import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
@@ -73,8 +74,8 @@ function TokenCard({ token }: { token: Token }) {
   );
 }
 
-/** Single OTC token card with on-chain data */
-function OTCTokenCard({ address: otcAddr }: { address: string }) {
+/** On-chain reads for an OTC token, shared by card + row variants */
+function useOTCTokenInfo(otcAddr: string) {
   const abi = OTC_TOKEN_ABI as unknown as Abi;
   const addr = otcAddr as `0x${string}`;
   const { data: name } = useReadContract({ address: addr, abi, functionName: "name" });
@@ -83,13 +84,23 @@ function OTCTokenCard({ address: otcAddr }: { address: string }) {
   const { data: totalSupplyRaw } = useReadContract({ address: addr, abi, functionName: "totalSupply" });
   const decimals = typeof decimalsRaw === "number" ? decimalsRaw : 18;
   const totalSupply = totalSupplyRaw ? formatUnits(totalSupplyRaw as bigint, decimals) : "0";
+  return {
+    name: (name as string) || "OTC Token",
+    symbol: (symbol as string) || "OTC",
+    totalSupply,
+  };
+}
+
+/** Single OTC token card with on-chain data */
+function OTCTokenCard({ address: otcAddr }: { address: string }) {
+  const { name, symbol, totalSupply } = useOTCTokenInfo(otcAddr);
 
   return (
     <div className="bg-white rounded-lg border border-zinc-100 p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-semibold text-text text-sm">{(name as string) || "OTC Token"}</h3>
-          <p className="text-xs text-black/40">{(symbol as string) || "OTC"}</p>
+          <h3 className="font-semibold text-text text-sm">{name}</h3>
+          <p className="text-xs text-black/40">{symbol}</p>
         </div>
         <Badge variant="active" size="sm"><Coins className="h-3 w-3 mr-1" />Deployed</Badge>
       </div>
@@ -100,14 +111,31 @@ function OTCTokenCard({ address: otcAddr }: { address: string }) {
         </div>
         <div className="bg-zinc-50 rounded-md px-3 py-2">
           <p className="text-black/40 mb-0.5">Contract</p>
-          <button onClick={() => navigator.clipboard.writeText(otcAddr)}
-            className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
-            {otcAddr.slice(0, 6)}...{otcAddr.slice(-4)} <Copy className="h-3 w-3 text-black/20" />
-          </button>
+          <CopyableAddress address={otcAddr} truncate className="text-xs text-text" />
         </div>
       </div>
       <p className="text-[11px] text-black/30 mb-3">Link to a sale via OTC config, then mint from the sale page.</p>
     </div>
+  );
+}
+
+/** Single OTC token row for list view */
+function OTCTokenRow({ address: otcAddr }: { address: string }) {
+  const { name, symbol, totalSupply } = useOTCTokenInfo(otcAddr);
+  return (
+    <tr className="border-b border-zinc-50 hover:bg-zinc-50">
+      <td className="px-5 py-3">
+        <p className="font-medium text-sm">{name}</p>
+        <p className="text-xs text-zinc-400">{symbol}</p>
+      </td>
+      <td className="px-5 py-3 text-sm font-mono">{parseFloat(totalSupply).toLocaleString()}</td>
+      <td className="px-5 py-3">
+        <CopyableAddress address={otcAddr} truncate className="text-xs text-zinc-700" />
+      </td>
+      <td className="px-5 py-3">
+        <Badge variant="active" size="sm"><Coins className="h-3 w-3 mr-1" />Deployed</Badge>
+      </td>
+    </tr>
   );
 }
 
@@ -120,6 +148,7 @@ function OTCTokenSection() {
   const [otcName, setOtcName] = useState("");
   const [otcSymbol, setOtcSymbol] = useState("");
   const [showDeploy, setShowDeploy] = useState(false);
+  const [otcViewMode, setOtcViewMode] = useState<"list" | "grid">("list");
 
   // Read all issuer OTC tokens from factory
   const { data: otcTokenAddrs, refetch: refetchOtc } = useReadContract({
@@ -163,10 +192,45 @@ function OTCTokenSection() {
         Only KYC-verified wallets can receive OTC tokens — verified through the Cireta platform identity registry.
       </div>
 
-      {otcList.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {otcList.map((addr) => <OTCTokenCard key={addr} address={addr} />)}
+      {otcList.length > 0 && (
+        <div className="flex justify-end">
+          <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
+            <button onClick={() => setOtcViewMode("list")}
+              className={`p-1.5 rounded-md transition-colors ${otcViewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}
+              title="List view">
+              <List className="h-4 w-4" />
+            </button>
+            <button onClick={() => setOtcViewMode("grid")}
+              className={`p-1.5 rounded-md transition-colors ${otcViewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}
+              title="Card view">
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+      )}
+
+      {otcList.length > 0 ? (
+        otcViewMode === "list" ? (
+          <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs text-zinc-500 uppercase border-b border-zinc-100">
+                  <th className="px-5 py-3">Token</th>
+                  <th className="px-5 py-3">Total Minted</th>
+                  <th className="px-5 py-3">Contract</th>
+                  <th className="px-5 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {otcList.map((addr) => <OTCTokenRow key={addr} address={addr} />)}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {otcList.map((addr) => <OTCTokenCard key={addr} address={addr} />)}
+          </div>
+        )
       ) : (
         <p className="text-sm text-black/30 py-2">No OTC tokens deployed yet.</p>
       )}

@@ -16,20 +16,8 @@ import { Button, Input, Select, FileUpload } from "@/components/atoms";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { IssuerDashboardLayout } from "@/components/templates";
 
-// Preconfigured stablecoins — update addresses per network
-// Base Sepolia (testnet)
-const PAYMENT_TOKENS = [
-  { value: "", label: "Select payment token..." },
-  { value: "0xE730be8760dcd7B1dA6EC26F027A5A4aa6c88c72", label: "cUSDC — Cireta USDC Mock (testnet faucet)" },
-  { value: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", label: "USDC — Circle (Base Sepolia)" },
-];
-// Base Mainnet — swap the above with:
-// const PAYMENT_TOKENS = [
-//   { value: "", label: "Select payment token..." },
-//   { value: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", label: "USDC — Circle (Base)" },
-//   { value: "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA", label: "USDbC — Bridged USDC (Base)" },
-// ];
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
+import { getPaymentTokens, type PaymentToken } from "@/lib/api/repositories/payment-tokens";
 import {
   createSale, addSaleTeamMember, addSaleFAQ, addSaleDocument, addSaleImage, submitSaleForApproval,
   type TeamMemberData, type FAQData, type DocumentData,
@@ -48,6 +36,9 @@ export default function CreateSalePage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [tokens, setTokens] = useState<Token[]>([]);
+  const [paymentTokens, setPaymentTokens] = useState<PaymentToken[]>([]);
+  const [paymentTokenMode, setPaymentTokenMode] = useState<"preset" | "custom">("preset");
+  const [customPaymentToken, setCustomPaymentToken] = useState("");
   // Step 1: Sale Info
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -98,6 +89,12 @@ export default function CreateSalePage() {
       try {
         const res = await getTokens(1, 100, undefined, getAccessToken() ?? "");
         setTokens(res.items);
+      } catch { /* ignore */ }
+    })();
+    (async () => {
+      try {
+        const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
+        setPaymentTokens(await getPaymentTokens(Number.isFinite(chainId) ? chainId : undefined));
       } catch { /* ignore */ }
     })();
   }, []);
@@ -546,10 +543,39 @@ export default function CreateSalePage() {
               return { value: t.id, label: `${t.name} (${t.symbol}) — ${addr.slice(0, 6)}...${addr.slice(-4)}` };
             })]}
               value={selectedTokenId} onChange={(e) => setSelectedTokenId(e.target.value)} />
-            <Select label="Payment Token (Stablecoin)" options={PAYMENT_TOKENS.map((pt) => ({
-              ...pt,
-              label: pt.value ? `${pt.label.split(" — ")[0]} — ${pt.value.slice(0, 6)}...${pt.value.slice(-4)}` : pt.label,
-            }))} value={paymentToken} onChange={(e) => setPaymentToken(e.target.value)} />
+            <Select label="Payment Token (Stablecoin)" options={[
+              { value: "", label: "Select payment token..." },
+              ...paymentTokens.map((pt) => ({
+                value: pt.address,
+                label: `${pt.symbol} — ${pt.address.slice(0, 6)}...${pt.address.slice(-4)}`,
+              })),
+              { value: "__custom__", label: "Custom address…" },
+            ]} value={paymentTokenMode === "custom" ? "__custom__" : paymentToken}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "__custom__") {
+                  setPaymentTokenMode("custom");
+                  setPaymentToken(customPaymentToken);
+                } else {
+                  setPaymentTokenMode("preset");
+                  setPaymentToken(v);
+                }
+              }} />
+            {paymentTokenMode === "custom" && (
+              <Input
+                label="Custom Payment Token Address"
+                placeholder="0x..."
+                value={customPaymentToken}
+                maxLength={42}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  setCustomPaymentToken(v);
+                  setPaymentToken(isAddress(v) ? v : "");
+                }}
+                error={customPaymentToken && !isAddress(customPaymentToken) ? "Invalid EVM address" : undefined}
+                helperText="Paste any ERC-20 stablecoin address. Must be a valid checksummed address."
+              />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <Input label="Soft Cap (USDC)" type="number" placeholder="e.g., 50000" value={softCap} onChange={(e) => setSoftCap(e.target.value)} />
               <Input label="Hard Cap (USDC)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />
@@ -752,7 +778,7 @@ export default function CreateSalePage() {
                 <div className="bg-white border border-zinc-100 rounded-lg p-5">
                   <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Token & Funding</h3>
                   <SectionRow label="Token" value={selectedToken ? `${selectedToken.name} (${selectedToken.symbol})` : "Not selected"} muted={!selectedToken} />
-                  <SectionRow label="Payment" value={paymentToken ? PAYMENT_TOKENS.find(t => t.value === paymentToken)?.label?.split(" — ")[0] || paymentToken.slice(0, 10) + "..." : "Not set"} muted={!paymentToken} />
+                  <SectionRow label="Payment" value={paymentToken ? (paymentTokens.find(t => t.address.toLowerCase() === paymentToken.toLowerCase())?.symbol || `Custom (${paymentToken.slice(0, 6)}...${paymentToken.slice(-4)})`) : "Not set"} muted={!paymentToken} />
                   <SectionRow label="Soft Cap" value={softCap ? `$${Number(softCap).toLocaleString()}` : "Not set"} muted={!softCap} />
                   <SectionRow label="Hard Cap" value={hardCap ? `$${Number(hardCap).toLocaleString()}` : "Not set"} muted={!hardCap} />
                   <SectionRow label="Phases" value={`${phaseCount} configured`} />

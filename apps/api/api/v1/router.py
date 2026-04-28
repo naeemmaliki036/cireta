@@ -21,6 +21,7 @@ from apps.api.api.v1.endpoints.issuer_onboarding import router as issuer_onboard
 from apps.api.api.v1.endpoints.issuer_withdrawals import router as issuer_withdrawals_router
 from apps.api.api.v1.endpoints.kyc import router as kyc_router
 from apps.api.api.v1.endpoints.notifications import router as notifications_router
+from apps.api.api.v1.endpoints.payment_tokens import router as payment_tokens_router
 from apps.api.api.v1.endpoints.platform_content import router as platform_content_router
 from apps.api.api.v1.endpoints.portfolio import router as portfolio_router
 from apps.api.api.v1.endpoints.sale_content import router as sale_content_router
@@ -42,6 +43,7 @@ router.include_router(kyc_router)
 router.include_router(wallets_router)
 router.include_router(notifications_router)
 router.include_router(platform_content_router)
+router.include_router(payment_tokens_router)
 router.include_router(tokens_router)
 router.include_router(token_compliance_router)
 router.include_router(sales_router)
