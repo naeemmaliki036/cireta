@@ -8,13 +8,30 @@ import {
   safeWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { base, baseSepolia } from "wagmi/chains";
-import { http, createConfig, type Config } from "wagmi";
+import { http, fallback, createConfig, type Config } from "wagmi";
 import { getChainId, getRpcUrl } from "@/lib/chain";
 
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
 const chainId = getChainId();
-const rpcUrl = getRpcUrl();
+const primaryRpcUrl = getRpcUrl();
+
+// Public fallback RPCs so a single paid-provider rate-limit (e.g. Alchemy 429)
+// doesn't silently freeze every wagmi read or transaction confirmation.
+const BASE_SEPOLIA_FALLBACKS = [
+  "https://base-sepolia.publicnode.com",
+  "https://sepolia.base.org",
+  "https://base-sepolia-rpc.publicnode.com",
+];
+const BASE_MAINNET_FALLBACKS = [
+  "https://base.publicnode.com",
+  "https://mainnet.base.org",
+];
+
+function makeTransport(urls: string[]) {
+  const unique = Array.from(new Set(urls.filter(Boolean)));
+  return fallback(unique.map((u) => http(u)));
+}
 
 const chains =
   chainId === baseSepolia.id
@@ -46,8 +63,14 @@ export function getWagmiConfig(): Config {
       connectors,
       chains,
       transports: {
-        [base.id]: http(chainId === base.id ? rpcUrl : undefined),
-        [baseSepolia.id]: http(chainId === baseSepolia.id ? rpcUrl : undefined),
+        [base.id]: makeTransport([
+          chainId === base.id ? primaryRpcUrl : "",
+          ...BASE_MAINNET_FALLBACKS,
+        ]),
+        [baseSepolia.id]: makeTransport([
+          chainId === baseSepolia.id ? primaryRpcUrl : "",
+          ...BASE_SEPOLIA_FALLBACKS,
+        ]),
       },
       multiInjectedProviderDiscovery: true,
       ssr: true,
