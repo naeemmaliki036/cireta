@@ -18,7 +18,7 @@ import { ToastContainer, useToast } from "@/components/molecules/Toast";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from "wagmi";
+import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";

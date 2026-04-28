@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Coins, CheckCircle2, RefreshCw, Camera } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { Button, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { getDividends, type DividendEntry } from "@/lib/api/repositories/portfolio.repository";
+import { useContractAction } from "@/hooks/useContractAction";
+import { useToast, ToastContainer } from "@/components/molecules/Toast";
 
 // Minimal ABI for the dividend distributor's two-step claim flow.
 // snapshotBalance must be called for each unclaimed epoch before claim() succeeds.
@@ -53,8 +55,15 @@ export default function DividendsPage() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const { address, isConnected } = useAccount();
 
-  const { writeContract, data: claimHash, isPending, error: claimWriteError } = useWriteContract();
-  const { isLoading: isClaimConfirming, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
+  // Unified contract action for dividend claims
+  const claimAction = useContractAction();
+  const { showError, showSuccess, toasts, removeToast } = useToast();
+
+  // Derived states for compatibility
+  const isPending = claimAction.isPending;
+  const isClaimConfirming = claimAction.isConfirming;
+  const isClaimSuccess = claimAction.isConfirmed;
+  const claimHash = claimAction.txHash;
 
   // For the currently-selected entry, peek at the contract to see whether the user
   // needs to snapshot before claiming. The contract's claim() reverts with
@@ -116,18 +125,19 @@ export default function DividendsPage() {
   }, [isClaimSuccess, activeIdx, actionMode]);
 
   useEffect(() => {
-    if (claimWriteError) {
-      setClaimError(
-        claimWriteError.message.includes("User rejected")
-          ? "Transaction rejected"
-          : "Transaction failed — check your wallet and try again"
-      );
+    if (claimAction.error) {
+      const msg = claimAction.error.message || "Transaction failed";
+      if (msg.includes("User rejected") || msg.includes("user rejected")) {
+        setClaimError("Transaction rejected");
+      } else {
+        setClaimError("Transaction failed — check your wallet and try again");
+      }
       setActiveIdx(null);
       setActionMode(null);
     }
-  }, [claimWriteError]);
+  }, [claimAction.error]);
 
-  const handleSnapshot = (idx: number) => {
+  const handleSnapshot = async (idx: number) => {
     const d = dividends[idx];
     if (!d?.contract_address || nextEpochToSnapshot === null) return;
     setClaimError(null);
@@ -137,15 +147,26 @@ export default function DividendsPage() {
     }
     setActiveIdx(idx);
     setActionMode("snapshot");
-    writeContract({
-      address: d.contract_address as `0x${string}`,
-      abi: DIVIDEND_DISTRIBUTOR_ABI,
-      functionName: "snapshotBalance",
-      args: [BigInt(nextEpochToSnapshot)],
-    });
+
+    try {
+      await claimAction.execute({
+        address: d.contract_address as `0x${string}`,
+        abi: DIVIDEND_DISTRIBUTOR_ABI,
+        functionName: "snapshotBalance",
+        args: [BigInt(nextEpochToSnapshot)],
+        // gas automatically handled by useContractAction (500k for claims)
+      });
+      showSuccess("Snapshot Taken", "Balance snapshot has been recorded for this epoch.");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Snapshot failed";
+      setClaimError(errorMsg);
+      showError("Snapshot Failed", errorMsg);
+      setActiveIdx(null);
+      setActionMode(null);
+    }
   };
 
-  const handleClaim = (idx: number) => {
+  const handleClaim = async (idx: number) => {
     const d = dividends[idx];
     if (!d?.contract_address) return;
     setClaimError(null);
@@ -155,11 +176,22 @@ export default function DividendsPage() {
     }
     setActiveIdx(idx);
     setActionMode("claim");
-    writeContract({
-      address: d.contract_address as `0x${string}`,
-      abi: DIVIDEND_DISTRIBUTOR_ABI,
-      functionName: "claim",
-    });
+
+    try {
+      await claimAction.execute({
+        address: d.contract_address as `0x${string}`,
+        abi: DIVIDEND_DISTRIBUTOR_ABI,
+        functionName: "claim",
+        // gas automatically handled by useContractAction (500k for claims)
+      });
+      showSuccess("Dividend Claimed", `${d.claimable_usdc} USDC has been claimed to your wallet.`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Claim failed";
+      setClaimError(errorMsg);
+      showError("Claim Failed", errorMsg);
+      setActiveIdx(null);
+      setActionMode(null);
+    }
   };
 
   const isTxLoading = isPending || isClaimConfirming;
@@ -266,6 +298,7 @@ export default function DividendsPage() {
           </>
         )}
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </DashboardLayout>
   );
 }

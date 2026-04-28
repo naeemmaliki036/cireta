@@ -195,13 +195,48 @@ class IdentityBridgeService:
             logger.info("ONCHAINID already exists at %s", existing)
             return existing
 
-        # Deploy new
-        tx = factory.functions.deployIdentity(investor_address).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 500_000,
-            "gasPrice": w3.eth.gas_price,
-        })
+        # Deploy new - use EIP-1559 gas pricing with dynamic estimation
+        try:
+            # Get latest block for base fee calculation
+            latest = w3.eth.get_block("latest")
+            base_fee = latest.get("baseFeePerGas", 0)
+
+            if base_fee > 0:  # EIP-1559 network
+                max_priority_fee = 2_000_000_000  # 2 gwei priority fee
+                max_fee_per_gas = base_fee * 3 + max_priority_fee  # 3x base fee + priority
+
+                tx = factory.functions.deployIdentity(investor_address).build_transaction({
+                    "from": signer.address,
+                    "nonce": w3.eth.get_transaction_count(signer.address),
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                })
+            else:  # Legacy network fallback
+                gas_price = w3.eth.gas_price
+                tx = factory.functions.deployIdentity(investor_address).build_transaction({
+                    "from": signer.address,
+                    "nonce": w3.eth.get_transaction_count(signer.address),
+                    "gasPrice": gas_price,
+                })
+
+            # Estimate gas and add 20% buffer for safety
+            try:
+                estimated_gas = w3.eth.estimate_gas(tx)
+                # Add 20% buffer to estimated gas, with minimum of 300k for identity deployments
+                buffered_gas = max(int(estimated_gas * 1.2), 300_000)
+                tx["gas"] = min(buffered_gas, 1_500_000)  # Cap at 1.5M for safety
+            except Exception:
+                # Fallback gas limit for identity deployment
+                tx["gas"] = 800_000
+
+        except Exception:
+            # Complete fallback to legacy gas pricing
+            tx = factory.functions.deployIdentity(investor_address).build_transaction({
+                "from": signer.address,
+                "nonce": w3.eth.get_transaction_count(signer.address),
+                "gas": 800_000,  # Conservative fallback
+                "gasPrice": w3.eth.gas_price,
+            })
         signed = signer.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -269,19 +304,69 @@ class IdentityBridgeService:
         ]
         identity = w3.eth.contract(address=identity_address, abi=identity_abi)
 
-        tx = identity.functions.addClaim(
-            claim_topic,
-            1,  # scheme: ECDSA
-            claim_issuer_address,
-            signature,
-            data,
-            "https://cireta.com/kyc/verified",
-        ).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 200_000,
-            "gasPrice": w3.eth.gas_price,
-        })
+        # Use EIP-1559 gas pricing with dynamic estimation for claim addition
+        try:
+            # Get latest block for base fee calculation
+            latest = w3.eth.get_block("latest")
+            base_fee = latest.get("baseFeePerGas", 0)
+
+            if base_fee > 0:  # EIP-1559 network
+                max_priority_fee = 2_000_000_000  # 2 gwei priority fee
+                max_fee_per_gas = base_fee * 3 + max_priority_fee  # 3x base fee + priority
+
+                tx = identity.functions.addClaim(
+                    claim_topic,
+                    1,  # scheme: ECDSA
+                    claim_issuer_address,
+                    signature,
+                    data,
+                    "https://cireta.com/kyc/verified",
+                ).build_transaction({
+                    "from": signer.address,
+                    "nonce": w3.eth.get_transaction_count(signer.address),
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                })
+            else:  # Legacy network fallback
+                gas_price = w3.eth.gas_price
+                tx = identity.functions.addClaim(
+                    claim_topic,
+                    1,  # scheme: ECDSA
+                    claim_issuer_address,
+                    signature,
+                    data,
+                    "https://cireta.com/kyc/verified",
+                ).build_transaction({
+                    "from": signer.address,
+                    "nonce": w3.eth.get_transaction_count(signer.address),
+                    "gasPrice": gas_price,
+                })
+
+            # Estimate gas and add 20% buffer for safety
+            try:
+                estimated_gas = w3.eth.estimate_gas(tx)
+                # Add 20% buffer to estimated gas, with minimum of 150k for claim operations
+                buffered_gas = max(int(estimated_gas * 1.2), 150_000)
+                tx["gas"] = min(buffered_gas, 500_000)  # Cap at 500k for safety
+            except Exception:
+                # Fallback gas limit for claim addition
+                tx["gas"] = 250_000
+
+        except Exception:
+            # Complete fallback to legacy gas pricing
+            tx = identity.functions.addClaim(
+                claim_topic,
+                1,  # scheme: ECDSA
+                claim_issuer_address,
+                signature,
+                data,
+                "https://cireta.com/kyc/verified",
+            ).build_transaction({
+                "from": signer.address,
+                "nonce": w3.eth.get_transaction_count(signer.address),
+                "gas": 250_000,  # Conservative fallback
+                "gasPrice": w3.eth.gas_price,
+            })
         signed = signer.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -315,14 +400,54 @@ class IdentityBridgeService:
         ]
         storage = w3.eth.contract(address=storage_address, abi=storage_abi)
 
-        tx = storage.functions.addIdentityToStorage(
-            investor_address, identity_address, country_code
-        ).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 150_000,
-            "gasPrice": w3.eth.gas_price,
-        })
+        # Use EIP-1559 gas pricing with dynamic estimation for identity registration
+        try:
+            # Get latest block for base fee calculation
+            latest = w3.eth.get_block("latest")
+            base_fee = latest.get("baseFeePerGas", 0)
+
+            if base_fee > 0:  # EIP-1559 network
+                max_priority_fee = 2_000_000_000  # 2 gwei priority fee
+                max_fee_per_gas = base_fee * 3 + max_priority_fee  # 3x base fee + priority
+
+                tx = storage.functions.addIdentityToStorage(
+                    investor_address, identity_address, country_code
+                ).build_transaction({
+                    "from": signer.address,
+                    "nonce": w3.eth.get_transaction_count(signer.address),
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                })
+            else:  # Legacy network fallback
+                gas_price = w3.eth.gas_price
+                tx = storage.functions.addIdentityToStorage(
+                    investor_address, identity_address, country_code
+                ).build_transaction({
+                    "from": signer.address,
+                    "nonce": w3.eth.get_transaction_count(signer.address),
+                    "gasPrice": gas_price,
+                })
+
+            # Estimate gas and add 20% buffer for safety
+            try:
+                estimated_gas = w3.eth.estimate_gas(tx)
+                # Add 20% buffer to estimated gas, with minimum of 100k for registry operations
+                buffered_gas = max(int(estimated_gas * 1.2), 100_000)
+                tx["gas"] = min(buffered_gas, 400_000)  # Cap at 400k for safety
+            except Exception:
+                # Fallback gas limit for identity registration
+                tx["gas"] = 200_000
+
+        except Exception:
+            # Complete fallback to legacy gas pricing
+            tx = storage.functions.addIdentityToStorage(
+                investor_address, identity_address, country_code
+            ).build_transaction({
+                "from": signer.address,
+                "nonce": w3.eth.get_transaction_count(signer.address),
+                "gas": 200_000,  # Conservative fallback
+                "gasPrice": w3.eth.gas_price,
+            })
         signed = signer.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)

@@ -12,6 +12,7 @@ To switch to full ERC-3643: set IDENTITY_MODE=erc3643 in env.
 See docs/IDENTITY_MODE_SWITCHOVER.md for full migration guide.
 """
 
+import asyncio
 import logging
 from uuid import UUID
 
@@ -312,12 +313,46 @@ class SimpleIdentityBridgeService:
         w3, signer = self._get_w3_and_signer()
         registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
 
-        tx = registry.functions.removeFromWhitelist(wallet_address).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 60_000,
-            "gasPrice": w3.eth.gas_price,
-        })
+        # Use EIP-1559 gas pricing with dynamic estimation for whitelist removal
+        try:
+            # Get latest block for base fee calculation
+            latest = await asyncio.to_thread(w3.eth.get_block, "latest")
+            base_fee = latest.get("baseFeePerGas", 0)
+
+            if base_fee > 0:  # EIP-1559 network
+                max_priority_fee = 2_000_000_000  # 2 gwei priority
+                max_fee_per_gas = base_fee * 3 + max_priority_fee
+
+                tx = registry.functions.removeFromWhitelist(wallet_address).build_transaction({
+                    "from": signer.address,
+                    "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                })
+            else:  # Legacy network fallback
+                gas_price = await asyncio.to_thread(lambda: w3.eth.gas_price)
+                tx = registry.functions.removeFromWhitelist(wallet_address).build_transaction({
+                    "from": signer.address,
+                    "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                    "gasPrice": gas_price,
+                })
+
+            # Estimate gas and add 20% buffer
+            try:
+                estimated_gas = await asyncio.to_thread(w3.eth.estimate_gas, tx)
+                buffered_gas = max(int(estimated_gas * 1.2), 80_000)  # 20% buffer, min 80k
+                tx["gas"] = min(buffered_gas, 300_000)  # Cap at 300k
+            except Exception:
+                tx["gas"] = 120_000  # Safe fallback
+
+        except Exception:
+            # Complete fallback to legacy
+            tx = registry.functions.removeFromWhitelist(wallet_address).build_transaction({
+                "from": signer.address,
+                "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                "gas": 120_000,
+                "gasPrice": await asyncio.to_thread(lambda: w3.eth.gas_price),
+            })
         signed = signer.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -347,12 +382,48 @@ class SimpleIdentityBridgeService:
         registry = w3.eth.contract(address=registry_address, abi=SIMPLE_REGISTRY_ABI)
 
         addresses = [w.address_checksum for w in wallets]
-        tx = registry.functions.batchRemoveFromWhitelist(addresses).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 50_000 * len(addresses),
-            "gasPrice": w3.eth.gas_price,
-        })
+
+        # Use EIP-1559 gas pricing with dynamic estimation for batch removal
+        try:
+            # Get latest block for base fee calculation
+            latest = await asyncio.to_thread(w3.eth.get_block, "latest")
+            base_fee = latest.get("baseFeePerGas", 0)
+
+            if base_fee > 0:  # EIP-1559 network
+                max_priority_fee = 2_000_000_000  # 2 gwei priority
+                max_fee_per_gas = base_fee * 3 + max_priority_fee
+
+                tx = registry.functions.batchRemoveFromWhitelist(addresses).build_transaction({
+                    "from": signer.address,
+                    "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                })
+            else:  # Legacy network fallback
+                gas_price = await asyncio.to_thread(lambda: w3.eth.gas_price)
+                tx = registry.functions.batchRemoveFromWhitelist(addresses).build_transaction({
+                    "from": signer.address,
+                    "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                    "gasPrice": gas_price,
+                })
+
+            # Estimate gas and add 20% buffer
+            try:
+                estimated_gas = await asyncio.to_thread(w3.eth.estimate_gas, tx)
+                buffered_gas = max(int(estimated_gas * 1.2), 100_000 + len(addresses) * 30_000)  # Base + per address
+                tx["gas"] = min(buffered_gas, 2_000_000)  # Cap at 2M for large batches
+            except Exception:
+                # Fallback: conservative estimate
+                tx["gas"] = min(100_000 + len(addresses) * 50_000, 2_000_000)
+
+        except Exception:
+            # Complete fallback to legacy
+            tx = registry.functions.batchRemoveFromWhitelist(addresses).build_transaction({
+                "from": signer.address,
+                "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                "gas": min(100_000 + len(addresses) * 50_000, 2_000_000),
+                "gasPrice": await asyncio.to_thread(lambda: w3.eth.gas_price),
+            })
         signed = signer.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
@@ -371,16 +442,50 @@ class SimpleIdentityBridgeService:
     async def _add_to_whitelist(
         self, w3: Web3, signer: Account, registry, wallet_address: str, country_code: int
     ) -> str:
-        """Sign + send addToWhitelist. Returns the tx hash as 0x-prefixed hex."""
-        tx = registry.functions.addToWhitelist(wallet_address, country_code).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 80_000,
-            "gasPrice": w3.eth.gas_price,
-        })
+        """Sign + send addToWhitelist with modern EIP-1559 gas handling."""
+        nonce = await asyncio.to_thread(w3.eth.get_transaction_count, signer.address)
+
+        # Get latest block for EIP-1559 gas pricing
+        latest_block = await asyncio.to_thread(w3.eth.get_block, "latest")
+        base_fee = getattr(latest_block, 'baseFeePerGas', None)
+
+        # Build transaction with EIP-1559 or legacy fallback
+        if base_fee is not None:
+            # EIP-1559 transaction
+            max_priority_fee = 2_000_000_000  # 2 gwei priority
+            max_fee_per_gas = base_fee * 3 + max_priority_fee
+
+            tx = registry.functions.addToWhitelist(wallet_address, country_code).build_transaction({
+                "from": signer.address,
+                "nonce": nonce,
+                "gas": 200_000,  # Conservative initial gas limit
+                "maxFeePerGas": max_fee_per_gas,
+                "maxPriorityFeePerGas": max_priority_fee,
+                "type": 2,  # EIP-1559 transaction type
+            })
+        else:
+            # Legacy transaction fallback
+            gas_price = await asyncio.to_thread(lambda: w3.eth.gas_price)
+            tx = registry.functions.addToWhitelist(wallet_address, country_code).build_transaction({
+                "from": signer.address,
+                "nonce": nonce,
+                "gas": 200_000,
+                "gasPrice": gas_price,
+            })
+
+        # Estimate gas and add 20% buffer
+        try:
+            estimated_gas = await asyncio.to_thread(w3.eth.estimate_gas, tx)
+            buffered_gas = max(int(estimated_gas * 1.2), 100_000)  # 20% buffer, min 100k
+            tx["gas"] = min(buffered_gas, 500_000)  # Cap at 500k
+            logger.info(f"addToWhitelist gas: estimated={estimated_gas}, buffered={buffered_gas}, final={tx['gas']}")
+        except Exception as gas_error:
+            logger.warning(f"Gas estimation failed for addToWhitelist: {gas_error}, using fallback")
+            tx["gas"] = 150_000  # Safe fallback
+
         signed = signer.sign_transaction(tx)
-        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        tx_hash = await asyncio.to_thread(w3.eth.send_raw_transaction, signed.raw_transaction)
+        receipt = await asyncio.to_thread(w3.eth.wait_for_transaction_receipt, tx_hash, timeout=120)
 
         if receipt["status"] != 1:
             raise RuntimeError(f"addToWhitelist failed: {tx_hash.hex()}")
@@ -390,16 +495,52 @@ class SimpleIdentityBridgeService:
         self, w3: Web3, signer: Account, registry,
         addresses: list[str], countries: list[int],
     ) -> str:
-        """Sign + send batchAddToWhitelist. Returns the tx hash as 0x-prefixed hex."""
-        tx = registry.functions.batchAddToWhitelist(addresses, countries).build_transaction({
-            "from": signer.address,
-            "nonce": w3.eth.get_transaction_count(signer.address),
-            "gas": 80_000 * len(addresses),
-            "gasPrice": w3.eth.gas_price,
-        })
+        """Sign + send batchAddToWhitelist with EIP-1559 gas pricing. Returns the tx hash as 0x-prefixed hex."""
+        # Use EIP-1559 gas pricing with dynamic estimation for batch addition
+        try:
+            # Get latest block for base fee calculation
+            latest = await asyncio.to_thread(w3.eth.get_block, "latest")
+            base_fee = latest.get("baseFeePerGas", 0)
+
+            if base_fee > 0:  # EIP-1559 network
+                max_priority_fee = 2_000_000_000  # 2 gwei priority
+                max_fee_per_gas = base_fee * 3 + max_priority_fee
+
+                tx = registry.functions.batchAddToWhitelist(addresses, countries).build_transaction({
+                    "from": signer.address,
+                    "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                    "maxFeePerGas": max_fee_per_gas,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                })
+            else:  # Legacy network fallback
+                gas_price = await asyncio.to_thread(lambda: w3.eth.gas_price)
+                tx = registry.functions.batchAddToWhitelist(addresses, countries).build_transaction({
+                    "from": signer.address,
+                    "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                    "gasPrice": gas_price,
+                })
+
+            # Estimate gas and add 20% buffer
+            try:
+                estimated_gas = await asyncio.to_thread(w3.eth.estimate_gas, tx)
+                buffered_gas = max(int(estimated_gas * 1.2), 150_000 + len(addresses) * 50_000)  # Base + per address
+                tx["gas"] = min(buffered_gas, 3_000_000)  # Cap at 3M for large batches
+            except Exception:
+                # Fallback: conservative estimate
+                tx["gas"] = min(150_000 + len(addresses) * 80_000, 3_000_000)
+
+        except Exception:
+            # Complete fallback to legacy
+            tx = registry.functions.batchAddToWhitelist(addresses, countries).build_transaction({
+                "from": signer.address,
+                "nonce": await asyncio.to_thread(w3.eth.get_transaction_count, signer.address),
+                "gas": min(150_000 + len(addresses) * 80_000, 3_000_000),
+                "gasPrice": await asyncio.to_thread(lambda: w3.eth.gas_price),
+            })
+
         signed = signer.sign_transaction(tx)
-        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        tx_hash = await asyncio.to_thread(w3.eth.send_raw_transaction, signed.raw_transaction)
+        receipt = await asyncio.to_thread(w3.eth.wait_for_transaction_receipt, tx_hash, timeout=120)
 
         if receipt["status"] != 1:
             raise RuntimeError(f"batchAddToWhitelist failed: {tx_hash.hex()}")

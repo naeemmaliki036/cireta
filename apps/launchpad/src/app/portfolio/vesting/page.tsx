@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Clock, RefreshCw } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount } from "wagmi";
 import { Button, Spinner, Badge, ProgressBar } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { getVesting, type VestingSchedule } from "@/lib/api/repositories/portfolio.repository";
+import { useContractAction } from "@/hooks/useContractAction";
+import { useToast, ToastContainer } from "@/components/molecules/Toast";
 
 const VAULT_CLAIM_ABI = [
   { inputs: [], name: "claim", outputs: [], stateMutability: "nonpayable", type: "function" },
@@ -57,8 +59,16 @@ export default function PortfolioVestingPage() {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const { isConnected } = useAccount();
 
-  const { writeContract, data: claimHash, isPending, error: claimError } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: claimHash });
+  // Unified contract action for vesting claims
+  const claimAction = useContractAction();
+  const { showError, showSuccess, toasts, removeToast } = useToast();
+
+  // Derived states for compatibility
+  const isPending = claimAction.isPending;
+  const isConfirming = claimAction.isConfirming;
+  const isSuccess = claimAction.isConfirmed;
+  const claimHash = claimAction.txHash;
+  const claimError = claimAction.error;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -87,14 +97,23 @@ export default function PortfolioVestingPage() {
     if (claimError) setClaimingId(null);
   }, [claimError]);
 
-  const handleClaim = (schedule: VestingSchedule) => {
+  const handleClaim = async (schedule: VestingSchedule) => {
     if (!schedule.vault_address || !isConnected) return;
     setClaimingId(schedule.id);
-    writeContract({
-      address: schedule.vault_address as `0x${string}`,
-      abi: VAULT_CLAIM_ABI,
-      functionName: "claim",
-    });
+
+    try {
+      await claimAction.execute({
+        address: schedule.vault_address as `0x${string}`,
+        abi: VAULT_CLAIM_ABI,
+        functionName: "claim",
+        // gas automatically handled by useContractAction (500k for claims)
+      });
+      showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Claim failed";
+      showError("Claim Failed", errorMsg);
+      setClaimingId(null);
+    }
   };
 
   const isClaimLoading = isPending || isConfirming;
@@ -253,6 +272,7 @@ export default function PortfolioVestingPage() {
           </div>
         )}
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </DashboardLayout>
   );
 }

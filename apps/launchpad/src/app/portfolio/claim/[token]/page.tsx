@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount } from "wagmi";
 import { Button, Spinner } from "@/components/atoms";
 import { VestingCard } from "@/components/organisms";
 import { DashboardLayout } from "@/components/templates";
@@ -16,6 +16,8 @@ import {
 import { apiPost } from "@/lib/api/client";
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { VAULT_ABI } from "@/lib/contracts/vaultAbi";
+import { useContractAction } from "@/hooks/useContractAction";
+import { useToast, ToastContainer } from "@/components/molecules/Toast";
 
 export default function ClaimTokenPage({
   params: paramsPromise,
@@ -32,38 +34,30 @@ export default function ClaimTokenPage({
 
   const { isConnected } = useAccount();
 
-  // Direct mode: Sale.claimTokens()
-  const {
-    writeContract: writeSaleClaim,
-    data: saleClaimHash,
-    isPending: isSaleClaimPending,
-    error: saleClaimError,
-  } = useWriteContract();
+  // Unified contract actions for different claim types
+  const saleClaimAction = useContractAction();
+  const vaultClaimAction = useContractAction();
+  const refundAction = useContractAction();
+  const { showError, showSuccess, toasts, removeToast } = useToast();
 
-  const { isLoading: isSaleClaimConfirming, isSuccess: isSaleClaimSuccess } =
-    useWaitForTransactionReceipt({ hash: saleClaimHash });
+  // Derived states for compatibility
+  const saleClaimHash = saleClaimAction.txHash;
+  const isSaleClaimPending = saleClaimAction.isPending;
+  const isSaleClaimConfirming = saleClaimAction.isConfirming;
+  const isSaleClaimSuccess = saleClaimAction.isConfirmed;
+  const saleClaimError = saleClaimAction.error;
 
-  // Vested mode: CiretaVault.claim()
-  const {
-    writeContract: writeVaultClaim,
-    data: vaultClaimHash,
-    isPending: isVaultClaimPending,
-    error: vaultClaimError,
-  } = useWriteContract();
+  const vaultClaimHash = vaultClaimAction.txHash;
+  const isVaultClaimPending = vaultClaimAction.isPending;
+  const isVaultClaimConfirming = vaultClaimAction.isConfirming;
+  const isVaultClaimSuccess = vaultClaimAction.isConfirmed;
+  const vaultClaimError = vaultClaimAction.error;
 
-  const { isLoading: isVaultClaimConfirming, isSuccess: isVaultClaimSuccess } =
-    useWaitForTransactionReceipt({ hash: vaultClaimHash });
-
-  // Refund mode: Sale.claimRefund()
-  const {
-    writeContract: writeRefund,
-    data: refundHash,
-    isPending: isRefundPending,
-    error: refundError,
-  } = useWriteContract();
-
-  const { isLoading: isRefundConfirming, isSuccess: isRefundSuccess } =
-    useWaitForTransactionReceipt({ hash: refundHash });
+  const refundHash = refundAction.txHash;
+  const isRefundPending = refundAction.isPending;
+  const isRefundConfirming = refundAction.isConfirming;
+  const isRefundSuccess = refundAction.isConfirmed;
+  const refundError = refundAction.error;
 
   useEffect(() => {
     paramsPromise.then(setResolvedParams);
@@ -138,7 +132,7 @@ export default function ClaimTokenPage({
 
   const isFailedSale = saleStatus === "failed" || saleStatus === "finalized_failed" || saleStatus === "refunds_enabled";
 
-  const handleClaim = () => {
+  const handleClaim = async () => {
     if (!schedule) return;
     setClaimError(null);
 
@@ -149,24 +143,34 @@ export default function ClaimTokenPage({
 
     const isVested = schedule.sale_mode === "vested" && schedule.vault_address;
 
-    if (isVested && schedule.vault_address) {
-      writeVaultClaim({
-        address: schedule.vault_address as `0x${string}`,
-        abi: VAULT_ABI,
-        functionName: "claim",
-      });
-    } else if (schedule.sale_contract_address) {
-      writeSaleClaim({
-        address: schedule.sale_contract_address as `0x${string}`,
-        abi: SALE_ABI,
-        functionName: "claimTokens",
-      });
-    } else {
-      setClaimError("No contract address available for claiming");
+    try {
+      if (isVested && schedule.vault_address) {
+        await vaultClaimAction.execute({
+          address: schedule.vault_address as `0x${string}`,
+          abi: VAULT_ABI,
+          functionName: "claim",
+          // gas automatically handled by useContractAction (500k for claims)
+        });
+        showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
+      } else if (schedule.sale_contract_address) {
+        await saleClaimAction.execute({
+          address: schedule.sale_contract_address as `0x${string}`,
+          abi: SALE_ABI,
+          functionName: "claimTokens",
+          // gas automatically handled by useContractAction (500k for claims)
+        });
+        showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
+      } else {
+        setClaimError("No contract address available for claiming");
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Claim failed";
+      setClaimError(errorMsg);
+      showError("Claim Failed", errorMsg);
     }
   };
 
-  const handleRefund = () => {
+  const handleRefund = async () => {
     if (!schedule) return;
     setClaimError(null);
 
@@ -175,14 +179,22 @@ export default function ClaimTokenPage({
       return;
     }
 
-    if (schedule.sale_contract_address) {
-      writeRefund({
-        address: schedule.sale_contract_address as `0x${string}`,
-        abi: SALE_ABI,
-        functionName: "claimRefund",
-      });
-    } else {
-      setClaimError("No contract address available for refund");
+    try {
+      if (schedule.sale_contract_address) {
+        await refundAction.execute({
+          address: schedule.sale_contract_address as `0x${string}`,
+          abi: SALE_ABI,
+          functionName: "claimRefund",
+          // gas automatically handled by useContractAction (500k for claims)
+        });
+        showSuccess("Refund Claimed", "Your USDC refund has been sent to your wallet.");
+      } else {
+        setClaimError("No contract address available for refund");
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Refund failed";
+      setClaimError(errorMsg);
+      showError("Refund Failed", errorMsg);
     }
   };
 
@@ -295,6 +307,7 @@ export default function ClaimTokenPage({
           )}
         </motion.div>
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </DashboardLayout>
   );
 }
