@@ -6,58 +6,83 @@ This document provides a complete audit of ALL contract interactions across the 
 
 ## Executive Summary
 
-**Total Issues Found**: 23 gas-related issues across 12 files
-**Critical Issues**: 6 (hardcoded gas limits causing transaction failures)
-**High Priority**: 8 (legacy gas pricing, missing estimation)
-**Medium Priority**: 9 (missing unified patterns, browser dialogs)
+**Total Issues Found**: 23 gas-related issues across 12 files  
+**✅ FIXED - Critical Issues**: 6/6 (hardcoded gas limits causing transaction failures)  
+**🔄 High Priority**: 8 (admin portal hardcoded values - ready for fix)  
+**🔄 Medium Priority**: 9 (browser dialogs, scripts - lower priority)
+
+## ✅ PHASE 1 COMPLETED (2026-04-28)
+
+All critical gas issues have been resolved:
+
+### Frontend Critical Fixes ✅
+- **Portfolio Dividends Page**: Converted to unified `useContractAction` with 500k gas estimation
+- **Portfolio Vesting Page**: Converted to unified `useContractAction` with 500k gas estimation  
+- **Portfolio Claim Page**: Converted to unified `useContractAction` with 500k gas estimation
+- **Admin Issuers Page**: Cleaned up unused wagmi imports
+
+### Backend Critical Fixes ✅
+- **IdentityBridgeService**: Complete EIP-1559 migration with dynamic gas estimation
+- **SimpleIdentityBridgeService**: Complete EIP-1559 migration with async support
+- All hardcoded gas values replaced with intelligent estimation + 20% buffers
 
 ## Issues by Category
 
-### 1. CRITICAL: Frontend Pages Using Raw Wagmi (4 issues)
+### 1. ✅ CRITICAL: Frontend Pages Using Raw Wagmi (4 issues) - FIXED
 
-These pages bypass the unified gas estimation system and lack proper error handling:
+~~These pages bypass the unified gas estimation system and lack proper error handling:~~
 
-#### 1.1 Portfolio Dividends Page
+#### 1.1 ✅ Portfolio Dividends Page - FIXED
 **File**: `apps/launchpad/src/app/portfolio/dividends/page.tsx`
-**Issue**: Direct `useWriteContract` usage for dividend claims
-**Impact**: No intelligent gas estimation, poor error handling
-**Lines**: 56-57, 140-145, 158-162
+~~**Issue**: Direct `useWriteContract` usage for dividend claims~~
+**✅ FIXED**: Converted to unified `useContractAction` with intelligent gas estimation (500k for claims)
+**✅ ADDED**: Toast notification system for transaction feedback
 
-#### 1.2 Portfolio Vesting Page  
+#### 1.2 ✅ Portfolio Vesting Page - FIXED
 **File**: `apps/launchpad/src/app/portfolio/vesting/page.tsx`
-**Issue**: Direct `useWriteContract` usage for vault claims
-**Impact**: No intelligent gas estimation
-**Lines**: 60-61, 93-97
+~~**Issue**: Direct `useWriteContract` usage for vault claims~~
+**✅ FIXED**: Converted to unified `useContractAction` with intelligent gas estimation (500k for claims)
+**✅ ADDED**: Toast notification system for transaction feedback
 
-#### 1.3 Portfolio Claim Page
+#### 1.3 ✅ Portfolio Claim Page - FIXED
 **File**: `apps/launchpad/src/app/portfolio/claim/[token]/page.tsx`
-**Issue**: Multiple `useWriteContract` hooks for different claim types
-**Impact**: Inconsistent gas handling across claim flows
-**Lines**: 37-66, 153-166, 179-186
+~~**Issue**: Multiple `useWriteContract` hooks for different claim types~~
+**✅ FIXED**: Converted to three unified `useContractAction` hooks (sale, vault, refund)
+**✅ FIXED**: Intelligent gas estimation (500k for all claim operations)
+**✅ ADDED**: Toast notification system for transaction feedback
 
-#### 1.4 Admin Issuers Page Import Cleanup
+#### 1.4 ✅ Admin Issuers Page Import Cleanup - FIXED
 **File**: `apps/admin/src/app/platform/issuers/page.tsx`  
-**Issue**: Still imports unused wagmi hooks
-**Impact**: Dead code, potential confusion
-**Line**: 21
+~~**Issue**: Still imports unused wagmi hooks~~
+**✅ FIXED**: Removed unused wagmi imports, only imports `useAccount`
 
-### 2. CRITICAL: Backend Services with Hardcoded Gas (2 issues)
+### 2. ✅ CRITICAL: Backend Services with Hardcoded Gas (2 issues) - FIXED
 
-#### 2.1 Identity Bridge Service
+#### 2.1 ✅ Identity Bridge Service - FIXED
 **File**: `apps/api/services/identity_bridge_service.py`
-**Issues**:
-- Hardcoded gas: 500k (ONCHAINID deployment), 200k (claim), 150k (registration)
-- Legacy `gasPrice` instead of EIP-1559
-- No gas estimation or buffering
-**Lines**: 202-203, 282-283, 323-324
+~~**Issues**:~~
+~~- Hardcoded gas: 500k (ONCHAINID deployment), 200k (claim), 150k (registration)~~
+~~- Legacy `gasPrice` instead of EIP-1559~~
+~~- No gas estimation or buffering~~
+**✅ FIXED**: Complete EIP-1559 migration with dynamic gas estimation:
+- **ONCHAINID deployment**: Estimated + 20% buffer (300k min, 1.5M cap)
+- **Claim operations**: Estimated + 20% buffer (150k min, 500k cap)  
+- **Identity registration**: Estimated + 20% buffer (100k min, 400k cap)
+- **EIP-1559 pricing**: maxFeePerGas = base * 3 + 2gwei priority
+- **Fallback handling**: Legacy gasPrice for non-EIP-1559 networks
 
-#### 2.2 Simple Identity Bridge Service  
-**File**: `apps/api/services/simple_identity_bridge_service.py`
-**Issues**:
-- Hardcoded gas: 60k, 80k, 50k per address  
-- Legacy `gasPrice` in multiple methods
-- Mix of updated and legacy patterns
-**Lines**: 319-320, 354-355, 432-433
+#### 2.2 ✅ Simple Identity Bridge Service - FIXED
+**File**: `apps/api/services/simple_identity_bridge_service.py`  
+~~**Issues**:~~
+~~- Hardcoded gas: 60k, 80k, 50k per address~~
+~~- Legacy `gasPrice` in multiple methods~~
+~~- Mix of updated and legacy patterns~~
+**✅ FIXED**: Complete EIP-1559 migration with async support:
+- **Single whitelist**: Estimated + 20% buffer (80k min, 300k cap)
+- **Batch operations**: Dynamic scaling (base + per-address costs, 2-3M caps)
+- **Removal operations**: Estimated + 20% buffer (100k min, 300k cap)  
+- **Async patterns**: All w3 calls wrapped with `asyncio.to_thread`
+- **EIP-1559 pricing**: Consistent across all methods
 
 ### 3. HIGH PRIORITY: Admin Portal Hardcoded Gas Values (8 issues)
 
@@ -142,20 +167,31 @@ Deployment and management scripts with gas concerns:
 | Launchpad useContractAction | ✅ EIP-1559 | ✅ EIP-1559 | Complete |
 | Admin useContractAction | ✅ EIP-1559 | ✅ EIP-1559 | Complete |
 
-## Implementation Priority
+## Current Status & Next Steps
 
-### Phase 1: Critical Fixes (Must Fix)
-1. **Portfolio Pages** → Convert to `useContractAction` pattern
-2. **Identity Bridge Services** → EIP-1559 + dynamic gas estimation
-3. **Simple Identity Bridge** → Complete the migration started
+### ✅ Phase 1: Critical Fixes (COMPLETED - 2026-04-28)
+1. ✅ **Portfolio Pages** → All converted to `useContractAction` pattern
+2. ✅ **Identity Bridge Services** → Complete EIP-1559 + dynamic gas estimation  
+3. ✅ **Simple Identity Bridge** → Complete migration with async support
 
-### Phase 2: High Priority (Should Fix)
-1. **Admin Portal** → Replace hardcoded gas with dynamic estimation
-2. **Worker Systems** → Verify and standardize gas patterns
+### 🔄 Phase 2: High Priority (Ready for Implementation)
+1. **Admin Portal Gas Values** → Replace hardcoded gas with dynamic estimation
+   - Sales management (1M-8M fixed values)
+   - Token operations (3M-5M fixed values)  
+   - Compliance operations (200k-500k fixed values)
+2. **Worker Systems** → Verify gas patterns are consistent
 
-### Phase 3: Medium Priority (Nice to Have)  
-1. **Browser Dialogs** → Replace with ConfirmationModal
+### 🔄 Phase 3: Medium Priority (Lower Priority)  
+1. **Browser Dialogs** → Replace `window.confirm()` with ConfirmationModal
 2. **Script Cleanup** → Standardize deployment gas values
+
+### ⭐ IMPACT OF PHASE 1 FIXES
+
+**Transaction Success Rate**: Improved by eliminating "out of gas" failures from poor estimation
+**User Experience**: Consistent toast notifications across all portfolio operations
+**Gas Efficiency**: Right-sized gas limits reduce overpayment while preventing failures
+**Code Quality**: Unified transaction patterns reduce maintenance burden
+**EIP-1559 Compliance**: All backend services now use modern gas pricing
 
 ## Technical Implementation Strategy
 
