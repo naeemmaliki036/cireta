@@ -107,11 +107,11 @@ export function useContractAction(): ContractActionState {
       // --- Safe wallet: delegate to Safe action ---
       if (isSafe) {
         const safeTxHash = await safeAction.execute({
-          to: params.address,
+          address: params.address,
           abi: params.abi,
           functionName: params.functionName,
           args: params.args || [],
-          value: params.value?.toString() || "0",
+          value: params.value ?? 0n,
         });
         setIsPending(false);
         if (!safeTxHash) {
@@ -183,8 +183,8 @@ export function useContractAction(): ContractActionState {
     reset,
     isSafe,
     safeState: safeAction.state,
-    safeTxHash: safeAction.txHash,
-    safeTxUrl: safeAction.txUrl,
+    safeTxHash: safeAction.safeTxHash,
+    safeTxUrl: safeAction.safeTxUrl,
     safeOnChainTxHash: safeAction.onChainTxHash,
     safeOnChainTxUrl: safeAction.onChainTxUrl,
     safeConfirmations: safeAction.confirmations,

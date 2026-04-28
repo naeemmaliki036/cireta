@@ -27,7 +27,7 @@ export default function ClaimTokenPage({
   const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
   const [schedule, setSchedule] = useState<VestingSchedule | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showClaimSuccess, setShowClaimSuccess] = useState(false);
   const [claimedAmt, setClaimedAmt] = useState("");
   const [claimError, setClaimError] = useState<string | null>(null);
   const [saleStatus, setSaleStatus] = useState<string | null>(null);
@@ -93,10 +93,10 @@ export default function ClaimTokenPage({
         try {
           const result = await claimVesting(schedule.id, txHash);
           setClaimedAmt(result.claimed_amount);
-          setShowSuccess(true);
+          setShowClaimSuccess(true);
         } catch {
           setClaimedAmt(schedule.claimable_amount);
-          setShowSuccess(true);
+          setShowClaimSuccess(true);
         }
       })();
     }
@@ -109,9 +109,9 @@ export default function ClaimTokenPage({
         try {
           await apiPost(`/api/v1/sales/${schedule.token_id}/refund?tx_hash=${refundHash}`, {});
           setClaimedAmt("Refund");
-          setShowSuccess(true);
+          setShowClaimSuccess(true);
         } catch {
-          setShowSuccess(true);
+          setShowClaimSuccess(true);
           setClaimedAmt("Refund");
         }
       })();
@@ -122,7 +122,7 @@ export default function ClaimTokenPage({
   useEffect(() => {
     const err = saleClaimError ?? vaultClaimError ?? refundError;
     if (err) {
-      setClaimError(err.message.includes("User rejected")
+      setClaimError(err.includes("User rejected")
         ? "Transaction rejected"
         : "Transaction failed — check your wallet and try again");
     }
@@ -220,7 +220,7 @@ export default function ClaimTokenPage({
     );
   }
 
-  if (showSuccess) {
+  if (showClaimSuccess) {
     const isRefund = claimedAmt === "Refund";
     return (
       <DashboardLayout title={isRefund ? "Refund Claimed" : "Claim Tokens"}>

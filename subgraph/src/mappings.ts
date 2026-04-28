@@ -51,8 +51,8 @@ export function handleFreeze(event: FreezeEventContract): void {
     event.transaction.hash.concatI32(event.logIndex.toI32())
   );
 
-  entity.wallet = event.params.param0;
-  entity.frozen = event.params.param1;
+  entity.wallet = event.params._userAddress;
+  entity.frozen = event.params._isFrozen;
   entity.token = event.address;
   entity.blockNumber = event.block.number;
   entity.blockTimestamp = event.block.timestamp;
@@ -69,7 +69,7 @@ export function handleFreeze(event: FreezeEventContract): void {
     stats.holderCount = BigInt.fromI32(0);
     stats.frozenCount = BigInt.fromI32(0);
   }
-  if (event.params.param1) {
+  if (event.params._isFrozen) {
     stats.frozenCount = stats.frozenCount.plus(BigInt.fromI32(1));
   } else {
     stats.frozenCount = stats.frozenCount.minus(BigInt.fromI32(1));

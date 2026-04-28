@@ -126,7 +126,7 @@ export default function DividendsPage() {
 
   useEffect(() => {
     if (claimAction.error) {
-      const msg = claimAction.error.message || "Transaction failed";
+      const msg = claimAction.error || "Transaction failed";
       if (msg.includes("User rejected") || msg.includes("user rejected")) {
         setClaimError("Transaction rejected");
       } else {

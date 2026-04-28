@@ -76,7 +76,7 @@ export default function IdentityRegistryAdminPage() {
         await recordEmergencyManualSync({
           wallet_address: walletAddress,
           action,
-          tx_hash: manualSyncAction.txHash,
+          tx_hash: manualSyncAction.txHash!,
         });
         await refetchStatus();
         await fetchJobs();

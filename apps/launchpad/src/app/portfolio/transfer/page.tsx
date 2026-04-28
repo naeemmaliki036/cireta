@@ -144,7 +144,7 @@ export default function TransferPage() {
   // Handle transfer error
   useEffect(() => {
     if (transferError) {
-      const msg = transferError.message || "Transfer failed";
+      const msg = transferError || "Transfer failed";
       if (msg.includes("User rejected") || msg.includes("user rejected")) {
         setError("Transaction was rejected in your wallet.");
       } else if (msg.includes("not whitelisted") || msg.includes("identity")) {

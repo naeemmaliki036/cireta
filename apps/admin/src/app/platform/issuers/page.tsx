@@ -23,6 +23,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
 import { getAddresses } from "@/lib/contracts/addresses";
+import { useContractAction } from "@/hooks/useContractAction";
 
 function mapIssuer(i: APIIssuer): Issuer {
   return {

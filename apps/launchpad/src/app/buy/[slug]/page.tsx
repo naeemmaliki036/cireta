@@ -347,8 +347,8 @@ export default function InvestPage() {
 
   // Log approval lifecycle
   useEffect(() => {
-    if (approveTxHash) console.log("[invest] Approve tx submitted:", approveTxHash);
-  }, [approveTxHash]);
+    if (usdcApproveAction.txHash) console.log("[invest] Approve tx submitted:", usdcApproveAction.txHash);
+  }, [usdcApproveAction.txHash]);
   useEffect(() => {
     if (isApproveConfirming) console.log("[invest] Approve tx confirming...");
   }, [isApproveConfirming]);
@@ -366,8 +366,8 @@ export default function InvestPage() {
   // The success card is gated on the backend POST so the buyer's purchase
   // appears in their portfolio + transaction history immediately.
   useEffect(() => {
-    if (!contributeConfirmed || !contributeTxHash || !saleId) return;
-    const hash = contributeTxHash;
+    if (!contributeConfirmed || !saleContributeAction.txHash || !saleId) return;
+    const hash = saleContributeAction.txHash;
     setTxHash(hash);
     setIsRecording(true);
 
@@ -384,7 +384,7 @@ export default function InvestPage() {
       setIsRecording(false);
       setStep("success");
     })();
-  }, [contributeConfirmed, contributeTxHash, saleId, usdcRequired]);
+  }, [contributeConfirmed, saleContributeAction.txHash, saleId, usdcRequired]);
   // Note: activePhase?.id intentionally excluded — recording must fire even
   // if frontend couldn't resolve the phase (backend resolves from on-chain event)
 
@@ -403,8 +403,8 @@ export default function InvestPage() {
 
   // OTC: When buyOTC confirms, record in backend then show success.
   useEffect(() => {
-    if (!buyOtcConfirmed || !buyOtcTxHash || !saleId) return;
-    const hash = buyOtcTxHash;
+    if (!buyOtcConfirmed || !otcBuyAction.txHash || !saleId) return;
+    const hash = otcBuyAction.txHash;
     setTxHash(hash);
     setIsRecording(true);
     (async () => {
@@ -419,7 +419,7 @@ export default function InvestPage() {
       refetchOtcBalance();
       setStep("success");
     })();
-  }, [buyOtcConfirmed, buyOtcTxHash, saleId, usdcRequired, refetchOtcBalance]);
+  }, [buyOtcConfirmed, otcBuyAction.txHash, saleId, usdcRequired, refetchOtcBalance]);
 
   // OTC: Handle buyOTC error
   useEffect(() => {
