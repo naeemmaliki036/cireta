@@ -18,7 +18,7 @@ import { ToastContainer, useToast } from "@/components/molecules/Toast";
 import { PlatformAdminLayout } from "@/components/templates";
 import { buildIssuerColumns, type IssuerRow } from "@/lib/issuerColumns";
 import { IssuerActionModal } from "@/components/organisms/IssuerActionModal";
-import { useAccount } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
@@ -50,10 +50,9 @@ export default function IssuersPage() {
   const { toasts, showError, showSuccess, removeToast } = useToast();
   const issuerRegistryAddr = getAddresses().issuerRegistry;
 
+  const publicClient = usePublicClient();
   const registerIssuerAction = useContractAction();
   const activateIssuerAction = useContractAction();
-
-  // Transaction confirmations handled by useContractAction internally
 
   useEffect(() => {
     (async () => {
@@ -61,6 +60,26 @@ export default function IssuersPage() {
       catch (err) { console.error("Failed to load issuers:", err); }
     })();
   }, []);
+
+  // Check on-chain status for all active issuers with a wallet
+  useEffect(() => {
+    if (!publicClient || !issuerRegistryAddr) return;
+    const active = apiIssuers.filter(i => i.status === "active" && i.wallet !== "—");
+    if (active.length === 0) return;
+    active.forEach(issuer => {
+      setOnChainStatus(prev => ({ ...prev, [issuer.id]: "checking" }));
+      publicClient.readContract({
+        address: issuerRegistryAddr,
+        abi: ISSUER_REGISTRY_ABI,
+        functionName: "isActiveIssuer",
+        args: [issuer.wallet as `0x${string}`],
+      }).then((isActive) => {
+        setOnChainStatus(prev => ({ ...prev, [issuer.id]: isActive ? "registered" : "not_registered" }));
+      }).catch(() => {
+        setOnChainStatus(prev => ({ ...prev, [issuer.id]: "not_registered" }));
+      });
+    });
+  }, [apiIssuers, publicClient, issuerRegistryAddr]);
 
   // After register tx confirms, send activate tx
   useEffect(() => {
@@ -129,6 +148,9 @@ export default function IssuersPage() {
       const isRejected = err.message?.includes("user rejected") || err.message?.includes("User denied");
       if (isRejected) {
         showError("Transaction Rejected", "You cancelled the transaction in your wallet.");
+      } else if (err.message?.includes("already registered")) {
+        setOnChainStatus(prev => ({ ...prev, [issuer.id]: "registered" }));
+        showSuccess("Already Registered", `${issuer.name} is already registered on-chain.`);
       } else if (err.message?.includes("exceeds max transaction gas limit")) {
         showError(
           "Gas Limit Exceeded",
@@ -261,16 +283,32 @@ export default function IssuersPage() {
               .filter(i => i.status === "active" && i.wallet !== "—")
               .map(issuer => {
                 const chainStatus = onChainStatus[issuer.id] ?? "unknown";
+                const isThisRegistering = registeringId === issuer.id;
+                const txHash = isThisRegistering
+                  ? (activateIssuerAction.txHash ?? registerIssuerAction.txHash)
+                  : null;
                 return (
                   <div key={issuer.id} className="flex items-center justify-between px-4 py-2.5">
                     <div className="flex items-center gap-3">
                       <div>
                         <p className="text-sm font-medium text-zinc-900">{issuer.name}</p>
                         <p className="text-xs text-zinc-500 font-mono">{issuer.wallet.slice(0, 6)}...{issuer.wallet.slice(-4)}</p>
+                        {txHash && (
+                          <a
+                            href={`https://sepolia.basescan.org/tx/${txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline font-mono"
+                          >
+                            {txHash.slice(0, 10)}...{txHash.slice(-6)}
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      {chainStatus === "registered" ? (
+                      {chainStatus === "checking" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                      ) : chainStatus === "registered" ? (
                         <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
                           <Check className="h-3 w-3" /> On-Chain
                         </span>
@@ -278,15 +316,15 @@ export default function IssuersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={registeringId === issuer.id || registerIssuerAction.isPending || activateIssuerAction.isPending}
+                          disabled={isThisRegistering || registerIssuerAction.isPending || activateIssuerAction.isPending}
                           onClick={() => handleRegisterOnChain(issuer)}
                         >
-                          {(registeringId === issuer.id && registerIssuerAction.isPending) ? (
+                          {(isThisRegistering && (registerIssuerAction.isPending || registerIssuerAction.isConfirming)) ? (
                             <>
                               <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                               Registering...
                             </>
-                          ) : (registeringId === issuer.id && activateIssuerAction.isPending) ? (
+                          ) : (isThisRegistering && (activateIssuerAction.isPending || activateIssuerAction.isConfirming)) ? (
                             <>
                               <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                               Activating...
