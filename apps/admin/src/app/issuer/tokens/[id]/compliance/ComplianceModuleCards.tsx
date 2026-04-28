@@ -47,7 +47,6 @@ function CountryAllowConfig({
       abi: COUNTRY_ALLOW_ABI as unknown as Abi,
       functionName: "batchAllowCountries",
       args: [complianceAddress as `0x${string}`, Array.from(codes)],
-      gas: 500_000n,
     });
 
     if (receipt) {

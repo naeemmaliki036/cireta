@@ -123,7 +123,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       address: sale.contract_address as `0x${string}`,
       abi: SALE_ABI as unknown as Abi,
       functionName: "activate",
-      gas: 1_000_000n,
     });
     if (receipt) {
       try {
@@ -180,7 +179,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       abi: SALE_ABI as unknown as Abi,
       functionName: "closeSale",
       args: [failed],
-      gas: 1_000_000n,
     });
     if (receipt) {
       try {

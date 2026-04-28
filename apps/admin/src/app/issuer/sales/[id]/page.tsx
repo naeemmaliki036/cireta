@@ -378,7 +378,6 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           vestingSeconds,
           0,                                            // excessPolicy: Revert
         ],
-        gas: 8_000_000n,
       });
     } else {
       // Direct mode
@@ -387,7 +386,6 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         abi: SALE_FACTORY_ABI as unknown as Abi,
         functionName: "deploySale",
         args: [sale.token_contract_address as `0x${string}`, initData],
-        gas: 5_000_000n,
       });
     }
 

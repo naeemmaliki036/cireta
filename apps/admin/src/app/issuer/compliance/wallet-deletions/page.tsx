@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Trash2, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
 import { Button, Spinner, Badge } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
+import { useConfirmation } from "@/components/molecules/ConfirmationModal";
 import {
   listWalletDeletionRequests,
   approveWalletDeletionRequest,
@@ -26,6 +27,7 @@ export default function WalletDeletionsPage() {
   const [tab, setTab] = useState<WalletDeletionStatus>("pending");
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const { showConfirmation, ConfirmationModal } = useConfirmation();
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -45,31 +47,39 @@ export default function WalletDeletionsPage() {
   }, [fetchRequests]);
 
   const handleApprove = async (req: WalletDeletionRequest) => {
-    if (!window.confirm(
-      `Approve removal of ${req.wallet_address}?\n\n` +
-      `This will UNLINK the wallet from the buyer's profile and enqueue an ` +
-      `on-chain revoke from the identity registry. The buyer will be notified.`
-    )) return;
-    try {
-      await approveWalletDeletionRequest(req.id, reviewNotes || undefined);
-      setReviewNotes("");
-      setReviewing(null);
-      await fetchRequests();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Approve failed");
-    }
+    showConfirmation(
+      "Approve Wallet Removal",
+      `Are you sure you want to approve removal of ${req.wallet_address}? This will UNLINK the wallet from the buyer's profile and enqueue an on-chain revoke from the identity registry. The buyer will be notified.`,
+      async () => {
+        try {
+          await approveWalletDeletionRequest(req.id, reviewNotes || undefined);
+          setReviewNotes("");
+          setReviewing(null);
+          await fetchRequests();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Approve failed");
+        }
+      },
+      { variant: "danger", confirmText: "Approve Removal" }
+    );
   };
 
   const handleDeny = async (req: WalletDeletionRequest) => {
-    if (!window.confirm(`Deny removal of ${req.wallet_address}?`)) return;
-    try {
-      await denyWalletDeletionRequest(req.id, reviewNotes || undefined);
-      setReviewNotes("");
-      setReviewing(null);
-      await fetchRequests();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Deny failed");
-    }
+    showConfirmation(
+      "Deny Wallet Removal",
+      `Are you sure you want to deny removal of ${req.wallet_address}?`,
+      async () => {
+        try {
+          await denyWalletDeletionRequest(req.id, reviewNotes || undefined);
+          setReviewNotes("");
+          setReviewing(null);
+          await fetchRequests();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Deny failed");
+        }
+      },
+      { confirmText: "Deny Request" }
+    );
   };
 
   return (
@@ -203,6 +213,7 @@ export default function WalletDeletionsPage() {
           </div>
         )}
       </div>
+      <ConfirmationModal />
     </IssuerDashboardLayout>
   );
 }

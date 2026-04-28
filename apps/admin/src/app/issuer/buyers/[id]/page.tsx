@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { apiFetch, getAccessToken } from "@/lib/api/client";
+import { useConfirmation } from "@/components/molecules/ConfirmationModal";
 
 interface InvestorDetail {
   id: string;
@@ -23,6 +24,7 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
   const [investor, setInvestor] = useState<InvestorDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const { showConfirmation, ConfirmationModal } = useConfirmation();
 
   useEffect(() => {
     apiFetch<{ investors: InvestorDetail[] }>("/api/v1/admin/investors", {
@@ -40,19 +42,22 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
     if (!investor) return;
     const wallet = investor.wallet_addresses[0];
     if (!wallet) { setActionMessage({ type: "error", text: "No wallet to freeze" }); return; }
-    const confirmed = window.confirm(
-      `Are you sure you want to freeze tokens for wallet ${wallet}? This action will be logged in the audit trail.`
+    showConfirmation(
+      "Freeze Tokens",
+      `Are you sure you want to freeze tokens for wallet ${wallet}? This action will be logged in the audit trail.`,
+      async () => {
+        try {
+          await apiFetch("/api/v1/admin/compliance/freeze", {
+            method: "POST",
+            body: { address: wallet, reason: "Admin action from investor detail" },
+          });
+          setActionMessage({ type: "success", text: "Freeze action submitted." });
+        } catch {
+          setActionMessage({ type: "error", text: "Failed to freeze tokens." });
+        }
+      },
+      { variant: "danger", confirmText: "Freeze Tokens" }
     );
-    if (!confirmed) return;
-    try {
-      await apiFetch("/api/v1/admin/compliance/freeze", {
-        method: "POST",
-        body: { address: wallet, reason: "Admin action from investor detail" },
-      });
-      setActionMessage({ type: "success", text: "Freeze action submitted." });
-    } catch {
-      setActionMessage({ type: "error", text: "Failed to freeze tokens." });
-    }
   };
 
   if (loading) return <div className="p-8 text-white/40 text-sm">Loading...</div>;
@@ -115,6 +120,7 @@ export default function InvestorDetailPage({ params }: { params: Promise<{ id: s
           </button>
         )}
       </div>
+      <ConfirmationModal />
     </div>
   );
 }

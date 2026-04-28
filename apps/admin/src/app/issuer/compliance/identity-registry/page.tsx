@@ -112,7 +112,6 @@ export default function IdentityRegistryAdminPage() {
         args: action === "add"
           ? [walletAddress as `0x${string}`, country]
           : [walletAddress as `0x${string}`],
-        gas: 200_000n, // Whitelist operations are simple
       });
     } catch (e: any) {
       const msg = e.message || "Transaction failed";
@@ -153,8 +152,6 @@ export default function IdentityRegistryAdminPage() {
 
     try {
       const wallets = valid.map((r) => r.address as `0x${string}`);
-      // Dynamic gas calculation: 150k per address + 100k base
-      const estimatedGas = BigInt(150_000 * valid.length + 100_000);
 
       if (batchAction === "add") {
         await batchSyncAction.execute({
@@ -162,7 +159,6 @@ export default function IdentityRegistryAdminPage() {
           abi: SIMPLE_IDENTITY_REGISTRY_ABI,
           functionName: "batchAddToWhitelist",
           args: [wallets, wallets.map(() => batchCountry)],
-          gas: estimatedGas,
         });
       } else {
         await batchSyncAction.execute({
@@ -170,7 +166,6 @@ export default function IdentityRegistryAdminPage() {
           abi: SIMPLE_IDENTITY_REGISTRY_ABI,
           functionName: "batchRemoveFromWhitelist",
           args: [wallets],
-          gas: estimatedGas,
         });
       }
     } catch (e: any) {

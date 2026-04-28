@@ -25,6 +25,7 @@ import {
   type Wallet as WalletType,
 } from "@/lib/api/repositories/wallets.repository";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmation } from "@/components/molecules/ConfirmationModal";
 
 export default function WalletsPage() {
   const [wallets, setWallets] = useState<WalletType[]>([]);
@@ -42,6 +43,7 @@ export default function WalletsPage() {
   const { openConnectModal } = useConnectModal();
   const { user } = useAuth();
   const isVerified = user?.kycStatus === "approved";
+  const { showConfirmation, ConfirmationModal } = useConfirmation();
 
   const connectNewWallet = useCallback(() => {
     if (isConnected) {
@@ -118,24 +120,31 @@ export default function WalletsPage() {
 
     // Verified users hit the admin-review path. The button label says
     // "Request removal" already, but confirm intent here too.
+    const confirmTitle = isVerified ? "Request Wallet Removal" : "Remove Wallet";
     const confirmMsg = isVerified
-      ? `Request removal of ${w.label || short}?\n\nAn admin will review the request. Your wallet stays linked until it's approved.`
-      : `Remove wallet ${w.label || short}? This action cannot be undone.`;
-    if (!window.confirm(confirmMsg)) return;
+      ? `Are you sure you want to request removal of ${w.label || short}? An admin will review the request. Your wallet stays linked until it's approved.`
+      : `Are you sure you want to remove wallet ${w.label || short}? This action cannot be undone.`;
 
-    setError("");
-    try {
-      const res = await unlinkWallet(w.address);
-      await fetchWallets();
-      if (res.status === "deletion_requested") {
-        setSuccess("Removal request submitted. An admin will review it shortly.");
-      } else {
-        setSuccess("Wallet removed successfully");
-      }
-      setTimeout(() => setSuccess(""), 4000);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to remove wallet");
-    }
+    showConfirmation(
+      confirmTitle,
+      confirmMsg,
+      async () => {
+        setError("");
+        try {
+          const res = await unlinkWallet(w.address);
+          await fetchWallets();
+          if (res.status === "deletion_requested") {
+            setSuccess("Removal request submitted. An admin will review it shortly.");
+          } else {
+            setSuccess("Wallet removed successfully");
+          }
+          setTimeout(() => setSuccess(""), 4000);
+        } catch (e: unknown) {
+          setError(e instanceof Error ? e.message : "Failed to remove wallet");
+        }
+      },
+      { variant: "danger", confirmText: isVerified ? "Request Removal" : "Remove Wallet" }
+    );
   };
 
   const handleRename = async (w: WalletType) => {
@@ -163,16 +172,22 @@ export default function WalletsPage() {
 
   const handleSetPrimary = async (addr: string) => {
     const short = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-    if (!window.confirm(`Set ${short} as your primary wallet? This will be used for purchases and payouts.`)) return;
-    setError("");
-    try {
-      await setPrimaryWallet(addr);
-      await fetchWallets();
-      setSuccess("Primary wallet updated");
-      setTimeout(() => setSuccess(""), 3000);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to set primary");
-    }
+    showConfirmation(
+      "Set Primary Wallet",
+      `Are you sure you want to set ${short} as your primary wallet? This will be used for purchases and payouts.`,
+      async () => {
+        setError("");
+        try {
+          await setPrimaryWallet(addr);
+          await fetchWallets();
+          setSuccess("Primary wallet updated");
+          setTimeout(() => setSuccess(""), 3000);
+        } catch (e: unknown) {
+          setError(e instanceof Error ? e.message : "Failed to set primary");
+        }
+      },
+      { confirmText: "Set as Primary" }
+    );
   };
 
   const copyAddress = (addr: string) => {
@@ -433,6 +448,7 @@ export default function WalletsPage() {
           </div>
         </div>
       )}
+      <ConfirmationModal />
     </div>
   );
 }

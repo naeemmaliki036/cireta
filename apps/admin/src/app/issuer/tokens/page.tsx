@@ -141,7 +141,6 @@ function OTCTokenSection() {
       abi: OTC_TOKEN_FACTORY_ABI as unknown as Abi,
       functionName: "deployOTCToken",
       args: [otcName, otcSymbol, walletAddress, platformIR],
-      gas: 3_000_000n,
     });
     if (receipt) {
       refetchOtc();

@@ -64,7 +64,6 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
       abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
       functionName: "addToWhitelist",
       args: [recipient as `0x${string}`, 784], // UAE default
-      gas: 200_000n,
     });
     if (receipt) refetchVerified();
   };
@@ -185,7 +184,6 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
       abi,
       functionName: "mint",
       args: [recipient as `0x${string}`, parsedAmount],
-      gas: 300_000n,
     });
 
     if (receipt) {
@@ -224,7 +222,6 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
       abi,
       functionName: "burn",
       args: [burnFrom as `0x${string}`, parsed],
-      gas: 300_000n,
     });
     if (receipt) setBurnAmount("");
   };
@@ -253,7 +250,6 @@ export default function MintTokenPage({ params: paramsPromise }: { params: Promi
       abi,
       functionName: fn,
       args: [addrs, amounts],
-      gas: BigInt(150_000 * valid.length + 100_000),
     });
     if (receipt) {
       if (mode === "mint") setBatchMintInput("");

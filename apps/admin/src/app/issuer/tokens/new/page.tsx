@@ -111,7 +111,6 @@ export default function CreateTokenPage() {
         abi: TOKEN_FACTORY_ABI as unknown as Abi,
         functionName: "deployToken",
         args: [formData.name, formData.symbol, parseInt(formData.decimals), walletAddress],
-        gas: 5_000_000n, // 3 proxy deployments (Token + IdentityRegistry + Compliance)
       });
 
       if (receipt && tokenId) {
