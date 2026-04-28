@@ -249,10 +249,13 @@ async def update_sale(
     user_id: CurrentUserId,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SaleResponse:
-    """Update sale details. Issuer can edit anytime regardless of status.
+    """Update sale details.
 
-    Only content/marketing fields are editable — financial fields
-    (caps, payment token, phases) and on-chain fields are not affected.
+    Content/marketing fields (title, description, social URLs, OTC config) are
+    editable in any status. Financial/structural fields (caps, payment token,
+    vesting, sale window, token, sale_mode/structure) are only writable while
+    the sale is in `draft` status — once submitted/approved/active they are
+    locked because they affect the on-chain contract or pending review.
     """
     from sqlalchemy.orm import selectinload
 
@@ -272,7 +275,24 @@ async def update_sale(
     if sale.issuer.user_id != user_id:
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
 
+    DRAFT_ONLY_FIELDS = {
+        "is_coming_soon", "sale_mode", "sale_structure",
+        "cliff_duration_days", "vesting_duration_days",
+        "token_id", "payment_token", "soft_cap", "hard_cap",
+        "total_token_supply", "sale_start_time", "sale_end_time",
+    }
     update_data = request.model_dump(exclude_unset=True)
+    is_draft = sale.status == "draft"
+    blocked = [k for k in update_data if k in DRAFT_ONLY_FIELDS and not is_draft]
+    if blocked:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "FIELDS_LOCKED_AFTER_DRAFT",
+                "message": f"Cannot edit {', '.join(blocked)} after sale leaves draft status",
+            },
+        )
+
     for field, value in update_data.items():
         setattr(sale, field, value)
 

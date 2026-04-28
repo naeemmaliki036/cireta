@@ -306,12 +306,15 @@ export async function removeSaleDocument(
 }
 
 export interface UpdateSaleRequest {
+  // Content / marketing — always editable
   title?: string;
   description?: string;
   full_description?: string;
   banner_image_url?: string;
   otc_enabled?: boolean;
   otc_content?: string;
+  otc_token_address?: string;
+  is_redeemable?: boolean;
   website_url?: string;
   twitter_url?: string;
   linkedin_url?: string;
@@ -319,6 +322,19 @@ export interface UpdateSaleRequest {
   facebook_url?: string;
   telegram_url?: string;
   discord_url?: string;
+  // Financial / structural — draft-only
+  is_coming_soon?: boolean;
+  sale_mode?: string;
+  sale_structure?: string;
+  cliff_duration_days?: number;
+  vesting_duration_days?: number;
+  token_id?: string;
+  payment_token?: string;
+  soft_cap?: string;
+  hard_cap?: string;
+  total_token_supply?: string;
+  sale_start_time?: string;
+  sale_end_time?: string;
 }
 
 export async function updateSale(
@@ -329,6 +345,24 @@ export async function updateSale(
     method: "PATCH",
     body: data,
   });
+}
+
+// Sub-resource getters (used by the wizard's edit-mode prefill)
+
+export async function listSaleTeamMembers(saleId: string, token?: string): Promise<Array<{ id: string; name: string; title?: string; bio?: string; photo_url?: string }>> {
+  return apiFetch(`/api/v1/sales/${saleId}/team`, { token });
+}
+
+export async function listSaleFAQs(saleId: string, token?: string): Promise<Array<{ id: string; question: string; answer: string }>> {
+  return apiFetch(`/api/v1/sales/${saleId}/faqs`, { token });
+}
+
+export async function listSaleDocuments(saleId: string, token?: string): Promise<Array<{ id: string; name: string; type: string; url: string }>> {
+  return apiFetch(`/api/v1/sales/${saleId}/documents`, { token });
+}
+
+export async function listSaleImages(saleId: string, token?: string): Promise<Array<{ id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: string; video_url?: string }>> {
+  return apiFetch(`/api/v1/sales/${saleId}/images`, { token });
 }
 
 export async function setHeroImage(

@@ -10,7 +10,7 @@ const RichTextEditor = dynamic(
   { ssr: false }
 );
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { isAddress } from "viem";
 import { Button, Input, Select, FileUpload } from "@/components/atoms";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
@@ -19,7 +19,10 @@ import { IssuerDashboardLayout } from "@/components/templates";
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
 import { getPaymentTokens, type PaymentToken } from "@/lib/api/repositories/payment-tokens";
 import {
-  createSale, addSaleTeamMember, addSaleFAQ, addSaleDocument, addSaleImage, submitSaleForApproval,
+  createSale, updateSale, getSale, addSaleTeamMember, addSaleFAQ, addSaleDocument, addSaleImage,
+  removeSaleTeamMember, removeSaleFAQ, removeSaleDocument, removeSaleImage,
+  listSaleTeamMembers, listSaleFAQs, listSaleDocuments, listSaleImages,
+  createPhase, deletePhase, submitSaleForApproval,
   type TeamMemberData, type FAQData, type DocumentData,
 } from "@/lib/api/repositories/sales";
 import { getAccessToken, apiFetch } from "@/lib/api/client";
@@ -34,7 +37,11 @@ const TA = "w-full rounded-lg border border-black/10 p-3 text-sm focus:outline-n
 
 export default function CreateSalePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editingSaleId = searchParams.get("id");
+  const isEditMode = !!editingSaleId;
   const [step, setStep] = useState(1);
+  const [prefilling, setPrefilling] = useState(isEditMode);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [paymentTokens, setPaymentTokens] = useState<PaymentToken[]>([]);
   const [paymentTokenMode, setPaymentTokenMode] = useState<"preset" | "custom">("preset");
@@ -98,6 +105,83 @@ export default function CreateSalePage() {
       } catch { /* ignore */ }
     })();
   }, []);
+
+  // Prefill from existing draft when ?id= is set
+  useEffect(() => {
+    if (!editingSaleId) return;
+    (async () => {
+      try {
+        const tk = getAccessToken() ?? "";
+        const sale = await getSale(editingSaleId, tk);
+        if (sale.status !== "draft") {
+          setError("This sale is no longer in draft status and cannot be edited via the wizard.");
+          return;
+        }
+        setSavedSaleId(sale.id);
+        setTitle(sale.title ?? "");
+        setDescription(sale.description_text ?? "");
+        setIsComingSoon(sale.is_coming_soon);
+        setSaleMode(sale.sale_mode || "");
+        setSaleStructure(sale.sale_structure || "");
+        setOtcEnabled(sale.otc_enabled);
+        setOtcContent(sale.otc_content ?? "");
+        setOtcTokenAddress(sale.otc_token_address ?? "");
+        setFullDescription(sale.full_description ?? "");
+        setCliffDays(String(sale.cliff_duration_days ?? 0));
+        setVestingDays(String(sale.vesting_duration_days ?? 365));
+        setSelectedTokenId(sale.token_id ?? "");
+        const presetMatch = paymentTokens.some(
+          (pt) => pt.address.toLowerCase() === (sale.payment_token ?? "").toLowerCase(),
+        );
+        setPaymentToken(sale.payment_token ?? "");
+        if (sale.payment_token && !presetMatch) {
+          setPaymentTokenMode("custom");
+          setCustomPaymentToken(sale.payment_token);
+        }
+        setSoftCap(sale.soft_cap ?? "");
+        setHardCap(sale.hard_cap ?? "");
+        setTotalTokenSupply(sale.total_token_supply ?? "");
+        setIsOpenEnded(sale.is_open_ended);
+        setSaleStartDate(sale.sale_start_time ? sale.sale_start_time.slice(0, 16) : "");
+        setSaleEndDate(sale.sale_end_time ? sale.sale_end_time.slice(0, 16) : "");
+        if (sale.phases?.length) {
+          setPhases(sale.phases.map((p) => ({
+            name: p.name,
+            pricePerToken: p.price_per_token,
+            allocation: p.allocation,
+            startDate: p.start_time.slice(0, 16),
+            endDate: p.end_time.slice(0, 16),
+          })));
+        }
+        // Sub-resources
+        const [team, faqRows, docRows, imageRows] = await Promise.all([
+          listSaleTeamMembers(sale.id, tk).catch(() => []),
+          listSaleFAQs(sale.id, tk).catch(() => []),
+          listSaleDocuments(sale.id, tk).catch(() => []),
+          listSaleImages(sale.id, tk).catch(() => []),
+        ]);
+        if (team.length) setTeamMembers(team.map((m) => ({ name: m.name, title: m.title ?? "", bio: m.bio ?? "", photo_url: m.photo_url ?? "" })));
+        if (faqRows.length) setFaqs(faqRows.map((f) => ({ question: f.question, answer: f.answer })));
+        if (docRows.length) setDocuments(docRows.map((d) => ({ name: d.name, type: d.type, url: d.url })));
+        if (imageRows.length) setGalleryItems(imageRows.map((g) => ({
+          id: g.id,
+          url: g.url,
+          caption: g.caption ?? "",
+          is_banner: g.is_banner ?? false,
+          sort_order: g.sort_order ?? 0,
+          media_type: (g.media_type === "video" ? "video" : "image") as "image" | "video",
+          video_url: g.video_url,
+        })));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load sale for editing");
+      } finally {
+        setPrefilling(false);
+      }
+    })();
+    // paymentTokens intentionally omitted from deps — re-running on its load
+    // would clobber user-edited fields. The custom-mode detection runs once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingSaleId]);
 
   // Auto-load platform OTC template when OTC is first enabled
   const handleOtcToggle = async (enabled: boolean) => {
@@ -189,39 +273,95 @@ export default function CreateSalePage() {
     setIsSaving(true); setError(null);
     try {
       const tk = getAccessToken() ?? "";
-      if (!savedSaleId) {
-        const validPhases = phases.filter((p) => p.name && p.pricePerToken && p.allocation && p.startDate && p.endDate);
-        const sale = await createSale({
-          title: title || undefined, description: description || undefined,
-          full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
-          is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
-          sale_mode: saleMode, sale_structure: saleStructure,
-          cliff_duration_days: parseInt(cliffDays) || 0, vesting_duration_days: parseInt(vestingDays) || 365,
-          token_id: selectedTokenId || undefined, payment_token: paymentToken,
-          soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
-          // Round-5: total supply + sale window
+      const validPhases = phases.filter((p) => p.name && p.pricePerToken && p.allocation && p.startDate && p.endDate);
+
+      // Edit mode: PATCH the draft sale, then sync sub-resources
+      if (savedSaleId) {
+        await updateSale(savedSaleId, {
+          title: title || undefined,
+          description: description || undefined,
+          full_description: fullDescription || undefined,
+          banner_image_url: bannerImageUrl || undefined,
+          is_coming_soon: isComingSoon,
+          otc_enabled: otcEnabled,
+          otc_content: otcEnabled ? otcContent : undefined,
+          otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
+          sale_mode: saleMode || undefined,
+          sale_structure: saleStructure || undefined,
+          cliff_duration_days: parseInt(cliffDays) || 0,
+          vesting_duration_days: parseInt(vestingDays) || 365,
+          token_id: selectedTokenId || undefined,
+          payment_token: paymentToken || undefined,
+          soft_cap: softCap || undefined,
+          hard_cap: hardCap || undefined,
           total_token_supply: totalTokenSupply || undefined,
           sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
           sale_end_time: isOpenEnded || !saleEndDate ? undefined : new Date(saleEndDate).toISOString(),
-          phases: isComingSoon ? [] : validPhases.map((p) => ({
-            name: p.name, allocation: Number(p.allocation), price_per_token: p.pricePerToken,
-            start_time: new Date(p.startDate).toISOString(), end_time: new Date(p.endDate).toISOString(),
-            min_contribution: "1",  // round-5: must be > 0; user can override later via phase form
-            top_up_min: "1000",     // round-5: contract floor
-            allocation_mode: "fixed",
-          })),
-        }, tk);
-        setSavedSaleId(sale.id);
-        for (const m of teamMembers.filter((m) => m.name)) await addSaleTeamMember(sale.id, m, tk);
-        for (const f of faqs.filter((f) => f.question)) await addSaleFAQ(sale.id, f, tk);
-        for (const d of documents.filter((d) => d.url)) await addSaleDocument(sale.id, d, tk);
-        for (const g of galleryItems) await addSaleImage(sale.id, {
+        });
+        // Phases: delete-all-then-create-all (only valid for draft sales — backend allows this only pre-deploy)
+        const existing = await getSale(savedSaleId, tk);
+        for (const p of existing.phases) {
+          try { await deletePhase(savedSaleId, p.id, tk); } catch { /* ignore */ }
+        }
+        if (!isComingSoon) {
+          for (const p of validPhases) {
+            await createPhase(savedSaleId, {
+              name: p.name, price_per_token: p.pricePerToken, allocation: p.allocation,
+              start_time: new Date(p.startDate).toISOString(), end_time: new Date(p.endDate).toISOString(),
+              min_contribution: "1", top_up_min: "1000", allocation_mode: "fixed",
+            }, tk);
+          }
+        }
+        // Team / FAQs / Docs / Images: same pattern — delete existing, recreate from current state
+        const [exTeam, exFaqs, exDocs, exImages] = await Promise.all([
+          listSaleTeamMembers(savedSaleId, tk).catch(() => []),
+          listSaleFAQs(savedSaleId, tk).catch(() => []),
+          listSaleDocuments(savedSaleId, tk).catch(() => []),
+          listSaleImages(savedSaleId, tk).catch(() => []),
+        ]);
+        for (const m of exTeam) try { await removeSaleTeamMember(savedSaleId, m.id); } catch { /* ignore */ }
+        for (const f of exFaqs) try { await removeSaleFAQ(savedSaleId, f.id); } catch { /* ignore */ }
+        for (const d of exDocs) try { await removeSaleDocument(savedSaleId, d.id); } catch { /* ignore */ }
+        for (const i of exImages) try { await removeSaleImage(savedSaleId, i.id, tk); } catch { /* ignore */ }
+        for (const m of teamMembers.filter((m) => m.name)) await addSaleTeamMember(savedSaleId, m, tk);
+        for (const f of faqs.filter((f) => f.question)) await addSaleFAQ(savedSaleId, f, tk);
+        for (const d of documents.filter((d) => d.url)) await addSaleDocument(savedSaleId, d, tk);
+        for (const g of galleryItems) await addSaleImage(savedSaleId, {
           url: g.url, caption: g.caption, is_banner: g.is_banner,
           sort_order: g.sort_order, media_type: g.media_type, video_url: g.video_url,
         }, tk);
-        return sale.id;
+        return savedSaleId;
       }
-      return savedSaleId;
+
+      // Create mode: brand new sale
+      const sale = await createSale({
+        title: title || undefined, description: description || undefined,
+        full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
+        is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
+        sale_mode: saleMode, sale_structure: saleStructure,
+        cliff_duration_days: parseInt(cliffDays) || 0, vesting_duration_days: parseInt(vestingDays) || 365,
+        token_id: selectedTokenId || undefined, payment_token: paymentToken,
+        soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
+        total_token_supply: totalTokenSupply || undefined,
+        sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
+        sale_end_time: isOpenEnded || !saleEndDate ? undefined : new Date(saleEndDate).toISOString(),
+        phases: isComingSoon ? [] : validPhases.map((p) => ({
+          name: p.name, allocation: Number(p.allocation), price_per_token: p.pricePerToken,
+          start_time: new Date(p.startDate).toISOString(), end_time: new Date(p.endDate).toISOString(),
+          min_contribution: "1",
+          top_up_min: "1000",
+          allocation_mode: "fixed",
+        })),
+      }, tk);
+      setSavedSaleId(sale.id);
+      for (const m of teamMembers.filter((m) => m.name)) await addSaleTeamMember(sale.id, m, tk);
+      for (const f of faqs.filter((f) => f.question)) await addSaleFAQ(sale.id, f, tk);
+      for (const d of documents.filter((d) => d.url)) await addSaleDocument(sale.id, d, tk);
+      for (const g of galleryItems) await addSaleImage(sale.id, {
+        url: g.url, caption: g.caption, is_banner: g.is_banner,
+        sort_order: g.sort_order, media_type: g.media_type, video_url: g.video_url,
+      }, tk);
+      return sale.id;
     } catch (err) { setError(err instanceof Error ? err.message : "Save failed"); return null; }
     finally { setIsSaving(false); }
   };
@@ -242,8 +382,16 @@ export default function CreateSalePage() {
     finally { setIsSubmitting(false); }
   };
 
+  if (prefilling) {
+    return (
+      <IssuerDashboardLayout title="Continue Sale Setup" description="Loading draft…">
+        <div className="flex justify-center py-24 text-zinc-400 text-sm">Loading draft…</div>
+      </IssuerDashboardLayout>
+    );
+  }
+
   return (
-    <IssuerDashboardLayout title="Create New Sale" description="Set up a token sale with rich content">
+    <IssuerDashboardLayout title={isEditMode ? "Continue Sale Setup" : "Create New Sale"} description={isEditMode ? "Resume editing a draft sale — all wizard steps remain editable until you submit for approval." : "Set up a token sale with rich content"}>
       {/* Progress Steps */}
       <div className="mb-8 overflow-x-auto">
         <div className="flex items-center justify-between relative min-w-[600px]">

@@ -112,8 +112,14 @@ class SaleCreateRequest(BaseModel):
 
 
 class SaleUpdateRequest(BaseModel):
-    """Request to update sale details. All fields optional — only provided fields are updated."""
+    """Request to update sale details.
 
+    Content/marketing fields are editable in any status. Financial/structural
+    fields (caps, payment token, vesting, dates, sale_mode, token_id) are only
+    accepted when the sale is in `draft` status — the endpoint enforces this.
+    """
+
+    # Content / marketing — always editable
     title: str | None = None
     description: str | None = None
     full_description: str | None = None
@@ -129,6 +135,20 @@ class SaleUpdateRequest(BaseModel):
     facebook_url: str | None = None
     telegram_url: str | None = None
     discord_url: str | None = None
+
+    # Financial / structural — draft-only
+    is_coming_soon: bool | None = None
+    sale_mode: str | None = None
+    sale_structure: str | None = None
+    cliff_duration_days: int | None = Field(default=None, ge=0)
+    vesting_duration_days: int | None = Field(default=None, ge=0)
+    token_id: str | None = None
+    payment_token: str | None = None
+    soft_cap: Decimal | None = Field(default=None, ge=0)
+    hard_cap: Decimal | None = Field(default=None, ge=0)
+    total_token_supply: Decimal | None = Field(default=None, ge=0)
+    sale_start_time: datetime | None = None
+    sale_end_time: datetime | None = None
 
 
 class ContributeRequest(BaseModel):

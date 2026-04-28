@@ -209,8 +209,19 @@ function parseError(err: unknown): string {
   if (msg.includes("exceeds max") || msg.includes("gas limit")) {
     return "Transaction exceeds gas limit. This is a complex contract call — please try again.";
   }
+
+  // Try to surface a specific revert reason instead of the generic catchall.
+  // viem formats reverts with structured fields; pull the most useful slice
+  // before falling back to "unknown reason".
+  const revertMatch =
+    msg.match(/reverted with the following reason:\s*([^\n]+)/i) ||
+    msg.match(/Error:\s*([A-Z][A-Za-z]+\(\))/) ||      // custom error: SomeError()
+    msg.match(/reason:\s*([^\n]+)/i);
+  if (revertMatch && revertMatch[1]) {
+    return `Transaction reverted: ${revertMatch[1].trim()}`;
+  }
   if (msg.includes("reverted") && msg.includes("unknown reason")) {
-    return "Transaction reverted. Check that your wallet is an active issuer, the token is deployed, and all addresses are correct.";
+    return "Transaction reverted with no reason string. Open the browser console for the raw error and check: (1) wallet is an active issuer, (2) token is deployed, (3) fee bps matches PlatformFeeManager, (4) payment token matches what the sale contract expects.";
   }
 
   // Truncate long messages

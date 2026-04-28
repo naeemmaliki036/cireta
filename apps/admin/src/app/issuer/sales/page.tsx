@@ -32,6 +32,15 @@ const STATUS_VARIANTS: Record<string, "active" | "pending" | "default"> = {
   rejected: "default",
 };
 
+/** Drafts that haven't been deployed on-chain yet should re-open the wizard
+ *  so the issuer can keep editing financial fields, phases, etc. */
+function saleDestination(sale: Sale): string {
+  if (sale.status === "draft" && !sale.contract_address) {
+    return `/issuer/sales/new?id=${sale.id}`;
+  }
+  return `/issuer/sales/${sale.id}`;
+}
+
 function SaleCard({ sale }: { sale: Sale }) {
   const raised = parseFloat(sale.total_raised || "0");
   const cap = parseFloat(sale.hard_cap || "0");
@@ -40,7 +49,7 @@ function SaleCard({ sale }: { sale: Sale }) {
   const variant = STATUS_VARIANTS[sale.status] || "pending";
 
   return (
-    <Link href={`/issuer/sales/${sale.id}`}
+    <Link href={saleDestination(sale)}
       className="block bg-white rounded-lg border border-zinc-100 hover:border-darkAqua/30 hover:shadow-sm transition-all group">
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
@@ -91,7 +100,7 @@ function SaleRow({ sale }: { sale: Sale }) {
   const variant = STATUS_VARIANTS[sale.status] || "pending";
 
   return (
-    <Link href={`/issuer/sales/${sale.id}`}
+    <Link href={saleDestination(sale)}
       className="flex items-center gap-4 px-4 py-3 bg-white border border-zinc-100 rounded-lg hover:border-darkAqua/30 hover:shadow-sm transition-all group">
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold text-text text-sm truncate">{sale.title || sale.token_name || "Untitled Sale"}</h3>

@@ -8,7 +8,7 @@ import {
   BarChart3, Users, Blocks,
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount, useReadContract, useConfig } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { encodeFunctionData, zeroAddress, parseUnits, type Abi } from "viem";
@@ -128,6 +128,7 @@ function SubscribersSummary({ saleId }: { saleId: string }) {
 }
 
 export default function SaleDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [sale, setSale] = useState<Sale | null>(null);
   const [loading, setLoading] = useState(true);
@@ -213,12 +214,20 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   useEffect(() => {
     if (!resolvedId) return;
     (async () => {
-      try { setSale(await getSale(resolvedId)); }
+      try {
+        const s = await getSale(resolvedId);
+        // Drafts that haven't been deployed yet belong in the wizard, not here.
+        if (s.status === "draft" && !s.contract_address) {
+          router.replace(`/issuer/sales/new?id=${resolvedId}`);
+          return;
+        }
+        setSale(s);
+      }
       catch { /* 404 */ }
       finally { setLoading(false); }
     })();
     loadImages();
-  }, [resolvedId, loadImages]);
+  }, [resolvedId, loadImages, router]);
 
   const handleAction = async (action: string, fn: () => Promise<void>) => {
     setActionLoading(action); setActionError(null); setActionSuccess(null);
@@ -288,16 +297,24 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
     let saleFactoryAddress: `0x${string}`;
     let feeManagerAddress: `0x${string}`;
-    let ciretaUsdcAddress: `0x${string}`;
+    let ciretaUsdcFallback: `0x${string}`;
     try {
       saleFactoryAddress = requireAddress("saleFactory");
-      ciretaUsdcAddress = requireAddress("ciretaUsdc");
+      ciretaUsdcFallback = requireAddress("ciretaUsdc");
       feeManagerAddress = requireAddress("platformFeeManager");
     } catch (e) {
       setConfigError(e instanceof Error ? e.message : "Missing contract address — check environment variables.");
       return;
     }
     setConfigError(null);
+
+    // Use the issuer-selected payment token (set in the wizard), falling back
+    // to the env-configured Cireta USDC mock only when the sale row has none.
+    const isHexAddr = (s: string | null | undefined): s is `0x${string}` =>
+      !!s && /^0x[0-9a-fA-F]{40}$/.test(s);
+    const paymentTokenAddress: `0x${string}` = isHexAddr(sale.payment_token)
+      ? sale.payment_token
+      : ciretaUsdcFallback;
 
     const softCap = BigInt(Math.round(parseFloat(sale.soft_cap || "0") * 1e6));
     const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
@@ -322,7 +339,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     // Debug: log all deployment arguments
     console.log("[deploySale] Resolved addresses:", {
       token: sale.token_contract_address,
-      paymentToken: ciretaUsdcAddress,
+      paymentToken: paymentTokenAddress,
       identityRegistry: identityRegistryAddr,
       issuer: walletAddress,
       factory: saleFactoryAddress,
@@ -343,7 +360,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       functionName: "initialize",
       args: [
         sale.token_contract_address as `0x${string}`,    // _token
-        ciretaUsdcAddress,                                 // _paymentToken (USDC)
+        paymentTokenAddress,                               // _paymentToken (issuer-selected)
         identityRegistryAddr as `0x${string}`,             // _identityRegistry
         walletAddress,                                     // _issuer (connected wallet)
         saleFactoryAddress,                                // _factory
