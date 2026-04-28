@@ -6,6 +6,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
+import { useContractAction } from "@/hooks/useContractAction";
+import { useToast, ToastContainer } from "@/components/molecules/Toast";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits, formatUnits, zeroAddress } from "viem";
 import { Button } from "@/components/atoms";
@@ -218,57 +220,27 @@ export default function InvestPage() {
   });
   const hasEnoughAllowance = existingAllowance != null && amountWei > 0 && (existingAllowance as bigint) >= amountWei;
 
-  // Wagmi: USDC approve
-  const {
-    writeContract: writeApprove,
-    data: approveTxHash,
-    isPending: isApproving,
-  } = useWriteContract();
+  // Contract actions with unified gas handling
+  const usdcApproveAction = useContractAction();
+  const saleContributeAction = useContractAction();
+  const otcApproveAction = useContractAction();
+  const otcBuyAction = useContractAction();
+  const { showError, showSuccess, toasts, removeToast } = useToast();
 
-  const { isSuccess: approveConfirmed, isLoading: isApproveConfirming } = useWaitForTransactionReceipt({
-    hash: approveTxHash,
-  });
-
-  // Wagmi: Sale.buy() on-chain
-  const {
-    writeContract: writeContribute,
-    data: contributeTxHash,
-    isPending: isContributePending,
-    error: contributeError,
-  } = useWriteContract();
-
-  const {
-    isSuccess: contributeConfirmed,
-    isLoading: isContributeConfirming,
-  } = useWaitForTransactionReceipt({
-    hash: contributeTxHash,
-  });
-
-  // Wagmi: OTC token approve
-  const {
-    writeContract: writeOtcApprove,
-    data: otcApproveTxHash,
-    isPending: isOtcApproving,
-  } = useWriteContract();
-
-  const { isSuccess: otcApproveConfirmed } = useWaitForTransactionReceipt({
-    hash: otcApproveTxHash,
-  });
-
-  // Wagmi: Sale.buyOTC() on-chain
-  const {
-    writeContract: writeBuyOtc,
-    data: buyOtcTxHash,
-    isPending: isBuyOtcPending,
-    error: buyOtcError,
-  } = useWriteContract();
-
-  const {
-    isSuccess: buyOtcConfirmed,
-    isLoading: isBuyOtcConfirming,
-  } = useWaitForTransactionReceipt({
-    hash: buyOtcTxHash,
-  });
+  // Derived states for compatibility
+  const isApproving = usdcApproveAction.isPending;
+  const isApproveConfirming = usdcApproveAction.isConfirming;
+  const approveConfirmed = usdcApproveAction.isConfirmed;
+  const isContributePending = saleContributeAction.isPending;
+  const isContributeConfirming = saleContributeAction.isConfirming;
+  const contributeConfirmed = saleContributeAction.isConfirmed;
+  const contributeError = saleContributeAction.error;
+  const isOtcApproving = otcApproveAction.isPending;
+  const otcApproveConfirmed = otcApproveAction.isConfirmed;
+  const isBuyOtcPending = otcBuyAction.isPending;
+  const isBuyOtcConfirming = otcBuyAction.isConfirming;
+  const buyOtcConfirmed = otcBuyAction.isConfirmed;
+  const buyOtcError = otcBuyAction.error;
 
   // Read OTC token address from sale contract
   const { data: onChainOtcToken } = useReadContract({
@@ -478,7 +450,7 @@ export default function InvestPage() {
     .filter((p) => now < new Date(p.start_time))
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0] ?? null;
 
-  const handleApprove = useCallback(() => {
+  const handleApprove = useCallback(async () => {
     if (isWrongChain) {
       setError(`Wrong network. Switch to ${expectedChainName} first.`);
       return;
@@ -487,7 +459,9 @@ export default function InvestPage() {
       setError("Sale contract not deployed yet.");
       return;
     }
+
     setError(null);
+
     // Approve the exact USDC required for tokenQty tokens
     const approveAmount = parseUnits(usdcRequired.toString(), 6);
     console.log("[invest] Approve USDC:", {
@@ -497,27 +471,31 @@ export default function InvestPage() {
       usdcRequired: approveAmount.toString(),
       existingAllowance: existingAllowance?.toString(),
     });
+
     try {
-      writeApprove({
+      await usdcApproveAction.execute({
         address: usdcAddress,
         abi: ERC20_APPROVE_ABI,
         functionName: "approve",
         args: [saleContractAddress, approveAmount],
+        // gas automatically handled by useContractAction (100k for approve)
       });
     } catch (err) {
       console.error("[invest] Approve error:", err);
       setError(err instanceof Error ? err.message : "Approval failed");
     }
-  }, [writeApprove, saleContractAddress, usdcAddress, tokenQty, usdcRequired, existingAllowance, isWrongChain, expectedChainName]);
+  }, [usdcApproveAction, saleContractAddress, usdcAddress, tokenQty, usdcRequired, existingAllowance, isWrongChain, expectedChainName]);
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback(async () => {
     if (isWrongChain) {
       setError(`Wrong network. Switch to ${expectedChainName} first.`);
       return;
     }
     if (!saleContractAddress || !activePhase) return;
+
     setError(null);
     setIsContributing(true);
+
     // Whole-token buy: second arg is token quantity (not USDC)
     console.log("[invest] Buy:", {
       sale: saleContractAddress,
@@ -525,8 +503,9 @@ export default function InvestPage() {
       tokenQty,
       usdcRequired,
     });
+
     try {
-      writeContribute({
+      await saleContributeAction.execute({
         address: saleContractAddress,
         abi: SALE_ABI,
         functionName: "buy",
@@ -534,17 +513,17 @@ export default function InvestPage() {
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
           BigInt(tokenQty),
         ],
-        gas: BigInt(500_000),
+        // gas automatically handled by useContractAction (800k for buy operations)
       });
     } catch (err) {
       console.error("[invest] Buy error:", err);
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeContribute, saleContractAddress, activePhase, activePhaseIndex, tokenQty, usdcRequired, isWrongChain, expectedChainName]);
+  }, [saleContributeAction, saleContractAddress, activePhase, activePhaseIndex, tokenQty, usdcRequired, isWrongChain, expectedChainName]);
 
   // OTC Token: Approve OTC tokens for spending by sale contract (exact USDC amount)
-  const handleOtcApprove = useCallback(() => {
+  const handleOtcApprove = useCallback(async () => {
     if (isWrongChain) {
       setError(`Wrong network. Switch to ${expectedChainName} first.`);
       return;
@@ -553,30 +532,35 @@ export default function InvestPage() {
       setError("Sale or OTC token contract not available.");
       return;
     }
+
     setError(null);
+
     try {
-      writeOtcApprove({
+      await otcApproveAction.execute({
         address: otcTokenAddress,
         abi: OTC_TOKEN_ABI,
         functionName: "approve",
         args: [saleContractAddress, parseUnits(usdcRequired.toString(), otcTokenDecimals)],
+        // gas automatically handled by useContractAction (100k for approve)
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "OTC approval failed");
     }
-  }, [writeOtcApprove, saleContractAddress, otcTokenAddress, usdcRequired, otcTokenDecimals, isWrongChain, expectedChainName]);
+  }, [otcApproveAction, saleContractAddress, otcTokenAddress, usdcRequired, otcTokenDecimals, isWrongChain, expectedChainName]);
 
   // OTC Token: Call sale.buyOTC() with token quantity
-  const handleOtcConfirm = useCallback(() => {
+  const handleOtcConfirm = useCallback(async () => {
     if (isWrongChain) {
       setError(`Wrong network. Switch to ${expectedChainName} first.`);
       return;
     }
     if (!saleContractAddress || !activePhase) return;
+
     setError(null);
     setIsContributing(true);
+
     try {
-      writeBuyOtc({
+      await otcBuyAction.execute({
         address: saleContractAddress,
         abi: SALE_OTC_ABI,
         functionName: "buyOTC",
@@ -584,13 +568,13 @@ export default function InvestPage() {
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
           BigInt(tokenQty),
         ],
-        gas: BigInt(500_000),
+        // gas automatically handled by useContractAction (800k for buy operations)
       });
     } catch (err) {
       setError(parseRevertReason(err));
       setIsContributing(false);
     }
-  }, [writeBuyOtc, saleContractAddress, activePhase, activePhaseIndex, tokenQty, isWrongChain, expectedChainName]);
+  }, [otcBuyAction, saleContractAddress, activePhase, activePhaseIndex, tokenQty, isWrongChain, expectedChainName]);
 
   const otcConfirmLoading = isContributing || isBuyOtcPending || isBuyOtcConfirming;
 
@@ -1220,6 +1204,7 @@ export default function InvestPage() {
         </div>
       </div>
       <Footer />
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

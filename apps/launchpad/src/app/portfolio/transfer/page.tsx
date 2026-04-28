@@ -17,6 +17,8 @@ import { DashboardLayout } from "@/components/templates";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPortfolio, type Holding } from "@/lib/api/repositories/portfolio.repository";
 import { getTxUrl } from "@/lib/contracts/addresses";
+import { useContractAction } from "@/hooks/useContractAction";
+import { useToast, ToastContainer } from "@/components/molecules/Toast";
 
 /**
  * Minimal ERC-20 ABI for transfer + balanceOf + decimals.
@@ -70,18 +72,16 @@ export default function TransferPage() {
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "confirm" | "success">("form");
 
-  // Wagmi: transfer
-  const {
-    writeContract,
-    data: txHash,
-    isPending: isTransferPending,
-    error: transferError,
-  } = useWriteContract();
+  // Unified contract action for transfer
+  const transferAction = useContractAction();
+  const { showError, showSuccess, toasts, removeToast } = useToast();
 
-  const {
-    isSuccess: transferConfirmed,
-    isLoading: isTransferConfirming,
-  } = useWaitForTransactionReceipt({ hash: txHash });
+  // Derived states for compatibility
+  const isTransferPending = transferAction.isPending;
+  const isTransferConfirming = transferAction.isConfirming;
+  const transferConfirmed = transferAction.isConfirmed;
+  const transferError = transferAction.error;
+  const txHash = transferAction.txHash;
 
   // Read on-chain balance for selected token
   const { data: onChainBalance } = useReadContract({
@@ -179,20 +179,26 @@ export default function TransferPage() {
     setStep("confirm");
   }, [selectedToken, recipient, numericAmount, onChainBalanceFormatted]);
 
-  const executeTransfer = useCallback(() => {
+  const executeTransfer = useCallback(async () => {
     if (!selectedToken) return;
+
     setError(null);
+
     try {
-      writeContract({
+      await transferAction.execute({
         address: selectedToken.contractAddress,
         abi: ERC20_TRANSFER_ABI,
         functionName: "transfer",
         args: [recipient as `0x${string}`, parseUnits(amount, decimals)],
+        // gas automatically handled by useContractAction (200k for transfer)
       });
+      showSuccess("Transfer Initiated", "Your token transfer has been submitted to the blockchain.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Transfer failed");
+      const errorMsg = err instanceof Error ? err.message : "Transfer failed";
+      setError(errorMsg);
+      showError("Transfer Failed", errorMsg);
     }
-  }, [writeContract, selectedToken, recipient, amount, decimals]);
+  }, [transferAction, selectedToken, recipient, amount, decimals, showSuccess, showError]);
 
   const isTransacting = isTransferPending || isTransferConfirming;
 
@@ -410,6 +416,7 @@ export default function TransferPage() {
           </div>
         )}
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </DashboardLayout>
   );
 }
