@@ -300,24 +300,25 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
     let saleFactoryAddress: `0x${string}`;
     let feeManagerAddress: `0x${string}`;
-    let ciretaUsdcFallback: `0x${string}`;
     try {
       saleFactoryAddress = requireAddress("saleFactory");
-      ciretaUsdcFallback = requireAddress("ciretaUsdc");
       feeManagerAddress = requireAddress("platformFeeManager");
     } catch (e) {
       setConfigError(e instanceof Error ? e.message : "Missing contract address — check environment variables.");
       return;
     }
-    setConfigError(null);
 
-    // Use the issuer-selected payment token (set in the wizard), falling back
-    // to the env-configured Cireta USDC mock only when the sale row has none.
+    // Payment token must come from the sale row (set by the issuer in the wizard).
+    // No fallback — fail loudly if missing so the issuer fixes the wizard step
+    // rather than silently deploying with a wrong stablecoin.
     const isHexAddr = (s: string | null | undefined): s is `0x${string}` =>
       !!s && /^0x[0-9a-fA-F]{40}$/.test(s);
-    const paymentTokenAddress: `0x${string}` = isHexAddr(sale.payment_token)
-      ? sale.payment_token
-      : ciretaUsdcFallback;
+    if (!isHexAddr(sale.payment_token)) {
+      setConfigError("Payment token is not set on this sale. Open the wizard, pick a payment token, save, and retry.");
+      return;
+    }
+    const paymentTokenAddress: `0x${string}` = sale.payment_token;
+    setConfigError(null);
 
     const softCap = BigInt(Math.round(parseFloat(sale.soft_cap || "0") * 1e6));
     const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
