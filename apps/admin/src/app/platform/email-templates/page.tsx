@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Save, RotateCcw, Send, Eye, EyeOff, AlertCircle,
-  CheckCircle2, X, Code, Variable,
+  CheckCircle2, X, Code, Variable, Pencil,
 } from "lucide-react";
 import { Button, Badge, Spinner } from "@/components/atoms";
 import RichTextEditor from "@/components/molecules/RichTextEditor";
@@ -67,8 +67,8 @@ export default function EmailTemplatesPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [previewEmail, setPreviewEmail] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
-  const [showSource, setShowSource] = useState(false);
+  type BodyView = "editor" | "source" | "preview";
+  const [bodyView, setBodyView] = useState<BodyView>("editor");
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -89,8 +89,7 @@ export default function EmailTemplatesPage() {
       setEditSubject(tmpl.subject);
       setEditBody(tmpl.html_body);
       setMessage(null);
-      setShowPreview(false);
-      setShowSource(false);
+      setBodyView("editor");
     }
   };
 
@@ -159,7 +158,7 @@ export default function EmailTemplatesPage() {
 
   const insertVariable = (varName: string) => {
     const tag = `{{${varName}}}`;
-    if (!showSource && editorInstanceRef.current) {
+    if (bodyView === "editor" && editorInstanceRef.current) {
       editorInstanceRef.current.insertContent(tag);
     } else {
       setEditBody((prev) => prev + tag);
@@ -294,23 +293,31 @@ export default function EmailTemplatesPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-zinc-500">Email Body</label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => { setShowSource(!showSource); setShowPreview(false); }}
-                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${showSource ? "bg-zinc-800 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
-                      >
-                        <Code className="h-3 w-3 inline mr-1" />Source
-                      </button>
-                      <button
-                        onClick={() => { setShowPreview(!showPreview); setShowSource(false); }}
-                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${showPreview ? "bg-zinc-800 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
-                      >
-                        <Eye className="h-3 w-3 inline mr-1" />Preview
-                      </button>
+                    <div className="inline-flex items-center rounded-md bg-zinc-100 p-0.5">
+                      {([
+                        { id: "editor", label: "Editor", Icon: Pencil },
+                        { id: "source", label: "Source", Icon: Code },
+                        { id: "preview", label: "Preview", Icon: Eye },
+                      ] as const).map(({ id, label, Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setBodyView(id)}
+                          aria-pressed={bodyView === id}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                            bodyView === id
+                              ? "bg-zinc-800 text-white shadow-sm"
+                              : "text-zinc-600 hover:bg-zinc-200"
+                          }`}
+                        >
+                          <Icon className="h-3 w-3" />
+                          {label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {showPreview ? (
+                  {bodyView === "preview" ? (
                     <div className="border border-zinc-200 rounded-lg overflow-hidden">
                       <iframe
                         srcDoc={editBody.replace(/\{\{(\w+)\}\}/g, (_, v) => `<span style="background:#e0f2fe;padding:1px 4px;border-radius:3px;font-size:12px">${v}</span>`)}
@@ -319,7 +326,7 @@ export default function EmailTemplatesPage() {
                         title="Email preview"
                       />
                     </div>
-                  ) : showSource ? (
+                  ) : bodyView === "source" ? (
                     <textarea
                       value={editBody}
                       onChange={(e) => setEditBody(e.target.value)}
