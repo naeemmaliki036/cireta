@@ -24,6 +24,7 @@ from web3 import Web3
 from apps.api.models.user import User
 from apps.api.models.wallet import Wallet
 from packages.common.core.config import settings
+from packages.common.utils.iso3166 import alpha2_to_numeric, is_known_country
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +73,6 @@ SIMPLE_REGISTRY_ABI = [
     },
 ]
 
-# Country code mapping (alpha-2 → numeric)
-COUNTRY_MAP = {
-    "AE": 784, "US": 840, "GB": 826, "DE": 276, "FR": 250,
-    "GH": 288, "TZ": 834, "CD": 180, "MA": 504, "NG": 566,
-    "KE": 404, "ZA": 710, "IN": 356, "SG": 702, "HK": 344,
-}
-
-
 class SimpleIdentityBridgeService:
     """Whitelist-based identity bridge — adds wallets to SimpleIdentityRegistry."""
 
@@ -96,8 +89,22 @@ class SimpleIdentityBridgeService:
         return w3, signer
 
     def _get_country_code(self, user: User) -> int:
+        """Resolve the user's stored alpha-2 country code to ISO-3166 numeric.
+
+        Falls back to 0 (UNKNOWN_COUNTRY) when the user has no country or the
+        alpha-2 isn't in the canonical table. Logs a warning in that case so
+        the missing data surfaces in observability — code 0 is "system"
+        on-chain and should not be silently used for a real investor.
+        """
         code = getattr(user, "country_code", None) or ""
-        return COUNTRY_MAP.get(code.upper(), 0)
+        if not is_known_country(code):
+            logger.warning(
+                "User %s has missing/unknown country_code=%r — registering with code 0; "
+                "country-based compliance checks may not behave as expected.",
+                getattr(user, "id", "?"),
+                code,
+            )
+        return alpha2_to_numeric(code)
 
     async def is_whitelisted_on_chain(self, wallet_address: str) -> bool:
         """Read SimpleIdentityRegistry.isVerified(addr) from chain.

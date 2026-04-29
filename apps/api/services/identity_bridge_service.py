@@ -22,6 +22,7 @@ from web3 import Web3
 from apps.api.models.user import User
 from apps.api.models.wallet import Wallet
 from packages.common.core.config import settings
+from packages.common.utils.iso3166 import alpha2_to_numeric, is_known_country
 
 logger = logging.getLogger(__name__)
 
@@ -458,12 +459,18 @@ class IdentityBridgeService:
         logger.info("Identity registered: %s → %s country=%d", investor_address, identity_address, country_code)
 
     def _get_country_code(self, user: User) -> int:
-        """Get ISO 3166-1 numeric country code from user's country_code field."""
-        # Map common alpha-2 codes to numeric. Default to 0 (unknown).
-        country_map = {
-            "AE": 784, "US": 840, "GB": 826, "DE": 276, "FR": 250,
-            "GH": 288, "TZ": 834, "CD": 180, "MA": 504, "NG": 566,
-            "KE": 404, "ZA": 710, "IN": 356, "SG": 702, "HK": 344,
-        }
+        """Get ISO 3166-1 numeric country code from user's alpha-2 field.
+
+        Falls back to 0 (UNKNOWN_COUNTRY) when missing/unknown — code 0 is
+        reserved for system addresses on the platform identity registry, so
+        a warning is logged to surface the missing data in observability.
+        """
         code = getattr(user, "country_code", None) or ""
-        return country_map.get(code.upper(), 0)
+        if not is_known_country(code):
+            logger.warning(
+                "User %s has missing/unknown country_code=%r — registering with code 0; "
+                "country-based compliance checks may not behave as expected.",
+                getattr(user, "id", "?"),
+                code,
+            )
+        return alpha2_to_numeric(code)
