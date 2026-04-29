@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ShieldCheck, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { isAddress, type Abi } from "viem";
@@ -11,9 +11,13 @@ import {
   forceTransferERC3643,
   type RecoveryResponse,
 } from "@/lib/api/repositories/compliance";
+import { getTokens, type Token } from "@/lib/api/repositories/tokens";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 
 type TokenType = "erc3643_recovery" | "erc3643_force" | "fraction_1155";
+
+const truncateAddr = (a: string): string =>
+  a && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 
 export default function TokenRecoveryPage() {
   const [tokenType, setTokenType] = useState<TokenType>("erc3643_recovery");
@@ -35,6 +39,46 @@ export default function TokenRecoveryPage() {
   const isFraction = tokenType === "fraction_1155";
   const isForceTransfer = tokenType === "erc3643_force";
   const isRecovery = tokenType === "erc3643_recovery";
+
+  // Token picker state: dropdown of issuer tokens with a "Custom address" fallback
+  // for tokens not yet in the portfolio. Only the UUID is sent to the backend
+  // (which enforces issuer-ownership via _verify_authorization).
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(true);
+  const [pickerMode, setPickerMode] = useState<"select" | "custom">("select");
+  const [customAddress, setCustomAddress] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getTokens(1, 100);
+        if (!cancelled) {
+          setTokens(res.items.filter((t) => t.contract_address));
+        }
+      } finally {
+        if (!cancelled) setTokensLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // When a custom address is typed, try to resolve it to a Token UUID — the
+  // backend keys recoveries off the UUID and verifies issuer ownership through it.
+  const customAddressMatch = pickerMode === "custom" && customAddress
+    ? tokens.find((t) => t.contract_address?.toLowerCase() === customAddress.toLowerCase())
+    : undefined;
+
+  const customAddressIsValid = pickerMode === "custom" && isAddress(customAddress);
+  const customAddressNotFound = customAddressIsValid && !customAddressMatch;
+
+  // Keep form.token_id in sync with the picker
+  useEffect(() => {
+    if (pickerMode === "custom") {
+      const id = customAddressMatch?.id ?? "";
+      setForm((f) => (f.token_id === id ? f : { ...f, token_id: id }));
+    }
+  }, [pickerMode, customAddressMatch]);
 
   // Pre-flight KYC check for the destination wallet using platform default registry.
   // The actual on-chain call uses the per-token / per-sale registry, but the simple-mode
@@ -280,14 +324,64 @@ export default function TokenRecoveryPage() {
           </div>
         ) : (
           <div>
-            <label className="block text-sm text-black/60 mb-1">Token ID</label>
-            <input
-              value={form.token_id}
-              onChange={(e) => setForm((f) => ({ ...f, token_id: e.target.value }))}
-              placeholder="UUID of the token"
-              className="w-full bg-box border border-black/10 rounded-lg px-3 py-2 text-text text-sm"
-              required
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm text-black/60">Token</label>
+              <button
+                type="button"
+                onClick={() => {
+                  setPickerMode((m) => (m === "select" ? "custom" : "select"));
+                  setForm((f) => ({ ...f, token_id: "" }));
+                  setCustomAddress("");
+                }}
+                className="text-xs font-medium text-darkAqua hover:underline"
+              >
+                {pickerMode === "select" ? "Use custom address" : "Pick from list"}
+              </button>
+            </div>
+
+            {pickerMode === "select" ? (
+              <select
+                value={form.token_id}
+                onChange={(e) => setForm((f) => ({ ...f, token_id: e.target.value }))}
+                className="w-full bg-box border border-black/10 rounded-lg px-3 py-2 text-text text-sm"
+                required
+              >
+                <option value="">
+                  {tokensLoading ? "Loading tokens…" : tokens.length === 0 ? "No tokens — paste an address instead" : "Select a token…"}
+                </option>
+                {tokens.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.symbol} — {t.name} ({truncateAddr(t.contract_address ?? "")})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <input
+                  value={customAddress}
+                  onChange={(e) => setCustomAddress(e.target.value.trim())}
+                  placeholder="0x… token contract address"
+                  className="w-full bg-box border border-black/10 rounded-lg px-3 py-2 text-text text-sm font-mono"
+                  required
+                  maxLength={42}
+                />
+                {customAddress && !isAddress(customAddress) && (
+                  <p className="text-xs text-red-600 mt-1">Not a valid EVM address.</p>
+                )}
+                {customAddressMatch && (
+                  <p className="text-xs text-emerald-700 mt-1">
+                    Matched: <strong>{customAddressMatch.symbol}</strong> — {customAddressMatch.name}
+                  </p>
+                )}
+                {customAddressNotFound && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    No token found with this address in your portfolio. Add it via the{" "}
+                    <Link href="/issuer/tokens" className="underline font-medium">Tokens page</Link>{" "}
+                    first — recovery requires an existing token record for ownership verification.
+                  </p>
+                )}
+              </>
+            )}
           </div>
         )}
 
