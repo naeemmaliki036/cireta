@@ -376,7 +376,9 @@ export default function CreateSalePage() {
         setSuccess(true);
       } else {
         // Non-coming-soon: save as draft and redirect to sale page for deploy + setup
-        router.push(`/issuer/sales/${saleId}`);
+        // ?from=wizard bypasses the [id] page's draft→wizard redirect so the
+        // user can actually click "Deploy On-Chain" instead of bouncing back.
+        router.push(`/issuer/sales/${saleId}?from=wizard`);
       }
     } catch (err) { setError(err instanceof Error ? err.message : "Submission failed"); }
     finally { setIsSubmitting(false); }
@@ -432,17 +434,14 @@ export default function CreateSalePage() {
         <div className="flex items-center justify-between mb-4">
           <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>
           <div className="flex items-center gap-2">
-            {!savedSaleId && (
-              <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
-                {isSaving ? "Saving..." : "Save Draft"}
-              </Button>
-            )}
-            {savedSaleId && !success && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+            <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
+              {isSaving ? "Saving..." : savedSaleId ? "Save Changes" : "Save Draft"}
+            </Button>
             {success ? (
               <Link href="/issuer/sales"><Button variant="primary" size="sm">View Sales</Button></Link>
             ) : (
               <Button variant="primary" size="sm" onClick={handleSubmit} isLoading={isSubmitting}>
-                {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue"}
+                {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue to Deployment →"}
               </Button>
             )}
           </div>

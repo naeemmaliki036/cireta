@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Clock, ArrowLeft, AlertCircle, Coins, Bell,
-  Pencil, X, Check, Upload, ImageIcon, Globe, Star, Rocket,
+  Pencil, X, Check, CheckCircle2, Upload, ImageIcon, Globe, Star, Rocket,
   BarChart3, Users, Blocks,
 } from "lucide-react";
 import Link from "next/link";
@@ -216,8 +216,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     (async () => {
       try {
         const s = await getSale(resolvedId);
-        // Drafts that haven't been deployed yet belong in the wizard, not here.
-        if (s.status === "draft" && !s.contract_address) {
+        // Drafts that haven't been deployed yet belong in the wizard, not here —
+        // unless the user explicitly came from the wizard (via ?from=wizard) to
+        // proceed with on-chain deployment, in which case we let them stay.
+        const fromWizard = searchParams.get("from") === "wizard";
+        if (s.status === "draft" && !s.contract_address && !fromWizard) {
           router.replace(`/issuer/sales/new?id=${resolvedId}`);
           return;
         }
@@ -227,7 +230,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       finally { setLoading(false); }
     })();
     loadImages();
-  }, [resolvedId, loadImages, router]);
+  }, [resolvedId, loadImages, router, searchParams]);
 
   const handleAction = async (action: string, fn: () => Promise<void>) => {
     setActionLoading(action); setActionError(null); setActionSuccess(null);
@@ -590,7 +593,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       description={`Sale ID: ${sale.id}`}
       actions={
         <div className="flex items-center gap-3">
-          {!editing && (
+          {isDraft && !sale.contract_address && (
+            <Link href={`/issuer/sales/new?id=${resolvedId}`}>
+              <Button variant="secondary">
+                <Pencil className="h-4 w-4 mr-2" /> Edit in Wizard
+              </Button>
+            </Link>
+          )}
+          {!editing && !(isDraft && !sale.contract_address) && (
             <Button variant="secondary" onClick={startEditing}>
               <Pencil className="h-4 w-4 mr-2" /> Edit Details
             </Button>
@@ -628,6 +638,16 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             >
               <Rocket className="h-4 w-4 mr-2" />
               {isSyncing ? "Syncing..." : "Deploy On-Chain"}
+            </Button>
+          )}
+          {isDraft && sale.contract_address && (
+            <Button
+              variant="primary"
+              onClick={handleSubmitForApproval}
+              isLoading={actionLoading === "submit"}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Submit for Approval
             </Button>
           )}
           {(sale.contract_address || syncDone) && (
