@@ -39,9 +39,7 @@ RUN npm run build --workspace=apps/launchpad
 
 # Stage 3: lean runner
 FROM node:20-alpine AS runner
-# python3 + a python→python3 symlink because Railway's process supervisor
-# invokes "python start.py" (not python3) regardless of CMD.
-RUN apk add --no-cache python3 && ln -sf /usr/bin/python3 /usr/bin/python
+RUN apk add --no-cache python3
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
