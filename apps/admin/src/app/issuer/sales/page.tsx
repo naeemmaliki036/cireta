@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, BarChart3, Plus, ArrowUpRight, Rocket, Clock, FileText, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
@@ -39,6 +40,38 @@ function saleDestination(sale: Sale): string {
     return `/issuer/sales/new?id=${sale.id}`;
   }
   return `/issuer/sales/${sale.id}`;
+}
+
+/** Deploy is available from the list when the draft has a token deployed but
+ *  no sale contract yet — same precondition as the detail page's Deploy button. */
+function canDeployFromList(sale: Sale): boolean {
+  return (
+    sale.status === "draft"
+    && !sale.contract_address
+    && !!sale.token_contract_address
+    && !sale.is_coming_soon
+  );
+}
+
+/** Inline Deploy CTA — stops Link propagation and routes to the detail page
+ *  with ?from=wizard&action=deploy so the deploy auto-triggers on mount. */
+function DeployButton({ saleId }: { saleId: string }) {
+  const router = useRouter();
+  return (
+    <Button
+      variant="primary"
+      size="sm"
+      className="shrink-0"
+      onClick={(e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        router.push(`/issuer/sales/${saleId}?from=wizard&action=deploy`);
+      }}
+    >
+      <Rocket className="h-3.5 w-3.5 mr-1.5" />
+      Deploy
+    </Button>
+  );
 }
 
 function SaleCard({ sale }: { sale: Sale }) {
@@ -85,7 +118,10 @@ function SaleCard({ sale }: { sale: Sale }) {
               <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> OTC</span>
             )}
           </div>
-          <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors" />
+          <div className="flex items-center gap-2">
+            {canDeployFromList(sale) && <DeployButton saleId={sale.id} />}
+            <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors" />
+          </div>
         </div>
       </div>
     </Link>
@@ -121,6 +157,7 @@ function SaleRow({ sale }: { sale: Sale }) {
         </div>
       )}
       <Badge variant={variant} size="sm" className="shrink-0">{statusLabel}</Badge>
+      {canDeployFromList(sale) && <DeployButton saleId={sale.id} />}
       <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors shrink-0" />
     </Link>
   );

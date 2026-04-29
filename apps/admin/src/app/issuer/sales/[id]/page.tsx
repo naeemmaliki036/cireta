@@ -232,6 +232,23 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     loadImages();
   }, [resolvedId, loadImages, router, searchParams]);
 
+  // Auto-trigger deployment when arriving from the list view's "Deploy" button
+  // (e.g. /issuer/sales/<id>?from=wizard&action=deploy). Fires once after the
+  // sale loads and only when the same conditions the manual button would allow.
+  const [autoDeployFired, setAutoDeployFired] = useState(false);
+  useEffect(() => {
+    if (autoDeployFired) return;
+    if (!sale || !walletAddress || !isConnected) return;
+    if (searchParams.get("action") !== "deploy") return;
+    if (sale.contract_address) return;
+    if (!sale.token_contract_address) return;
+    setAutoDeployFired(true);
+    handleDeployOnChain();
+    // handleDeployOnChain is stable for our purposes — including it in deps
+    // would cause re-fires if any of its closures rebuilt during execution.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sale, walletAddress, isConnected, searchParams, autoDeployFired]);
+
   const handleAction = async (action: string, fn: () => Promise<void>) => {
     setActionLoading(action); setActionError(null); setActionSuccess(null);
     try { await fn(); setActionSuccess(action); await reload(); }
