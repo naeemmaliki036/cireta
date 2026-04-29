@@ -514,32 +514,16 @@ export default function CreateSalePage() {
 
       {/* Navigation — above content */}
       {!isLast && (
-        <>
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-3">
-              {isFirst ? <Link href="/issuer/sales"><Button variant="outline" size="sm">Cancel</Button></Link>
-                : <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>}
-              {!savedSaleId && <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save Draft"}</Button>}
-              {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
-              {error && <span className="text-xs text-red-600">{error}</span>}
-            </div>
-            <Button variant="primary" size="sm" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            {isFirst ? <Link href="/issuer/sales"><Button variant="outline" size="sm">Cancel</Button></Link>
+              : <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>}
+            {!savedSaleId && <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save Draft"}</Button>}
+            {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+            {error && <span className="text-xs text-red-600">{error}</span>}
           </div>
-          {!canProceed && (() => {
-            const issues = proceedIssues();
-            if (issues.length === 0) return null;
-            return (
-              <div className="mb-4 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
-                <p className="text-xs font-semibold text-amber-800 mb-1.5">
-                  Complete the following to continue:
-                </p>
-                <ul className="list-disc list-inside text-xs text-amber-800 space-y-0.5">
-                  {issues.map((msg, i) => <li key={i}>{msg}</li>)}
-                </ul>
-              </div>
-            );
-          })()}
-        </>
+          <Button variant="primary" size="sm" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
+        </div>
       )}
       {isLast && !isFirst && (
         <div className="flex items-center justify-between mb-4">
@@ -588,7 +572,33 @@ export default function CreateSalePage() {
               {otcEnabled && (
                 <div className="mt-4 space-y-4">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to buyers)</label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to buyers)</label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (
+                            otcContent.trim() &&
+                            !window.confirm("Replace the current OTC instructions with the platform default template?")
+                          ) {
+                            return;
+                          }
+                          try {
+                            const data = await apiFetch<Record<string, string>>("/api/v1/admin/platform/settings");
+                            if (data.otc_default_content) {
+                              setOtcContent(data.otc_default_content);
+                            } else {
+                              window.alert("No platform default template is configured.");
+                            }
+                          } catch {
+                            window.alert("Could not load the default template.");
+                          }
+                        }}
+                        className="text-xs font-medium text-darkAqua hover:underline"
+                      >
+                        Use default template
+                      </button>
+                    </div>
                     <p className="text-xs text-zinc-400">Include wire details, process steps, minimum amounts, and contact info.</p>
                     <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
                   </div>
@@ -1359,6 +1369,21 @@ export default function CreateSalePage() {
               </ul>
             </div>
           )}
+          {/* Pending issues — only when Continue is blocked. Sits below tips. */}
+          {!isLast && !canProceed && (() => {
+            const issues = proceedIssues();
+            if (issues.length === 0) return null;
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
+                  Complete the following to continue
+                </h4>
+                <ul className="list-disc list-inside text-xs text-amber-800 space-y-1">
+                  {issues.map((msg, i) => <li key={i}>{msg}</li>)}
+                </ul>
+              </div>
+            );
+          })()}
         </div>
       </aside>
       </div>
