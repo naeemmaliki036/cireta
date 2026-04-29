@@ -25,6 +25,8 @@ class TokenCreateRequest(BaseModel):
     slug: str | None = None
     description: str | None = None
     image_url: str | None = None
+    max_supply: Decimal | None = Field(default=None, gt=0, le=_MAX_SUPPLY)
+    mintable: bool = True
 
     @field_validator("symbol")
     @classmethod
@@ -75,6 +77,9 @@ class TokenResponse(BaseModel):
     vault_address: str | None = None
     fraction_token_address: str | None = None
     created_at: str | None = None
+    max_supply: str | None = None
+    mintable: bool = True
+    current_supply: str | None = None
 
     class Config:
         from_attributes = True

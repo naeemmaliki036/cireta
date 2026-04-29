@@ -57,6 +57,9 @@ def _token_to_response(token) -> TokenResponse:
         description=token.description,
         image_url=token.image_url,
         created_at=token.created_at.isoformat() if token.created_at else None,
+        max_supply=str(token.max_supply) if token.max_supply is not None else None,
+        mintable=token.mintable if token.mintable is not None else True,
+        current_supply=str(token.current_supply) if token.current_supply is not None else None,
     )
 
 
@@ -164,6 +167,8 @@ async def create_token(
         chainlink_por_feed=request.chainlink_por_feed,
         description=request.description,
         image_url=request.image_url,
+        max_supply=request.max_supply,
+        mintable=request.mintable,
     )
     return _token_to_response(token)
 
@@ -184,6 +189,15 @@ async def deploy_token(
 
 class RecordDeploymentRequest(BaseModel):
     tx_hash: str
+    # Optional fields supplied by the frontend after wallet-signed deployToken tx.
+    # If provided, these values are persisted directly without re-reading the chain
+    # (useful when the frontend already extracted them from the tx receipt event).
+    contract_address: str | None = None
+    identity_registry_address: str | None = None
+    compliance_address: str | None = None
+    max_supply: Decimal | None = None
+    mintable: bool | None = None
+    current_supply: Decimal | None = None
 
 
 @router.post("/{token_id}/record-deployment", response_model=TokenResponse)
@@ -193,10 +207,14 @@ async def record_token_deployment(
     user_id: CurrentUserId,  # noqa: ARG001
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Record on-chain deployment by parsing the tx receipt server-side.
+    """Record on-chain deployment after the issuer signs the deployToken tx.
 
-    Frontend sends only the tx_hash. Backend reads the receipt from the chain
-    and extracts TokenDeployed event to get contract addresses.
+    Two modes:
+    - Frontend passes only tx_hash: backend reads receipt from chain and extracts
+      the TokenDeployed event to determine contract addresses.
+    - Frontend passes tx_hash + contract_address (and optionally other fields):
+      backend skips chain read and persists the provided values directly.
+      This avoids RPC latency and is the preferred path for wallet-signed flows.
     """
     import asyncio
 
@@ -207,9 +225,36 @@ async def record_token_deployment(
     )
     token = result.scalar_one_or_none()
     if not token:
-        raise HTTPException(status_code=404, detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"})
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"},
+        )
 
-    # Parse tx receipt from chain
+    # Persist supply-economics fields regardless of address resolution path
+    if request.max_supply is not None:
+        token.max_supply = request.max_supply
+    if request.mintable is not None:
+        token.mintable = request.mintable
+    if request.current_supply is not None:
+        token.current_supply = request.current_supply
+
+    # Fast path: frontend already extracted addresses from tx receipt event
+    if request.contract_address:
+        from web3 import Web3
+
+        token.contract_address = Web3.to_checksum_address(request.contract_address)
+        if request.identity_registry_address:
+            token.identity_registry_address = Web3.to_checksum_address(
+                request.identity_registry_address
+            )
+        if request.compliance_address:
+            token.compliance_address = Web3.to_checksum_address(request.compliance_address)
+
+        await db.commit()
+        await db.refresh(token)
+        return _token_to_response(token)
+
+    # Slow path: read receipt from chain and extract TokenDeployed event
     try:
         from web3 import Web3
 
@@ -218,7 +263,6 @@ async def record_token_deployment(
         w3_svc = Web3BaseService()
         w3 = w3_svc.w3
 
-        # Use asyncio.to_thread to avoid blocking the event loop on remote RPC calls
         receipt = await asyncio.to_thread(w3.eth.get_transaction_receipt, request.tx_hash)
 
         if receipt is None:
@@ -228,7 +272,9 @@ async def record_token_deployment(
             })
 
         # Find TokenDeployed event by comparing topic0 bytes directly
-        token_deployed_topic = Web3.keccak(text="TokenDeployed(address,address,address,string,string,address)")
+        token_deployed_topic = Web3.keccak(
+            text="TokenDeployed(address,address,address,string,string,address)"
+        )
 
         token_addr = None
         ir_addr = None
@@ -242,12 +288,14 @@ async def record_token_deployment(
                 break
 
         if not token_addr:
-            # Log receipt details for debugging
             logger.error(
                 "TokenDeployed event not found in tx %s — %d logs, topics: %s",
                 request.tx_hash,
                 len(receipt.logs),
-                [log_entry.topics[0].hex() if log_entry.topics else "no-topics" for log_entry in receipt.logs],
+                [
+                    log_entry.topics[0].hex() if log_entry.topics else "no-topics"
+                    for log_entry in receipt.logs
+                ],
             )
             raise HTTPException(status_code=400, detail={
                 "code": "EVENT_NOT_FOUND",

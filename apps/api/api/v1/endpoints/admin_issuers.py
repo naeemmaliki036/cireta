@@ -5,6 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import IssuerStatus
@@ -231,17 +232,54 @@ async def revoke_issuer(
     return _issuer_to_response(issuer)
 
 
+class IssuerActivateRequest(BaseModel):
+    """Optional body for issuer activation.
+
+    addToWhitelist_tx_hash: if the admin also called
+    SimpleIdentityRegistry.addToWhitelist(issuer_wallet, country) from
+    their connected wallet, pass the tx hash here so we can audit-log it.
+    """
+
+    addToWhitelist_tx_hash: str | None = None
+
+
 @router.post("/issuers/{issuer_id}/activate", response_model=IssuerResponse)
 async def activate_issuer(
     issuer_id: UUID,
     _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+    request: IssuerActivateRequest | None = None,
+    db: AsyncSession = Depends(get_db),
 ) -> IssuerResponse:
     """Activate a pending issuer.
+
+    Optionally accepts addToWhitelist_tx_hash when the admin has already
+    called SimpleIdentityRegistry.addToWhitelist(issuer_wallet, country)
+    from their connected wallet as the third on-chain step.
 
     Requires: platform_admin role.
     """
     issuer = await issuer_service.activate_issuer(issuer_id)
+
+    # Record IR whitelist audit entry if the admin performed that on-chain step
+    tx_hash = request.addToWhitelist_tx_hash if request else None
+    if tx_hash:
+        from apps.api.models.audit_log import AuditLog
+
+        log = AuditLog(
+            actor_id=_user_id,
+            action="ir_whitelist_add",
+            target_type="issuer",
+            target_id=str(issuer_id),
+            payload={
+                "tx_hash": tx_hash,
+                "wallet_address": issuer.wallet_address,
+                "note": "Admin added issuer wallet to SimpleIdentityRegistry via wallet-signed tx",
+            },
+        )
+        db.add(log)
+        await db.commit()
+
     return _issuer_to_response(issuer)
 
 

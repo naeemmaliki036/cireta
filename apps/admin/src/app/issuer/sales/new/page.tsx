@@ -72,8 +72,10 @@ export default function CreateSalePage() {
   // Step 5: Phases (skip if coming soon)
   const [phases, setPhases] = useState<PhaseData[]>([{ ...emptyPhase(), name: "Seed Round" }]);
   // Step 6: Vesting (skip if direct or coming soon)
+  const [vestingPreset, setVestingPreset] = useState<"cliff_linear" | "lockup">("cliff_linear");
   const [cliffDays, setCliffDays] = useState("0");
   const [vestingDays, setVestingDays] = useState("365");
+  const [lockupDays, setLockupDays] = useState("365");
   // Step 7: Token & Caps (skip if coming soon)
   const [selectedTokenId, setSelectedTokenId] = useState("");
   const [paymentToken, setPaymentToken] = useState("");
@@ -127,8 +129,16 @@ export default function CreateSalePage() {
         setOtcContent(sale.otc_content ?? "");
         setOtcTokenAddress(sale.otc_token_address ?? "");
         setFullDescription(sale.full_description ?? "");
-        setCliffDays(String(sale.cliff_duration_days ?? 0));
-        setVestingDays(String(sale.vesting_duration_days ?? 365));
+        const savedCliff = sale.cliff_duration_days ?? 0;
+        const savedVesting = sale.vesting_duration_days ?? 365;
+        if (savedCliff === savedVesting && savedVesting > 0) {
+          setVestingPreset("lockup");
+          setLockupDays(String(savedVesting));
+        } else {
+          setVestingPreset("cliff_linear");
+          setCliffDays(String(savedCliff));
+          setVestingDays(String(savedVesting));
+        }
         setSelectedTokenId(sale.token_id ?? "");
         const presetMatch = paymentTokens.some(
           (pt) => pt.address.toLowerCase() === (sale.payment_token ?? "").toLowerCase(),
@@ -288,8 +298,8 @@ export default function CreateSalePage() {
           otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
           sale_mode: saleMode || undefined,
           sale_structure: saleStructure || undefined,
-          cliff_duration_days: parseInt(cliffDays) || 0,
-          vesting_duration_days: parseInt(vestingDays) || 365,
+          cliff_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(cliffDays) || 0,
+          vesting_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(vestingDays) || 365,
           token_id: selectedTokenId || undefined,
           payment_token: paymentToken || undefined,
           soft_cap: softCap || undefined,
@@ -339,7 +349,8 @@ export default function CreateSalePage() {
         full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
         is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
         sale_mode: saleMode, sale_structure: saleStructure,
-        cliff_duration_days: parseInt(cliffDays) || 0, vesting_duration_days: parseInt(vestingDays) || 365,
+        cliff_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(cliffDays) || 0,
+        vesting_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(vestingDays) || 365,
         token_id: selectedTokenId || undefined, payment_token: paymentToken,
         soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
         total_token_supply: totalTokenSupply || undefined,
@@ -773,10 +784,7 @@ export default function CreateSalePage() {
         )}
         {/* Step 9: Vesting (skip if direct or coming soon) */}
         {step === 9 && (() => {
-          const PRESETS = [
-            { label: "No cliff", days: 0 },
-            { label: "1 day", days: 1 },
-            { label: "1 week", days: 7 },
+          const DURATION_PRESETS = [
             { label: "1 month", days: 30 },
             { label: "3 months", days: 90 },
             { label: "6 months", days: 180 },
@@ -786,86 +794,165 @@ export default function CreateSalePage() {
             { label: "2 years", days: 730 },
             { label: "3 years", days: 1095 },
           ];
+          const CLIFF_PRESETS = [
+            { label: "No cliff", days: 0 },
+            { label: "1 day", days: 1 },
+            { label: "1 week", days: 7 },
+            { label: "1 month", days: 30 },
+            { label: "3 months", days: 90 },
+            { label: "6 months", days: 180 },
+            { label: "9 months", days: 270 },
+            { label: "1 year", days: 365 },
+          ];
           const cliffNum = parseInt(cliffDays) || 0;
           const vestingNum = parseInt(vestingDays) || 0;
-          const cliffError = cliffNum > 0 && vestingNum > 0 && cliffNum >= vestingNum;
-          const totalDays = cliffNum + vestingNum;
+          const lockupNum = parseInt(lockupDays) || 0;
+          const cliffError = vestingPreset === "cliff_linear" && cliffNum > 0 && vestingNum > 0 && cliffNum >= vestingNum;
+          const totalDays = vestingPreset === "lockup" ? lockupNum : cliffNum + vestingNum;
 
-          const fmtDuration = (d: number) =>
-            d === 0 ? "None" : d < 30 ? `${d} day${d > 1 ? "s" : ""}` : d < 365 ? `${(d / 30).toFixed(1)} months` : `${(d / 365).toFixed(1)} years`;
+          const fmtDuration = (d: number): string =>
+            d === 0 ? "None"
+            : d < 30 ? `${d} day${d > 1 ? "s" : ""}`
+            : d < 365 ? `${(d / 30).toFixed(1)} months`
+            : `${(d / 365).toFixed(1)} years`;
 
           return (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text mb-1">Vesting Configuration</h2>
             <p className="text-sm text-gray-500">Configure how tokens are released to buyers after the sale finalizes.</p>
 
-            {/* Cliff */}
+            {/* Vesting type toggle */}
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Cliff Period</label>
-              <p className="text-xs text-zinc-400 mb-3">No tokens can be claimed during the cliff. After the cliff ends, vesting begins.</p>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {PRESETS.filter(p => p.days < vestingNum || vestingNum === 0).map((p) => (
-                  <button key={`cliff-${p.days}`} type="button" onClick={() => setCliffDays(String(p.days))}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      cliffNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+              <p className="text-sm font-medium text-zinc-700 mb-2">Vesting Type</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["cliff_linear", "lockup"] as const).map((t) => (
+                  <button key={t} type="button" onClick={() => setVestingPreset(t)}
+                    className={`flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all ${
+                      vestingPreset === t ? "border-darkAqua bg-darkAqua/5" : "border-zinc-200 hover:border-zinc-300"
                     }`}>
-                    {p.label}
+                    <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex-shrink-0 ${
+                      vestingPreset === t ? "border-darkAqua bg-darkAqua" : "border-zinc-300"
+                    }`} />
+                    <div>
+                      <p className="font-semibold text-sm text-text">
+                        {t === "cliff_linear" ? "Cliff + Linear Vesting" : "Lock-up Only"}
+                      </p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {t === "cliff_linear"
+                          ? "Tokens release linearly after a cliff period."
+                          : "All tokens unlock at once after the lock-up ends."}
+                      </p>
+                    </div>
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <Input type="number" min={0} placeholder="Custom days" value={cliffDays}
-                  onChange={(e) => setCliffDays(e.target.value)} />
-                <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
-              </div>
             </div>
 
-            {/* Vesting */}
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Vesting Duration</label>
-              <p className="text-xs text-zinc-400 mb-3">After the cliff, tokens unlock linearly over this period. At the end, 100% is claimable.</p>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {PRESETS.filter(p => p.days > 0 && p.days > cliffNum).map((p) => (
-                  <button key={`vest-${p.days}`} type="button" onClick={() => setVestingDays(String(p.days))}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      vestingNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                    }`}>
-                    {p.label}
-                  </button>
-                ))}
+            {vestingPreset === "lockup" ? (
+              /* Lock-up only: single duration field */
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Lock-up Duration</label>
+                <p className="text-xs text-zinc-400 mb-3">Buyers cannot claim any tokens until this period ends. Then 100% unlocks at once.</p>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {DURATION_PRESETS.map((p) => (
+                    <button key={`lockup-${p.days}`} type="button" onClick={() => setLockupDays(String(p.days))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        lockupNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                      }`}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input type="number" min={1} placeholder="Custom days" value={lockupDays}
+                    onChange={(e) => setLockupDays(e.target.value)} />
+                  <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Input type="number" min={1} placeholder="Custom days" value={vestingDays}
-                  onChange={(e) => setVestingDays(e.target.value)} />
-                <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
-              </div>
-            </div>
+            ) : (
+              /* Cliff + linear vesting */
+              <>
+                {/* Cliff */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Cliff Period</label>
+                  <p className="text-xs text-zinc-400 mb-3">No tokens can be claimed during the cliff. After the cliff ends, vesting begins.</p>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {CLIFF_PRESETS.filter(p => p.days < vestingNum || vestingNum === 0).map((p) => (
+                      <button key={`cliff-${p.days}`} type="button" onClick={() => setCliffDays(String(p.days))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          cliffNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                        }`}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="number" min={0} placeholder="Custom days" value={cliffDays}
+                      onChange={(e) => setCliffDays(e.target.value)} />
+                    <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+                  </div>
+                </div>
 
-            {/* Validation */}
-            {cliffError && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
-                Cliff must be shorter than the vesting duration.
-              </div>
+                {/* Vesting */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Vesting Duration</label>
+                  <p className="text-xs text-zinc-400 mb-3">After the cliff, tokens unlock linearly over this period. At the end, 100% is claimable.</p>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {DURATION_PRESETS.filter(p => p.days > cliffNum).map((p) => (
+                      <button key={`vest-${p.days}`} type="button" onClick={() => setVestingDays(String(p.days))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          vestingNum === p.days ? "bg-darkAqua text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                        }`}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="number" min={1} placeholder="Custom days" value={vestingDays}
+                      onChange={(e) => setVestingDays(e.target.value)} />
+                    <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+                  </div>
+                </div>
+
+                {cliffError && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
+                    Cliff must be shorter than the vesting duration.
+                  </div>
+                )}
+              </>
             )}
 
             {/* Preview */}
             <div className="p-4 rounded-lg bg-darkAqua/5 border border-darkAqua/20 text-sm space-y-2">
               <p className="font-semibold text-zinc-900">Schedule Preview</p>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-white rounded-lg p-3">
-                  <p className="text-xs text-zinc-400">Cliff</p>
-                  <p className="font-bold text-zinc-900">{fmtDuration(cliffNum)}</p>
+              {vestingPreset === "lockup" ? (
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="bg-white rounded-lg p-3">
+                    <p className="text-xs text-zinc-400">Lock-up</p>
+                    <p className="font-bold text-zinc-900">{fmtDuration(lockupNum)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <p className="text-xs text-zinc-400">Full Unlock</p>
+                    <p className="font-bold text-darkAqua">{fmtDuration(lockupNum)}</p>
+                  </div>
                 </div>
-                <div className="bg-white rounded-lg p-3">
-                  <p className="text-xs text-zinc-400">Vesting</p>
-                  <p className="font-bold text-zinc-900">{fmtDuration(vestingNum)}</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-white rounded-lg p-3">
+                    <p className="text-xs text-zinc-400">Cliff</p>
+                    <p className="font-bold text-zinc-900">{fmtDuration(cliffNum)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <p className="text-xs text-zinc-400">Vesting</p>
+                    <p className="font-bold text-zinc-900">{fmtDuration(vestingNum)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <p className="text-xs text-zinc-400">Full Unlock</p>
+                    <p className="font-bold text-darkAqua">{fmtDuration(totalDays)}</p>
+                  </div>
                 </div>
-                <div className="bg-white rounded-lg p-3">
-                  <p className="text-xs text-zinc-400">Full Unlock</p>
-                  <p className="font-bold text-darkAqua">{fmtDuration(totalDays)}</p>
-                </div>
-              </div>
-              {vestingNum > 0 && (
+              )}
+              {totalDays > 0 && vestingPreset === "cliff_linear" && (
                 <div className="mt-2">
                   <div className="flex items-center gap-1 text-[10px] text-zinc-400 mb-1">
                     <span>Sale finalizes</span>

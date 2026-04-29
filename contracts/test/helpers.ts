@@ -36,11 +36,18 @@ export async function deployInfra(owner: string) {
   return { registry, compliance, claimTopics, trustedIssuers, idStorage };
 }
 
+// Default supply values for tests that don't care about supply economics:
+// 1 billion tokens at 6 decimals, mintable, no pre-mint.
+const DEFAULT_MAX_SUPPLY = 1_000_000_000n * 10n ** 6n;
+
 export async function deployToken(
   owner: string,
   registry: IdentityRegistry,
   compliance: ModularCompliance,
   admin?: string,
+  maxSupply?: bigint,
+  mintable?: boolean,
+  initialMintAmount?: bigint,
 ) {
   const TF = await ethers.getContractFactory("CiretaToken");
   const token = (await upgrades.deployProxy(TF, [
@@ -48,7 +55,10 @@ export async function deployToken(
     await registry.getAddress(),
     await compliance.getAddress(),
     owner,
-    admin || owner,  // admin_ defaults to owner if not provided
+    admin || owner,                              // admin_
+    maxSupply ?? DEFAULT_MAX_SUPPLY,             // maxSupply_
+    mintable ?? true,                            // mintable_
+    initialMintAmount ?? 0n,                     // initialMintAmount_
   ])) as unknown as CiretaToken;
 
   await compliance.bindToken(await token.getAddress());

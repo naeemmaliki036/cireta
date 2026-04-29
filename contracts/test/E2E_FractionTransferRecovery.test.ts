@@ -446,6 +446,7 @@ describe("E2E: Fraction Transfer + Recovery", () => {
       const MockCompliance = await ethers.getContractFactory("MockCompliance");
       const compliance = await MockCompliance.deploy();
 
+      const MAX_SUPPLY_FT = 1_000_000_000n * 10n ** 6n;
       const CiretaToken = await ethers.getContractFactory("CiretaToken");
       const ciretaToken = await upgrades.deployProxy(CiretaToken, [
         "Gold Token", "WMAU", 6,
@@ -453,6 +454,9 @@ describe("E2E: Fraction Transfer + Recovery", () => {
         await compliance.getAddress(),
         issuer.address,  // owner (issuer)
         admin.address,   // admin (platform)
+        MAX_SUPPLY_FT,   // maxSupply_
+        true,            // mintable_
+        0n,              // initialMintAmount_
       ], { unsafeAllow: ["constructor"] });
 
       // Mint tokens to buyerA
@@ -479,6 +483,7 @@ describe("E2E: Fraction Transfer + Recovery", () => {
       const MockCompliance = await ethers.getContractFactory("MockCompliance");
       const compliance = await MockCompliance.deploy();
 
+      const MAX_SUPPLY_RA = 1_000_000_000n * 10n ** 6n;
       const CiretaToken = await ethers.getContractFactory("CiretaToken");
       const ciretaToken = await upgrades.deployProxy(CiretaToken, [
         "Gold Token", "WMAU", 6,
@@ -486,6 +491,7 @@ describe("E2E: Fraction Transfer + Recovery", () => {
         await compliance.getAddress(),
         issuer.address,
         admin.address,
+        MAX_SUPPLY_RA, true, 0n,
       ], { unsafeAllow: ["constructor"] });
 
       const supplyRole = await ciretaToken.SUPPLY_ROLE();

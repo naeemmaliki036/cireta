@@ -15,9 +15,35 @@ interface Token {
   symbol: string;
   asset_type: string;
   total_supply: string;
+  max_supply: string | null;
+  mintable: boolean;
+  current_supply: string | null;
   contract_address: string | null;
   slug: string;
   created_at: string;
+}
+
+function fmtSupply(raw: string | null | undefined): string {
+  const n = parseFloat(raw ?? "0");
+  if (!raw || isNaN(n)) return "—";
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString("en-US");
+}
+
+function SupplyText({ token }: { token: Token }) {
+  const current = token.current_supply ?? token.total_supply;
+  const max = token.max_supply;
+  const maxN = parseFloat(max ?? "0");
+  const curN = parseFloat(current ?? "0");
+  const maxReached = token.mintable && max && maxN > 0 && curN >= maxN;
+  return (
+    <span>
+      {max ? `${fmtSupply(current)} / ${fmtSupply(max)}` : fmtSupply(current)}
+      {maxReached && <span className="ml-1 text-amber-600 text-[10px] font-semibold">Max reached</span>}
+    </span>
+  );
 }
 
 function TokenCard({ token }: { token: Token }) {
@@ -31,6 +57,9 @@ function TokenCard({ token }: { token: Token }) {
           <p className="text-xs text-black/40 mt-0.5">{token.symbol} · {token.asset_type}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          <Badge variant={token.mintable ? "default" : "active"} size="sm">
+            {token.mintable ? "Mintable" : "Fixed"}
+          </Badge>
           {deployed ? (
             <Badge variant="active" size="sm">Deployed</Badge>
           ) : (
@@ -41,8 +70,8 @@ function TokenCard({ token }: { token: Token }) {
 
       <div className="grid grid-cols-2 gap-3 text-xs mb-3">
         <div className="bg-zinc-50 rounded-md px-3 py-2">
-          <p className="text-black/40 mb-0.5">Total Supply</p>
-          <p className="font-semibold text-text font-mono">{Number(token.total_supply).toLocaleString()}</p>
+          <p className="text-black/40 mb-0.5">{token.max_supply ? "Supply" : "Total Supply"}</p>
+          <p className="font-semibold text-text font-mono"><SupplyText token={token} /></p>
         </div>
         <div className="bg-zinc-50 rounded-md px-3 py-2">
           <p className="text-black/40 mb-0.5">Contract</p>
@@ -163,13 +192,20 @@ export default function PlatformTokensPage() {
                     <td className="px-5 py-3">
                       <Badge variant="default" size="sm" className="capitalize">{token.asset_type}</Badge>
                     </td>
-                    <td className="px-5 py-3 text-sm font-mono">{Number(token.total_supply).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-sm font-mono">
+                      <SupplyText token={token} />
+                    </td>
                     <td className="px-5 py-3">
-                      {token.contract_address ? (
-                        <Badge variant="active" size="sm">Deployed</Badge>
-                      ) : (
-                        <Badge variant="pending" size="sm">Draft</Badge>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={token.mintable ? "default" : "active"} size="sm">
+                          {token.mintable ? "Mintable" : "Fixed"}
+                        </Badge>
+                        {token.contract_address ? (
+                          <Badge variant="active" size="sm">Deployed</Badge>
+                        ) : (
+                          <Badge variant="pending" size="sm">Draft</Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-xs text-zinc-500">
                       {token.contract_address ? (

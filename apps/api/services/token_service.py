@@ -54,6 +54,8 @@ class TokenService:
         chainlink_por_feed: str | None = None,
         description: str | None = None,
         image_url: str | None = None,
+        max_supply: Decimal | None = None,
+        mintable: bool = True,
     ) -> Token:
         """Create a new token.
 
@@ -106,6 +108,8 @@ class TokenService:
         token.chainlink_por_feed = chainlink_por_feed
         token.description = description
         token.image_url = image_url
+        token.max_supply = max_supply
+        token.mintable = mintable
 
         self.db.add(token)
         await self.db.commit()

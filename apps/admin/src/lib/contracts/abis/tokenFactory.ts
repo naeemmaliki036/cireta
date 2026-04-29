@@ -2,6 +2,8 @@
  * CiretaTokenFactory ABI — subset for admin portal interactions.
  *
  * Source: contracts/src/platform/CiretaTokenFactory.sol
+ * Updated signature: deployToken now accepts 8 params (added identityRegistry,
+ * maxSupply, mintable, initialMintAmount) matching the v2 contract.
  */
 export const TOKEN_FACTORY_ABI = [
   {
@@ -13,6 +15,10 @@ export const TOKEN_FACTORY_ABI = [
       { name: "symbol", type: "string" },
       { name: "decimals", type: "uint8" },
       { name: "issuer", type: "address" },
+      { name: "identityRegistry", type: "address" },
+      { name: "maxSupply", type: "uint256" },
+      { name: "mintable", type: "bool" },
+      { name: "initialMintAmount", type: "uint256" },
     ],
     outputs: [
       { name: "tokenProxy", type: "address" },

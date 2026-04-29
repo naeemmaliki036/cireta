@@ -4,6 +4,8 @@
 .env.*.local
 .env.backend
 .env.sepolia.bak
+.env.deploy-v2
+contracts/.env.deploy-v2
 
 # Uploads (local dev storage)
 uploads/
@@ -134,3 +136,12 @@ docs/
 
 # Local debug / one-off scripts (not checked in)
 tmp/
+
+# Turborepo cache
+.turbo/
+
+# Local hardhat dry-run output (real deploys go to base-sepolia.v2.*.json which IS tracked)
+contracts/deployments/localhost.v2.*
+
+# Generated subgraph artifacts
+subgraph/generated/

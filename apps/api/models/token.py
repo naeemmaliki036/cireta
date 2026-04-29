@@ -134,6 +134,22 @@ class Token(BaseModel):
         nullable=True,
     )
 
+    max_supply: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=78, scale=18),
+        nullable=True,
+    )
+
+    mintable: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default="true",
+    )
+
+    current_supply: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=78, scale=18),
+        nullable=True,
+    )
+
     is_paused: Mapped[bool] = mapped_column(
         Boolean,
         default=False,

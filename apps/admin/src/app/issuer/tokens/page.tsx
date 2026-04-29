@@ -20,6 +20,39 @@ function getToken() {
   return getAccessToken() ?? undefined;
 }
 
+/** Format supply fraction: "500K / 1M" or just "1,000,000" when no max */
+function fmtSupply(raw: string | null | undefined): string {
+  const n = parseFloat(raw ?? "0");
+  if (!raw || isNaN(n)) return "—";
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString("en-US");
+}
+
+function SupplyCell({ token }: { token: Token }) {
+  const current = token.current_supply ?? token.total_supply;
+  const max = token.max_supply;
+  const maxN = parseFloat(max ?? "0");
+  const curN = parseFloat(current ?? "0");
+  const maxReached = token.mintable && max && maxN > 0 && curN >= maxN;
+
+  return (
+    <div>
+      {max ? (
+        <p className="font-semibold text-text font-mono text-xs">
+          {fmtSupply(current)} / {fmtSupply(max)}
+        </p>
+      ) : (
+        <p className="font-semibold text-text font-mono text-xs">{fmtSupply(current)}</p>
+      )}
+      {maxReached && (
+        <p className="text-[10px] text-amber-600 font-medium mt-0.5">Max reached</p>
+      )}
+    </div>
+  );
+}
+
 function TokenCard({ token }: { token: Token }) {
   const addr = token.contract_address;
   const deployed = addr && addr !== "0x0000000000000000000000000000000000000000";
@@ -35,6 +68,9 @@ function TokenCard({ token }: { token: Token }) {
             <p className="text-xs text-black/40 mt-0.5">{token.symbol} · {token.asset_type} · {token.decimals} decimals</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <Badge variant={token.mintable ? "default" : "active"} size="sm">
+              {token.mintable ? "Mintable" : "Fixed"}
+            </Badge>
             {token.is_paused ? (
               <Badge variant="pending" size="sm"><Pause className="h-3 w-3 mr-1" />Paused</Badge>
             ) : deployed ? (
@@ -47,14 +83,14 @@ function TokenCard({ token }: { token: Token }) {
 
         <div className="grid grid-cols-2 gap-3 text-xs mb-3">
           <div className="bg-zinc-50 rounded-md px-3 py-2">
-            <p className="text-black/40 mb-0.5">Total Supply</p>
-            <p className="font-semibold text-text font-mono">{parseFloat(token.total_supply).toLocaleString()}</p>
+            <p className="text-black/40 mb-0.5">{token.max_supply ? "Supply" : "Total Supply"}</p>
+            <SupplyCell token={token} />
           </div>
           <div className="bg-zinc-50 rounded-md px-3 py-2">
             <p className="text-black/40 mb-0.5">Contract</p>
             {masked ? (
               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(addr!); }}
-                className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
+                className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer text-xs">
                 {masked} <Copy className="h-3 w-3 text-black/20" />
               </button>
             ) : (
@@ -279,8 +315,13 @@ function TokenRow({ token }: { token: Token }) {
         <p className="text-xs text-black/40 mt-0.5">{token.symbol} · {token.asset_type} · {token.decimals} decimals</p>
       </div>
       <div className="text-xs text-black/30 shrink-0">
-        <p className="font-semibold text-text">{parseFloat(token.total_supply).toLocaleString()}</p>
-        <p>Total Supply</p>
+        <SupplyCell token={token} />
+        <p className="mt-0.5">{token.max_supply ? "Supply" : "Total Supply"}</p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Badge variant={token.mintable ? "default" : "active"} size="sm">
+          {token.mintable ? "Mintable" : "Fixed"}
+        </Badge>
       </div>
       <div className="text-xs text-black/30 shrink-0">
         {masked ? (

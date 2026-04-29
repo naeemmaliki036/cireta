@@ -208,6 +208,7 @@ describe("E2E: Direct Mode Sale + Redemption", () => {
       const MockCompliance = await ethers.getContractFactory("MockCompliance");
       const compliance = await MockCompliance.deploy();
 
+      const MAX_SUPPLY = 1_000_000_000n * 10n ** 6n;
       const CiretaToken = await ethers.getContractFactory("CiretaToken");
       const ciretaToken = await upgrades.deployProxy(CiretaToken, [
         "Gold Token",
@@ -217,6 +218,9 @@ describe("E2E: Direct Mode Sale + Redemption", () => {
         await compliance.getAddress(),
         issuer.address,  // owner
         admin.address,   // admin
+        MAX_SUPPLY,      // maxSupply_
+        true,            // mintable_
+        0n,              // initialMintAmount_
       ], { unsafeAllow: ["constructor"] });
 
       // Mint tokens to holder (buyerA)
@@ -286,6 +290,7 @@ describe("E2E: Direct Mode Sale + Redemption", () => {
       const MockCompliance = await ethers.getContractFactory("MockCompliance");
       const compliance = await MockCompliance.deploy();
 
+      const MAX_SUPPLY_2 = 1_000_000_000n * 10n ** 6n;
       const CiretaToken = await ethers.getContractFactory("CiretaToken");
       const ciretaToken = await upgrades.deployProxy(CiretaToken, [
         "Gold Token",
@@ -295,6 +300,9 @@ describe("E2E: Direct Mode Sale + Redemption", () => {
         await compliance.getAddress(),
         issuer.address,
         admin.address,
+        MAX_SUPPLY_2,
+        true,
+        0n,
       ], { unsafeAllow: ["constructor"] });
 
       const mintAmount = ethers.parseUnits("500", 6);
@@ -345,12 +353,14 @@ describe("E2E: Direct Mode Sale + Redemption", () => {
       const MockCompliance = await ethers.getContractFactory("MockCompliance");
       const compliance = await MockCompliance.deploy();
 
+      const MAX_SUPPLY_3 = 1_000_000_000n * 10n ** 6n;
       const CiretaToken = await ethers.getContractFactory("CiretaToken");
       const ciretaToken = await upgrades.deployProxy(CiretaToken, [
         "Gold Token", "WMAU", 6,
         await registry.getAddress(),
         await compliance.getAddress(),
         issuer.address, admin.address,
+        MAX_SUPPLY_3, true, 0n,
       ], { unsafeAllow: ["constructor"] });
 
       const mintAmount = ethers.parseUnits("300", 6);

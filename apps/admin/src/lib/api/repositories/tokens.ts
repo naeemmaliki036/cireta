@@ -6,6 +6,12 @@ export interface Token {
   symbol: string;
   asset_type: string;
   total_supply: string;
+  /** Maximum supply cap — null for legacy tokens without the field */
+  max_supply: string | null;
+  /** Whether the token can be minted beyond the initial amount */
+  mintable: boolean;
+  /** Current circulating supply — null if not yet synced from chain */
+  current_supply: string | null;
   contract_address: string | null;
   identity_registry_address: string | null;
   compliance_address: string | null;
@@ -40,15 +46,21 @@ export async function getToken(id: string, token?: string): Promise<Token> {
   return apiFetch<Token>(`/api/v1/tokens/${id}`, { token });
 }
 
+export interface TokenCreateRequest {
+  name: string;
+  symbol: string;
+  asset_type: string;
+  total_supply: string;
+  /** Maximum supply cap (= total_supply for fixed; can be higher for mintable) */
+  max_supply?: string;
+  /** Whether the token allows additional minting after deploy */
+  mintable?: boolean;
+  decimals?: string;
+  description?: string;
+}
+
 export async function createToken(
-  data: {
-    name: string;
-    symbol: string;
-    asset_type: string;
-    total_supply: string;
-    decimals?: string;
-    description?: string;
-  },
+  data: TokenCreateRequest,
   token?: string,
 ): Promise<Token> {
   return apiFetch<Token>("/api/v1/tokens", {
@@ -56,6 +68,8 @@ export async function createToken(
     body: {
       ...data,
       total_supply: data.total_supply,
+      max_supply: data.max_supply,
+      mintable: data.mintable ?? true,
       decimals: parseInt(data.decimals ?? "6", 10),
     },
     token,
@@ -82,6 +96,9 @@ export async function recordTokenDeployment(
     identity_registry_address: string;
     compliance_address: string;
     tx_hash: string;
+    max_supply?: string;
+    mintable?: boolean;
+    current_supply?: string;
   },
 ): Promise<Token> {
   return apiFetch<Token>(`/api/v1/tokens/${tokenId}/record-deployment`, {

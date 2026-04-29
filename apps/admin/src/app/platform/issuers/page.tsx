@@ -25,8 +25,10 @@ import { getChain, getTransport, getChainId } from "@/lib/chain";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { getIssuers, revokeIssuer, activateIssuer, updateIssuerFee, type Issuer as APIIssuer } from "@/lib/api/repositories/issuers";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
+import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 import { getAddresses, getTxUrl } from "@/lib/contracts/addresses";
 import { useContractAction } from "@/hooks/useContractAction";
+import { COUNTRIES } from "@/components/molecules/CountrySelector";
 
 function mapIssuer(i: APIIssuer): Issuer {
   return {
@@ -55,6 +57,8 @@ export default function IssuersPage() {
 
   const registerIssuerAction = useContractAction();
   const activateIssuerAction = useContractAction();
+  const irWhitelistAction = useContractAction();
+  const platformIR = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}` | undefined;
 
   useEffect(() => {
     (async () => {
@@ -101,20 +105,70 @@ export default function IssuersPage() {
     }
   }, [registerIssuerAction.isConfirmed, registeringId]);
 
-  // After activate tx confirms, mark as registered
+  // After activate tx confirms, check IR and optionally whitelist issuer wallet
   useEffect(() => {
-    if (activateIssuerAction.isConfirmed && registeringId) {
-      const issuer = apiIssuers.find(i => i.id === registeringId);
+    if (!activateIssuerAction.isConfirmed || !registeringId) return;
+    const issuer = apiIssuers.find(i => i.id === registeringId);
+    if (!issuer || issuer.wallet === "—" || !platformIR) {
       setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
-      showSuccess(
-        "On-Chain Registration Complete",
-        `${issuer?.name || "Issuer"} has been successfully registered and activated on the Issuer Registry contract.`
-      );
+      showSuccess("On-Chain Registration Complete", `${issuer?.name || "Issuer"} registered and activated.`);
       setRegisteringId(null);
       registerIssuerAction.reset();
       activateIssuerAction.reset();
+      return;
     }
-  }, [activateIssuerAction.isConfirmed, registeringId, apiIssuers, showSuccess]);
+    // Check if already verified on IR — then whitelist if not
+    const client = createPublicClient({ chain: getChain(), transport: getTransport() });
+    client.readContract({
+      address: platformIR,
+      abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+      functionName: "isVerified",
+      args: [issuer.wallet as `0x${string}`],
+    }).then(async (verified) => {
+      if (verified) {
+        setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
+        showSuccess("On-Chain Registration Complete", `${issuer.name} registered, activated, and already verified on IR.`);
+        setRegisteringId(null);
+        registerIssuerAction.reset();
+        activateIssuerAction.reset();
+        return;
+      }
+      // Not yet on IR — add to whitelist
+      const jur = issuer.jurisdiction ?? "";
+      const countryEntry = COUNTRIES.find(c => c.name.toLowerCase() === jur.toLowerCase());
+      const countryCode: number = countryEntry?.code ?? 0;
+      await irWhitelistAction.execute({
+        address: platformIR,
+        abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+        functionName: "addToWhitelist",
+        args: [issuer.wallet as `0x${string}`, countryCode],
+        gas: 200_000n,
+      });
+    }).catch(() => {
+      // IR read failed — skip whitelist, still mark registered
+      setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
+      showSuccess("On-Chain Registration Complete", `${issuer.name} registered and activated. IR check skipped.`);
+      setRegisteringId(null);
+      registerIssuerAction.reset();
+      activateIssuerAction.reset();
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activateIssuerAction.isConfirmed, registeringId]);
+
+  // After IR whitelist confirms, finish
+  useEffect(() => {
+    if (!irWhitelistAction.isConfirmed || !registeringId) return;
+    const issuer = apiIssuers.find(i => i.id === registeringId);
+    setOnChainStatus(prev => ({ ...prev, [registeringId]: "registered" }));
+    showSuccess(
+      "On-Chain Registration Complete",
+      `${issuer?.name || "Issuer"} registered, activated, and added to the identity registry.`
+    );
+    setRegisteringId(null);
+    registerIssuerAction.reset();
+    activateIssuerAction.reset();
+    irWhitelistAction.reset();
+  }, [irWhitelistAction.isConfirmed, registeringId, apiIssuers, showSuccess]);
 
   const handleRegisterOnChain = async (issuer: Issuer) => {
     if (registeringId || registerIssuerAction.isPending) return;
@@ -147,15 +201,16 @@ export default function IssuersPage() {
         args: [issuer.wallet as `0x${string}`, issuer.name, issuer.jurisdiction || ""],
         gas: 1_000_000n,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("On-chain registration failed:", err);
-      const isRejected = err.message?.includes("user rejected") || err.message?.includes("User denied");
+      const errMsg = err instanceof Error ? err.message : "";
+      const isRejected = errMsg.includes("user rejected") || errMsg.includes("User denied");
       if (isRejected) {
         showError("Transaction Rejected", "You cancelled the transaction in your wallet.");
-      } else if (err.message?.includes("already registered")) {
+      } else if (errMsg.includes("already registered")) {
         setOnChainStatus(prev => ({ ...prev, [issuer.id]: "registered" }));
         showSuccess("Already Registered", `${issuer.name} is already registered on-chain.`);
-      } else if (err.message?.includes("exceeds max transaction gas limit")) {
+      } else if (errMsg.includes("exceeds max transaction gas limit")) {
         showError(
           "Gas Limit Exceeded",
           "The transaction requires too much gas. This usually means the contract function is expensive or there's a network issue. Please try again or contact support."
@@ -163,7 +218,7 @@ export default function IssuersPage() {
       } else {
         showError(
           "On-Chain Registration Failed",
-          `The contract function "registerIssuer" reverted: ${err.message || 'Unknown error'}`
+          `The contract function "registerIssuer" reverted: ${errMsg || "Unknown error"}`
         );
       }
       setRegisteringId(null);
@@ -329,18 +384,23 @@ export default function IssuersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={isThisRegistering || registerIssuerAction.isPending || activateIssuerAction.isPending}
+                          disabled={isThisRegistering || registerIssuerAction.isPending || activateIssuerAction.isPending || irWhitelistAction.isPending}
                           onClick={() => handleRegisterOnChain(issuer)}
                         >
                           {(isThisRegistering && (registerIssuerAction.isPending || registerIssuerAction.isConfirming)) ? (
                             <>
                               <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              Registering...
+                              Registering (1/3)...
                             </>
                           ) : (isThisRegistering && (activateIssuerAction.isPending || activateIssuerAction.isConfirming)) ? (
                             <>
                               <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                              Activating...
+                              Activating (2/3)...
+                            </>
+                          ) : (isThisRegistering && (irWhitelistAction.isPending || irWhitelistAction.isConfirming)) ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                              Whitelisting (3/3)...
                             </>
                           ) : (
                             <>
