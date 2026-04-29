@@ -758,10 +758,40 @@ async def add_phase(
             status_code=400,
             detail={"code": "PHASE_IN_PAST", "message": "Phase end_time must be in the future."},
         )
-    # If the parent sale is already deployed, validate the new phase falls inside
-    # the on-chain sale window. If not yet deployed, the contract will enforce
-    # this at addPhase time after deployment.
-    if sale.contract_address:
+    # Sale-window enforcement (mirrors Sale.sol addPhase).
+    # Prefer the explicit sale_start_time / sale_end_time columns when set;
+    # fall back to inferring from existing phase min/max for legacy sales.
+    from apps.api.schemas.sale import MAX_SALE_DURATION
+
+    if sale.sale_start_time:
+        if start_dt < sale.sale_start_time:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "PHASE_OUTSIDE_SALE_WINDOW",
+                    "message": (
+                        f"Phase starts before the sale starts "
+                        f"({sale.sale_start_time.isoformat()})."
+                    ),
+                },
+            )
+        cap = (
+            sale.sale_end_time
+            if sale.sale_end_time
+            else sale.sale_start_time + MAX_SALE_DURATION
+        )
+        if end_dt > cap:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "PHASE_OUTSIDE_SALE_WINDOW",
+                    "message": (
+                        f"Phase ends after the sale window closes "
+                        f"({cap.isoformat()})."
+                    ),
+                },
+            )
+    elif sale.contract_address:
         existing_starts = [p.start_time for p in sale.phases]
         existing_ends = [p.end_time for p in sale.phases]
         if existing_starts and existing_ends:

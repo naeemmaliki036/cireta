@@ -1,9 +1,12 @@
 """Token sale schemas for request/response validation."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+# Mirrors Sale.sol MAX_SALE_DURATION = 730 days. Keep in lockstep with the contract.
+MAX_SALE_DURATION = timedelta(days=730)
 
 
 class SalePhaseCreate(BaseModel):
@@ -100,6 +103,32 @@ class SaleCreateRequest(BaseModel):
         # soft_cap must be <= hard_cap
         if self.soft_cap > self.hard_cap:
             raise ValueError("soft_cap cannot exceed hard_cap")
+        # Sale window: 730-day hard cap (mirrors Sale.sol initialize()).
+        # Open-ended sales pass sale_end_time=None and skip the upper bound.
+        if self.sale_start_time and self.sale_end_time:
+            if self.sale_end_time <= self.sale_start_time:
+                raise ValueError("sale_end_time must be after sale_start_time")
+            if self.sale_end_time - self.sale_start_time > MAX_SALE_DURATION:
+                raise ValueError(
+                    "sale duration exceeds the 730-day cap enforced on-chain"
+                )
+        # Phase windows: each phase must fit inside the sale window
+        # (or, for open-ended, inside [start, start+730d]).
+        if self.sale_start_time:
+            cap = (
+                self.sale_end_time
+                if self.sale_end_time
+                else self.sale_start_time + MAX_SALE_DURATION
+            )
+            for p in self.phases:
+                if p.start_time < self.sale_start_time:
+                    raise ValueError(
+                        f"Phase '{p.name}' starts before the sale starts"
+                    )
+                if p.end_time > cap:
+                    raise ValueError(
+                        f"Phase '{p.name}' ends after the sale window closes"
+                    )
         # Check for overlapping phase dates
         phases_sorted = sorted(self.phases, key=lambda p: p.start_time)
         for i in range(1, len(phases_sorted)):
@@ -149,6 +178,18 @@ class SaleUpdateRequest(BaseModel):
     total_token_supply: Decimal | None = Field(default=None, ge=0)
     sale_start_time: datetime | None = None
     sale_end_time: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_window(self) -> "SaleUpdateRequest":
+        # Mirror Sale.sol initialize(): reject windows that exceed the 730-day cap.
+        if self.sale_start_time and self.sale_end_time:
+            if self.sale_end_time <= self.sale_start_time:
+                raise ValueError("sale_end_time must be after sale_start_time")
+            if self.sale_end_time - self.sale_start_time > MAX_SALE_DURATION:
+                raise ValueError(
+                    "sale duration exceeds the 730-day cap enforced on-chain"
+                )
+        return self
 
 
 class ContributeRequest(BaseModel):
