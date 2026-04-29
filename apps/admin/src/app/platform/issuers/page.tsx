@@ -29,6 +29,7 @@ import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentit
 import { getAddresses, getTxUrl } from "@/lib/contracts/addresses";
 import { useContractAction } from "@/hooks/useContractAction";
 import { COUNTRIES } from "@/components/molecules/CountrySelector";
+import { ExplorerLinkIcon } from "@/components/atoms/ExplorerLinkIcon";
 
 function mapIssuer(i: APIIssuer): Issuer {
   return {
@@ -332,10 +333,16 @@ export default function IssuersPage() {
       {/* On-Chain Registration Panel */}
       {apiIssuers.filter(i => i.status === "active" && i.wallet !== "—").length > 0 && (
         <div className="mt-6 border border-zinc-200 rounded-lg bg-white">
-          <div className="px-4 py-3 border-b border-zinc-200 flex items-center gap-2">
+          <div className="px-4 py-3 border-b border-zinc-200 flex items-center gap-2 flex-wrap">
             <Globe className="h-4 w-4 text-zinc-600" />
             <h3 className="text-sm font-semibold text-zinc-900">On-Chain Issuer Registry</h3>
             <span className="text-xs text-zinc-500">Register active issuers to the IssuerRegistry contract</span>
+            <Link
+              href="/platform/contracts"
+              className="ml-auto text-xs font-medium text-darkAqua hover:underline"
+            >
+              View all platform contracts →
+            </Link>
           </div>
           <div className="divide-y divide-zinc-100">
             {apiIssuers
@@ -360,6 +367,7 @@ export default function IssuersPage() {
                           >
                             <Copy className="h-3 w-3" />
                           </button>
+                          <ExplorerLinkIcon address={issuer.wallet} />
                         </span>
                         {txHash && (
                           <a

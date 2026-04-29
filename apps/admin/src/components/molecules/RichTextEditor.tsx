@@ -428,6 +428,15 @@ export default function RichTextEditor({
 
   if (editorRef) editorRef(editor);
 
+  // Sync external content changes (e.g. switching templates) into the editor.
+  // Without this, useEditor only honors the `content` prop on first render.
+  useEffect(() => {
+    if (!editor) return;
+    const next = content ?? "";
+    if (editor.getHTML() === next) return;
+    editor.commands.setContent(next, { emitUpdate: false });
+  }, [content, editor]);
+
   if (!editor) return null;
 
   const handleInsertImage = (url: string) => {
