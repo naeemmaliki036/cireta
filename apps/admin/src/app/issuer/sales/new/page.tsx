@@ -382,8 +382,8 @@ export default function CreateSalePage() {
           otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
           sale_mode: saleMode || undefined,
           sale_structure: saleStructure || undefined,
-          cliff_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(cliffDays) || 0,
-          vesting_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(vestingDays) || 365,
+          cliff_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0,
+          vesting_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365,
           token_id: selectedTokenId || undefined,
           payment_token: paymentToken || undefined,
           soft_cap: softCap || undefined,
@@ -988,7 +988,18 @@ export default function CreateSalePage() {
         )}
         {/* Step 9: Vesting (skip if direct or coming soon) */}
         {step === 9 && (() => {
+          // Sub-day testing presets exposed only when env flag is on. Lets QA/devs
+          // exercise the full claim flow without waiting weeks. Hidden in prod.
+          const allowTesting = process.env.NEXT_PUBLIC_VESTING_TESTING_PRESETS === "1";
+          const TESTING_PRESETS = allowTesting
+            ? [
+                { label: "5 min (test)", days: 5 / 1440 },
+                { label: "1 hour (test)", days: 1 / 24 },
+                { label: "1 day", days: 1 },
+              ]
+            : [];
           const DURATION_PRESETS = [
+            ...TESTING_PRESETS,
             { label: "1 month", days: 30 },
             { label: "3 months", days: 90 },
             { label: "6 months", days: 180 },
@@ -1000,7 +1011,7 @@ export default function CreateSalePage() {
           ];
           const CLIFF_PRESETS = [
             { label: "No cliff", days: 0 },
-            { label: "1 day", days: 1 },
+            ...TESTING_PRESETS,
             { label: "1 week", days: 7 },
             { label: "1 month", days: 30 },
             { label: "3 months", days: 90 },
@@ -1008,17 +1019,26 @@ export default function CreateSalePage() {
             { label: "9 months", days: 270 },
             { label: "1 year", days: 365 },
           ];
-          const cliffNum = parseInt(cliffDays) || 0;
-          const vestingNum = parseInt(vestingDays) || 0;
-          const lockupNum = parseInt(lockupDays) || 0;
+          const cliffNum = parseFloat(cliffDays) || 0;
+          const vestingNum = parseFloat(vestingDays) || 0;
+          const lockupNum = parseFloat(lockupDays) || 0;
           const cliffError = vestingPreset === "cliff_linear" && cliffNum > 0 && vestingNum > 0 && cliffNum >= vestingNum;
           const totalDays = vestingPreset === "lockup" ? lockupNum : cliffNum + vestingNum;
 
-          const fmtDuration = (d: number): string =>
-            d === 0 ? "None"
-            : d < 30 ? `${d} day${d > 1 ? "s" : ""}`
-            : d < 365 ? `${(d / 30).toFixed(1)} months`
-            : `${(d / 365).toFixed(1)} years`;
+          const fmtDuration = (d: number): string => {
+            if (d === 0) return "None";
+            if (d < 1 / 24) {
+              const minutes = Math.round(d * 1440);
+              return `${minutes} min`;
+            }
+            if (d < 1) {
+              const hours = (d * 24).toFixed(1);
+              return `${hours} hr`;
+            }
+            if (d < 30) return `${d.toFixed(d < 7 ? 1 : 0)} day${d > 1 ? "s" : ""}`;
+            if (d < 365) return `${(d / 30).toFixed(1)} months`;
+            return `${(d / 365).toFixed(1)} years`;
+          };
 
           return (
           <div className="max-w-2xl mx-auto space-y-6">
@@ -1068,9 +1088,12 @@ export default function CreateSalePage() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Input type="number" min={1} placeholder="Custom days" value={lockupDays}
+                  <Input type="number" min={allowTesting ? 0.001 : 1} step={allowTesting ? "any" : 1} placeholder="Custom days" value={lockupDays}
                     onChange={(e) => setLockupDays(e.target.value)} />
                   <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+                  {lockupNum > 0 && lockupNum < 1 && (
+                    <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(lockupNum)}</span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1091,9 +1114,12 @@ export default function CreateSalePage() {
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input type="number" min={0} placeholder="Custom days" value={cliffDays}
+                    <Input type="number" min={0} step={allowTesting ? "any" : 1} placeholder="Custom days" value={cliffDays}
                       onChange={(e) => setCliffDays(e.target.value)} />
                     <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+                    {cliffNum > 0 && cliffNum < 1 && (
+                      <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(cliffNum)}</span>
+                    )}
                   </div>
                 </div>
 
@@ -1112,9 +1138,12 @@ export default function CreateSalePage() {
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input type="number" min={1} placeholder="Custom days" value={vestingDays}
+                    <Input type="number" min={allowTesting ? 0.001 : 1} step={allowTesting ? "any" : 1} placeholder="Custom days" value={vestingDays}
                       onChange={(e) => setVestingDays(e.target.value)} />
                     <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
+                    {vestingNum > 0 && vestingNum < 1 && (
+                      <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(vestingNum)}</span>
+                    )}
                   </div>
                 </div>
 
