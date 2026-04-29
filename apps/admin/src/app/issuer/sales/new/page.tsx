@@ -512,7 +512,10 @@ export default function CreateSalePage() {
         </div>
       </div>
 
-      {/* Navigation — above content */}
+      <div className="flex gap-5">
+      <div className="flex-1 min-w-0">
+      {/* Navigation — aligned with the main body width, not the page (so it sits to the
+          left of the sidebar instead of stretching across it). */}
       {!isLast && (
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
@@ -542,9 +545,7 @@ export default function CreateSalePage() {
           </div>
         </div>
       )}
-
-      <div className="flex gap-5">
-      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-black/10 flex-1 min-w-0">
+      <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-black/10">
         {/* Step 1: Sale Info */}
         {step === 1 && (
           <div className="max-w-2xl mx-auto space-y-6">
@@ -1252,6 +1253,7 @@ export default function CreateSalePage() {
           );
         })()}
       </motion.div>
+      </div>
 
       {/* Right sidebar — contextual tips */}
       <aside className="hidden lg:block w-72 shrink-0">
