@@ -53,8 +53,17 @@ contract CiretaToken is
     string private _nameOverride;
     string private _symbolOverride;
 
-    /// @dev Reserved storage gap for future upgrades
-    uint256[50] private __gap;
+    // ---- NEW STORAGE (appended at end to preserve upgrade safety) ----
+
+    /// @dev Hard cap on total supply. Must be > 0. Enforced on every mint.
+    uint256 private _maxSupply;
+
+    /// @dev When false, SUPPLY_ROLE was revoked at initialize time (fixed supply).
+    ///      When true, authorized minters can mint up to _maxSupply.
+    bool private _mintable;
+
+    /// @dev Reserved storage gap — reduced by 2 to account for _maxSupply + _mintable above.
+    uint256[48] private __gap;
 
     // Events from IToken
     event UpdatedTokenInformation(
@@ -86,6 +95,19 @@ contract CiretaToken is
         _disableInitializers();
     }
 
+    /**
+     * @notice Initialize the token.
+     * @param name_               ERC-20 name
+     * @param symbol_             ERC-20 symbol
+     * @param decimals_           Decimals (max 6)
+     * @param identityRegistry_   Identity registry contract address
+     * @param compliance_         Compliance contract address
+     * @param owner_              Issuer — receives all roles and initial mint
+     * @param admin_              Platform admin — gets oversight roles, NOT SUPPLY_ROLE
+     * @param maxSupply_          Hard cap on total supply; must be > 0
+     * @param mintable_           If false, SUPPLY_ROLE is revoked after the initial mint
+     * @param initialMintAmount_  Tokens to pre-mint to owner_. For fixed supply must equal maxSupply_.
+     */
     function initialize(
         string memory name_,
         string memory symbol_,
@@ -93,7 +115,10 @@ contract CiretaToken is
         address identityRegistry_,
         address compliance_,
         address owner_,
-        address admin_
+        address admin_,
+        uint256 maxSupply_,
+        bool mintable_,
+        uint256 initialMintAmount_
     ) public initializer {
         __ERC20_init(name_, symbol_);
         __ERC20Burnable_init();
@@ -120,6 +145,31 @@ contract CiretaToken is
             _grantRole(FREEZE_ROLE, admin_);
             _grantRole(RECOVERY_ROLE, admin_);
         }
+
+        // ---- Supply economics ----
+        require(maxSupply_ > 0, "max supply required");
+        if (!mintable_) {
+            require(initialMintAmount_ == maxSupply_, "fixed supply must mint full max");
+        } else {
+            require(initialMintAmount_ <= maxSupply_, "initial > max");
+        }
+        _maxSupply = maxSupply_;
+        _mintable = mintable_;
+
+        // Pre-mint to owner if requested.
+        // NOTE: _compliance.created() is NOT called here because bindToken() has not
+        // happened yet — the factory calls bindToken() AFTER initialize() returns.
+        // The initial allocation is an issuer-side action; compliance modules catch
+        // up with holder state on the next mint/transfer.
+        if (initialMintAmount_ > 0) {
+            _mint(owner_, initialMintAmount_);
+        }
+
+        // For fixed-supply tokens: revoke SUPPLY_ROLE from the issuer so minting
+        // is permanently locked. Admin never had SUPPLY_ROLE, so nothing to revoke there.
+        if (!mintable_) {
+            _revokeRole(SUPPLY_ROLE, owner_);
+        }
     }
 
     function _authorizeUpgrade(address newImplementation)
@@ -127,6 +177,18 @@ contract CiretaToken is
         override
         onlyRole(DEFAULT_ADMIN_ROLE)
     {}
+
+    // ============ Supply Getters ============
+
+    /// @notice Hard cap on total supply set at initialization.
+    function maxSupply() external view returns (uint256) {
+        return _maxSupply;
+    }
+
+    /// @notice Returns true if additional minting (beyond initial) is permitted.
+    function isMintable() external view returns (bool) {
+        return _mintable;
+    }
 
     function decimals() public view virtual override returns (uint8) {
         return _decimals;
@@ -272,9 +334,12 @@ contract CiretaToken is
 
     // ============ Mint/Burn ============
 
-    /// @notice Mint tokens. SUPPLY_ROLE is already trusted — skip identity check
-    /// since minting is an admin/issuer operation, not a transfer.
+    /// @notice Mint tokens to a single address. Enforces maxSupply cap.
+    ///         SUPPLY_ROLE is already trusted — no identity check on the recipient
+    ///         (minting to issuer-controlled addresses is normal; compliance.created
+    ///         handles module-level tracking).
     function mint(address to, uint256 amount) external onlyRole(SUPPLY_ROLE) {
+        require(totalSupply() + amount <= _maxSupply, "exceeds max supply");
         _mint(to, amount);
         _compliance.created(to, amount);
     }
@@ -289,10 +354,13 @@ contract CiretaToken is
         uint256[] calldata amounts
     ) external onlyRole(SUPPLY_ROLE) {
         require(toList.length == amounts.length, "length mismatch");
+        uint256 currentSupply = totalSupply();
         for (uint256 i = 0; i < toList.length; i++) {
+            require(currentSupply + amounts[i] <= _maxSupply, "exceeds max supply");
             require(_identityRegistry.isVerified(toList[i]), "identity not verified");
             _mint(toList[i], amounts[i]);
             _compliance.created(toList[i], amounts[i]);
+            currentSupply += amounts[i];
         }
     }
 

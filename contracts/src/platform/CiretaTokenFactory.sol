@@ -16,6 +16,24 @@ import "./IssuerRegistry.sol";
  *      Canonical token implementation: ../token/CiretaToken.sol
  *      Canonical identity registry: ../token/IdentityRegistry.sol
  *      Canonical compliance: ../token/ModularCompliance.sol
+ *
+ *      RBAC requirement: this factory must be granted AGENT_ROLE (or REGISTRAR_ROLE)
+ *      on the SimpleIdentityRegistry by admin after deploy so that auto-whitelisting
+ *      of newly deployed token + compliance contracts succeeds atomically in deployToken().
+ */
+
+/**
+ * @dev Minimal interface for the platform identity registry.
+ *      Supports both SimpleIdentityRegistry (whitelist mode) and any registry
+ *      exposing addToWhitelist / isVerified.
+ */
+interface ISimpleIdentityRegistry {
+    function addToWhitelist(address wallet, uint16 country) external;
+    function isVerified(address wallet) external view returns (bool);
+}
+
+/**
+ * @title CiretaTokenFactory
  */
 contract CiretaTokenFactory is
     Initializable,
@@ -59,6 +77,17 @@ contract CiretaTokenFactory is
         address compliance
     );
     event IdentityModeChanged(bool simpleMode);
+
+    /**
+     * @dev Emitted for each auto-whitelist attempt on the identity registry.
+     *      success = false means the factory lacked the role — admin must grant
+     *      AGENT_ROLE on the IR to this factory address post-deploy.
+     */
+    event SystemContractWhitelisted(
+        address indexed contractAddr,
+        address indexed registry,
+        bool success
+    );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -119,20 +148,50 @@ contract CiretaTokenFactory is
         );
     }
 
+    /**
+     * @notice Deploy a new ERC-3643 security token with supply economics.
+     *
+     * @param name              ERC-20 name
+     * @param symbol            ERC-20 symbol
+     * @param decimals          Decimal places (max 6)
+     * @param issuer            Token owner / issuer wallet; receives initial mint
+     * @param identityRegistry  External IR to use. If address(0), a fresh IR is
+     *                          deployed using identityRegistryImplementation (legacy path).
+     * @param maxSupply         Hard cap on total supply; must be > 0
+     * @param mintable          If true, more tokens can be minted up to maxSupply.
+     *                          If false, minting is locked after the initial pre-mint.
+     * @param initialMintAmount Tokens to pre-mint to issuer. For !mintable must equal maxSupply.
+     *
+     * @return tokenProxy             Deployed token proxy address
+     * @return identityRegistryProxy  IR used (external or freshly deployed)
+     * @return complianceProxy        Deployed compliance proxy address
+     */
     function deployToken(
         string calldata name,
         string calldata symbol,
         uint8 decimals,
-        address issuer
+        address issuer,
+        address identityRegistry,
+        uint256 maxSupply,
+        bool mintable,
+        uint256 initialMintAmount
     ) external returns (
         address tokenProxy,
         address identityRegistryProxy,
         address complianceProxy
     ) {
+        // ---- Input validation ----
         require(issuer != address(0), "zero issuer");
+        require(maxSupply > 0, "max supply required");
+        if (!mintable) {
+            require(initialMintAmount == maxSupply, "fixed supply must mint full max");
+        } else {
+            require(initialMintAmount <= maxSupply, "initial > max");
+        }
 
-        // Allow owner (admin) or active issuers to deploy
-        // Issuers must deploy for themselves (issuer == msg.sender)
+        // ---- Access control ----
+        // Owner (platform admin) may deploy on behalf of any issuer.
+        // Active issuers may only deploy for themselves.
         if (msg.sender != owner()) {
             require(
                 issuerRegistry != address(0) &&
@@ -142,19 +201,28 @@ contract CiretaTokenFactory is
             require(msg.sender == issuer, "issuer must be msg.sender");
         }
 
-        // Deploy Identity Registry (same initialize signature for both implementations)
-        bytes memory irInitData = abi.encodeWithSelector(
-            IdentityRegistry.initialize.selector,
-            issuer,
-            claimTopicsRegistry,
-            trustedIssuersRegistry,
-            identityRegistryStorage
-        );
-        identityRegistryProxy = address(
-            new ERC1967Proxy(identityRegistryImplementation, irInitData)
-        );
+        // ---- Identity Registry ----
+        if (identityRegistry != address(0)) {
+            // Use externally supplied IR (e.g. the shared platform IR).
+            // Safety check: must be a contract, not an EOA.
+            require(identityRegistry.code.length > 0, "IR not a contract");
+            identityRegistryProxy = identityRegistry;
+        } else {
+            // Legacy fallback: deploy a fresh IR proxy for this token.
+            bytes memory irInitData = abi.encodeWithSelector(
+                IdentityRegistry.initialize.selector,
+                issuer,
+                claimTopicsRegistry,
+                trustedIssuersRegistry,
+                identityRegistryStorage
+            );
+            identityRegistryProxy = address(
+                new ERC1967Proxy(identityRegistryImplementation, irInitData)
+            );
+        }
 
-        // Deploy Compliance — initialize with factory as temporary owner so we can call bindToken()
+        // ---- Compliance ----
+        // Deploy with factory as temporary owner so we can call bindToken() below.
         bytes memory compInitData = abi.encodeWithSelector(
             ModularCompliance.initialize.selector,
             address(this)
@@ -163,7 +231,9 @@ contract CiretaTokenFactory is
             new ERC1967Proxy(complianceImplementation, compInitData)
         );
 
-        // Deploy Token — issuer gets all roles, platform admin gets oversight roles (not SUPPLY_ROLE)
+        // ---- Token ----
+        // Pass maxSupply + mintable + initialMintAmount so initialize() handles
+        // pre-minting and optional SUPPLY_ROLE revocation atomically.
         bytes memory tokenInitData = abi.encodeWithSelector(
             CiretaToken.initialize.selector,
             name,
@@ -172,26 +242,38 @@ contract CiretaTokenFactory is
             identityRegistryProxy,
             complianceProxy,
             issuer,
-            owner()
+            owner(),
+            maxSupply,
+            mintable,
+            initialMintAmount
         );
         tokenProxy = address(
             new ERC1967Proxy(tokenImplementation, tokenInitData)
         );
 
-        // Bind token to compliance (factory is owner, so this succeeds)
+        // ---- Bind token to compliance (factory is owner at this point) ----
         ModularCompliance(complianceProxy).bindToken(tokenProxy);
 
-        // Transfer compliance ownership to the issuer
+        // ---- Transfer compliance ownership to the issuer ----
         ModularCompliance(complianceProxy).transferOwnership(issuer);
 
-        // Bind identity registry to shared storage (only in full ERC-3643 mode)
-        if (!simpleIdentityMode) {
+        // ---- Bind IR to shared storage (full ERC-3643 mode only) ----
+        // Only relevant when a fresh per-token IR was deployed (identityRegistry == address(0))
+        // and the factory is in full ONCHAINID mode. Skipped for the shared platform IR path.
+        if (!simpleIdentityMode && identityRegistry == address(0)) {
             IIdentityRegistryStorage(identityRegistryStorage).bindIdentityRegistry(
                 identityRegistryProxy
             );
         }
 
-        // Track deployment
+        // ---- Auto-whitelist system contracts on the IR ----
+        // The factory must hold AGENT_ROLE (or REGISTRAR_ROLE) on the IR.
+        // We use try/catch so a misconfigured role doesn't brick the whole deployment.
+        // Country code 0 is reserved for "System" (contract addresses).
+        _tryWhitelist(identityRegistryProxy, tokenProxy);
+        _tryWhitelist(identityRegistryProxy, complianceProxy);
+
+        // ---- Track deployment ----
         deployedTokens.push(tokenProxy);
         isDeployedToken[tokenProxy] = true;
 
@@ -205,6 +287,21 @@ contract CiretaTokenFactory is
         );
 
         return (tokenProxy, identityRegistryProxy, complianceProxy);
+    }
+
+    /**
+     * @dev Attempt to whitelist a system contract on the identity registry.
+     *      Uses try/catch so a role misconfiguration degrades gracefully.
+     *      Emits SystemContractWhitelisted with success = false on failure.
+     */
+    function _tryWhitelist(address registry, address contractAddr) internal {
+        try ISimpleIdentityRegistry(registry).addToWhitelist(contractAddr, 0) {
+            emit SystemContractWhitelisted(contractAddr, registry, true);
+        } catch {
+            // Factory lacks the required role on this IR.
+            // Admin must grant AGENT_ROLE on the IR to this factory address.
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+        }
     }
 
     function getDeployedTokensCount() external view returns (uint256) {

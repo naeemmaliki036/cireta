@@ -8,9 +8,21 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "./IssuerOTCToken.sol";
 import "../platform/IssuerRegistry.sol";
 
+/// @dev Minimal interface for the platform identity registry.
+interface ISimpleIdentityRegistry {
+    function addToWhitelist(address wallet, uint16 country) external;
+    function isVerified(address wallet) external view returns (bool);
+}
+
 /// @title IssuerOTCTokenFactory
 /// @notice Platform-level factory for deploying IssuerOTCToken proxies.
 ///         Each issuer can deploy multiple OTC tokens (one per sale/project).
+///
+/// @dev RBAC requirement: this factory must be granted REGISTRAR_ROLE (or AGENT_ROLE)
+///      on the SimpleIdentityRegistry by admin after deploy so that auto-whitelisting
+///      of newly deployed OTC tokens succeeds. If the role is missing, deploy still
+///      succeeds but `SystemContractWhitelisted` emits `success=false` and the OTC
+///      token will be unable to receive transfers until manually whitelisted.
 contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     address public otcTokenImplementation;
     IssuerRegistry public issuerRegistry;
@@ -32,6 +44,7 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
 
     // --- Events ---
     event OTCTokenDeployed(address indexed issuer, address indexed otcToken);
+    event SystemContractWhitelisted(address indexed contractAddr, address indexed registry, bool success);
 
     // --- Errors ---
     error ZeroAddress();
@@ -112,6 +125,23 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         allOTCTokens.push(otcToken);
 
         emit OTCTokenDeployed(issuerWallet, otcToken);
+
+        _tryWhitelist(identityRegistry, otcToken);
+    }
+
+    /// @dev Attempt to whitelist `contractAddr` on the given `registry` with
+    ///      country code 0 ("System"). Emits `SystemContractWhitelisted` with
+    ///      the outcome. Never reverts — a failed whitelist does not block deploy.
+    function _tryWhitelist(address registry, address contractAddr) private {
+        if (registry == address(0)) {
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+            return;
+        }
+        try ISimpleIdentityRegistry(registry).addToWhitelist(contractAddr, 0) {
+            emit SystemContractWhitelisted(contractAddr, registry, true);
+        } catch {
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+        }
     }
 
     /// @notice Get all OTC tokens deployed by an issuer.

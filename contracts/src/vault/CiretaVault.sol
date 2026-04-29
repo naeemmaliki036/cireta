@@ -94,7 +94,9 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         if (_projectToken == address(0)) revert ZeroAddress();
         if (_issuer == address(0)) revert ZeroAddress();
         if (_identityRegistry == address(0)) revert ZeroAddress();
-        if (_vestingDuration == 0 || _cliffDuration >= _vestingDuration) revert InvalidVestingConfig();
+        // cliff == vesting is valid: lock-up-only variant (all tokens unlock at once at t=start+cliff).
+        // cliff > vesting is the only truly invalid configuration.
+        if (_vestingDuration == 0 || _cliffDuration > _vestingDuration) revert InvalidVestingConfig();
 
         projectToken = IERC20(_projectToken);
         fractionToken = CiretaFractionToken1155(_fractionToken);
@@ -286,13 +288,28 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     //  INTERNAL
     // ──────────────────────────────────────────────
 
-    /// @dev Linear-after-cliff vesting math applied to a fraction balance.
+    /// @dev Vesting math applied to a fraction balance. Supports two variants:
+    ///      - Cliff + linear: cliffDuration < vestingDuration. Zero until cliff,
+    ///        then linearly grows to full at vestingDuration.
+    ///      - Lock-up only:   cliffDuration == vestingDuration. Zero until D,
+    ///        then 100 % unlocks at once. The cliff == vesting branch is an
+    ///        explicit short-circuit so the division below is never reached with
+    ///        a zero denominator.
     function _calculateVested(uint256 balance) internal view returns (uint256) {
         if (vestingStartTime == 0 || balance == 0) return 0;
         uint256 elapsed = block.timestamp - vestingStartTime;
         if (elapsed < vestingConfig.cliffDuration) return 0;
-        if (elapsed >= vestingConfig.vestingDuration) return balance;
-        return (balance * elapsed) / vestingConfig.vestingDuration;
+        // Lock-up-only variant (cliff == vesting) and fully-vested case both return
+        // the full balance. Placing the cliff == vesting check here also guarantees
+        // the linear branch below never executes with a zero denominator.
+        if (elapsed >= vestingConfig.vestingDuration || vestingConfig.cliffDuration == vestingConfig.vestingDuration) {
+            return balance;
+        }
+        // Linear vesting between cliff end and vesting end.
+        // denominator = vestingDuration - cliffDuration > 0 (guarded by initialize).
+        uint256 linearElapsed = elapsed - vestingConfig.cliffDuration;
+        uint256 linearDuration = vestingConfig.vestingDuration - vestingConfig.cliffDuration;
+        return (balance * linearElapsed) / linearDuration;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {

@@ -16,6 +16,12 @@ import "./PlatformFeeManager.sol";
  *      Active issuers (registered in IssuerRegistry) deploy their own sales.
  *      Platform admin (owner) retains oversight via Sale.admin role.
  *      Fees are enforced on-chain via PlatformFeeManager verification.
+ *
+ * RBAC requirement: this factory must be granted REGISTRAR_ROLE (or AGENT_ROLE) on the
+ * SimpleIdentityRegistry by admin after deploy so that auto-whitelisting succeeds. If the
+ * role is missing, deployment still succeeds but the SystemContractWhitelisted event will
+ * emit `success=false` and the contract will be unable to receive token transfers until
+ * manually whitelisted.
  */
 contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     address public saleImplementation;
@@ -42,6 +48,11 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
     );
     event IssuerRegistrySet(address indexed registry);
     event PlatformFeeManagerSet(address indexed feeManager);
+    event SystemContractWhitelisted(
+        address indexed contractAddr,
+        address indexed registry,
+        bool success
+    );
 
     error NotActiveIssuer();
     error FeeMismatch();
@@ -133,6 +144,11 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
         _verifySale(sale);
 
+        // Auto-whitelist the Sale proxy on the platform identity registry so token
+        // transfers to/from this system contract pass the isVerified() check.
+        address ir = address(Sale(sale).identityRegistry());
+        _tryWhitelist(ir, sale);
+
         tokenSales[token].push(sale);
         allSales.push(sale);
         issuerSales[msg.sender].push(sale);
@@ -168,7 +184,8 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         // Verify issuer, factory, and fee
         _verifySale(sale);
 
-        // Deploy vault + fraction via CiretaFractionFactory
+        // Deploy vault + fraction via CiretaFractionFactory.
+        // CiretaFractionFactory handles whitelisting vault + fraction internally.
         (fractionAddr, vaultAddr) = fractionFactory.deployVaultAndFraction(
             fractionName, fractionSymbol, fractionDecimals,
             token, identityRegistry, sale,
@@ -178,11 +195,32 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         // Configure vested mode — factory is recognized as admin via _isAdmin()
         Sale(sale).setVestedMode(vaultAddr, fractionAddr);
 
+        // Auto-whitelist the Sale proxy. Vault + fraction are whitelisted by CiretaFractionFactory.
+        _tryWhitelist(identityRegistry, sale);
+
         tokenSales[token].push(sale);
         allSales.push(sale);
         issuerSales[msg.sender].push(sale);
 
         emit SaleDeployed(token, sale, msg.sender);
+    }
+
+    // ── Internal Helpers ────────────────────────────────────────────────────
+
+    /// @dev Attempt to whitelist a system contract on the platform identity registry.
+    ///      Uses try/catch so a missing REGISTRAR_ROLE/AGENT_ROLE never bricks the deploy.
+    ///      Emits SystemContractWhitelisted with success=false when the call is skipped or reverts.
+    ///      Country code 0 is the platform convention for "system / contract" addresses.
+    function _tryWhitelist(address registry, address contractAddr) private {
+        if (registry == address(0)) {
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+            return;
+        }
+        try ISimpleIdentityRegistry(registry).addToWhitelist(contractAddr, 0) {
+            emit SystemContractWhitelisted(contractAddr, registry, true);
+        } catch {
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+        }
     }
 
     // ── Internal Verification ───────────────────────────────────────────────

@@ -8,9 +8,21 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "../fraction/CiretaFractionToken1155.sol";
 import "../vault/CiretaVault.sol";
 
+// Minimal interface used for auto-whitelisting deployed system contracts.
+interface ISimpleIdentityRegistry {
+    function addToWhitelist(address wallet, uint16 country) external;
+    function isVerified(address wallet) external view returns (bool);
+}
+
 /// @title CiretaFractionFactory
 /// @notice Deploys CiretaFractionToken + CiretaVault pairs for vested sales.
 ///         Grants MINTER_ROLE to Sale, BURNER_ROLE to Vault on the fraction token.
+///
+/// RBAC requirement: this factory must be granted REGISTRAR_ROLE (or AGENT_ROLE) on the
+/// SimpleIdentityRegistry by admin after deploy so that auto-whitelisting succeeds. If the
+/// role is missing, deployment still succeeds but the SystemContractWhitelisted event will
+/// emit `success=false` and the contract will be unable to receive token transfers until
+/// manually whitelisted.
 contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     address public fractionTokenImplementation;
     address public vaultImplementation;
@@ -26,6 +38,11 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     uint256[100] private __gap;
 
     event VaultDeployed(address indexed sale, address vault, address fractionToken, address projectToken);
+    event SystemContractWhitelisted(
+        address indexed contractAddr,
+        address indexed registry,
+        bool success
+    );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() { _disableInitializers(); }
@@ -102,12 +119,33 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         // Transfer vault ownership to the actual admin
         CiretaVault(vaultProxy).transferOwnership(admin);
 
+        // Auto-whitelist vault and fraction proxies on the platform identity registry so
+        // token transfers to/from these system contracts pass the isVerified() check.
+        _tryWhitelist(identityRegistry, vaultProxy);
+        _tryWhitelist(identityRegistry, fractionProxy);
+
         // Track mappings
         saleToVault[sale] = vaultProxy;
         saleToFraction[sale] = fractionProxy;
         deployedVaults.push(vaultProxy);
 
         emit VaultDeployed(sale, vaultProxy, fractionProxy, projectToken);
+    }
+
+    /// @dev Attempt to whitelist a system contract on the platform identity registry.
+    ///      Uses try/catch so a missing REGISTRAR_ROLE/AGENT_ROLE never bricks the deploy.
+    ///      Emits SystemContractWhitelisted with success=false when the call is skipped or reverts.
+    ///      Country code 0 is the platform convention for "system / contract" addresses.
+    function _tryWhitelist(address registry, address contractAddr) private {
+        if (registry == address(0)) {
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+            return;
+        }
+        try ISimpleIdentityRegistry(registry).addToWhitelist(contractAddr, 0) {
+            emit SystemContractWhitelisted(contractAddr, registry, true);
+        } catch {
+            emit SystemContractWhitelisted(contractAddr, registry, false);
+        }
     }
 
     function getDeployedVaultsCount() external view returns (uint256) {

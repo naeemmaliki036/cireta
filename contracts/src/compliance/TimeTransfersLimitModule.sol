@@ -4,10 +4,11 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IComplianceModule.sol";
 
 /**
- * @title TimeLockedTransferModule
+ * @title TimeTransfersLimitModule
  * @dev Transfers only allowed after a per-compliance time lock.
  */
 contract TimeTransfersLimitModule is
@@ -36,13 +37,38 @@ contract TimeTransfersLimitModule is
 
     function name() external pure override returns (string memory) { return "TimeTransfersLimitModule"; }
 
-    function bindCompliance(address c) external override onlyOwner { _complianceBound[c] = true; emit ComplianceBound(c); }
-    function unbindCompliance(address c) external override onlyOwner { _complianceBound[c] = false; emit ComplianceUnbound(c); }
+    // ============ Access Modifiers ============
+
+    /// @dev Allows platform admin OR the issuer who owns the bound compliance contract.
+    modifier complianceAdmin(address compliance) {
+        require(
+            msg.sender == owner() ||
+            msg.sender == Ownable(compliance).owner(),
+            "not authorized"
+        );
+        require(_complianceBound[compliance], "compliance not bound");
+        _;
+    }
+
+    /// @dev Allows platform admin OR the issuer who owns the compliance contract.
+    ///      Does NOT require the compliance to be bound yet.
+    modifier complianceBinder(address compliance) {
+        require(
+            msg.sender == owner() ||
+            msg.sender == Ownable(compliance).owner(),
+            "not authorized"
+        );
+        _;
+    }
+
+    // ============ Compliance Binding ============
+    function bindCompliance(address c) external override complianceBinder(c) { _complianceBound[c] = true; emit ComplianceBound(c); }
+    function unbindCompliance(address c) external override complianceAdmin(c) { _complianceBound[c] = false; emit ComplianceUnbound(c); }
     function isComplianceBound(address c) external view override returns (bool) { return _complianceBound[c]; }
     function canComplianceBind(address) external pure override returns (bool) { return true; }
 
-    function setUnlockTime(address compliance, uint256 timestamp) external onlyOwner {
-        require(_complianceBound[compliance], "not bound");
+    // ============ Per-compliance Config ============
+    function setUnlockTime(address compliance, uint256 timestamp) external complianceAdmin(compliance) {
         require(timestamp > block.timestamp, "must be in the future");
         _unlockTime[compliance] = timestamp;
         emit TimeLockSet(compliance, timestamp);
@@ -56,6 +82,7 @@ contract TimeTransfersLimitModule is
         return block.timestamp >= _unlockTime[compliance];
     }
 
+    // ============ Module Actions ============
     function moduleTransferAction(address, address, uint256) external override {
         require(_complianceBound[msg.sender], "not bound");
     }

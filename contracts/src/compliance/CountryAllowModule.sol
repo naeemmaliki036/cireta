@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../interfaces/IComplianceModule.sol";
 import "../interfaces/IToken.sol";
 import "../interfaces/IIdentityRegistry.sol";
@@ -47,16 +48,40 @@ contract CountryAllowModule is
         return "CountryAllowModule";
     }
 
+    // ============ Access Modifiers ============
+
+    /// @dev Allows platform admin OR the issuer who owns the bound compliance contract.
+    ///      Requires compliance to already be bound — use complianceBinder for bindCompliance.
+    modifier complianceAdmin(address compliance) {
+        require(
+            msg.sender == owner() ||
+            msg.sender == Ownable(compliance).owner(),
+            "not authorized"
+        );
+        require(_complianceBound[compliance], "compliance not bound");
+        _;
+    }
+
+    /// @dev Allows platform admin OR the issuer who owns the compliance contract.
+    ///      Does NOT require the compliance to be bound yet — used only for bindCompliance.
+    modifier complianceBinder(address compliance) {
+        require(
+            msg.sender == owner() ||
+            msg.sender == Ownable(compliance).owner(),
+            "not authorized"
+        );
+        _;
+    }
+
     // ============ Compliance Binding ============
 
-    function bindCompliance(address compliance) external override onlyOwner {
+    function bindCompliance(address compliance) external override complianceBinder(compliance) {
         require(compliance != address(0), "zero address");
         _complianceBound[compliance] = true;
         emit ComplianceBound(compliance);
     }
 
-    function unbindCompliance(address compliance) external override onlyOwner {
-        require(_complianceBound[compliance], "not bound");
+    function unbindCompliance(address compliance) external override complianceAdmin(compliance) {
         _complianceBound[compliance] = false;
         emit ComplianceUnbound(compliance);
     }
@@ -74,8 +99,7 @@ contract CountryAllowModule is
     function addAllowedCountry(
         address compliance,
         uint16 country
-    ) external onlyOwner {
-        require(_complianceBound[compliance], "compliance not bound");
+    ) external complianceAdmin(compliance) {
         _allowedCountries[compliance][country] = true;
         emit CountryAllowed(compliance, country);
     }
@@ -83,8 +107,7 @@ contract CountryAllowModule is
     function removeAllowedCountry(
         address compliance,
         uint16 country
-    ) external onlyOwner {
-        require(_complianceBound[compliance], "compliance not bound");
+    ) external complianceAdmin(compliance) {
         _allowedCountries[compliance][country] = false;
         emit CountryDisallowed(compliance, country);
     }
@@ -92,8 +115,7 @@ contract CountryAllowModule is
     function batchAllowCountries(
         address compliance,
         uint16[] calldata countries
-    ) external onlyOwner {
-        require(_complianceBound[compliance], "compliance not bound");
+    ) external complianceAdmin(compliance) {
         for (uint256 i = 0; i < countries.length; i++) {
             _allowedCountries[compliance][countries[i]] = true;
             emit CountryAllowed(compliance, countries[i]);
