@@ -157,7 +157,7 @@ export default function TokenRecoveryPage() {
             }}
             className={`px-3 py-1.5 text-sm rounded-lg border ${
               tokenType === value
-                ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]"
+                ? "bg-darkAqua text-white border-darkAqua"
                 : "bg-white text-black/60 border-black/10 hover:border-black/20"
             }`}
           >
@@ -306,7 +306,7 @@ export default function TokenRecoveryPage() {
                   onClick={() => setForm((f) => ({ ...f, fraction_id: id }))}
                   className={`flex-1 py-2 text-sm rounded-lg border ${
                     form.fraction_id === id
-                      ? "bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]"
+                      ? "bg-darkAqua text-white border-darkAqua"
                       : "bg-white text-black/60 border-black/10"
                   }`}
                 >
