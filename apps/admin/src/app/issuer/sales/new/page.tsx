@@ -572,7 +572,33 @@ export default function CreateSalePage() {
               {otcEnabled && (
                 <div className="mt-4 space-y-4">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to buyers)</label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to buyers)</label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (
+                            otcContent.trim() &&
+                            !window.confirm("Replace the current OTC instructions with the platform default template?")
+                          ) {
+                            return;
+                          }
+                          try {
+                            const data = await apiFetch<Record<string, string>>("/api/v1/admin/platform/settings");
+                            if (data.otc_default_content) {
+                              setOtcContent(data.otc_default_content);
+                            } else {
+                              window.alert("No platform default template is configured.");
+                            }
+                          } catch {
+                            window.alert("Could not load the default template.");
+                          }
+                        }}
+                        className="text-xs font-medium text-darkAqua hover:underline"
+                      >
+                        Use default template
+                      </button>
+                    </div>
                     <p className="text-xs text-zinc-400">Include wire details, process steps, minimum amounts, and contact info.</p>
                     <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
                   </div>
