@@ -816,6 +816,8 @@ export default function CreateSalePage() {
                           onChange={(e) => updPhase(i, "startDate", e.target.value)}
                           min={saleStartDate || undefined}
                           max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
+                          disabled={!saleStartDate}
+                          helperText={!saleStartDate ? "Set Sale Start (step 7) first." : undefined}
                         />
                         <Input
                           label="End Date"
@@ -824,6 +826,8 @@ export default function CreateSalePage() {
                           onChange={(e) => updPhase(i, "endDate", e.target.value)}
                           min={ph.startDate || saleStartDate || undefined}
                           max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
+                          disabled={!saleStartDate}
+                          helperText={!saleStartDate ? "Set Sale Start (step 7) first." : undefined}
                         />
                       </div>
                       {(() => {
@@ -844,7 +848,14 @@ export default function CreateSalePage() {
                   )}
                 </div>);
               })}
-              <Button variant="outline" size="sm" onClick={() => { setPhases((p) => [...p, emptyPhase()]); setExpandedPhase(phases.length); }} className="w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setPhases((p) => [...p, emptyPhase()]); setExpandedPhase(phases.length); }}
+                className="w-full"
+                disabled={!saleStartDate}
+                title={!saleStartDate ? "Set Sale Start in step 7 first" : undefined}
+              >
                 + Add Phase
               </Button>
             </div>
@@ -960,6 +971,19 @@ export default function CreateSalePage() {
                 </span>
               </span>
             </label>
+            {/* Cross-step warning: changing the sale window may invalidate already-defined phases. */}
+            {phaseWindowIssues.length > 0 && (
+              <div className="px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                <p className="font-semibold mb-1">
+                  Heads up — {phaseWindowIssues.length} existing phase
+                  {phaseWindowIssues.length === 1 ? "" : "s"} now fall outside this sale window:
+                </p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {phaseWindowIssues.map((msg, i) => <li key={i}>{msg}</li>)}
+                </ul>
+                <p className="mt-1">Adjust them in the Phases step before submitting.</p>
+              </div>
+            )}
           </div>
         )}
         {/* Step 9: Vesting (skip if direct or coming soon) */}
