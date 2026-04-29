@@ -7,6 +7,11 @@ import { Button } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SALE_ABI } from "@/lib/contracts/abis/sale";
+import {
+  MAX_SALE_DURATION_DAYS,
+  maxAllowedPhaseEnd,
+  phaseOutsideSaleWindow,
+} from "@/lib/sale/saleWindow";
 
 interface ExistingPhase {
   name: string;
@@ -21,6 +26,11 @@ interface AddPhaseFormProps {
   availableSupply?: number;
   /** Existing phases (used to warn when new price is lower than a previous phase) */
   existingPhases?: ExistingPhase[];
+  /** Sale-level window — used to constrain phase start/end and surface a clear error
+   *  before we burn gas on an on-chain revert. ISO strings or empty if unknown. */
+  saleStartTime?: string;
+  saleEndTime?: string;
+  isOpenEnded?: boolean;
   onSuccess?: () => void;
 }
 
@@ -65,6 +75,9 @@ export function AddPhaseForm({
   tokenDecimals = 18,
   availableSupply,
   existingPhases,
+  saleStartTime,
+  saleEndTime,
+  isOpenEnded,
   onSuccess,
 }: AddPhaseFormProps) {
   const [form, setForm] = useState<PhaseFormData>(INITIAL_FORM);
@@ -83,6 +96,25 @@ export function AddPhaseForm({
 
   const allocationNum = parseFloat(form.allocation) || 0;
   const allocationExceedsSupply = availableSupply !== undefined && availableSupply > 0 && allocationNum > availableSupply;
+
+  // Convert backend ISO strings to datetime-local format (YYYY-MM-DDTHH:mm)
+  const toLocal = (iso?: string) => (iso ? new Date(iso).toISOString().slice(0, 16) : "");
+  const saleStartLocal = toLocal(saleStartTime);
+  const saleEndLocal = toLocal(saleEndTime);
+  const phaseMaxEnd = saleStartLocal
+    ? maxAllowedPhaseEnd({ saleStart: saleStartLocal, saleEnd: saleEndLocal, isOpenEnded: !!isOpenEnded })
+    : "";
+
+  // Live window check — surfaced inline (and blocks submit below).
+  const windowCheck = saleStartLocal && form.startTime && form.endTime
+    ? phaseOutsideSaleWindow({
+        phaseStart: form.startTime,
+        phaseEnd: form.endTime,
+        saleStart: saleStartLocal,
+        saleEnd: saleEndLocal,
+        isOpenEnded: !!isOpenEnded,
+      })
+    : ({ ok: true } as const);
 
   // Price warning: check if new price is lower than any existing phase
   const newPrice = parseFloat(form.pricePerToken) || 0;
@@ -141,6 +173,10 @@ export function AddPhaseForm({
     }
     if (endTimestamp <= nowTs) {
       setValidationError("Phase end time must be in the future.");
+      return;
+    }
+    if (!windowCheck.ok) {
+      setValidationError(windowCheck.reason);
       return;
     }
 
@@ -361,6 +397,8 @@ export function AddPhaseForm({
             type="datetime-local"
             value={form.startTime}
             onChange={(e) => updateField("startTime", e.target.value)}
+            min={saleStartLocal || undefined}
+            max={phaseMaxEnd || undefined}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
           />
         </div>
@@ -370,9 +408,26 @@ export function AddPhaseForm({
             type="datetime-local"
             value={form.endTime}
             onChange={(e) => updateField("endTime", e.target.value)}
+            min={form.startTime || saleStartLocal || undefined}
+            max={phaseMaxEnd || undefined}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
           />
         </div>
+        {saleStartLocal ? (
+          <div className="col-span-2 text-[11px] text-zinc-500">
+            Sale window: {new Date(saleStartLocal).toLocaleString()} →{" "}
+            {isOpenEnded
+              ? `open-ended (auto-cap ${MAX_SALE_DURATION_DAYS} days from start)`
+              : saleEndLocal
+              ? new Date(saleEndLocal).toLocaleString()
+              : "—"}
+          </div>
+        ) : null}
+        {!windowCheck.ok ? (
+          <div className="col-span-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-xs text-red-700">
+            {windowCheck.reason}
+          </div>
+        ) : null}
         {/* Whitelist Only checkbox - Hidden until needed for other issuers */}
         {false && (
           <div className="flex items-center gap-2 pt-5">
@@ -398,7 +453,7 @@ export function AddPhaseForm({
         variant="primary"
         size="sm"
         onClick={handleSubmit}
-        disabled={addPhaseAction.isPending || addPhaseAction.isConfirming || allocationExceedsSupply}
+        disabled={addPhaseAction.isPending || addPhaseAction.isConfirming || allocationExceedsSupply || !windowCheck.ok}
         isLoading={addPhaseAction.isPending || addPhaseAction.isConfirming}
         leftIcon={<Plus className="h-4 w-4" />}
       >

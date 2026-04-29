@@ -1104,6 +1104,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               saleId={sale.id}
               availableSupply={available}
               existingPhases={sale.phases}
+              saleStartTime={sale.sale_start_time ?? undefined}
+              saleEndTime={sale.sale_end_time ?? undefined}
+              isOpenEnded={sale.is_open_ended}
               onSuccess={reload}
             />
           </div>

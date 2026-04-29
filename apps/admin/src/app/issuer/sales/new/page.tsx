@@ -13,6 +13,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isAddress } from "viem";
 import { Button, Input, Select, FileUpload } from "@/components/atoms";
+import { InfoTooltip } from "@/components/atoms/InfoTooltip";
+import {
+  MAX_SALE_DURATION_DAYS,
+  maxAllowedSaleEnd,
+  maxAllowedPhaseEnd,
+  saleWindowTooLong,
+  phaseOutsideSaleWindow,
+} from "@/lib/sale/saleWindow";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { IssuerDashboardLayout } from "@/components/templates";
 
@@ -207,6 +215,8 @@ export default function CreateSalePage() {
   const bannerImageUrl = galleryItems.find((i) => i.is_banner)?.url || "";
 
   // Dynamic steps based on isComingSoon and saleMode
+  // Note: Token & Caps must come BEFORE Phases because phase windows are
+  // bounded by the sale start/end dates set in Token & Caps.
   const allSteps = [
     { id: 1, title: "Sale Info", icon: Coins },
     { id: 2, title: "Content", icon: FileText },
@@ -214,8 +224,8 @@ export default function CreateSalePage() {
     { id: 4, title: "Team", icon: Users },
     { id: 5, title: "FAQs", icon: HelpCircle },
     { id: 6, title: "Documents", icon: FolderOpen },
-    ...(!isComingSoon ? [{ id: 7, title: "Phases", icon: Calendar }] : []),
-    ...(!isComingSoon ? [{ id: 8, title: "Token & Caps", icon: Settings }] : []),
+    ...(!isComingSoon ? [{ id: 7, title: "Token & Caps", icon: Settings }] : []),
+    ...(!isComingSoon ? [{ id: 8, title: "Phases", icon: Calendar }] : []),
     ...(!isComingSoon && saleMode === "vested" ? [{ id: 9, title: "Vesting", icon: Clock }] : []),
     { id: 10, title: "Review", icon: Rocket },
   ];
@@ -237,10 +247,84 @@ export default function CreateSalePage() {
     return false;
   })();
 
+  // Per-phase window violations (relative to current Token & Caps state)
+  const phaseWindowIssues = phases.map((p, i) => {
+    const check = phaseOutsideSaleWindow({
+      phaseStart: p.startDate,
+      phaseEnd: p.endDate,
+      saleStart: saleStartDate,
+      saleEnd: saleEndDate,
+      isOpenEnded,
+    });
+    return check.ok ? null : `Phase ${i + 1} (${p.name || "unnamed"}): ${check.reason}`;
+  }).filter(Boolean) as string[];
+
   const phasesValid = phases.length > 0
     && phases.every((p) => p.name.trim() !== "" && p.pricePerToken !== "" && p.allocation !== "" && p.startDate !== "" && p.endDate !== ""
       && new Date(p.endDate).getTime() > new Date(p.startDate).getTime())
-    && !phasesHaveOverlap;
+    && !phasesHaveOverlap
+    && phaseWindowIssues.length === 0;
+
+  const tokenCapsValid = selectedTokenId !== ""
+    && softCap !== ""
+    && hardCap !== ""
+    && totalTokenSupply !== ""
+    && saleStartDate !== ""
+    && (isOpenEnded || saleEndDate !== "")
+    && !saleWindowTooLong(saleStartDate, saleEndDate);
+
+  // Returns a human-readable list of reasons the current step can't be advanced.
+  // Used inline above the Continue button so users see *what* needs fixing.
+  const proceedIssues = (): string[] => {
+    switch (step) {
+      case 1: {
+        const issues: string[] = [];
+        if (title.trim() === "") issues.push("Sale title is required.");
+        if (description.trim() === "") issues.push("Short description is required.");
+        if (saleMode === "") issues.push("Pick a sale mode (Direct or Vested).");
+        if (saleStructure === "") issues.push("Pick a sale structure.");
+        return issues;
+      }
+      case 7: {
+        const issues: string[] = [];
+        if (selectedTokenId === "") issues.push("Select the token being sold.");
+        if (softCap === "") issues.push("Soft cap (USDC) is required.");
+        if (hardCap === "") issues.push("Hard cap (USDC) is required.");
+        if (totalTokenSupply === "") issues.push("Total token supply is required.");
+        if (saleStartDate === "") issues.push("Sale start date is required.");
+        if (!isOpenEnded && saleEndDate === "") issues.push("Sale end date is required (or check Open-ended).");
+        if (saleWindowTooLong(saleStartDate, saleEndDate)) {
+          issues.push(`Sale duration exceeds ${MAX_SALE_DURATION_DAYS} days — reduce the end date.`);
+        }
+        return issues;
+      }
+      case 8: {
+        const issues: string[] = [];
+        if (phases.length === 0) issues.push("Add at least one phase.");
+        phases.forEach((p, i) => {
+          const tag = `Phase ${i + 1}${p.name ? ` (${p.name})` : ""}`;
+          if (p.name.trim() === "") issues.push(`${tag}: name is required.`);
+          if (p.pricePerToken === "") issues.push(`${tag}: price per token is required.`);
+          if (p.allocation === "") issues.push(`${tag}: allocation is required.`);
+          if (p.startDate === "") issues.push(`${tag}: start date is required.`);
+          if (p.endDate === "") issues.push(`${tag}: end date is required.`);
+          if (p.startDate && p.endDate && new Date(p.endDate).getTime() <= new Date(p.startDate).getTime()) {
+            issues.push(`${tag}: end date must be after start date.`);
+          }
+        });
+        if (phasesHaveOverlap) issues.push("Phases overlap — each must start after the previous one ends.");
+        issues.push(...phaseWindowIssues);
+        return issues;
+      }
+      case 9: {
+        const issues: string[] = [];
+        if (cliffDays === "") issues.push("Cliff duration is required.");
+        if (vestingDays === "") issues.push("Vesting duration is required.");
+        return issues;
+      }
+      default: return [];
+    }
+  };
 
   const canProceed = (() => {
     switch (step) {
@@ -250,8 +334,8 @@ export default function CreateSalePage() {
       case 4: return true; // Team — optional
       case 5: return true; // FAQs — optional
       case 6: return true; // Documents — optional
-      case 7: return phasesValid;
-      case 8: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
+      case 7: return tokenCapsValid;
+      case 8: return phasesValid;
       case 9: return cliffDays !== "" && vestingDays !== "";
       default: return true;
     }
@@ -266,8 +350,8 @@ export default function CreateSalePage() {
       case 4: return teamMembers.some((m) => m.name.trim() !== "");
       case 5: return faqs.some((f) => f.question.trim() !== "");
       case 6: return documents.some((d) => !!d.url);
-      case 7: return phasesValid;
-      case 8: return selectedTokenId !== "" && softCap !== "" && hardCap !== "";
+      case 7: return tokenCapsValid;
+      case 8: return phasesValid;
       case 9: return cliffDays !== "" && vestingDays !== "";
       default: return false;
     }
@@ -430,16 +514,32 @@ export default function CreateSalePage() {
 
       {/* Navigation — above content */}
       {!isLast && (
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            {isFirst ? <Link href="/issuer/sales"><Button variant="outline" size="sm">Cancel</Button></Link>
-              : <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>}
-            {!savedSaleId && <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save Draft"}</Button>}
-            {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
-            {error && <span className="text-xs text-red-600">{error}</span>}
+        <>
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-3">
+              {isFirst ? <Link href="/issuer/sales"><Button variant="outline" size="sm">Cancel</Button></Link>
+                : <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>}
+              {!savedSaleId && <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save Draft"}</Button>}
+              {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+              {error && <span className="text-xs text-red-600">{error}</span>}
+            </div>
+            <Button variant="primary" size="sm" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
           </div>
-          <Button variant="primary" size="sm" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
-        </div>
+          {!canProceed && (() => {
+            const issues = proceedIssues();
+            if (issues.length === 0) return null;
+            return (
+              <div className="mb-4 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+                <p className="text-xs font-semibold text-amber-800 mb-1.5">
+                  Complete the following to continue:
+                </p>
+                <ul className="list-disc list-inside text-xs text-amber-800 space-y-0.5">
+                  {issues.map((msg, i) => <li key={i}>{msg}</li>)}
+                </ul>
+              </div>
+            );
+          })()}
+        </>
       )}
       {isLast && !isFirst && (
         <div className="flex items-center justify-between mb-4">
@@ -635,14 +735,33 @@ export default function CreateSalePage() {
             </div>
           </div>
         )}
-        {/* Step 7: Phases (skip if coming soon) */}
-        {step === 7 && (
+        {/* Step 8: Phases (skip if coming soon) */}
+        {step === 8 && (
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-xl font-semibold text-text mb-1">Sale Phases</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Define one or more sale phases. Each phase has its own price, allocation, and time window.
-              Phases run sequentially -- they must not overlap.
+            <h2 className="text-xl font-semibold text-text mb-1 flex items-center gap-1.5">
+              Sale Phases
+              <InfoTooltip text="Each phase has its own price, allocation, and time window. Phases must not overlap, must start at or after the Sale Start, and must end at or before the Sale End (or 730 days from start for open-ended sales). The smart contract enforces all of these — invalid phases will not deploy on-chain." />
+            </h2>
+            <p className="text-sm text-gray-500 mb-3">
+              Define one or more sale phases. Each phase has its own price, allocation, and time window. Phases run sequentially &mdash; they must not overlap.
             </p>
+            {/* Sale window context — derived from Token & Caps step */}
+            {saleStartDate ? (
+              <div className="mb-4 px-3 py-2 rounded-md bg-darkAqua/5 border border-darkAqua/20 text-xs text-zinc-700">
+                <span className="font-semibold text-darkAqua">Sale window:</span>{" "}
+                {new Date(saleStartDate).toLocaleString()} →{" "}
+                {isOpenEnded
+                  ? `open-ended (auto-cap ${new Date(maxAllowedSaleEnd(saleStartDate)).toLocaleString()})`
+                  : saleEndDate
+                  ? new Date(saleEndDate).toLocaleString()
+                  : "(set Sale End in step 7)"}
+                . All phases must fit inside this window.
+              </div>
+            ) : (
+              <div className="mb-4 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                Set <strong>Sale Start</strong> in the previous step (Token &amp; Caps) before defining phases.
+              </div>
+            )}
             {phasesHaveOverlap && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 mb-2">
                 Phases overlap: each phase&apos;s start date must be after the previous phase&apos;s end date.
@@ -679,9 +798,37 @@ export default function CreateSalePage() {
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-3">
-                        <Input label="Start Date" type="datetime-local" value={ph.startDate} onChange={(e) => updPhase(i, "startDate", e.target.value)} />
-                        <Input label="End Date" type="datetime-local" value={ph.endDate} onChange={(e) => updPhase(i, "endDate", e.target.value)} />
+                        <Input
+                          label="Start Date"
+                          type="datetime-local"
+                          value={ph.startDate}
+                          onChange={(e) => updPhase(i, "startDate", e.target.value)}
+                          min={saleStartDate || undefined}
+                          max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
+                        />
+                        <Input
+                          label="End Date"
+                          type="datetime-local"
+                          value={ph.endDate}
+                          onChange={(e) => updPhase(i, "endDate", e.target.value)}
+                          min={ph.startDate || saleStartDate || undefined}
+                          max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
+                        />
                       </div>
+                      {(() => {
+                        const check = phaseOutsideSaleWindow({
+                          phaseStart: ph.startDate,
+                          phaseEnd: ph.endDate,
+                          saleStart: saleStartDate,
+                          saleEnd: saleEndDate,
+                          isOpenEnded,
+                        });
+                        return check.ok ? null : (
+                          <div className="px-3 py-2 rounded-md bg-red-50 border border-red-200 text-xs text-red-700">
+                            {check.reason}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>);
@@ -692,8 +839,8 @@ export default function CreateSalePage() {
             </div>
           </div>
         )}
-        {/* Step 8: Token & Caps (skip if coming soon) */}
-        {step === 8 && (
+        {/* Step 7: Token & Caps (skip if coming soon) */}
+        {step === 7 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Token & Funding Caps</h2>
             <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.filter((t) => t.contract_address && t.contract_address !== "0x0000000000000000000000000000000000000000").map((t) => {
@@ -750,22 +897,42 @@ export default function CreateSalePage() {
               Maximum tokens this sale will ever sell across all phases. Required.
             </p>
             {/* Round-5: sale window */}
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Sale Start"
-                type="datetime-local"
-                value={saleStartDate}
-                onChange={(e) => setSaleStartDate(e.target.value)}
-              />
-              <Input
-                label="Sale End (optional)"
-                type="datetime-local"
-                value={saleEndDate}
-                onChange={(e) => setSaleEndDate(e.target.value)}
-                disabled={isOpenEnded}
-              />
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-zinc-700">
+                Sale Window
+                <InfoTooltip text={`Sets the outer window in which all phases must run. Maximum total duration is ${MAX_SALE_DURATION_DAYS} days (2 years), enforced at the smart-contract level. Set Sale End to leave the sale fixed-window, or check Open-ended to keep adding phases until you decide to close.`} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Sale Start"
+                  type="datetime-local"
+                  value={saleStartDate}
+                  onChange={(e) => setSaleStartDate(e.target.value)}
+                  helperText="When investors can first contribute. Must be in the future."
+                />
+                <Input
+                  label={isOpenEnded ? "Sale End (open-ended)" : "Sale End"}
+                  type="datetime-local"
+                  value={saleEndDate}
+                  onChange={(e) => setSaleEndDate(e.target.value)}
+                  disabled={isOpenEnded}
+                  max={saleStartDate ? maxAllowedSaleEnd(saleStartDate) : undefined}
+                  helperText={
+                    isOpenEnded
+                      ? `No fixed end. Sale auto-caps at ${MAX_SALE_DURATION_DAYS} days from start.`
+                      : saleStartDate
+                      ? `Latest allowed: ${new Date(maxAllowedSaleEnd(saleStartDate)).toLocaleString()}`
+                      : `Maximum ${MAX_SALE_DURATION_DAYS} days from Sale Start.`
+                  }
+                  error={
+                    !isOpenEnded && saleWindowTooLong(saleStartDate, saleEndDate)
+                      ? `Sale duration exceeds ${MAX_SALE_DURATION_DAYS} days.`
+                      : undefined
+                  }
+                />
+              </div>
             </div>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={isOpenEnded}
@@ -773,11 +940,13 @@ export default function CreateSalePage() {
                   setIsOpenEnded(e.target.checked);
                   if (e.target.checked) setSaleEndDate("");
                 }}
-                className="rounded border-zinc-300 text-darkAqua focus:ring-darkAqua/30"
+                className="mt-0.5 rounded border-zinc-300 text-darkAqua focus:ring-darkAqua/30"
               />
               <span>
                 <strong>Open-ended sale</strong>
-                <span className="text-gray-500"> — issuer keeps adding phases until target reached. Max 730 days from start.</span>
+                <span className="text-gray-500">
+                  {" "}— issuer keeps adding phases until target reached. Hard-capped at {MAX_SALE_DURATION_DAYS} days from start; if no new phase is added for 180 days, anyone can close the sale.
+                </span>
               </span>
             </label>
           </div>
