@@ -53,6 +53,11 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     enabled: true,
+    // Etherscan v2 unified API. Per-chain v1 endpoints (api-sepolia.basescan.org)
+    // were retired May 2025 and now hard-reject with a "deprecated V1 endpoint"
+    // error. The v2 API uses a single host (api.etherscan.io) plus a chainid
+    // query param. Single string apiKey is correct for v2; per-network map is
+    // a v1 concept.
     apiKey: process.env.BASESCAN_API_KEY || "",
     customChains: [
       {
