@@ -417,6 +417,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           vestingSeconds,
           0,                                            // excessPolicy: Revert
         ],
+        // Vested deploy creates 3 proxies (Sale + Vault + Fraction) plus
+        // cross-contract setup; default 1M gas is not enough.
+        gas: 3_000_000n,
       });
     } else {
       // Direct mode
@@ -425,6 +428,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         abi: SALE_FACTORY_ABI as unknown as Abi,
         functionName: "deploySale",
         args: [sale.token_contract_address as `0x${string}`, initData],
+        gas: 1_500_000n,
       });
     }
 
