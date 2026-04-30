@@ -40,7 +40,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const [extendNewEnd, setExtendNewEnd] = useState("");
 
   // On-chain actions
-  const { isConnected } = useAccount();
+  const { isConnected, address: connectedWallet } = useAccount();
   const { openConnectModal } = useConnectModal();
   const approveOnChainAction = useContractAction();
   const activateAction = useContractAction();
@@ -56,6 +56,36 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
     query: { enabled: !!sale?.contract_address },
   });
   const approvedOnChain = approvedOnChainRaw === true;
+
+  // Resolve admin wallet: Sale.factory() → factory.owner(). The connected
+  // wallet must match this for approveSale() to succeed; otherwise the tx
+  // reverts NotAdmin. Surface the mismatch in the UI before the click.
+  const { data: saleFactoryAddr } = useReadContract({
+    address: sale?.contract_address as `0x${string}`,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "factory",
+    query: { enabled: !!sale?.contract_address },
+  });
+  const FACTORY_OWNER_ABI = [{ name: "owner", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] }] as const;
+  const { data: adminWallet } = useReadContract({
+    address: saleFactoryAddr as `0x${string}` | undefined,
+    abi: FACTORY_OWNER_ABI,
+    functionName: "owner",
+    query: { enabled: !!saleFactoryAddr },
+  });
+  // Issuer wallet from the contract itself (Sale.issuer is the address
+  // stored at initialize time — single source of truth for activate()).
+  const { data: saleIssuerAddr } = useReadContract({
+    address: sale?.contract_address as `0x${string}`,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "issuer",
+    query: { enabled: !!sale?.contract_address },
+  });
+  const adminWalletAddr = (adminWallet as string | undefined)?.toLowerCase();
+  const connectedWalletAddr = connectedWallet?.toLowerCase();
+  const issuerWalletAddr = (saleIssuerAddr as string | undefined)?.toLowerCase();
+  const isConnectedAsAdmin = !!connectedWalletAddr && !!adminWalletAddr && connectedWalletAddr === adminWalletAddr;
+  const isConnectedAsIssuer = !!connectedWalletAddr && !!issuerWalletAddr && connectedWalletAddr === issuerWalletAddr;
 
   // Pre-activation on-chain checks
   const { data: onChainPhaseCount } = useReadContract({
@@ -365,16 +395,28 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                 Signs <code>Sale.approveSale()</code> from your admin wallet AND marks the DB row as Approved. Issuer cannot activate until this is complete.
               </p>
               {currentStep === 1 && (
-                <div className="ml-8 flex items-center gap-3">
-                  <Button variant="primary" size="sm" onClick={handleApprove}
-                    isLoading={actionLoading === "approve" || approveOnChainAction.isPending || approveOnChainAction.isConfirming}>
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Sign On-Chain
-                  </Button>
-                  <input type="text" placeholder="Rejection reason (optional)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
-                    className="rounded-lg border border-black/10 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-red-300" />
-                  <Button variant="outline" size="sm" onClick={handleReject} isLoading={actionLoading === "reject"} className="text-red-600 border-red-200 hover:bg-red-50">
-                    <XCircle className="h-4 w-4 mr-2" /> Reject
-                  </Button>
+                <div className="ml-8">
+                  {isConnected && !isConnectedAsAdmin && adminWalletAddr && (
+                    <div className="mb-3 p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
+                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold mb-0.5">Connected wallet is not the admin.</p>
+                        <p>Switch MetaMask to <code className="font-mono">{adminWalletAddr}</code> (factory owner). Currently connected: <code className="font-mono">{connectedWalletAddr}</code>.</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Button variant="primary" size="sm" onClick={handleApprove}
+                      disabled={isConnected && !isConnectedAsAdmin}
+                      isLoading={actionLoading === "approve" || approveOnChainAction.isPending || approveOnChainAction.isConfirming}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Sign On-Chain
+                    </Button>
+                    <input type="text" placeholder="Rejection reason (optional)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+                      className="rounded-lg border border-black/10 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-red-300" />
+                    <Button variant="outline" size="sm" onClick={handleReject} isLoading={actionLoading === "reject"} className="text-red-600 border-red-200 hover:bg-red-50">
+                      <XCircle className="h-4 w-4 mr-2" /> Reject
+                    </Button>
+                  </div>
                 </div>
               )}
               {/* Recovery: DB says Approved but on-chain approved=false. */}
@@ -382,7 +424,13 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                 <div className="ml-8 mt-2 p-3 rounded-md bg-amber-100 border border-amber-300 text-xs text-amber-900">
                   <p className="font-semibold mb-1">DB shows Approved but on-chain isn&apos;t signed yet.</p>
                   <p className="mb-2">Legacy data — click below to run the on-chain approveSale() so the issuer can activate.</p>
+                  {isConnected && !isConnectedAsAdmin && adminWalletAddr && (
+                    <p className="mb-2 text-red-700">
+                      ⚠ Connected wallet is not the admin. Switch MetaMask to <code className="font-mono">{adminWalletAddr}</code> first.
+                    </p>
+                  )}
                   <Button variant="primary" size="sm" onClick={handleApproveOnChainOnly}
+                    disabled={isConnected && !isConnectedAsAdmin}
                     isLoading={actionLoading === "approve_onchain" || approveOnChainAction.isPending || approveOnChainAction.isConfirming}>
                     Run on-chain approveSale()
                   </Button>
@@ -418,9 +466,18 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                       )}
                     </div>
                   )}
+                  {isConnected && !isConnectedAsIssuer && issuerWalletAddr && (
+                    <div className="mb-3 p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
+                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold mb-0.5">Connected wallet is not the issuer.</p>
+                        <p>Switch MetaMask to <code className="font-mono">{issuerWalletAddr}</code> to call <code>activate()</code>. Currently connected: <code className="font-mono">{connectedWalletAddr}</code>.</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <Button variant="primary" size="sm" onClick={handleActivateOnChain}
-                      disabled={activateAction.isPending || activateAction.isConfirming || chainPhases === 0 || !tokensDeposited || !approvedOnChain}
+                      disabled={activateAction.isPending || activateAction.isConfirming || chainPhases === 0 || !tokensDeposited || !approvedOnChain || (isConnected && !isConnectedAsIssuer)}
                       isLoading={activateAction.isPending || activateAction.isConfirming}>
                       <Zap className="h-4 w-4 mr-2" /> Activate (issuer wallet)
                     </Button>
