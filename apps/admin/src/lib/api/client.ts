@@ -81,11 +81,30 @@ export async function apiFetch<T>(
         return new Promise<T>(() => {});
       }
     }
-    throw new APIError(
-      response.status,
-      error.detail?.code ?? "UNKNOWN_ERROR",
-      error.detail?.message ?? response.statusText
-    );
+    // FastAPI returns 422 with detail = [{loc, msg, type}, ...] (array form),
+    // and our app code returns 4xx with detail = {code, message} (object form).
+    // Decode both so the user sees the actual field that failed instead of
+    // a generic "Unprocessable Content".
+    let code = "UNKNOWN_ERROR";
+    let message = response.statusText;
+    if (Array.isArray(error.detail)) {
+      const parts = error.detail
+        .map((d: { loc?: unknown[]; msg?: string }) => {
+          const field = Array.isArray(d.loc)
+            ? d.loc.filter((seg) => seg !== "body").join(".")
+            : "";
+          return field ? `${field}: ${d.msg ?? "invalid"}` : (d.msg ?? "invalid");
+        })
+        .join("; ");
+      code = "VALIDATION_ERROR";
+      message = parts || "Validation error";
+    } else if (error.detail && typeof error.detail === "object") {
+      code = error.detail.code ?? "UNKNOWN_ERROR";
+      message = error.detail.message ?? response.statusText;
+    } else if (typeof error.detail === "string") {
+      message = error.detail;
+    }
+    throw new APIError(response.status, code, message);
   }
 
   // Handle 204 No Content (e.g. DELETE responses)
