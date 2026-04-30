@@ -35,7 +35,12 @@ export default function OTCTokenDetailPage({ params }: { params: Promise<{ addre
   const { data: totalSupplyRaw, refetch: refetchSupply } = useReadContract({
     address: otcAddr, abi: OTC_TOKEN_ABI, functionName: "totalSupply", query: baseQuery,
   });
-  const { data: hasMinterRoleRaw } = useReadContract({
+  const {
+    data: hasMinterRoleRaw,
+    isFetched: minterRoleFetched,
+    isFetching: minterRoleFetching,
+    refetch: refetchMinterRole,
+  } = useReadContract({
     address: otcAddr,
     abi: OTC_TOKEN_ABI as unknown as Abi,
     functionName: "hasRole",
@@ -47,7 +52,11 @@ export default function OTCTokenDetailPage({ params }: { params: Promise<{ addre
   const symbol = (symbolRaw as string) || "OTC";
   const decimals = typeof decimalsRaw === "number" ? decimalsRaw : 6;
   const totalSupply = totalSupplyRaw ? formatUnits(totalSupplyRaw as bigint, decimals) : "0";
-  const hasMinterRole = hasMinterRoleRaw === true;
+  // The hasRole read can flap on flaky public RPCs (publicnode lag etc.). Only
+  // surface a "no permission" warning if the read has actually returned false —
+  // undefined / still-loading is treated as unknown, not denied. Mint button
+  // is never gated on the preflight; the on-chain call is the source of truth.
+  const minterRoleDeniedFirm = minterRoleFetched && hasMinterRoleRaw === false;
 
   // Mint form
   const [recipient, setRecipient] = useState("");
@@ -61,10 +70,9 @@ export default function OTCTokenDetailPage({ params }: { params: Promise<{ addre
     if (!isAddress(recipient)) { setFormError("Recipient must be a valid wallet address."); return; }
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { setFormError("Amount must be greater than zero."); return; }
-    if (!hasMinterRole) {
-      setFormError("Connected wallet does not have MINTER_ROLE on this OTC token. Either grant it via the issuer registry or mint via the linked sale.");
-      return;
-    }
+    // Don't gate on the hasRole preflight — it can be wrong/stale on flaky
+    // RPCs. Let the on-chain call be the source of truth; surface the revert
+    // if the wallet actually lacks the role.
     try {
       const amountWei = parseUnits(amount, decimals);
       await mintAction.execute({
@@ -149,10 +157,21 @@ export default function OTCTokenDetailPage({ params }: { params: Promise<{ addre
             Connect your wallet to mint.
           </div>
         )}
-        {isConnected && !hasMinterRole && (
-          <div className="mb-4 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
-            <strong>{walletAddress?.slice(0, 6)}…{walletAddress?.slice(-4)}</strong> does not hold MINTER_ROLE on this token.
-            The mint button will revert. Either mint from the linked sale&apos;s OTC tab, or grant MINTER_ROLE to your wallet first.
+        {isConnected && minterRoleDeniedFirm && (
+          <div className="mb-4 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start justify-between gap-3">
+            <div>
+              <strong>{walletAddress?.slice(0, 6)}…{walletAddress?.slice(-4)}</strong> may not hold MINTER_ROLE on this token (on-chain read returned false).
+              If you deployed this token, the role is granted automatically — this can be a stale RPC read.
+              Try minting anyway, or click Recheck.
+            </div>
+            <button
+              type="button"
+              className="text-xs underline whitespace-nowrap"
+              onClick={() => refetchMinterRole()}
+              disabled={minterRoleFetching}
+            >
+              {minterRoleFetching ? "Checking…" : "Recheck"}
+            </button>
           </div>
         )}
 
