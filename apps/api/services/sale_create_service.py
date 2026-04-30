@@ -52,6 +52,7 @@ class SaleCreateService:
         total_token_supply: Decimal | None = None,
         sale_start_time: object | None = None,
         sale_end_time: object | None = None,
+        is_open_ended: bool = False,
     ) -> TokenSale:
         """Create a new token sale.
 
@@ -161,6 +162,7 @@ class SaleCreateService:
             sale.sale_start_time = sale_start_time  # type: ignore[assignment]
         if sale_end_time is not None:
             sale.sale_end_time = sale_end_time  # type: ignore[assignment]
+        sale.is_open_ended = is_open_ended
         sale.status = SaleStatus.DRAFT
 
         self.db.add(sale)

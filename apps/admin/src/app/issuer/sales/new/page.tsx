@@ -449,6 +449,7 @@ export default function CreateSalePage() {
           total_token_supply: totalTokenSupply || undefined,
           sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
           sale_end_time: isOpenEnded || !saleEndDate ? undefined : new Date(saleEndDate).toISOString(),
+          is_open_ended: isOpenEnded,
         });
         // Phases: delete-all-then-create-all (only valid for draft sales — backend allows this only pre-deploy)
         const existing = await getSale(savedSaleId, tk);
@@ -498,6 +499,7 @@ export default function CreateSalePage() {
         total_token_supply: totalTokenSupply || undefined,
         sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
         sale_end_time: isOpenEnded || !saleEndDate ? undefined : new Date(saleEndDate).toISOString(),
+        is_open_ended: isOpenEnded,
         phases: isComingSoon ? [] : validPhases.map((p) => ({
           name: p.name, allocation: Number(p.allocation), price_per_token: p.pricePerToken,
           start_time: new Date(p.startDate).toISOString(), end_time: new Date(p.endDate).toISOString(),

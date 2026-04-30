@@ -280,6 +280,7 @@ async def update_sale(
         "cliff_duration_seconds", "vesting_duration_seconds",
         "token_id", "payment_token", "soft_cap", "hard_cap",
         "total_token_supply", "sale_start_time", "sale_end_time",
+        "is_open_ended",
     }
     update_data = request.model_dump(exclude_unset=True)
     is_draft = sale.status == "draft"
@@ -341,6 +342,7 @@ async def create_sale(
         total_token_supply=request.total_token_supply,
         sale_start_time=request.sale_start_time,
         sale_end_time=request.sale_end_time,
+        is_open_ended=request.is_open_ended,
     )
     return _sale_to_response(sale)
 

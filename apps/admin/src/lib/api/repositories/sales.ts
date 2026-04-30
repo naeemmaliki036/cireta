@@ -130,6 +130,7 @@ export interface CreateSaleRequest {
   total_token_supply?: string;
   sale_start_time?: string;
   sale_end_time?: string; // undefined = open-ended
+  is_open_ended?: boolean;
   phases?: {
     name: string;
     allocation: number;
@@ -335,6 +336,7 @@ export interface UpdateSaleRequest {
   total_token_supply?: string;
   sale_start_time?: string;
   sale_end_time?: string;
+  is_open_ended?: boolean;
 }
 
 export async function updateSale(

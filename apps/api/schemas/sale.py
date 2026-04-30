@@ -73,6 +73,10 @@ class SaleCreateRequest(BaseModel):
     # values round-trip exactly: 5 min = 300, 1 hour = 3600, 1 day = 86400.
     cliff_duration_seconds: int = Field(default=0, ge=0)
     vesting_duration_seconds: int = Field(default=365 * 86400, ge=0)
+    # Round-5 open-ended flag — when True the sale runs until target reached
+    # or 730-day safety floor (whichever comes first). Wizard derives this
+    # from a checkbox; backend persists it so the reload reflects the choice.
+    is_open_ended: bool = False
     # Token & caps (Step 7, optional for coming soon)
     token_id: str | None = None
     payment_token: str = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
@@ -173,6 +177,7 @@ class SaleUpdateRequest(BaseModel):
     sale_structure: str | None = None
     cliff_duration_seconds: int | None = Field(default=None, ge=0)
     vesting_duration_seconds: int | None = Field(default=None, ge=0)
+    is_open_ended: bool | None = None
     token_id: str | None = None
     payment_token: str | None = None
     soft_cap: Decimal | None = Field(default=None, ge=0)
