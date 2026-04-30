@@ -19,10 +19,31 @@ class SaleQueryService:
         self.db = db
 
     async def get_sale_by_token_slug(self, slug: str) -> TokenSale | None:
-        """Get a sale by the token's slug, or by sale ID for tokenless sales."""
+        """Get a sale by the token's slug, or by sale ID for tokenless sales.
+
+        An issuer can deploy multiple sales for the same token (e.g. a
+        seed round followed by a public round, or a mistake draft they
+        never deleted). Token slug isn't unique across sales, so we
+        prefer the publicly visible one: ACTIVE > APPROVED_COMING_SOON >
+        APPROVED > everything else, then newest. Without this ordering
+        the route returned None whenever any duplicate existed, surfacing
+        as a confusing 404 on the public detail page.
+        """
+        from sqlalchemy import case
+
+        from apps.api.models.enums import SaleStatus
         from apps.api.models.token import Token
 
-        # Try token slug first
+        # Status priority — lower = more public-facing.
+        status_priority = case(
+            (TokenSale.status == SaleStatus.ACTIVE, 0),
+            (TokenSale.status == SaleStatus.APPROVED_COMING_SOON, 1),
+            (TokenSale.status == SaleStatus.APPROVED, 2),
+            (TokenSale.status == SaleStatus.PENDING_APPROVAL, 3),
+            (TokenSale.status == SaleStatus.FINALIZED_SUCCESS, 4),
+            else_=5,
+        )
+
         query = (
             select(TokenSale)
             .join(Token, TokenSale.token_id == Token.id)
@@ -33,6 +54,8 @@ class SaleQueryService:
                 selectinload(TokenSale.issuer),
                 selectinload(TokenSale.images),
             )
+            .order_by(status_priority.asc(), TokenSale.created_at.desc())
+            .limit(1)
         )
         result = await self.db.execute(query)
         sale = result.scalar_one_or_none()
