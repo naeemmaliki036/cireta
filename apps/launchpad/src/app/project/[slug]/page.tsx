@@ -667,7 +667,12 @@ export default function ProjectDetailPage() {
                       ].map(([k, v]) => (
                         <div key={k}><span className="text-gray-500">{k}</span><p className="font-medium capitalize">{v}</p></div>
                       ))}
-                      {token?.contract_address && <div className="col-span-2"><span className="text-gray-500">Contract</span><CopyableAddress address={token.contract_address} truncate className="text-xs" /></div>}
+                      {token?.contract_address && (
+                        <div className="col-span-2">
+                          <p className="text-gray-500 mb-0.5">Contract</p>
+                          <CopyableAddress address={token.contract_address} truncate className="text-xs" />
+                        </div>
+                      )}
                     </div>
                   </div>
 

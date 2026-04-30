@@ -43,7 +43,7 @@ export function formatDateTimeLocal(date: Date | string): string {
   const minutes = String(d.getMinutes()).padStart(2, "0");
   const ampm = rawHours >= 12 ? "PM" : "AM";
   const hours = rawHours % 12 || 12;
-  return `${day}/${month}/${year} ${hours}:${minutes}${ampm}`;
+  return `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
 }
 
 /**
