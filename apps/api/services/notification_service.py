@@ -30,6 +30,30 @@ SALE_APPROVED = "sale_approved"
 SALE_REJECTED = "sale_rejected"
 
 
+# Block-explorer URLs by chain id. Used to build a "View Transaction" link
+# in the investment-confirmation email. Add new chains here as needed —
+# falls back to an empty string (which the template treats as no link).
+_BLOCK_EXPLORERS: dict[int, str] = {
+    1: "https://etherscan.io",
+    8453: "https://basescan.org",
+    84532: "https://sepolia.basescan.org",
+    11155111: "https://sepolia.etherscan.io",
+    137: "https://polygonscan.com",
+}
+
+
+def _block_explorer_tx_url(tx_hash: str | None) -> str:
+    if not tx_hash:
+        return ""
+    try:
+        from packages.common.core.config import settings as _settings
+
+        base = _BLOCK_EXPLORERS.get(int(_settings.chain_id), "")
+    except Exception:
+        base = ""
+    return f"{base}/tx/{tx_hash}" if base else ""
+
+
 class NotificationService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -75,13 +99,37 @@ class NotificationService:
         token_name: str,
         display_name: str = "",
         tokens_allocated: str = "",
+        tx_hash: str | None = None,
+        payment_method: str = "USDC",
+        otc_reference: str | None = None,
     ) -> None:
+        """Send the post-purchase confirmation.
+
+        Works for both USDC contributions (real on-chain tx_hash → block
+        explorer link) and OTC allocations (otc_reference → no link, just
+        shown as the buyer's reference). The template renders both paths
+        through the same {{tx_reference}} / {{tx_url}} placeholders so we
+        keep a single email design.
+        """
+        is_otc = payment_method.upper() == "OTC"
+        tx_reference = otc_reference or tx_hash or ""
+        tx_url = "" if is_otc else _block_explorer_tx_url(tx_hash)
+        unit = "tokens" if is_otc else "USDC"
         await self.create(
             user_id=user_id,
             notif_type=INVESTMENT_CONFIRMED,
             title="Investment Confirmed",
-            message=f"Your investment of {amount} USDC in {token_name} has been confirmed.",
-            data={"amount": amount, "token_name": token_name},
+            message=(
+                f"Your {payment_method} purchase of {amount} {unit} "
+                f"in {token_name} has been confirmed."
+            ),
+            data={
+                "amount": amount,
+                "token_name": token_name,
+                "payment_method": payment_method,
+                "tx_hash": tx_hash,
+                "otc_reference": otc_reference,
+            },
             send_email=True,
             email_template_key="investment_confirmation",
             email_to=user_email,
@@ -90,6 +138,9 @@ class NotificationService:
                 "token_name": token_name,
                 "amount": amount,
                 "tokens_allocated": tokens_allocated,
+                "payment_method": payment_method,
+                "tx_reference": tx_reference,
+                "tx_url": tx_url,
             },
         )
 

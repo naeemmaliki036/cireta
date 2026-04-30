@@ -688,7 +688,14 @@ async def contribute(
                 contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
             )
             await _NS(sale_service.db).notify_investment_confirmed(
-                user_id, _user.email, str(request.amount), _token_symbol,
+                user_id=user_id,
+                user_email=_user.email,
+                amount=str(request.amount),
+                token_name=_token_symbol,
+                display_name=_user.display_name or "",
+                tokens_allocated=str(contribution.tokens_allocated),
+                tx_hash=request.tx_hash,
+                payment_method="USDC",
             )
     except Exception:
         import logging
@@ -1443,4 +1450,54 @@ async def otc_allocate(
 
     db.add(contrib)
     await db.commit()
+
+    # Send the buyer their purchase confirmation. Mirrors the USDC path —
+    # same template, "OTC" payment method, payment_reference shown as the
+    # buyer-facing reference (no on-chain tx exists for OTC).
+    try:
+        from sqlalchemy import select as _select
+
+        from apps.api.models.user import User as _User
+        from apps.api.services.notification_service import (
+            NotificationService as _NS,
+        )
+
+        _res = await db.execute(_select(_User).where(_User.id == investor_user_id))
+        _investor = _res.scalar_one_or_none()
+        # Reload sale with token so we can pull the symbol for the email.
+        from sqlalchemy.orm import selectinload as _selectin
+
+        _sale_full = (
+            await db.execute(
+                select(TokenSale)
+                .options(_selectin(TokenSale.token))
+                .where(TokenSale.id == sale_id)
+            )
+        ).scalar_one_or_none()
+        _token_symbol = (
+            _sale_full.token.symbol
+            if _sale_full and _sale_full.token and _sale_full.token.symbol
+            else "TOKEN"
+        )
+        if _investor:
+            await _NS(db).notify_investment_confirmed(
+                user_id=investor_user_id,
+                user_email=_investor.email,
+                amount=str(request.token_amount),
+                token_name=_token_symbol,
+                display_name=_investor.display_name or "",
+                tokens_allocated=str(request.token_amount),
+                payment_method="OTC",
+                otc_reference=request.payment_reference,
+            )
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Failed to send OTC purchase confirmation user=%s sale=%s",
+            investor_user_id,
+            sale_id,
+            exc_info=True,
+        )
+
     return {"message": "OTC allocation recorded", "tokens_allocated": str(request.token_amount)}

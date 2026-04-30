@@ -69,13 +69,15 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
             f'<div style="{_STYLE_BOX}">'
             '<table style="width:100%;color:#555;font-size:14px">'
             '<tr><td style="padding:6px 0;color:#888">Asset</td><td style="text-align:right;font-weight:600">{{token_name}}</td></tr>'
-            '<tr><td style="padding:6px 0;color:#888">Amount</td><td style="text-align:right;font-weight:600">{{amount}} USDC</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Amount</td><td style="text-align:right;font-weight:600">{{amount}} {{payment_method}}</td></tr>'
             '<tr><td style="padding:6px 0;color:#888">Tokens</td><td style="text-align:right;font-weight:600">{{tokens_allocated}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Reference</td><td style="text-align:right;font-weight:600;font-family:monospace;font-size:12px;word-break:break-all">{{tx_reference}}</td></tr>'
             '</table></div>'
+            f'<a href="{{{{tx_url}}}}" style="{_STYLE_BTN};margin-right:8px">View Transaction</a>'
             f'<a href="{{{{frontend_url}}}}/portfolio" style="{_STYLE_BTN}">View Portfolio</a>'
             f'{_STYLE_FOOTER}'
         ),
-        "description": "Sent after successful investment",
+        "description": "Sent after successful investment (USDC or OTC)",
     },
     "kyc_approved": {
         "subject": "KYC approved — You're ready to invest",
@@ -260,30 +262,43 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
         ),
         "description": "Sent to admin when a new issuer applies",
     },
+    "sale_submitted_for_approval": {
+        "subject": "Sale awaiting your approval: {{sale_title}}",
+        "html_body": (
+            f'{_STYLE_WRAP}'
+            '<h2 style="color:#111">Sale Awaiting Approval</h2>'
+            '<p style="color:#555">Hi {{display_name}},</p>'
+            '<p style="color:#555"><strong>{{issuer_name}}</strong> has submitted '
+            '<strong>{{sale_title}}</strong> for review.</p>'
+            f'<a href="{{{{frontend_url}}}}/platform/sales/{{{{sale_id}}}}" style="{_STYLE_BTN};margin-top:16px">Open Sale</a>'
+            f'{_STYLE_FOOTER}'
+        ),
+        "description": "Sent to platform admins when an issuer submits a sale for approval",
+    },
     "sale_approved": {
-        "subject": "Your sale {{sale_name}} has been approved",
+        "subject": "Your sale {{sale_title}} has been approved",
         "html_body": (
             f'{_STYLE_WRAP}'
             '<h2 style="color:#111">Sale Approved</h2>'
-            '<p style="color:#555">Hi {{display_name}}, your sale <strong>{{sale_name}}</strong> '
-            'has been approved and is now live.</p>'
-            f'<a href="{{{{admin_url}}}}/issuer/sales" style="{_STYLE_BTN};margin-top:16px">View Sale</a>'
+            '<p style="color:#555">Hi {{display_name}}, your sale <strong>{{sale_title}}</strong> '
+            'has been approved. Sign Activate Sale On-Chain in the issuer console to make it live.</p>'
+            f'<a href="{{{{frontend_url}}}}/issuer/sales/{{{{sale_id}}}}" style="{_STYLE_BTN};margin-top:16px">Open Sale</a>'
             f'{_STYLE_FOOTER}'
         ),
         "description": "Sent to issuer when their sale is approved by admin",
     },
     "sale_rejected": {
-        "subject": "Your sale {{sale_name}} was not approved",
+        "subject": "Your sale {{sale_title}} was not approved",
         "html_body": (
             f'{_STYLE_WRAP}'
             '<h2 style="color:#111">Sale Not Approved</h2>'
-            '<p style="color:#555">Hi {{display_name}}, your sale <strong>{{sale_name}}</strong> '
+            '<p style="color:#555">Hi {{display_name}}, your sale <strong>{{sale_title}}</strong> '
             'was not approved. Please review the feedback and resubmit.</p>'
-            '<p style="color:#555">Reason: {{rejection_reason}}</p>'
-            f'<a href="{{{{admin_url}}}}/issuer/sales" style="{_STYLE_BTN};margin-top:16px">Review & Resubmit</a>'
+            '<p style="color:#555;background:#f8f9fa;border-radius:8px;padding:12px;font-style:italic">{{reason}}</p>'
+            f'<a href="{{{{frontend_url}}}}/issuer/sales" style="{_STYLE_BTN};margin-top:16px">Review &amp; Resubmit</a>'
             f'{_STYLE_FOOTER}'
         ),
-        "description": "Sent to issuer when their sale is rejected",
+        "description": "Sent to issuer when their sale is rejected by admin",
     },
     "sale_launched": {
         "subject": "{{sale_name}} is now live on Cireta!",
@@ -351,7 +366,8 @@ TEMPLATE_VARIABLES: dict[str, list[str]] = {
     "otp_code": ["code"],
     "welcome": ["display_name", "frontend_url"],
     "investment_confirmation": [
-        "display_name", "token_name", "amount", "tokens_allocated", "frontend_url",
+        "display_name", "token_name", "amount", "tokens_allocated",
+        "payment_method", "tx_reference", "tx_url", "frontend_url",
     ],
     "kyc_approved": ["display_name", "frontend_url"],
     "kyc_rejected": ["display_name"],
@@ -369,8 +385,9 @@ TEMPLATE_VARIABLES: dict[str, list[str]] = {
         "display_name", "token_symbol", "dividend_amount", "frontend_url",
     ],
     "issuer_approval_request": ["issuer_name", "issuer_email", "admin_url"],
-    "sale_approved": ["display_name", "sale_name", "admin_url"],
-    "sale_rejected": ["display_name", "sale_name", "rejection_reason", "admin_url"],
+    "sale_submitted_for_approval": ["display_name", "sale_title", "issuer_name", "sale_id", "frontend_url"],
+    "sale_approved": ["display_name", "sale_title", "sale_id", "frontend_url"],
+    "sale_rejected": ["display_name", "sale_title", "reason", "frontend_url"],
     "issuer_wallet_approved": ["display_name", "admin_url"],
     "issuer_wallet_rejected": ["display_name", "rejection_reason", "admin_url"],
     "admin_sale_submitted": [
