@@ -622,6 +622,16 @@ export default function CreateSalePage() {
               </div>
               {otcEnabled && (
                 <div className="mt-4 space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-zinc-400">
+                      Pick an OTC token you&apos;ve deployed, or paste a custom address. Buyers holding OTC tokens can use them to purchase at the sale price. Required when OTC is enabled.
+                    </p>
+                    <OTCTokenSelect
+                      value={otcTokenAddress}
+                      onChange={setOtcTokenAddress}
+                      required
+                    />
+                  </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <label className="block text-sm font-medium text-zinc-600">OTC Instructions (shown to buyers)</label>
@@ -639,10 +649,12 @@ export default function CreateSalePage() {
                             if (data.otc_default_content) {
                               setOtcContent(data.otc_default_content);
                             } else {
-                              window.alert("No platform default template is configured.");
+                              window.alert("No platform default template is configured. Ask an admin to set one in Platform → Settings.");
                             }
-                          } catch {
-                            window.alert("Could not load the default template.");
+                          } catch (e) {
+                            console.error("[OTC default template] fetch failed:", e);
+                            const msg = e instanceof Error ? e.message : String(e);
+                            window.alert(`Could not load the default template.\n\n${msg}`);
                           }
                         }}
                         className="text-xs font-medium text-darkAqua hover:underline"
@@ -652,16 +664,6 @@ export default function CreateSalePage() {
                     </div>
                     <p className="text-xs text-zinc-400">Include wire details, process steps, minimum amounts, and contact info.</p>
                     <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-zinc-400">
-                      Pick an OTC token you&apos;ve deployed, or paste a custom address. Buyers holding OTC tokens can use them to purchase at the sale price. Required when OTC is enabled.
-                    </p>
-                    <OTCTokenSelect
-                      value={otcTokenAddress}
-                      onChange={setOtcTokenAddress}
-                      required
-                    />
                   </div>
                 </div>
               )}
