@@ -22,6 +22,31 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
+ * Format a Date as `DD/MM/YYYY HH:MM[AM|PM]` in the viewer's local
+ * timezone. Used for sale and phase start/end on the launchpad so the
+ * window is unambiguous across regions without relying on a timezone
+ * abbreviation that varies by browser.
+ *
+ * Storage round-trip:
+ *   DB column is `DateTime(timezone=True)` → Postgres `TIMESTAMPTZ`,
+ *   stored as UTC. Pydantic serialises to ISO 8601 with offset
+ *   ("2026-04-30T18:30:00+00:00"). `new Date(iso)` parses to a local
+ *   Date and the getters below all return local-tz components.
+ */
+export function formatDateTimeLocal(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  const rawHours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = rawHours >= 12 ? "PM" : "AM";
+  const hours = rawHours % 12 || 12;
+  return `${day}/${month}/${year} ${hours}:${minutes}${ampm}`;
+}
+
+/**
  * Format a number with locale-specific separators
  */
 export function formatNumber(

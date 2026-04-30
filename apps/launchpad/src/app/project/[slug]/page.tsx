@@ -12,7 +12,7 @@ import {
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { Navbar, Footer } from "@/components/organisms";
-import { cn, formatCurrency, formatTokenDisplay } from "@/lib/utils";
+import { cn, formatCurrency, formatTokenDisplay, formatDateTimeLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
@@ -324,7 +324,7 @@ export default function ProjectDetailPage() {
   const progressPct = raised >= hardCap ? 100 : Math.min(parseFloat(progressPctRaw.toFixed(2)), 99.99);
   const bannerImg = images.find((i) => i.is_banner)?.url ?? (project.imageUrl || "/images/projects/gold-ghana.png");
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
-  const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const fmtDate = (d: Date) => formatDateTimeLocal(d);
   const fmtUsdc = (n: number) => {
     if (n >= 1_000_000) {
       const m = n / 1_000_000;

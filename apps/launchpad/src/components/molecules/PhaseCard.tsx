@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle2, Lock } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTimeLocal } from "@/lib/utils";
 import { Badge } from "@/components/atoms";
 
 export interface PhaseCardProps {
@@ -39,13 +39,7 @@ export function PhaseCard({
   const now = new Date();
   const isUpcoming = startTime > now;
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const formatDate = (date: Date) => formatDateTimeLocal(date);
 
   return (
     <motion.div

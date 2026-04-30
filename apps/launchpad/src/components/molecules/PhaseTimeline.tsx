@@ -2,7 +2,7 @@
 
 import React from "react";
 import { CheckCircle2, Clock, Lock } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTimeLocal } from "@/lib/utils";
 import { Badge } from "@/components/atoms";
 import type { ProjectPhase } from "@/lib/api/repositories/projects.repository";
 
@@ -21,10 +21,7 @@ function getPhaseStatus(phase: ProjectPhase): PhaseStatus {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatDateTimeLocal(dateStr);
 }
 
 export function PhaseTimeline({ phases, className }: PhaseTimelineProps) {
