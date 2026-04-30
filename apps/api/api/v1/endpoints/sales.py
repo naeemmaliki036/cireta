@@ -1036,6 +1036,33 @@ async def submit_for_approval(
 
     sale.status = SaleStatus.PENDING_APPROVAL
     await sale_service.db.commit()
+
+    # Notify all platform admins that a new sale is in their review queue.
+    # Failures here must not roll back the status change — log and move on.
+    try:
+        from apps.api.models.enums import UserRole
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        admin_rows = await sale_service.db.execute(
+            select(User).where(User.role == UserRole.ADMIN)
+        )
+        admins = list(admin_rows.scalars().all())
+        notif = NotificationService(sale_service.db)
+        issuer_name = sale.issuer.name if sale.issuer else "An issuer"
+        for admin in admins:
+            await notif.notify_sale_submitted_for_approval(
+                admin_user_id=admin.id,
+                admin_email=admin.email,
+                sale_id=sale_id,
+                sale_title=sale.title or "(untitled sale)",
+                issuer_name=issuer_name,
+                admin_display_name=admin.first_name or admin.email,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("notify admins on submit failed: %s", e)
+
     return {"sale_id": str(sale_id), "status": "pending_approval", "message": "Sale submitted for admin approval"}
 
 
