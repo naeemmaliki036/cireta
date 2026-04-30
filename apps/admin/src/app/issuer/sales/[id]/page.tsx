@@ -371,6 +371,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             end_time: new Date(Number(phase.endTime) * 1000).toISOString(),
             whitelist_only: phase.whitelistOnly,
             allocation_mode: phase.allocationMode === 0 ? "fixed" : "remaining",
+            // Mark deployed — without this, `deployed_on_chain` defaults to
+            // false on the DB row and the launchpad treats the phase as
+            // tentative ("Planned" / "Phase Not Yet Available"), even
+            // though the on-chain phase is real.
+            deployed_on_chain: true,
+            on_chain_phase_id: i,
           }),
         });
         if (!res.ok) {
