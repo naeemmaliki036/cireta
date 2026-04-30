@@ -131,9 +131,13 @@ export default function CreateSalePage() {
     })();
   }, []);
 
-  // Prefill from existing draft when ?id= is set
+  // Prefill from existing draft when ?id= is set.
+  // Wait for paymentTokens to load before running so the preset/custom
+  // detection finds the cUSDC / USDC entries instead of falling through
+  // to "custom" mode for a token that's actually in the dropdown.
   useEffect(() => {
     if (!editingSaleId) return;
+    if (paymentTokens.length === 0) return;
     (async () => {
       try {
         const tk = getAccessToken() ?? "";
@@ -219,10 +223,11 @@ export default function CreateSalePage() {
         setPrefilling(false);
       }
     })();
-    // paymentTokens intentionally omitted from deps — re-running on its load
-    // would clobber user-edited fields. The custom-mode detection runs once.
+    // We add paymentTokens to deps so the effect retries once payment tokens
+    // are loaded — the early return above ensures it fires only once
+    // meaningfully (when both editingSaleId and paymentTokens are available).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingSaleId]);
+  }, [editingSaleId, paymentTokens.length]);
 
   // Auto-load platform OTC template when OTC is first enabled
   const handleOtcToggle = async (enabled: boolean) => {
