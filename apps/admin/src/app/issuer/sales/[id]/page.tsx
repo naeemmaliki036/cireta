@@ -717,7 +717,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       description={`Sale ID: ${sale.id}`}
       actions={
         <div className="flex items-center gap-3">
-          {isDraft && !sale.contract_address && (
+          {((isDraft && !sale.contract_address) || isRejected) && (
             <Link href={`/issuer/sales/new?id=${resolvedId}`}>
               <Button variant="secondary">
                 <Pencil className="h-4 w-4 mr-2" /> Edit in Wizard
@@ -771,7 +771,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               {isSyncing ? "Syncing..." : "Deploy On-Chain"}
             </Button>
           )}
-          {isDraft && sale.contract_address && (
+          {(isDraft || isRejected) && sale.contract_address && (
             <Button
               variant="primary"
               onClick={() => {
@@ -785,12 +785,14 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               disabled={!setupReady}
               title={
                 setupReady
-                  ? "Submit this sale for admin approval"
+                  ? isRejected
+                    ? "Resubmit this sale for admin approval"
+                    : "Submit this sale for admin approval"
                   : "Complete all required setup steps in the On-Chain tab first"
               }
             >
               <CheckCircle2 className="h-4 w-4 mr-2" />
-              Submit for Approval
+              {isRejected ? "Resubmit for Approval" : "Submit for Approval"}
             </Button>
           )}
           {(sale.contract_address || syncDone) && (
@@ -845,6 +847,21 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
         <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700 flex items-center gap-2">
           <div className="h-4 w-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
           Syncing sale contract address — please wait...
+        </div>
+      )}
+      {isRejected && (
+        <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-amber-600" />
+            <div>
+              <p className="font-semibold mb-1">Sale rejected by admin</p>
+              <p className="text-amber-700">
+                Edit the sale to address the admin&apos;s feedback (sent via email
+                and in-app notification), then resubmit for approval. The
+                on-chain contract is unchanged — no redeploy needed.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

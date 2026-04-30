@@ -114,6 +114,35 @@ async def reject_sale(
 
     sale.status = SaleStatus.REJECTED
     await sale_service.db.commit()
+
+    # Notify the issuer so they know to edit + resubmit. Failures must
+    # not roll back the rejection — log and move on.
+    try:
+        from sqlalchemy.orm import selectinload
+
+        from apps.api.models.issuer import Issuer
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        issuer_row = await sale_service.db.execute(
+            select(Issuer).options(selectinload(Issuer.user)).where(Issuer.id == sale.issuer_id)
+        )
+        issuer = issuer_row.scalar_one_or_none()
+        if issuer and issuer.user:
+            user: User = issuer.user
+            notif = NotificationService(sale_service.db)
+            await notif.notify_sale_rejected(
+                issuer_user_id=user.id,
+                issuer_email=user.email,
+                sale_id=sale_id,
+                sale_title=sale.title or "(untitled sale)",
+                reason=request.reason,
+                issuer_display_name=user.first_name or user.email,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("notify issuer on reject failed: %s", e)
+
     return SaleActionResponse(sale_id=str(sale_id), status=sale.status.value, message=f"Sale rejected: {request.reason or 'No reason provided'}")
 
 

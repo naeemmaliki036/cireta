@@ -161,8 +161,11 @@ export default function CreateSalePage() {
       try {
         const tk = getAccessToken() ?? "";
         const sale = await getSale(editingSaleId, tk);
-        if (sale.status !== "draft") {
-          setError("This sale is no longer in draft status and cannot be edited via the wizard.");
+        // Rejected sales reopen for editing — the issuer fixes the
+        // admin's flagged issues and resubmits. Backend accepts both
+        // statuses on PATCH and submit-for-approval.
+        if (sale.status !== "draft" && sale.status !== "rejected") {
+          setError("This sale is no longer editable via the wizard.");
           return;
         }
         setSavedSaleId(sale.id);

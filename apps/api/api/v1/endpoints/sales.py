@@ -338,8 +338,11 @@ async def update_sale(
         "is_open_ended",
     }
     update_data = request.model_dump(exclude_unset=True)
-    is_draft = sale.status == "draft"
-    blocked = [k for k in update_data if k in DRAFT_ONLY_FIELDS and not is_draft]
+    # Treat REJECTED like DRAFT — issuer can fix flagged issues and resubmit.
+    # The on-chain contract is still in Draft, so financial-field changes
+    # remain meaningful.
+    is_editable = sale.status in ("draft", "rejected")
+    blocked = [k for k in update_data if k in DRAFT_ONLY_FIELDS and not is_editable]
     if blocked:
         raise HTTPException(
             status_code=400,
@@ -1060,8 +1063,12 @@ async def submit_for_approval(
         raise HTTPException(status_code=404, detail={"code": "SALE_NOT_FOUND", "message": "Sale not found"})
     if sale.issuer.user_id != user_id:
         raise HTTPException(status_code=403, detail={"code": "NOT_AUTHORIZED", "message": "Not authorized"})
-    if sale.status != SaleStatus.DRAFT:
-        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be DRAFT, currently: {sale.status}"})
+    # Allow resubmission of rejected sales — REJECTED is treated like
+    # DRAFT for editing/resubmit purposes. The on-chain contract stays
+    # in Draft throughout the DB-side rejection cycle, so there's no
+    # blockchain state to recover.
+    if sale.status not in (SaleStatus.DRAFT, SaleStatus.REJECTED):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_STATUS", "message": f"Sale must be DRAFT or REJECTED, currently: {sale.status}"})
 
     # Prerequisites for non-coming-soon sales
     if not sale.is_coming_soon:
