@@ -22,6 +22,7 @@ import {
   phaseOutsideSaleWindow,
 } from "@/lib/sale/saleWindow";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
+import { OTCTokenSelect } from "@/components/molecules/OTCTokenSelect";
 import { IssuerDashboardLayout } from "@/components/templates";
 
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
@@ -326,6 +327,9 @@ export default function CreateSalePage() {
         if (description.trim() === "") issues.push("Short description is required.");
         if (saleMode === "") issues.push("Pick a sale mode (Direct or Vested).");
         if (saleStructure === "") issues.push("Pick a sale structure.");
+        if (otcEnabled && (!otcTokenAddress || !isAddress(otcTokenAddress))) {
+          issues.push("Pick an OTC token (or disable OTC). Required when OTC is enabled.");
+        }
         return issues;
       }
       case 7: {
@@ -650,10 +654,14 @@ export default function CreateSalePage() {
                     <RichTextEditor content={otcContent} onChange={setOtcContent} placeholder="Enter OTC & bank transfer instructions..." />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-sm font-medium text-zinc-600">OTC Token Contract Address (optional)</label>
-                    <p className="text-xs text-zinc-400">If the issuer has an OTC token deployed, enter the address. Buyers holding OTC tokens can use them to purchase at the sale price. Can also be set after sale creation.</p>
-                    <Input value={otcTokenAddress} onChange={(e) => setOtcTokenAddress(e.target.value)} placeholder="0x... (leave empty to set later)"
-                      maxLength={42} error={otcTokenAddress && !isAddress(otcTokenAddress) ? "Invalid EVM address" : undefined} />
+                    <p className="text-xs text-zinc-400">
+                      Pick an OTC token you&apos;ve deployed, or paste a custom address. Buyers holding OTC tokens can use them to purchase at the sale price. Required when OTC is enabled.
+                    </p>
+                    <OTCTokenSelect
+                      value={otcTokenAddress}
+                      onChange={setOtcTokenAddress}
+                      required
+                    />
                   </div>
                 </div>
               )}
