@@ -43,8 +43,12 @@ function mapIssuer(i: APIIssuer): Issuer {
 type Issuer = IssuerRow;
 type ModalType = "approve" | "fee" | "revoke" | null;
 
-/** On-chain status per issuer ID */
-type OnChainStatus = "unknown" | "checking" | "registered" | "not_registered";
+/** On-chain status per issuer ID.
+ *  - registered     : isActiveIssuer ✓  AND  isVerified ✓
+ *  - needs_whitelist: isActiveIssuer ✓  but  isVerified ✗
+ *  - not_registered : isActiveIssuer ✗  (haven't checked IR yet)
+ */
+type OnChainStatus = "unknown" | "checking" | "registered" | "needs_whitelist" | "not_registered";
 
 export default function IssuersPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,25 +74,48 @@ export default function IssuersPage() {
 
   // Check on-chain status for all active issuers — uses a direct RPC client
   // so it works regardless of wallet connection state.
+  // We check BOTH IssuerRegistry.isActiveIssuer AND SimpleIdentityRegistry.isVerified.
+  // A "registered" badge in the UI must imply the issuer can actually receive
+  // tokens (requires both contracts to know about the wallet).
   useEffect(() => {
     if (!issuerRegistryAddr) return;
     const active = apiIssuers.filter(i => i.status === "active" && i.wallet !== "—");
     if (active.length === 0) return;
     const client = createPublicClient({ chain: getChain(), transport: getTransport() });
-    active.forEach(issuer => {
+    active.forEach(async issuer => {
       setOnChainStatus(prev => ({ ...prev, [issuer.id]: "checking" }));
-      client.readContract({
-        address: issuerRegistryAddr,
-        abi: ISSUER_REGISTRY_ABI,
-        functionName: "isActiveIssuer",
-        args: [issuer.wallet as `0x${string}`],
-      }).then((isActive) => {
-        setOnChainStatus(prev => ({ ...prev, [issuer.id]: isActive ? "registered" : "not_registered" }));
-      }).catch(() => {
+      try {
+        const isActive = await client.readContract({
+          address: issuerRegistryAddr,
+          abi: ISSUER_REGISTRY_ABI,
+          functionName: "isActiveIssuer",
+          args: [issuer.wallet as `0x${string}`],
+        });
+        if (!isActive) {
+          setOnChainStatus(prev => ({ ...prev, [issuer.id]: "not_registered" }));
+          return;
+        }
+        // Active in IssuerRegistry — verify the wallet is also in the IR whitelist
+        if (!platformIR) {
+          // No IR configured — fall back to legacy "registered" semantics
+          setOnChainStatus(prev => ({ ...prev, [issuer.id]: "registered" }));
+          return;
+        }
+        const isVerified = await client.readContract({
+          address: platformIR,
+          abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+          functionName: "isVerified",
+          args: [issuer.wallet as `0x${string}`],
+        });
+        setOnChainStatus(prev => ({
+          ...prev,
+          [issuer.id]: isVerified ? "registered" : "needs_whitelist",
+        }));
+      } catch {
         setOnChainStatus(prev => ({ ...prev, [issuer.id]: "not_registered" }));
-      });
+      }
     });
-  }, [apiIssuers, issuerRegistryAddr]);
+  }, [apiIssuers, issuerRegistryAddr, platformIR]);
 
   // After register tx confirms, send activate tx
   useEffect(() => {
@@ -170,6 +197,59 @@ export default function IssuersPage() {
     activateIssuerAction.reset();
     irWhitelistAction.reset();
   }, [irWhitelistAction.isConfirmed, registeringId, apiIssuers, showSuccess]);
+
+  // Whitelist-only path: when the issuer is already isActiveIssuer but the IR
+  // has no whitelist entry. Skips registerIssuer + activate; runs only addToWhitelist.
+  const handleAddToIRWhitelist = async (issuer: Issuer) => {
+    if (registeringId || irWhitelistAction.isPending) return;
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+    if (!platformIR) {
+      showError(
+        "Configuration Error",
+        "Identity Registry contract address not configured."
+      );
+      return;
+    }
+    if (issuer.wallet === "—") {
+      showError(
+        "Wallet Missing",
+        `${issuer.name} has no wallet address configured.`
+      );
+      return;
+    }
+    setRegisteringId(issuer.id);
+    try {
+      const jur = issuer.jurisdiction ?? "";
+      const countryEntry = COUNTRIES.find(c => c.name.toLowerCase() === jur.toLowerCase());
+      const countryCode: number = countryEntry?.code ?? 0;
+      await irWhitelistAction.execute({
+        address: platformIR,
+        abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+        functionName: "addToWhitelist",
+        args: [issuer.wallet as `0x${string}`, countryCode],
+        gas: 200_000n,
+      });
+      // The existing irWhitelistAction.isConfirmed effect will mark
+      // status=registered + clear registeringId once the tx confirms.
+    } catch (err: unknown) {
+      console.error("IR whitelist failed:", err);
+      const errMsg = err instanceof Error ? err.message : "";
+      const isRejected = errMsg.includes("user rejected") || errMsg.includes("User denied");
+      if (isRejected) {
+        showError("Transaction Rejected", "You cancelled the transaction in your wallet.");
+      } else {
+        showError(
+          "IR Whitelist Failed",
+          `addToWhitelist reverted: ${errMsg || "Unknown error"}`
+        );
+      }
+      setRegisteringId(null);
+      irWhitelistAction.reset();
+    }
+  };
 
   const handleRegisterOnChain = async (issuer: Issuer) => {
     if (registeringId || registerIssuerAction.isPending) return;
@@ -388,6 +468,33 @@ export default function IssuersPage() {
                         <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
                           <Check className="h-3 w-3" /> On-Chain
                         </span>
+                      ) : chainStatus === "needs_whitelist" ? (
+                        <>
+                          <span
+                            className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 rounded text-xs font-medium"
+                            title="Issuer is registered + active on the IssuerRegistry, but the wallet is not whitelisted on the Identity Registry. Token transfers from/to this wallet will revert until whitelisted."
+                          >
+                            <Globe className="h-3 w-3" /> Needs IR whitelist
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isThisRegistering || irWhitelistAction.isPending}
+                            onClick={() => handleAddToIRWhitelist(issuer)}
+                          >
+                            {(isThisRegistering && (irWhitelistAction.isPending || irWhitelistAction.isConfirming)) ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                Whitelisting...
+                              </>
+                            ) : (
+                              <>
+                                <Globe className="h-3.5 w-3.5 mr-1.5" />
+                                Add to Identity Registry
+                              </>
+                            )}
+                          </Button>
+                        </>
                       ) : (
                         <Button
                           variant="outline"
