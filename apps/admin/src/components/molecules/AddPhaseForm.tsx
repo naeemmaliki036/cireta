@@ -97,8 +97,18 @@ export function AddPhaseForm({
   const allocationNum = parseFloat(form.allocation) || 0;
   const allocationExceedsSupply = availableSupply !== undefined && availableSupply > 0 && allocationNum > availableSupply;
 
-  // Convert backend ISO strings to datetime-local format (YYYY-MM-DDTHH:mm)
-  const toLocal = (iso?: string) => (iso ? new Date(iso).toISOString().slice(0, 16) : "");
+  // Convert backend ISO (UTC) strings to <input type="datetime-local"> format
+  // in the user's local timezone. Naively slicing the ISO drops the tz offset
+  // and shifts the displayed value by the user's offset (e.g. UTC+4:30 → 4.5h
+  // off), which is what surfaced as the "Phase ends after the sale ends"
+  // error with mismatched local/UTC times in the banner.
+  const toLocal = (iso?: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const saleStartLocal = toLocal(saleStartTime);
   const saleEndLocal = toLocal(saleEndTime);
   const phaseMaxEnd = saleStartLocal
@@ -214,10 +224,13 @@ export function AddPhaseForm({
       });
 
       if (receipt) {
-        // Sync phase to DB
+        // Sync phase to DB. Don't swallow errors — if the DB write fails the
+        // checklist will show "0 phases configured" even though it's on-chain
+        // (we've seen this happen due to date validators / tz drift). Surface
+        // the message so the issuer can fix and retry the sync.
         if (saleId) {
           try {
-            await fetch(`/api/proxy/api/v1/sales/${saleId}/phases`, {
+            const res = await fetch(`/api/proxy/api/v1/sales/${saleId}/phases`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
@@ -234,7 +247,25 @@ export function AddPhaseForm({
                 allocation_mode: form.allocationMode,
               }),
             });
-          } catch { /* on-chain is source of truth */ }
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              const detail = body?.detail;
+              const msg =
+                Array.isArray(detail)
+                  ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ")
+                  : (detail?.message ?? `${res.status} ${res.statusText}`);
+              setValidationError(
+                `Phase deployed on-chain (tx ${receipt.transactionHash.slice(0, 10)}…) but DB sync failed: ${msg}. Click "Refresh Status" or re-add the phase to retry.`,
+              );
+              return;
+            }
+          } catch (e) {
+            console.error("[AddPhaseForm] DB sync failed:", e);
+            setValidationError(
+              `Phase deployed on-chain but DB sync failed: ${e instanceof Error ? e.message : String(e)}. Click "Refresh Status" to retry.`,
+            );
+            return;
+          }
         }
         setForm(INITIAL_FORM);
         setExpanded(false);

@@ -69,14 +69,15 @@ class TokenSale(BaseModel):
     telegram_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     discord_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Vesting configuration. Stored as Numeric so testing scenarios can use
-    # sub-day values (e.g. 0.00347 days = 5 min, 0.04167 days = 1 hour). The
-    # on-chain conversion (days * 86400) handles fractions correctly.
-    cliff_duration_days: Mapped[Decimal] = mapped_column(
-        Numeric(precision=12, scale=6), default=Decimal("0")
+    # Vesting configuration in **seconds** — matches on-chain unit
+    # (Sale.initialize / addPhase take uint256 seconds). Stored as Integer
+    # so sub-day testing scenarios round-trip exactly (e.g. 5 min = 300,
+    # 1 hour = 3600). Display formatters convert to human units.
+    cliff_duration_seconds: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
     )
-    vesting_duration_days: Mapped[Decimal] = mapped_column(
-        Numeric(precision=12, scale=6), default=Decimal("365")
+    vesting_duration_seconds: Mapped[int] = mapped_column(
+        Integer, default=365 * 86400, nullable=False
     )
 
     payment_token: Mapped[str] = mapped_column(

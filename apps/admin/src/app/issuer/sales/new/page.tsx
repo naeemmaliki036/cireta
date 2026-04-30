@@ -169,8 +169,10 @@ export default function CreateSalePage() {
         setOtcContent(sale.otc_content ?? "");
         setOtcTokenAddress(sale.otc_token_address ?? "");
         setFullDescription(sale.full_description ?? "");
-        const savedCliff = sale.cliff_duration_days ?? 0;
-        const savedVesting = sale.vesting_duration_days ?? 365;
+        // Backend now stores seconds (Integer). Convert to days for the form,
+        // which keeps "days" as its working unit for human-friendly presets.
+        const savedCliff = (sale.cliff_duration_seconds ?? 0) / 86400;
+        const savedVesting = (sale.vesting_duration_seconds ?? 365 * 86400) / 86400;
         if (savedCliff === savedVesting && savedVesting > 0) {
           setVestingPreset("lockup");
           setLockupDays(String(savedVesting));
@@ -430,8 +432,8 @@ export default function CreateSalePage() {
           otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
           sale_mode: saleMode || undefined,
           sale_structure: saleStructure || undefined,
-          cliff_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0,
-          vesting_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365,
+          cliff_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0) * 86400),
+          vesting_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365) * 86400),
           token_id: selectedTokenId || undefined,
           payment_token: paymentToken || undefined,
           soft_cap: softCap || undefined,
@@ -481,8 +483,8 @@ export default function CreateSalePage() {
         full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
         is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
         sale_mode: saleMode, sale_structure: saleStructure,
-        cliff_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0,
-        vesting_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365,
+        cliff_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0) * 86400),
+        vesting_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365) * 86400),
         token_id: selectedTokenId || undefined, payment_token: paymentToken,
         soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
         total_token_supply: totalTokenSupply || undefined,

@@ -45,8 +45,8 @@ class SaleCreateService:
         discord_url: str | None = None,
         sale_mode: str = "vested",
         sale_structure: str = "phase_allocated",
-        cliff_duration_days: int = 0,
-        vesting_duration_days: int = 365,
+        cliff_duration_seconds: int = 0,
+        vesting_duration_seconds: int = 365 * 86400,
         is_redeemable: bool = False,
     ) -> TokenSale:
         """Create a new token sale.
@@ -139,8 +139,8 @@ class SaleCreateService:
         sale.discord_url = discord_url
         sale.sale_mode = sale_mode
         sale.sale_structure = sale_structure
-        sale.cliff_duration_days = cliff_duration_days
-        sale.vesting_duration_days = vesting_duration_days
+        sale.cliff_duration_seconds = cliff_duration_seconds
+        sale.vesting_duration_seconds = vesting_duration_seconds
         sale.is_redeemable = is_redeemable
         sale.status = SaleStatus.DRAFT
 

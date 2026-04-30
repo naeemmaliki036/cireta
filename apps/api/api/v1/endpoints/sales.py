@@ -128,8 +128,8 @@ def _sale_to_response(
         telegram_url=sale.telegram_url,
         discord_url=sale.discord_url,
         sale_structure=sale.sale_structure.value if hasattr(sale.sale_structure, "value") else sale.sale_structure,
-        cliff_duration_days=sale.cliff_duration_days,
-        vesting_duration_days=sale.vesting_duration_days,
+        cliff_duration_seconds=sale.cliff_duration_seconds,
+        vesting_duration_seconds=sale.vesting_duration_seconds,
         payment_token=sale.payment_token,
         soft_cap=str(sale.soft_cap),
         hard_cap=str(sale.hard_cap),
@@ -277,7 +277,7 @@ async def update_sale(
 
     DRAFT_ONLY_FIELDS = {
         "is_coming_soon", "sale_mode", "sale_structure",
-        "cliff_duration_days", "vesting_duration_days",
+        "cliff_duration_seconds", "vesting_duration_seconds",
         "token_id", "payment_token", "soft_cap", "hard_cap",
         "total_token_supply", "sale_start_time", "sale_end_time",
     }
@@ -334,8 +334,8 @@ async def create_sale(
         discord_url=request.discord_url,
         sale_mode=request.sale_mode,
         sale_structure=request.sale_structure,
-        cliff_duration_days=request.cliff_duration_days,
-        vesting_duration_days=request.vesting_duration_days,
+        cliff_duration_seconds=request.cliff_duration_seconds,
+        vesting_duration_seconds=request.vesting_duration_seconds,
         is_redeemable=request.is_redeemable,
     )
     return _sale_to_response(sale)
