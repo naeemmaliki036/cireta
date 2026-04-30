@@ -9,6 +9,7 @@ import {
   ArrowRight, ShoppingBag, FolderOpen,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
+import { SaleStatusBadge } from "@/components/atoms/SaleStatusBadge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/api/client";
@@ -168,6 +169,12 @@ function ActiveProjectCard({ project, isFirst }: { project: Project; isFirst?: b
       <div className="relative h-72 overflow-hidden rounded-2xl m-3">
         <ProjectMedia src={project.imageUrl} alt={project.title} fill className="object-cover rounded-2xl" assetType={project.assetType} />
         <div className="absolute top-4 left-4 flex items-center gap-2">
+          <SaleStatusBadge
+            variant="card"
+            status={project.status}
+            phases={project.phases}
+            isComingSoon={project.isComingSoon}
+          />
           {(() => {
             const ap = project.phases.find((p) => {
               const s = new Date(p.start_time || 0).getTime();
@@ -175,21 +182,10 @@ function ActiveProjectCard({ project, isFirst }: { project: Project; isFirst?: b
               return now >= s && now < e;
             });
             return ap ? (
-              <>
-                <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Ongoing
-                </span>
-                <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white">
-                  {ap.name}
-                </span>
-              </>
-            ) : (
-              <span className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium text-black/50">
-                <span className="w-2 h-2 rounded-full bg-black/30" />
-                {project.phases.every((p) => now >= new Date(p.end_time || 0).getTime()) ? "Completed" : "Upcoming"}
+              <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white">
+                {ap.name}
               </span>
-            );
+            ) : null;
           })()}
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-5">

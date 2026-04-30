@@ -12,6 +12,7 @@ import {
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { InfoTooltip } from "@/components/atoms/InfoTooltip";
+import { SaleStatusBadge } from "@/components/atoms/SaleStatusBadge";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency, formatTokenDisplay, formatDateTimeLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -323,7 +324,11 @@ export default function ProjectDetailPage() {
   const raised = onChain.ready ? onChain.totalRaised : project.currentRaised;
   const progressPctRaw = hardCap > 0 ? (raised / hardCap) * 100 : 0;
   const progressPct = raised >= hardCap ? 100 : Math.min(parseFloat(progressPctRaw.toFixed(2)), 99.99);
-  const bannerImg = images.find((i) => i.is_banner)?.url ?? (project.imageUrl || "/images/projects/gold-ghana.png");
+  // No fallback to a commodity-stock image — those have hard-coded text
+  // ("Gold in Ghana" etc.) that conflicts with the actual sale title.
+  // When no real image exists we render a brand-coloured gradient
+  // panel below instead.
+  const bannerImg = images.find((i) => i.is_banner)?.url ?? project.imageUrl ?? null;
   const gallery = images.length > 0 ? images.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)) : [];
   const fmtDate = (d: Date) => formatDateTimeLocal(d);
   const fmtUsdc = (n: number) => {
@@ -333,19 +338,7 @@ export default function ProjectDetailPage() {
     }
     return n.toLocaleString();
   };
-  const statusColor: Record<string, string> = {
-    active: "text-green-600", upcoming: "text-blue-600", completed: "text-gray-500",
-    paused: "text-amber-600", finalized_success: "text-green-600", finalized_failed: "text-gray-500",
-    failed: "text-gray-500", approved: "text-blue-600", pending_approval: "text-amber-600",
-  };
   const isOpenEnded = saleRaw?.is_open_ended;
-  const statusLabel = project.isComingSoon ? "Coming Soon"
-    : project.status === "active" && isOpenEnded ? "Active — Open-Ended"
-    : project.status === "finalized_failed" || project.status === "failed"
-      ? saleRaw?.refunds_activated_at ? "Closed — Refund Available" : "Completed"
-    : project.status === "finalized_success" || project.status === "finalized" ? "Completed"
-    : project.status === "approved" ? "Pending Launch"
-    : project.status;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -386,8 +379,16 @@ export default function ProjectDetailPage() {
                       <video src={videoSrc} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
                     );
                   })()
+                ) : (gallery[selectedImage]?.url ?? bannerImg) ? (
+                  <Image src={gallery[selectedImage]?.url ?? bannerImg!} alt={project.title} fill className="object-cover" />
                 ) : (
-                  <Image src={gallery[selectedImage]?.url ?? bannerImg} alt={project.title} fill className="object-cover" />
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #13636F 0%, #0c4d56 50%, #082c33 100%)",
+                    }}
+                  />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#13636F]/80 via-[#13636F]/30 to-[#13636F]/10 pointer-events-none" />
                 <Link href="/projects" className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium z-10">
@@ -414,12 +415,13 @@ export default function ProjectDetailPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={cn("w-2 h-2 rounded-full", project.status === "active" ? "bg-green-500" : project.isComingSoon ? "bg-amber-400" : "bg-gray-400")} />
-                      <span className={cn("text-xs font-semibold capitalize", project.isComingSoon ? "text-amber-600" : statusColor[project.status] ?? "text-gray-500")}>
-                        {statusLabel}
-                      </span>
-                    </div>
+                    <SaleStatusBadge
+                      status={project.status}
+                      phases={project.phases}
+                      isComingSoon={project.isComingSoon}
+                      isOpenEnded={isOpenEnded}
+                      refundsActivatedAt={saleRaw?.refunds_activated_at}
+                    />
                   </div>
                   {/* Active phase badge */}
                   {!project.isComingSoon && ap && (
@@ -460,9 +462,6 @@ export default function ProjectDetailPage() {
                     )}
                     <div className="flex justify-between"><span className="text-gray-500">Min. Buy</span><span className="font-medium">{project.isComingSoon ? "TBD" : `${minTokens} ${project.tokenSymbol}`}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Available</span><span className="font-medium">{project.isComingSoon ? "TBD" : availableTokens > 0 ? `${availableTokens.toLocaleString()} ${project.tokenSymbol}` : "—"}</span></div>
-                    {maxTokensInvestor > 0 && !project.isComingSoon && (
-                      <div className="flex justify-between"><span className="text-gray-500">Per-buyer cap</span><span className="font-medium">{maxTokensInvestor.toLocaleString()} {project.tokenSymbol}</span></div>
-                    )}
                     <div className="flex justify-between"><span className="text-gray-500">Token Price</span><span className="font-medium">{pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Accepted currency</span><span className="font-medium">USDC</span></div>
                   </div>
@@ -688,6 +687,7 @@ export default function ProjectDetailPage() {
                         ["Current Round", ap ? ap.name : "—"],
                         ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                         ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
+                        ["Per-buyer Cap", project.isComingSoon ? "TBD" : maxTokensInvestor > 0 ? `${maxTokensInvestor.toLocaleString()} ${project.tokenSymbol}` : "Unlimited"],
                         ["Start", startTime ? fmtDate(startTime) : "TBD"],
                         ["End", endTime ? fmtDate(endTime) : "TBD"],
                       ].map(([k, v]) => (

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Bell, CheckCircle2, ChevronDown, Gift, Shield, Repeat, X } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Navbar, Footer } from "@/components/organisms";
+import { SaleStatusBadge } from "@/components/atoms/SaleStatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch } from "@/lib/api/client";
 
@@ -193,7 +194,15 @@ function LiveProjectCard({ project: p }: { project: Project }) {
           </div>
         )}
         <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+          <SaleStatusBadge
+            variant="card"
+            status={p.status}
+            phases={p.phases}
+            isComingSoon={p.isComingSoon}
+          />
           {(() => {
+            // When a phase is currently selling, show its name as a
+            // secondary chip alongside the unified status badge.
             const now = Date.now();
             const ap = p.phases.find((ph) => {
               const s = new Date(ph.start_time || 0).getTime();
@@ -201,26 +210,10 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               return now >= s && now < e;
             });
             return ap ? (
-              <>
-                <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Ongoing
-                </span>
-                <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-white">
-                  {ap.name}
-                </span>
-              </>
-            ) : p.isComingSoon ? (
-              <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-black/30" />
-                Coming Soon
+              <span className="inline-flex items-center bg-darkAqua/90 backdrop-blur-sm rounded-full px-2.5 py-1 text-[10px] font-semibold text-white">
+                {ap.name}
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium text-black/50">
-                <span className="w-1.5 h-1.5 rounded-full bg-black/30" />
-                {p.phases.every((ph) => now >= new Date(ph.end_time || 0).getTime()) ? "Completed" : "Upcoming"}
-              </span>
-            );
+            ) : null;
           })()}
         </div>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
