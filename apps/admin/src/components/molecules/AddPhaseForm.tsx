@@ -254,8 +254,11 @@ export function AddPhaseForm({
                 Array.isArray(detail)
                   ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ")
                   : (detail?.message ?? `${res.status} ${res.statusText}`);
+              // Don't suggest re-adding — the on-chain tx succeeded, so a
+              // second submit would PhaseOverlap against the row we just
+              // wrote. Only safe path is Sync from Chain.
               setValidationError(
-                `Phase deployed on-chain (tx ${receipt.transactionHash.slice(0, 10)}…) but DB sync failed: ${msg}. Click "Refresh Status" or re-add the phase to retry.`,
+                `Phase deployed on-chain (tx ${receipt.transactionHash.slice(0, 10)}…) but DB sync failed: ${msg}. Click "Sync from Chain" — do NOT re-add this phase or the contract will reject it as a duplicate.`,
               );
               return;
             }
