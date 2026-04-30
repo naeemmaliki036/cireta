@@ -23,6 +23,7 @@ import {
 } from "@/lib/sale/saleWindow";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { OTCTokenSelect } from "@/components/molecules/OTCTokenSelect";
+import { DEFAULT_OTC_TEMPLATE } from "@/lib/templates/otc";
 import { IssuerDashboardLayout } from "@/components/templates";
 
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
@@ -653,21 +654,19 @@ export default function CreateSalePage() {
                         onClick={async () => {
                           if (
                             otcContent.trim() &&
-                            !window.confirm("Replace the current OTC instructions with the platform default template?")
+                            !window.confirm("Replace the current OTC instructions with the default template?")
                           ) {
                             return;
                           }
+                          // Try the platform-configured template first; fall back to the
+                          // bundled default if the API is unreachable or unauthorized.
+                          // The template is just a starter — issuers can edit anything.
                           try {
                             const data = await apiFetch<Record<string, string>>("/api/v1/admin/platform/settings");
-                            if (data.otc_default_content) {
-                              setOtcContent(data.otc_default_content);
-                            } else {
-                              window.alert("No platform default template is configured. Ask an admin to set one in Platform → Settings.");
-                            }
+                            setOtcContent(data.otc_default_content || DEFAULT_OTC_TEMPLATE);
                           } catch (e) {
-                            console.error("[OTC default template] fetch failed:", e);
-                            const msg = e instanceof Error ? e.message : String(e);
-                            window.alert(`Could not load the default template.\n\n${msg}`);
+                            console.warn("[OTC default template] platform settings unreachable, using bundled template:", e);
+                            setOtcContent(DEFAULT_OTC_TEMPLATE);
                           }
                         }}
                         className="text-xs font-medium text-darkAqua hover:underline"
