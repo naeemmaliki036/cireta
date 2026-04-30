@@ -13,6 +13,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseUnits, formatUnits, zeroAddress } from "viem";
 import { Button } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
+import { ErrorReportButton } from "@/components/molecules/ErrorReportButton";
 import {
   InvestAmountStep,
   InvestApproveStep,
@@ -495,18 +496,15 @@ export default function InvestPage() {
     });
 
     try {
-      // Sale.buy() takes RAW token units (decimal-scaled), not whole tokens.
-      // The form collects whole tokens — scale up by 10^tokenDecimals here
-      // or the contract reverts BelowMinContribution because phase.minTokens
-      // is also stored in raw units.
-      const tokenQtyRaw = BigInt(tokenQty) * 10n ** BigInt(saleTokenDecimals);
+      // Sale.buy(phaseId, tokenQty) — tokenQty is in *whole* tokens. The
+      // contract scales internally (tokensRaw = tokenQty * 10^tokenDecimals).
       await saleContributeAction.execute({
         address: saleContractAddress,
         abi: SALE_ABI,
         functionName: "buy",
         args: [
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
-          tokenQtyRaw,
+          BigInt(tokenQty),
         ],
         // gas automatically handled by useContractAction (800k for buy operations)
       });
@@ -1101,9 +1099,16 @@ export default function InvestPage() {
                   </div>
                 )}
                 {error && step === "amount" && (
-                  <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
-                    <p className="text-sm font-medium text-red-700">{error}</p>
-                  </div>
+                  <ErrorReportButton
+                    className="mb-4"
+                    context={{
+                      message: error,
+                      functionName: "buy",
+                      contractAddress: saleContractAddress ?? null,
+                      txHash: saleContributeAction.txHash ?? null,
+                      chainId: chainId ?? null,
+                    }}
+                  />
                 )}
                 <InvestAmountStep
                   project={project} activePhase={activePhase}

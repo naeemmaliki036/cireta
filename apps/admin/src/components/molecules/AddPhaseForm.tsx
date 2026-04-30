@@ -193,7 +193,10 @@ export function AddPhaseForm({
     }
 
     try {
-      const pricePerToken = parseUnits(form.pricePerToken, 18);
+      // pricePerToken is in payment-token raw units per whole sale token,
+      // not 18-decimal. USDC = 6. Wrong scale here = ERC20InsufficientAllowance
+      // on every buy because the contract asks for 1e12x the real amount.
+      const pricePerToken = parseUnits(form.pricePerToken, 6);
       const allocation = form.allocationMode === "fixed"
         ? parseUnits(form.allocation || "0", tokenDecimals)
         : BigInt(0);

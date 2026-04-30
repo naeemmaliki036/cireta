@@ -296,7 +296,12 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
    */
   const handleDeployPhaseOnChain = async (phase: NonNullable<typeof sale>["phases"][0], tokenDecimals = 6) => {
     if (!sale?.contract_address) return;
-    const pricePerToken = parseUnits(phase.price_per_token, 18);
+    // pricePerToken is in payment-token raw units per WHOLE sale token
+    // (per Sale.sol Phase struct comment). For USDC payment that's 6
+    // decimals, not 18 — passing 18 inflated every price by 1e12 and
+    // made buys revert with ERC20InsufficientAllowance.
+    const paymentDec = 6; // USDC; switch to on-chain decimals() read when we support multiple payment tokens
+    const pricePerToken = parseUnits(phase.price_per_token, paymentDec);
     const allocation = parseUnits(phase.allocation, tokenDecimals);
     const minTokens = BigInt(phase.min_tokens || "1");
     const maxTokens = BigInt(phase.max_tokens || "0");
@@ -362,7 +367,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           credentials: "include",
           body: JSON.stringify({
             name: phase.name,
-            price_per_token: (Number(phase.pricePerToken) / 1e18).toString(),
+            price_per_token: (Number(phase.pricePerToken) / 1e6).toString(),
             allocation: (Number(phase.allocation) / 10 ** tokenDec).toString(),
             min_contribution: phase.minTokens.toString(),
             max_contribution: phase.maxTokens.toString(),
