@@ -49,6 +49,14 @@ export default function CreateSalePage() {
   const editingSaleId = searchParams.get("id");
   const isEditMode = !!editingSaleId;
   const [step, setStep] = useState(1);
+  // Track which steps the user has actually visited. Without this, default
+  // form values (e.g. cliffDays='0', vestingDays='365') would mark Vesting
+  // as complete on step 1 — confusing because the user hasn't been there yet.
+  const [visitedSteps, setVisitedSteps] = useState<Set<number>>(new Set([1]));
+  const visitStep = (id: number) => {
+    setStep(id);
+    setVisitedSteps((prev) => prev.has(id) ? prev : new Set(prev).add(id));
+  };
   const [prefilling, setPrefilling] = useState(isEditMode);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [paymentTokens, setPaymentTokens] = useState<PaymentToken[]>([]);
@@ -156,9 +164,17 @@ export default function CreateSalePage() {
           setPaymentTokenMode("custom");
           setCustomPaymentToken(sale.payment_token);
         }
-        setSoftCap(sale.soft_cap ?? "");
-        setHardCap(sale.hard_cap ?? "");
-        setTotalTokenSupply(sale.total_token_supply ?? "");
+        // Backend returns Decimals which serialize to "0E-18" / "0" — coerce to
+        // a clean number string so the empty-state placeholder shows for unset values.
+        const cleanCap = (v: string | null | undefined): string => {
+          if (!v) return "";
+          const n = Number(v);
+          if (Number.isNaN(n) || n === 0) return "";
+          return String(n);
+        };
+        setSoftCap(cleanCap(sale.soft_cap));
+        setHardCap(cleanCap(sale.hard_cap));
+        setTotalTokenSupply(cleanCap(sale.total_token_supply));
         setIsOpenEnded(sale.is_open_ended);
         setSaleStartDate(sale.sale_start_time ? sale.sale_start_time.slice(0, 16) : "");
         setSaleEndDate(sale.sale_end_time ? sale.sale_end_time.slice(0, 16) : "");
@@ -224,15 +240,15 @@ export default function CreateSalePage() {
     { id: 4, title: "Team", icon: Users },
     { id: 5, title: "FAQs", icon: HelpCircle },
     { id: 6, title: "Documents", icon: FolderOpen },
-    ...(!isComingSoon ? [{ id: 7, title: "Token & Caps", icon: Settings }] : []),
-    ...(!isComingSoon ? [{ id: 8, title: "Phases", icon: Calendar }] : []),
+    ...(!isComingSoon ? [{ id: 7, title: "Raise Details", icon: Settings }] : []),
+    ...(!isComingSoon ? [{ id: 8, title: "Sale Phases", icon: Calendar }] : []),
     ...(!isComingSoon && saleMode === "vested" ? [{ id: 9, title: "Vesting", icon: Clock }] : []),
     { id: 10, title: "Review", icon: Rocket },
   ];
   const visibleStepIds = allSteps.map((s) => s.id);
   const currentIdx = visibleStepIds.indexOf(step);
-  const nextStep = () => { const ni = currentIdx + 1; if (ni < visibleStepIds.length) setStep(visibleStepIds[ni]!); };
-  const prevStep = () => { const pi = currentIdx - 1; if (pi >= 0) setStep(visibleStepIds[pi]!); };
+  const nextStep = () => { const ni = currentIdx + 1; if (ni < visibleStepIds.length) visitStep(visibleStepIds[ni]!); };
+  const prevStep = () => { const pi = currentIdx - 1; if (pi >= 0) visitStep(visibleStepIds[pi]!); };
   const isLast = currentIdx === visibleStepIds.length - 1;
   const isFirst = currentIdx === 0;
   // Validate that phases don't overlap: each phase start must be >= previous phase end
@@ -493,13 +509,16 @@ export default function CreateSalePage() {
       <div className="mb-8 overflow-x-auto">
         <div className="flex items-center justify-between relative min-w-[600px]">
           {allSteps.map((s) => {
-            const complete = isStepComplete(s.id);
+            // A step is "complete" only if the user has actually visited it
+            // AND its required fields are filled. Default values would
+            // otherwise mark steps the user has never seen as done.
+            const complete = visitedSteps.has(s.id) && isStepComplete(s.id);
             const isCurrent = step === s.id;
             return (
             <div key={s.id} className="flex flex-col items-center z-10">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                 complete && !isCurrent ? "bg-green-500 text-white" : isCurrent ? "bg-darkAqua text-white" : "bg-gray-200 text-gray-500"
-              }`} onClick={() => setStep(s.id)}>
+              }`} onClick={() => visitStep(s.id)}>
                 {complete && !isCurrent ? <CheckCircle2 className="h-5 w-5" /> : <s.icon className="h-5 w-5" />}
               </div>
               <p className={`mt-2 text-xs font-semibold ${isCurrent || complete ? "text-text" : "text-gray-400"}`}>{s.title}</p>
@@ -507,7 +526,7 @@ export default function CreateSalePage() {
             );
           })}
           <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 -z-0">
-            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(allSteps.filter((s) => isStepComplete(s.id)).length / Math.max(allSteps.length - 1, 1)) * 100}%` }} />
+            <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(allSteps.filter((s) => visitedSteps.has(s.id) && isStepComplete(s.id)).length / Math.max(allSteps.length - 1, 1)) * 100}%` }} />
           </div>
         </div>
       </div>
@@ -770,7 +789,7 @@ export default function CreateSalePage() {
               </div>
             ) : (
               <div className="mb-4 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                Set <strong>Sale Start</strong> in the previous step (Token &amp; Caps) before defining phases.
+                Set <strong>Sale Start</strong> in the previous step (Raise Details) before defining phases.
               </div>
             )}
             {phasesHaveOverlap && (
@@ -864,7 +883,7 @@ export default function CreateSalePage() {
         {/* Step 7: Token & Caps (skip if coming soon) */}
         {step === 7 && (
           <div className="max-w-2xl mx-auto space-y-6">
-            <h2 className="text-xl font-semibold text-text">Token & Funding Caps</h2>
+            <h2 className="text-xl font-semibold text-text">Raise Details</h2>
             <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.filter((t) => t.contract_address && t.contract_address !== "0x0000000000000000000000000000000000000000").map((t) => {
               const addr = t.contract_address!;
               return { value: t.id, label: `${t.name} (${t.symbol}) — ${addr.slice(0, 6)}...${addr.slice(-4)}` };
@@ -1308,8 +1327,10 @@ export default function CreateSalePage() {
       </motion.div>
       </div>
 
-      {/* Right sidebar — contextual tips */}
-      <aside className="hidden lg:block w-72 shrink-0">
+      {/* Right sidebar — contextual tips. The pt offset matches the height of
+          the navigation row (Back/Save/Continue + mb-4) in the form column,
+          so tips visually align with the top of the white form card. */}
+      <aside className="hidden lg:block w-72 shrink-0 pt-[52px]">
         <div className="sticky top-20 space-y-4">
           {step === 1 && (
             <div className="bg-zinc-50 border border-zinc-100 rounded-lg p-4">
