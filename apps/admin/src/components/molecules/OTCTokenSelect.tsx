@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { isAddress } from "viem";
 import type { Abi } from "viem";
@@ -151,7 +152,7 @@ export function OTCTokenSelect({ value, onChange, required }: Props) {
       {showEmptyHint && (
         <p className="text-xs text-zinc-500">
           You haven&apos;t deployed any OTC tokens yet — deploy one at{" "}
-          <a href="/issuer/tokens" className="underline">Tokens</a>, or pick &quot;Custom address…&quot;.
+          <Link href="/issuer/tokens" className="underline">Tokens</Link>, or pick &quot;Custom address…&quot;.
         </p>
       )}
     </div>
