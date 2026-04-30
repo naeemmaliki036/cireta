@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, Circle, AlertCircle, Rocket, Shield, Coins,
@@ -153,6 +153,9 @@ interface SaleSetupChecklistProps {
   onReload: () => void;
   onSubmitForApproval: () => void;
   isSubmitting: boolean;
+  /** Reports `requiredDone` upward so the parent page can gate its own
+   *  Submit-for-Approval button (which lives outside this component). */
+  onReadinessChange?: (ready: boolean) => void;
 }
 
 interface ChecklistStep {
@@ -165,7 +168,7 @@ interface ChecklistStep {
   actionLabel?: string;
 }
 
-export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubmitting }: SaleSetupChecklistProps) {
+export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubmitting, onReadinessChange }: SaleSetupChecklistProps) {
   const { isConnected, address: walletAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
   // Platform identity registry fallback
@@ -312,6 +315,12 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
   const requiredDone = requiredSteps.every((s) => s.completed);
   const completedCount = steps.filter((s) => s.completed).length;
   const progress = Math.round((completedCount / steps.length) * 100);
+
+  // Surface readiness to parent (used to gate the page-header
+  // Submit-for-Approval button which lives outside this component).
+  useEffect(() => {
+    onReadinessChange?.(requiredDone);
+  }, [requiredDone, onReadinessChange]);
 
   // Find the first incomplete required step
   const nextStep = requiredSteps.find((s) => !s.completed);
