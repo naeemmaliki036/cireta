@@ -495,13 +495,18 @@ export default function InvestPage() {
     });
 
     try {
+      // Sale.buy() takes RAW token units (decimal-scaled), not whole tokens.
+      // The form collects whole tokens — scale up by 10^tokenDecimals here
+      // or the contract reverts BelowMinContribution because phase.minTokens
+      // is also stored in raw units.
+      const tokenQtyRaw = BigInt(tokenQty) * 10n ** BigInt(saleTokenDecimals);
       await saleContributeAction.execute({
         address: saleContractAddress,
         abi: SALE_ABI,
         functionName: "buy",
         args: [
           BigInt(activePhaseIndex >= 0 ? activePhaseIndex : 0),
-          BigInt(tokenQty),
+          tokenQtyRaw,
         ],
         // gas automatically handled by useContractAction (800k for buy operations)
       });
