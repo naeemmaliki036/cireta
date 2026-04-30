@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
+import { InfoTooltip } from "@/components/atoms/InfoTooltip";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn, formatCurrency, formatTokenDisplay, formatDateTimeLocal } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -741,24 +742,15 @@ export default function ProjectDetailPage() {
                     const isPriceTiered = (saleRaw?.sale_structure ?? "phase_allocated") === "price_tiered";
                     return (
                       <div className="bg-gray-50 rounded-xl p-5">
-                        <h3 className="font-bold text-text text-base mb-3">Sale Phases</h3>
-                        {/* Structure context banner */}
-                        <div className={cn(
-                          "rounded-xl px-4 py-3 mb-4 text-xs",
-                          isPriceTiered ? "bg-blue-50 text-blue-900 border border-blue-100" : "bg-amber-50 text-amber-900 border border-amber-100"
-                        )}>
-                          {isPriceTiered ? (
-                            <>
-                              <span className="font-semibold">Price-tiered sale.</span>{" "}
-                              All phases sell from a single shared pool of {formatCurrency(hardCap)} (the global hard cap).
-                              Earlier phases offer different pricing; unsold supply from one phase remains available in the next.
-                            </>
-                          ) : (
-                            <>
-                              <span className="font-semibold">Phase-allocated sale.</span>{" "}
-                              Each phase has its own token allocation cap. Unsold tokens from a completed phase automatically roll over to the next phase.
-                            </>
-                          )}
+                        <div className="flex items-center gap-2 mb-3">
+                          <h3 className="font-bold text-text text-base">Sale Phases</h3>
+                          <InfoTooltip
+                            text={
+                              isPriceTiered
+                                ? `Price-tiered sale. All phases sell from a single shared pool of ${formatCurrency(hardCap)} (the global hard cap). Earlier phases offer different pricing; unsold supply from one phase remains available in the next.`
+                                : "Phase-allocated sale. Each phase has its own token allocation cap. Unsold tokens from a completed phase automatically roll over to the next phase."
+                            }
+                          />
                         </div>
                         <div className="space-y-4">
                           {sortedPhases.map((phase, idx) => {
