@@ -106,7 +106,11 @@ export default function CreateSalePage() {
   const [expandedPhase, setExpandedPhase] = useState<number | null>(0);
   const [documents, setDocuments] = useState<DocumentData[]>([emptyDoc()]);
   // Step 5: Phases (skip if coming soon)
-  const [phases, setPhases] = useState<PhaseData[]>([{ ...emptyPhase(), name: "Seed Round" }]);
+  // Initial state is fully empty — no hardcoded "Seed Round" name. The previous
+  // hardcode meant every untouched draft had an unsaveable partial phase row
+  // (name set, other fields empty), which got silently filtered out at save
+  // time and surfaced later as "0 phases configured" in the checklist.
+  const [phases, setPhases] = useState<PhaseData[]>([emptyPhase()]);
   // Step 6: Vesting (skip if direct or coming soon)
   const [vestingPreset, setVestingPreset] = useState<"cliff_linear" | "lockup">("cliff_linear");
   const [cliffDays, setCliffDays] = useState("0");
@@ -171,15 +175,26 @@ export default function CreateSalePage() {
         setFullDescription(sale.full_description ?? "");
         // Backend now stores seconds (Integer). Convert to days for the form,
         // which keeps "days" as its working unit for human-friendly presets.
+        // Lock-up convention: cliff == vesting > 0 means a single unlock at
+        // the end of the lock-up period. Use a small tolerance so floating
+        // point conversion drift (sub-day testing values like 5 min) doesn't
+        // misclassify lock-up as cliff_linear.
         const savedCliff = (sale.cliff_duration_seconds ?? 0) / 86400;
         const savedVesting = (sale.vesting_duration_seconds ?? 365 * 86400) / 86400;
-        if (savedCliff === savedVesting && savedVesting > 0) {
+        const isLockup = savedVesting > 0 && Math.abs(savedCliff - savedVesting) < 1e-6;
+        if (isLockup) {
           setVestingPreset("lockup");
           setLockupDays(String(savedVesting));
+          // Also seed cliff/vesting fields so toggling back to cliff_linear
+          // shows reasonable defaults instead of empty.
+          setCliffDays(String(savedCliff));
+          setVestingDays(String(savedVesting));
         } else {
           setVestingPreset("cliff_linear");
           setCliffDays(String(savedCliff));
           setVestingDays(String(savedVesting));
+          // Seed lockup field too so toggling shows the longer of the two.
+          setLockupDays(String(Math.max(savedCliff, savedVesting) || 365));
         }
         setSelectedTokenId(sale.token_id ?? "");
         const presetMatch = paymentTokens.some(
@@ -423,6 +438,55 @@ export default function CreateSalePage() {
 
   const handleSaveDraft = async (): Promise<string | null> => {
     setIsSaving(true); setError(null);
+    // Detect partially-filled rows BEFORE filtering them out. Saving silently
+    // dropped these previously, which made users think their data persisted
+    // when it didn't. Now we block save and explain exactly what's missing.
+    const phasePartialIssues: string[] = [];
+    phases.forEach((p, i) => {
+      const hasAny = p.name || p.pricePerToken || p.allocation || p.startDate || p.endDate;
+      const hasAll = p.name && p.pricePerToken && p.allocation && p.startDate && p.endDate;
+      if (hasAny && !hasAll) {
+        const missing: string[] = [];
+        if (!p.name) missing.push("name");
+        if (!p.pricePerToken) missing.push("price");
+        if (!p.allocation) missing.push("allocation");
+        if (!p.startDate) missing.push("start date");
+        if (!p.endDate) missing.push("end date");
+        phasePartialIssues.push(`Phase ${i + 1}: missing ${missing.join(", ")}`);
+      }
+    });
+    const teamPartialIssues = teamMembers
+      .map((m, i) => {
+        const hasAny = m.name || m.title || m.bio || m.photo_url;
+        return hasAny && !m.name ? `Team member ${i + 1}: name is required to save (other fields filled).` : null;
+      })
+      .filter(Boolean) as string[];
+    const faqPartialIssues = faqs
+      .map((f, i) => {
+        const hasAny = f.question || f.answer;
+        return hasAny && !f.question ? `FAQ ${i + 1}: question is required to save (answer filled).` : null;
+      })
+      .filter(Boolean) as string[];
+    const docPartialIssues = documents
+      .map((d, i) => {
+        const hasAny = d.name || d.url;
+        return hasAny && !d.url ? `Document ${i + 1}: URL is required to save (name filled).` : null;
+      })
+      .filter(Boolean) as string[];
+    const allPartialIssues = [
+      ...phasePartialIssues,
+      ...teamPartialIssues,
+      ...faqPartialIssues,
+      ...docPartialIssues,
+    ];
+    if (allPartialIssues.length > 0) {
+      setError(
+        "Some rows have incomplete data and would be dropped silently. Fill the missing fields or clear the row, then save again. " +
+        allPartialIssues.join("; "),
+      );
+      setIsSaving(false);
+      return null;
+    }
     try {
       const tk = getAccessToken() ?? "";
       const validPhases = phases.filter((p) => p.name && p.pricePerToken && p.allocation && p.startDate && p.endDate);
