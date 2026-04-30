@@ -42,8 +42,20 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   // On-chain actions
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const approveOnChainAction = useContractAction();
   const activateAction = useContractAction();
   const rejectAction = useContractAction();
+
+  // On-chain approval flag — Sale.approved() must be true before activate()
+  // can succeed. The DB-only "Approved" status update isn't enough; admin
+  // must sign Sale.approveSale() on-chain in the same step.
+  const { data: approvedOnChainRaw, refetch: refetchApprovedOnChain } = useReadContract({
+    address: sale?.contract_address as `0x${string}`,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "approved",
+    query: { enabled: !!sale?.contract_address },
+  });
+  const approvedOnChain = approvedOnChainRaw === true;
 
   // Pre-activation on-chain checks
   const { data: onChainPhaseCount } = useReadContract({
@@ -105,9 +117,62 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
     await apiFetch(`/api/v1/admin/sales/${resolvedId}/toggle-visibility`, { method: "POST", body: {}, token: getToken() });
   });
 
-  const handleApprove = () => handleAction("approve", async () => {
-    await apiFetch(`/api/v1/admin/sales/${resolvedId}/approve`, { method: "POST", body: {}, token: getToken() });
-  });
+  // Combined approval: signs Sale.approveSale() on-chain (admin wallet) AND
+  // updates DB status to Approved. Previously the button only flipped the
+  // DB row, leaving on-chain `approved` flag = false — issuer's activate()
+  // then reverted with NotApproved (this trapped a real sale today).
+  // For sales already deployed on-chain we always include the on-chain call;
+  // for coming-soon sales (no contract) we skip it.
+  const handleApprove = async () => {
+    setActionLoading("approve"); setActionError(null); setActionSuccess(null);
+    try {
+      if (sale?.contract_address && !approvedOnChain) {
+        if (!requireWallet()) { setActionLoading(null); return; }
+        const receipt = await approveOnChainAction.execute({
+          address: sale.contract_address as `0x${string}`,
+          abi: SALE_ABI as unknown as Abi,
+          functionName: "approveSale",
+        });
+        if (!receipt) {
+          // Wallet rejected or revert — error is already set on the action
+          setActionLoading(null);
+          return;
+        }
+        await refetchApprovedOnChain();
+      }
+      await apiFetch(`/api/v1/admin/sales/${resolvedId}/approve`, {
+        method: "POST", body: {}, token: getToken(),
+      });
+      setActionSuccess("approve");
+      await reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Approve failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Standalone on-chain approve — used when DB shows Approved but on-chain
+  // approved is still false (legacy sales approved before this fix).
+  const handleApproveOnChainOnly = async () => {
+    if (!sale?.contract_address || !requireWallet()) return;
+    setActionLoading("approve_onchain"); setActionError(null);
+    try {
+      const receipt = await approveOnChainAction.execute({
+        address: sale.contract_address as `0x${string}`,
+        abi: SALE_ABI as unknown as Abi,
+        functionName: "approveSale",
+      });
+      if (receipt) {
+        await refetchApprovedOnChain();
+        setActionSuccess("approve_onchain");
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "On-chain approve failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleReject = () => handleAction("reject", async () => {
     await apiFetch(`/api/v1/admin/sales/${resolvedId}/reject`, { method: "POST", body: { reason: rejectReason || undefined }, token: getToken() });
@@ -267,30 +332,131 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </div>
       )}
 
-      {/* ── Pending — No contract and NOT coming soon ── */}
-      {isPending && !hasContract && !sale.is_coming_soon && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
-          <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Not Deployed</h2>
-          <p className="text-sm text-amber-700">Issuer has submitted for approval but hasn&apos;t deployed the sale contract on-chain yet. Cannot approve until deployed.</p>
-        </motion.div>
-      )}
-
-      {/* ── Pending — Has contract OR is coming soon → Approve or Reject ── */}
-      {isPending && (hasContract || sale.is_coming_soon) && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
-          <h2 className="text-lg font-semibold text-amber-800 mb-2">
-            {sale.is_coming_soon ? "Pending Approval — Coming Soon" : "Pending Approval — Deployed"}
-          </h2>
-          {hasContract && (
-            <p className="text-sm text-amber-700 mb-1">
-              Sale deployed at <CopyableAddress address={sale.contract_address!} className="text-xs bg-amber-100 px-1.5 py-0.5 rounded" />
+      {/* ── Approval Wizard (3 steps) ── shown for any deployed sale that's
+          past Draft and not yet Active. Coming-soon sales use a single-step
+          approve below. */}
+      {(isPending || isApproved) && hasContract && !sale.is_coming_soon && (() => {
+        const step1Done = approvedOnChain && (isApproved || isActive);
+        const step2Done = isActive;
+        const currentStep = !step1Done ? 1 : !step2Done ? 2 : 3;
+        const StepHeader = ({ n, label, done, current }: { n: number; label: string; done: boolean; current: boolean }) => (
+          <div className="flex items-center gap-2">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+              done ? "bg-teal-600 text-white" : current ? "bg-amber-500 text-white" : "bg-zinc-200 text-zinc-500"
+            }`}>
+              {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : n}
+            </div>
+            <span className={`text-sm font-semibold ${done ? "text-teal-700" : current ? "text-amber-700" : "text-zinc-400"}`}>{label}</span>
+            {done && <span className="text-xs text-teal-600 ml-1">Done</span>}
+            {current && !done && <span className="text-xs text-amber-600 ml-1">Now</span>}
+          </div>
+        );
+        return (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg p-6 border border-zinc-200 mb-6">
+            <h2 className="text-base font-semibold text-text mb-1">Sale Approval</h2>
+            <p className="text-xs text-black/50 mb-4">
+              Sale deployed at <CopyableAddress address={sale.contract_address!} className="text-xs bg-zinc-100 px-1.5 py-0.5 rounded" />
             </p>
-          )}
-          <p className="text-sm text-amber-700 mb-4">
-            {sale.is_coming_soon
-              ? "Approve to list as Coming Soon on the launchpad. No contract deployment needed."
-              : "Approve to allow the issuer to proceed. You can control launchpad visibility separately after approval."}
-          </p>
+
+            {/* Step 1 */}
+            <div className={`p-4 rounded-lg border mb-3 ${currentStep === 1 ? "bg-amber-50 border-amber-200" : step1Done ? "bg-teal-50 border-teal-200" : "bg-zinc-50 border-zinc-200"}`}>
+              <StepHeader n={1} label="Approve sale on-chain" done={step1Done} current={currentStep === 1} />
+              <p className="text-xs text-black/60 mt-2 mb-3 ml-8">
+                Signs <code>Sale.approveSale()</code> from your admin wallet AND marks the DB row as Approved. Issuer cannot activate until this is complete.
+              </p>
+              {currentStep === 1 && (
+                <div className="ml-8 flex items-center gap-3">
+                  <Button variant="primary" size="sm" onClick={handleApprove}
+                    isLoading={actionLoading === "approve" || approveOnChainAction.isPending || approveOnChainAction.isConfirming}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Sign On-Chain
+                  </Button>
+                  <input type="text" placeholder="Rejection reason (optional)" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+                    className="rounded-lg border border-black/10 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-red-300" />
+                  <Button variant="outline" size="sm" onClick={handleReject} isLoading={actionLoading === "reject"} className="text-red-600 border-red-200 hover:bg-red-50">
+                    <XCircle className="h-4 w-4 mr-2" /> Reject
+                  </Button>
+                </div>
+              )}
+              {/* Recovery: DB says Approved but on-chain approved=false. */}
+              {isApproved && !approvedOnChain && (
+                <div className="ml-8 mt-2 p-3 rounded-md bg-amber-100 border border-amber-300 text-xs text-amber-900">
+                  <p className="font-semibold mb-1">DB shows Approved but on-chain isn&apos;t signed yet.</p>
+                  <p className="mb-2">Legacy data — click below to run the on-chain approveSale() so the issuer can activate.</p>
+                  <Button variant="primary" size="sm" onClick={handleApproveOnChainOnly}
+                    isLoading={actionLoading === "approve_onchain" || approveOnChainAction.isPending || approveOnChainAction.isConfirming}>
+                    Run on-chain approveSale()
+                  </Button>
+                </div>
+              )}
+              <TransactionStatus
+                isPending={approveOnChainAction.isPending} isConfirming={approveOnChainAction.isConfirming}
+                isConfirmed={approveOnChainAction.isConfirmed} txHash={approveOnChainAction.txHash}
+                txUrl={approveOnChainAction.txUrl} error={approveOnChainAction.error}
+                successMessage="On-chain approveSale() confirmed."
+              />
+            </div>
+
+            {/* Step 2 */}
+            <div className={`p-4 rounded-lg border mb-3 ${currentStep === 2 ? "bg-amber-50 border-amber-200" : step2Done ? "bg-teal-50 border-teal-200" : "bg-zinc-50 border-zinc-200"}`}>
+              <StepHeader n={2} label="Activate sale on-chain" done={step2Done} current={currentStep === 2} />
+              <p className="text-xs text-black/60 mt-2 mb-3 ml-8">
+                <code>Sale.activate()</code> requires the issuer wallet. Phases must be deployed and tokens deposited.
+              </p>
+              {currentStep === 2 && (
+                <div className="ml-8">
+                  {(chainPhases === 0 || !tokensDeposited) && (
+                    <div className="mb-3 space-y-2">
+                      {chainPhases === 0 && (
+                        <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No phases on-chain. Issuer must deploy at least one phase first.
+                        </div>
+                      )}
+                      {!tokensDeposited && (
+                        <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No tokens in the {sale.sale_mode === "vested" ? "vault" : "sale contract"}. Issuer must deposit project tokens first.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Button variant="primary" size="sm" onClick={handleActivateOnChain}
+                      disabled={activateAction.isPending || activateAction.isConfirming || chainPhases === 0 || !tokensDeposited || !approvedOnChain}
+                      isLoading={activateAction.isPending || activateAction.isConfirming}>
+                      <Zap className="h-4 w-4 mr-2" /> Activate (issuer wallet)
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRejectOnChain}
+                      disabled={rejectAction.isPending || rejectAction.isConfirming}
+                      isLoading={rejectAction.isPending || rejectAction.isConfirming}
+                      className="text-red-600 border-red-200 hover:bg-red-50">
+                      <XCircle className="h-4 w-4 mr-2" /> Reject On-Chain
+                    </Button>
+                  </div>
+                  <TransactionStatus
+                    isPending={activateAction.isPending} isConfirming={activateAction.isConfirming}
+                    isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash}
+                    txUrl={activateAction.txUrl} error={activateAction.error}
+                    successMessage="Sale activated — now live for buyers."
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Step 3 */}
+            <div className={`p-4 rounded-lg border ${currentStep === 3 ? "bg-teal-50 border-teal-200" : "bg-zinc-50 border-zinc-200"}`}>
+              <StepHeader n={3} label="Sale is live" done={step2Done} current={currentStep === 3} />
+              {currentStep === 3 && (
+                <p className="ml-8 text-xs text-teal-700 mt-2">Buyers can now contribute. Use the actions below to pause, finalize, or close the sale.</p>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
+
+      {/* ── Coming-soon: single-step approve, no on-chain ── */}
+      {isPending && sale.is_coming_soon && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
+          <h2 className="text-lg font-semibold text-amber-800 mb-2">Pending Approval — Coming Soon</h2>
+          <p className="text-sm text-amber-700 mb-4">Approve to list as Coming Soon on the launchpad. No contract deployment needed.</p>
           <div className="flex items-center gap-3">
             <Button variant="primary" onClick={handleApprove} isLoading={actionLoading === "approve"}>
               <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
@@ -306,40 +472,11 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
         </motion.div>
       )}
 
-      {/* ── Approved — Ready to Activate (+ Reject On-Chain option) ── */}
-      {isApproved && hasContract && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-teal-50 rounded-lg p-6 border border-teal-200 mb-6">
-          <h2 className="text-lg font-semibold text-teal-800 mb-2">Approved — Ready to Activate</h2>
-          <p className="text-sm text-teal-700 mb-1">
-            Deployed at <CopyableAddress address={sale.contract_address!} className="text-xs bg-teal-100 px-1.5 py-0.5 rounded" />
-          </p>
-          <p className="text-sm text-teal-700 mb-3">Activate on-chain to enable purchases. You can control launchpad visibility after activation.</p>
-          {(chainPhases === 0 || !tokensDeposited) && (
-            <div className="mb-4 space-y-2">
-              {chainPhases === 0 && (
-                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No phases configured on-chain. Issuer must deploy phases before activation.
-                </div>
-              )}
-              {!tokensDeposited && (
-                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No tokens deposited in {sale.sale_mode === "vested" ? "vault" : "sale contract"}. Issuer must deposit project tokens first.
-                </div>
-              )}
-            </div>
-          )}
-          <div className="flex items-center gap-3">
-            <Button variant="primary" onClick={handleActivateOnChain}
-              disabled={activateAction.isPending || activateAction.isConfirming || chainPhases === 0 || !tokensDeposited}
-              isLoading={activateAction.isPending || activateAction.isConfirming}>
-              <Zap className="h-4 w-4 mr-2" /> Activate On-Chain
-            </Button>
-            <Button variant="outline" onClick={handleRejectOnChain} disabled={rejectAction.isPending || rejectAction.isConfirming} isLoading={rejectAction.isPending || rejectAction.isConfirming} className="text-red-600 border-red-200 hover:bg-red-50">
-              <XCircle className="h-4 w-4 mr-2" /> Reject On-Chain
-            </Button>
-          </div>
-          <TransactionStatus isPending={activateAction.isPending} isConfirming={activateAction.isConfirming} isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash} txUrl={activateAction.txUrl} error={activateAction.error} successMessage="Sale activated — now live for buyers." />
-          <TransactionStatus isPending={rejectAction.isPending} isConfirming={rejectAction.isConfirming} isConfirmed={rejectAction.isConfirmed} txHash={rejectAction.txHash} txUrl={rejectAction.txUrl} error={rejectAction.error} successMessage="Sale rejected on-chain — permanently blocked." />
+      {/* ── Pending without contract (deployed sales) ── */}
+      {isPending && !hasContract && !sale.is_coming_soon && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-amber-50 rounded-lg p-6 border border-amber-200 mb-6">
+          <h2 className="text-lg font-semibold text-amber-800 mb-2">Waiting for Issuer to Deploy</h2>
+          <p className="text-sm text-amber-700">Issuer submitted for approval but the sale contract isn&apos;t on-chain yet. Approval will unlock once the issuer deploys.</p>
         </motion.div>
       )}
 
