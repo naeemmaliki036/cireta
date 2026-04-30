@@ -209,10 +209,18 @@ export default function CreateSalePage() {
         setSaleStartDate(toDatetimeLocal(sale.sale_start_time));
         setSaleEndDate(toDatetimeLocal(sale.sale_end_time));
         if (sale.phases?.length) {
+          // Backend serializes Decimal as "100.000000000000000000". Trim
+          // trailing zeros (and the dot) so the form shows "100" not the
+          // full 18-decimal string the user never typed.
+          const trimNum = (s: string | null | undefined): string => {
+            if (!s) return "";
+            const n = Number(s);
+            return Number.isFinite(n) ? String(n) : s;
+          };
           setPhases(sale.phases.map((p) => ({
             name: p.name,
-            pricePerToken: p.price_per_token,
-            allocation: p.allocation,
+            pricePerToken: trimNum(p.price_per_token),
+            allocation: trimNum(p.allocation),
             startDate: toDatetimeLocal(p.start_time),
             endDate: toDatetimeLocal(p.end_time),
           })));
