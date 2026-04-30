@@ -76,10 +76,19 @@ class SalePhase(BaseModel):
         default=Decimal("1000"),
     )
 
-    # Whole-token buy: min/max/topup in whole token units (not USDC).
-    min_tokens: Mapped[int] = mapped_column(Integer, default=1)
-    max_tokens: Mapped[int] = mapped_column(Integer, default=0)  # 0 = unlimited
-    top_up_min_tokens: Mapped[int] = mapped_column(Integer, default=1)
+    # Whole-token buy: min/max/topup in raw token-decimal units (uint256 on
+    # chain). Numeric(78,0) instead of Integer because 6-dec scaled values
+    # like 100_000 * 1e6 = 1e11 overflow postgres int4 (max ~2.14e9). Matches
+    # the uint256 semantics already used for price_per_token / allocation.
+    min_tokens: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=0), default=Decimal("1")
+    )
+    max_tokens: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=0), default=Decimal("0")  # 0 = unlimited
+    )
+    top_up_min_tokens: Mapped[Decimal] = mapped_column(
+        Numeric(precision=78, scale=0), default=Decimal("1")
+    )
 
     # Round-5: per-phase allocation strategy. "fixed" = phase has its own cap;
     # "remaining" = phase can sell any unsold tokens up to totalTokenSupply.
