@@ -1,17 +1,27 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
 import {
   Building2, User, Wallet, Shield, CheckCircle2, XCircle, Clock,
   ArrowLeft, Loader2, AlertTriangle, TrendingUp, Copy, ExternalLink,
+  Globe,
 } from "lucide-react";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { createPublicClient, type Abi } from "viem";
 import { Button, Badge, ProgressBar } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
 import { getIssuer, activateIssuer, revokeIssuer, type Issuer } from "@/lib/api/repositories/issuers";
 import { approveIssuerWallet, rejectIssuerWallet, skipIssuerIdentity } from "@/lib/api/repositories/issuer-onboarding";
 import { getSales, type Sale } from "@/lib/api/repositories/sales";
 import { formatCurrency, parseApiDate } from "@/lib/utils";
+import { getAddresses } from "@/lib/contracts/addresses";
+import { getChain, getTransport } from "@/lib/chain";
+import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
+import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
+import { useContractAction } from "@/hooks/useContractAction";
+import { COUNTRIES } from "@/components/molecules/CountrySelector";
 
 function StatusPill({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
@@ -78,6 +88,73 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
   const walletApproved = issuer?.wallet_status === "approved";
   const identityApproved = issuer?.identity_status === "approved";
   const canActivate = walletApproved && identityApproved && issuer?.status !== "active";
+
+  // On-chain registration state. We check both registries so the page can't
+  // claim "fully activated" when the IR hasn't actually been whitelisted —
+  // token deposit into a sale would revert otherwise.
+  type ChainState = "checking" | "registered" | "needs_whitelist" | "not_registered" | "n/a";
+  const [chainState, setChainState] = useState<ChainState>("checking");
+  const issuerRegistryAddr = getAddresses().issuerRegistry;
+  const platformIR = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS as `0x${string}` | undefined;
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const irWhitelistAction = useContractAction();
+
+  const refreshChainState = useCallback(async () => {
+    if (!issuer || !issuer.wallet_address || !issuerRegistryAddr) {
+      setChainState("n/a"); return;
+    }
+    setChainState("checking");
+    try {
+      const client = createPublicClient({ chain: getChain(), transport: getTransport() });
+      const isActive = await client.readContract({
+        address: issuerRegistryAddr,
+        abi: ISSUER_REGISTRY_ABI,
+        functionName: "isActiveIssuer",
+        args: [issuer.wallet_address as `0x${string}`],
+      });
+      if (!isActive) { setChainState("not_registered"); return; }
+      if (!platformIR) { setChainState("registered"); return; }
+      const isVerified = await client.readContract({
+        address: platformIR,
+        abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+        functionName: "isVerified",
+        args: [issuer.wallet_address as `0x${string}`],
+      });
+      setChainState(isVerified ? "registered" : "needs_whitelist");
+    } catch {
+      setChainState("not_registered");
+    }
+  }, [issuer, issuerRegistryAddr, platformIR]);
+
+  useEffect(() => { refreshChainState(); }, [refreshChainState]);
+
+  // Re-check after the whitelist tx confirms
+  useEffect(() => {
+    if (irWhitelistAction.isConfirmed) {
+      refreshChainState();
+      irWhitelistAction.reset();
+    }
+  }, [irWhitelistAction.isConfirmed, refreshChainState]);
+
+  const handleAddToIRWhitelist = async () => {
+    if (!issuer?.wallet_address || !platformIR) return;
+    if (!isConnected) { openConnectModal?.(); return; }
+    const jur = issuer.jurisdiction ?? "";
+    const countryEntry = COUNTRIES.find(c => c.name.toLowerCase() === jur.toLowerCase());
+    const countryCode: number = countryEntry?.code ?? 0;
+    try {
+      await irWhitelistAction.execute({
+        address: platformIR,
+        abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
+        functionName: "addToWhitelist",
+        args: [issuer.wallet_address as `0x${string}`, countryCode],
+        gas: 200_000n,
+      });
+    } catch {
+      /* surface via the inline tx-status panel */
+    }
+  };
 
   if (loading) {
     return (
@@ -234,7 +311,48 @@ export default function IssuerDetailPage({ params }: { params: Promise<{ id: str
 
           {issuer.status === "active" ? (
             <div className="space-y-3">
-              <p className="text-xs text-green-600 font-medium">Fully activated. Can deploy tokens and create sales.</p>
+              {/* On-chain truth — DB flag alone is misleading because token deposits
+                  into a sale require the issuer wallet to also be on the IR whitelist. */}
+              {chainState === "checking" ? (
+                <p className="text-xs text-zinc-500 flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Checking on-chain registration…
+                </p>
+              ) : chainState === "registered" ? (
+                <p className="text-xs text-green-600 font-medium">
+                  Fully activated and registered on-chain. Can deploy tokens, create sales, and deposit tokens for sale.
+                </p>
+              ) : chainState === "needs_whitelist" ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-700 font-medium flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      DB-active but missing Identity Registry whitelist. Token deploy works, but
+                      depositing tokens into a sale will revert until this wallet is whitelisted on the IR.
+                    </span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleAddToIRWhitelist}
+                    isLoading={irWhitelistAction.isPending || irWhitelistAction.isConfirming}
+                    leftIcon={<Globe className="h-4 w-4" />}
+                  >
+                    {irWhitelistAction.isPending
+                      ? "Confirm in wallet…"
+                      : irWhitelistAction.isConfirming
+                        ? "Whitelisting…"
+                        : "Add to Identity Registry"}
+                  </Button>
+                </div>
+              ) : chainState === "not_registered" ? (
+                <p className="text-xs text-amber-700 font-medium flex items-start gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Active in DB but not registered on-chain. Use the Issuers list (Register On-Chain) before tokens or sales can deploy.
+                  </span>
+                </p>
+              ) : null}
               <Button variant="outline" size="sm" className="w-full text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => handleAction("revoke")} isLoading={actionLoading === "revoke"}>
                 Suspend Issuer
