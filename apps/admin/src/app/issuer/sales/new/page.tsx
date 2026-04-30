@@ -504,7 +504,11 @@ export default function CreateSalePage() {
         sort_order: g.sort_order, media_type: g.media_type, video_url: g.video_url,
       }, tk);
       return sale.id;
-    } catch (err) { setError(err instanceof Error ? err.message : "Save failed"); return null; }
+    } catch (err) {
+      console.error("[handleSaveDraft] failed:", err);
+      setError(err instanceof Error ? err.message : "Save failed");
+      return null;
+    }
     finally { setIsSaving(false); }
   };
 
@@ -522,7 +526,10 @@ export default function CreateSalePage() {
         // user can actually click "Deploy On-Chain" instead of bouncing back.
         router.push(`/issuer/sales/${saleId}?from=wizard`);
       }
-    } catch (err) { setError(err instanceof Error ? err.message : "Submission failed"); }
+    } catch (err) {
+      console.error("[handleSubmit] failed:", err);
+      setError(err instanceof Error ? err.message : "Submission failed");
+    }
     finally { setIsSubmitting(false); }
   };
 
@@ -579,20 +586,26 @@ export default function CreateSalePage() {
         </div>
       )}
       {isLast && !isFirst && (
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
-              {isSaving ? "Saving..." : savedSaleId ? "Save Changes" : "Save Draft"}
-            </Button>
-            {success ? (
-              <Link href="/issuer/sales"><Button variant="primary" size="sm">View Sales</Button></Link>
-            ) : (
-              <Button variant="primary" size="sm" onClick={handleSubmit} isLoading={isSubmitting}>
-                {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue to Deployment →"}
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>
+            <div className="flex items-center gap-2">
+              {savedSaleId && !error && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+              <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
+                {isSaving ? "Saving..." : savedSaleId ? "Save Changes" : "Save Draft"}
               </Button>
-            )}
+              {success ? (
+                <Link href="/issuer/sales"><Button variant="primary" size="sm">View Sales</Button></Link>
+              ) : (
+                <Button variant="primary" size="sm" onClick={handleSubmit} isLoading={isSubmitting}>
+                  {isSubmitting ? "Saving..." : isComingSoon ? "Submit for Approval" : "Save & Continue to Deployment →"}
+                </Button>
+              )}
+            </div>
           </div>
+          {error && (
+            <p className="mt-2 text-xs text-red-600 text-right">{error}</p>
+          )}
         </div>
       )}
       <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-white rounded-lg p-8 border border-black/10">
