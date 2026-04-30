@@ -160,6 +160,14 @@ class SaleCreateService:
             phase.start_time = phase_data["start_time"]
             phase.end_time = phase_data["end_time"]
             phase.whitelist_only = phase_data.get("whitelist_only", False)
+            # top_up_min and allocation_mode were silently dropped here, so
+            # phases created via the wizard saved their UI choice for these
+            # but the model defaulted them to 1000 / "fixed" — surfacing as
+            # mismatches against the on-chain phase later. Persist them.
+            if "top_up_min" in phase_data and phase_data["top_up_min"] is not None:
+                phase.top_up_min = Decimal(str(phase_data["top_up_min"]))
+            if "allocation_mode" in phase_data and phase_data["allocation_mode"]:
+                phase.allocation_mode = str(phase_data["allocation_mode"])
 
             self.db.add(phase)
 
