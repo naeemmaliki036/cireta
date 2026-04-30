@@ -37,6 +37,17 @@ import { getAccessToken, apiFetch } from "@/lib/api/client";
 
 interface PhaseData { name: string; pricePerToken: string; allocation: string; startDate: string; endDate: string }
 const emptyPhase = (): PhaseData => ({ name: "", pricePerToken: "", allocation: "", startDate: "", endDate: "" });
+
+/** Convert a UTC ISO timestamp into the local 'YYYY-MM-DDTHH:mm' form
+ *  expected by <input type="datetime-local">. Naively slicing the ISO
+ *  string drops the timezone offset and shifts the displayed value. */
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 const emptyTeam = (): TeamMemberData => ({ name: "", title: "", bio: "", photo_url: "" });
 const emptyFAQ = (): FAQData => ({ question: "", answer: "" });
 const emptyDoc = (): DocumentData => ({ name: "", type: "legal", url: "" });
@@ -187,15 +198,19 @@ export default function CreateSalePage() {
         setHardCap(cleanCap(sale.hard_cap));
         setTotalTokenSupply(cleanCap(sale.total_token_supply));
         setIsOpenEnded(sale.is_open_ended);
-        setSaleStartDate(sale.sale_start_time ? sale.sale_start_time.slice(0, 16) : "");
-        setSaleEndDate(sale.sale_end_time ? sale.sale_end_time.slice(0, 16) : "");
+        // Parse the UTC ISO timestamp back into a local datetime-local string
+        // ("YYYY-MM-DDTHH:mm") so the picker shows the same wall-clock time the
+        // user originally entered. .slice(0,16) on the raw ISO would drop the
+        // user's timezone offset and shift the value by tzOffset hours.
+        setSaleStartDate(toDatetimeLocal(sale.sale_start_time));
+        setSaleEndDate(toDatetimeLocal(sale.sale_end_time));
         if (sale.phases?.length) {
           setPhases(sale.phases.map((p) => ({
             name: p.name,
             pricePerToken: p.price_per_token,
             allocation: p.allocation,
-            startDate: p.start_time.slice(0, 16),
-            endDate: p.end_time.slice(0, 16),
+            startDate: toDatetimeLocal(p.start_time),
+            endDate: toDatetimeLocal(p.end_time),
           })));
         }
         // Sub-resources
