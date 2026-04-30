@@ -918,8 +918,11 @@ async def add_phase(
     phase.max_contribution = max_contribution
     phase.top_up_min = top_up_min
     phase.allocation_mode = request.allocation_mode
-    phase.start_time = request.start_time
-    phase.end_time = request.end_time
+    # Use the parsed datetime — request.start_time / end_time are strings
+    # (the schema declares them as str, not datetime), and asyncpg refuses
+    # to bind str → TIMESTAMPTZ, surfacing as a 500 from the route.
+    phase.start_time = start_dt
+    phase.end_time = end_dt
     phase.whitelist_only = request.whitelist_only
     phase.deployed_on_chain = request.deployed_on_chain
     phase.on_chain_phase_id = request.on_chain_phase_id
