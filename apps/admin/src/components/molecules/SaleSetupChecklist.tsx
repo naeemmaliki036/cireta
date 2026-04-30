@@ -635,7 +635,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
 
                 <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
                   <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
-                  Once submitted, the admin will review and approve to make this sale visible on the launchpad. The admin will then activate it on-chain to allow purchases.
+                  Once submitted, the admin will review and approve to make this sale visible on the launchpad. After admin approval, you&apos;ll see an &quot;Activate Sale On-Chain&quot; button at the top of this page to make the sale live for buyers.
                 </div>
 
                 <div className="flex items-center justify-center gap-4">

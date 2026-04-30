@@ -166,6 +166,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
   // Read on-chain phase count for deployed sales
   const phaseDeployAction = useContractAction();
+  const activateAction = useContractAction();
   const { data: onChainPhaseCount, refetch: refetchPhaseCount, error: phaseCountError, isLoading: phaseCountLoading } = useReadContract({
     address: (sale?.contract_address as `0x${string}`) || undefined,
     abi: SALE_ABI as unknown as Abi,
@@ -268,6 +269,26 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const handleConvertToLive = () => handleAction("convert", async () => {
     await apiFetch(`/api/v1/sales/${resolvedId}/convert-to-live`, { method: "POST", body: {} });
   });
+
+  // Issuer-only: activate the admin-approved sale on-chain. Requires
+  // Sale.approveSale() to have been signed by admin first; otherwise
+  // reverts with NotApproved. Phases must exist + tokens deposited.
+  const handleActivateOnChainIssuer = async () => {
+    if (!sale?.contract_address) return;
+    const receipt = await activateAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "activate",
+    });
+    if (receipt) {
+      try {
+        await apiFetch(`/api/v1/admin/sales/${resolvedId}/activate`, {
+          method: "POST", body: { tx_hash: receipt.transactionHash },
+        });
+      } catch { /* on-chain is source of truth */ }
+      await reload();
+    }
+  };
 
   /**
    * Deploy Sale contract on-chain via CiretaSaleFactory.deploySale().
@@ -732,6 +753,13 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           {isApprovedComingSoon && <Button variant="primary" onClick={handleConvertToLive} isLoading={actionLoading === "convert"}>
             Convert to Live Sale
           </Button>}
+          {isApproved && sale.contract_address && (
+            <Button variant="primary" onClick={handleActivateOnChainIssuer}
+              isLoading={activateAction.isPending || activateAction.isConfirming}>
+              <Rocket className="h-4 w-4 mr-2" />
+              Activate Sale On-Chain
+            </Button>
+          )}
           {!sale.contract_address && !syncDone && sale.token_contract_address && (
             <Button
               variant="primary"

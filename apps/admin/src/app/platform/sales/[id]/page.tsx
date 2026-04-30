@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, Clock, ArrowLeft, CheckCircle2, XCircle, Flag,
-  AlertCircle, Zap, Pause, Play, ShieldAlert, Eye, EyeOff,
+  AlertCircle, Pause, Play, ShieldAlert, Eye, EyeOff,
   Timer, Power, RefreshCw, Calendar,
 } from "lucide-react";
 import Link from "next/link";
@@ -43,7 +43,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const { isConnected, address: connectedWallet } = useAccount();
   const { openConnectModal } = useConnectModal();
   const approveOnChainAction = useContractAction();
-  const activateAction = useContractAction();
   const rejectAction = useContractAction();
 
   // On-chain approval flag — Sale.approved() must be true before activate()
@@ -73,19 +72,9 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
     functionName: "owner",
     query: { enabled: !!saleFactoryAddr },
   });
-  // Issuer wallet from the contract itself (Sale.issuer is the address
-  // stored at initialize time — single source of truth for activate()).
-  const { data: saleIssuerAddr } = useReadContract({
-    address: sale?.contract_address as `0x${string}`,
-    abi: SALE_ABI as unknown as Abi,
-    functionName: "issuer",
-    query: { enabled: !!sale?.contract_address },
-  });
   const adminWalletAddr = (adminWallet as string | undefined)?.toLowerCase();
   const connectedWalletAddr = connectedWallet?.toLowerCase();
-  const issuerWalletAddr = (saleIssuerAddr as string | undefined)?.toLowerCase();
   const isConnectedAsAdmin = !!connectedWalletAddr && !!adminWalletAddr && connectedWalletAddr === adminWalletAddr;
-  const isConnectedAsIssuer = !!connectedWalletAddr && !!issuerWalletAddr && connectedWalletAddr === issuerWalletAddr;
 
   // Pre-activation on-chain checks
   const { data: onChainPhaseCount } = useReadContract({
@@ -213,20 +202,9 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
     return true;
   };
 
-  const handleActivateOnChain = async () => {
-    if (!sale?.contract_address || !requireWallet()) return;
-    const receipt = await activateAction.execute({
-      address: sale.contract_address as `0x${string}`,
-      abi: SALE_ABI as unknown as Abi,
-      functionName: "activate",
-    });
-    if (receipt) {
-      try {
-        await apiFetch(`/api/v1/admin/sales/${resolvedId}/activate`, { method: "POST", body: { tx_hash: receipt.transactionHash }, token: getToken() });
-      } catch { /* on-chain is source of truth */ }
-      await reload();
-    }
-  };
+  // activate() is issuer-only and lives on /issuer/sales/[id] now. Admin
+  // doesn't take any on-chain action between approveSale() and the issuer's
+  // activate() — only Reject (below).
 
   const handleRejectOnChain = async () => {
     if (!sale?.contract_address || !requireWallet()) return;
@@ -444,55 +422,43 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
               />
             </div>
 
-            {/* Step 2 */}
+            {/* Step 2 — issuer-side action; admin just waits + monitors. */}
             <div className={`p-4 rounded-lg border mb-3 ${currentStep === 2 ? "bg-amber-50 border-amber-200" : step2Done ? "bg-teal-50 border-teal-200" : "bg-zinc-50 border-zinc-200"}`}>
-              <StepHeader n={2} label="Activate sale on-chain" done={step2Done} current={currentStep === 2} />
+              <StepHeader n={2} label="Issuer activates the sale" done={step2Done} current={currentStep === 2} />
               <p className="text-xs text-black/60 mt-2 mb-3 ml-8">
-                <code>Sale.activate()</code> requires the issuer wallet. Phases must be deployed and tokens deposited.
+                <code>Sale.activate()</code> is issuer-only. The issuer signs from their own wallet on the issuer Sale Detail page. Admin doesn&apos;t take any action here.
               </p>
               {currentStep === 2 && (
-                <div className="ml-8">
+                <div className="ml-8 space-y-2">
+                  <p className="text-xs text-amber-800">Waiting for issuer to activate. They&apos;ll see the &quot;Activate Sale On-Chain&quot; step in their setup checklist.</p>
                   {(chainPhases === 0 || !tokensDeposited) && (
-                    <div className="mb-3 space-y-2">
+                    <div className="space-y-2">
                       {chainPhases === 0 && (
-                        <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
-                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No phases on-chain. Issuer must deploy at least one phase first.
+                        <div className="p-2.5 rounded-md bg-amber-100 border border-amber-300 text-xs text-amber-900 flex items-center gap-2">
+                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> Issuer hasn&apos;t deployed any phases on-chain yet.
                         </div>
                       )}
                       {!tokensDeposited && (
-                        <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
-                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> No tokens in the {sale.sale_mode === "vested" ? "vault" : "sale contract"}. Issuer must deposit project tokens first.
+                        <div className="p-2.5 rounded-md bg-amber-100 border border-amber-300 text-xs text-amber-900 flex items-center gap-2">
+                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> Issuer hasn&apos;t deposited project tokens to the {sale.sale_mode === "vested" ? "vault" : "sale contract"}.
                         </div>
                       )}
                     </div>
                   )}
-                  {isConnected && !isConnectedAsIssuer && issuerWalletAddr && (
-                    <div className="mb-3 p-2.5 rounded-md bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
-                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold mb-0.5">Connected wallet is not the issuer.</p>
-                        <p>Switch MetaMask to <code className="font-mono">{issuerWalletAddr}</code> to call <code>activate()</code>. Currently connected: <code className="font-mono">{connectedWalletAddr}</code>.</p>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <Button variant="primary" size="sm" onClick={handleActivateOnChain}
-                      disabled={activateAction.isPending || activateAction.isConfirming || chainPhases === 0 || !tokensDeposited || !approvedOnChain || (isConnected && !isConnectedAsIssuer)}
-                      isLoading={activateAction.isPending || activateAction.isConfirming}>
-                      <Zap className="h-4 w-4 mr-2" /> Activate (issuer wallet)
-                    </Button>
+                  {/* Reject is admin-side and stays here even after approval. */}
+                  <div className="pt-1">
                     <Button variant="outline" size="sm" onClick={handleRejectOnChain}
-                      disabled={rejectAction.isPending || rejectAction.isConfirming}
+                      disabled={rejectAction.isPending || rejectAction.isConfirming || (isConnected && !isConnectedAsAdmin)}
                       isLoading={rejectAction.isPending || rejectAction.isConfirming}
                       className="text-red-600 border-red-200 hover:bg-red-50">
-                      <XCircle className="h-4 w-4 mr-2" /> Reject On-Chain
+                      <XCircle className="h-4 w-4 mr-2" /> Reject On-Chain (admin)
                     </Button>
                   </div>
                   <TransactionStatus
-                    isPending={activateAction.isPending} isConfirming={activateAction.isConfirming}
-                    isConfirmed={activateAction.isConfirmed} txHash={activateAction.txHash}
-                    txUrl={activateAction.txUrl} error={activateAction.error}
-                    successMessage="Sale activated — now live for buyers."
+                    isPending={rejectAction.isPending} isConfirming={rejectAction.isConfirming}
+                    isConfirmed={rejectAction.isConfirmed} txHash={rejectAction.txHash}
+                    txUrl={rejectAction.txUrl} error={rejectAction.error}
+                    successMessage="Sale rejected on-chain — permanently blocked."
                   />
                 </div>
               )}
