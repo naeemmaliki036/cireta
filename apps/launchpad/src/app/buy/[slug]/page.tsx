@@ -1182,6 +1182,12 @@ export default function InvestPage() {
                 tokensToReceive={tokensToReceive} isLoading={confirmLoading || isRecording}
                 error={error} onConfirm={handleConfirm}
                 onBack={() => setStep("amount")}
+                errorContext={{
+                  txHash: saleContributeAction.txHash ?? null,
+                  contractAddress: saleContractAddress ?? null,
+                  functionName: "buy",
+                  chainId: chainId ?? null,
+                }}
               />
             )}
             {step === "success" && (

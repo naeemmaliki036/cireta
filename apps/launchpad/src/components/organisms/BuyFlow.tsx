@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useChainId } from "wagmi";
 import { Shield, AlertCircle, CheckCircle2, Wallet, Fuel } from "lucide-react";
 import { Button, Badge } from "@/components/atoms";
+import { ErrorReportButton } from "@/components/molecules/ErrorReportButton";
 import { formatCurrency } from "@/lib/utils";
 import { getTxUrl } from "@/lib/contracts/addresses";
 import type { Project, ProjectPhase } from "@/lib/api/repositories/projects.repository";
@@ -467,6 +468,18 @@ interface InvestConfirmStepProps {
    * "Saving to your portfolio…" status instead of an ambiguous "Confirming…".
    */
   isRecording?: boolean;
+  /**
+   * Optional rich context for the 'Report this issue' button. When
+   * provided, the plain red error box is replaced with the shared
+   * ErrorReportButton (View Transaction link + Report dialog).
+   */
+  errorContext?: {
+    txHash?: string | null;
+    contractAddress?: string | null;
+    functionName?: string | null;
+    chainId?: number | null;
+    code?: string | null;
+  };
 }
 
 export function InvestConfirmStep({
@@ -479,6 +492,7 @@ export function InvestConfirmStep({
   onConfirm,
   onBack,
   isRecording: _isRecording = false,
+  errorContext,
 }: InvestConfirmStepProps) {
   return (
     <>
@@ -493,10 +507,24 @@ export function InvestConfirmStep({
         Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
       </p>
       {error && (
-        <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
-          <p className="text-sm font-medium text-red-700 mb-1">Transaction Failed</p>
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
+        errorContext ? (
+          <ErrorReportButton
+            className="mb-4"
+            context={{
+              message: error,
+              functionName: errorContext.functionName ?? "buy",
+              contractAddress: errorContext.contractAddress ?? null,
+              txHash: errorContext.txHash ?? null,
+              chainId: errorContext.chainId ?? null,
+              code: errorContext.code ?? null,
+            }}
+          />
+        ) : (
+          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
+            <p className="text-sm font-medium text-red-700 mb-1">Transaction Failed</p>
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )
       )}
       <div className="flex gap-3">
         {onBack && (
