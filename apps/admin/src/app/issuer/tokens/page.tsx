@@ -158,19 +158,28 @@ function OTCTokenCard({ address: otcAddr }: { address: string }) {
 
 /** Single OTC token row for list view */
 function OTCTokenRow({ address: otcAddr }: { address: string }) {
+  const router = useRouter();
   const { name, symbol, totalSupply } = useOTCTokenInfo(otcAddr);
   return (
-    <tr className="border-b border-zinc-50 hover:bg-zinc-50">
+    <tr
+      onClick={() => router.push(`/issuer/otc/${otcAddr}`)}
+      className="border-b border-zinc-50 hover:bg-zinc-50 cursor-pointer group"
+    >
       <td className="px-5 py-3">
         <p className="font-medium text-sm">{name}</p>
         <p className="text-xs text-zinc-400">{symbol}</p>
       </td>
-      <td className="px-5 py-3 text-sm font-mono">{parseFloat(totalSupply).toLocaleString()}</td>
-      <td className="px-5 py-3">
+      <td className="px-5 py-3 text-sm font-mono">
+        {parseFloat(totalSupply).toLocaleString("en-US", { maximumFractionDigits: 6 })}
+      </td>
+      <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
         <CopyableAddress address={otcAddr} truncate className="text-xs text-zinc-700" />
       </td>
       <td className="px-5 py-3">
         <Badge variant="active" size="sm"><Coins className="h-3 w-3 mr-1" />Deployed</Badge>
+      </td>
+      <td className="px-5 py-3 text-right">
+        <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-darkAqua transition-colors inline-block" />
       </td>
     </tr>
   );
@@ -256,6 +265,7 @@ function OTCTokenSection() {
                   <th className="px-5 py-3">Total Minted</th>
                   <th className="px-5 py-3">Contract</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right" />
                 </tr>
               </thead>
               <tbody>
