@@ -53,23 +53,18 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     enabled: true,
-    // Etherscan v2 maps the same key to every supported chain (BaseScan included).
-    // Set per-network keys explicitly so hardhat-verify uses BASESCAN_API_KEY for
-    // both Base Sepolia and Base Mainnet without confusion.
-    apiKey: {
-      baseSepolia: process.env.BASESCAN_API_KEY || "",
-      base: process.env.BASESCAN_API_KEY || "",
-    },
-    // We default to BaseScan's per-chain API endpoint (api-sepolia.basescan.org /
-    // api.basescan.org) instead of Etherscan's unified v2 endpoint
-    // (api.etherscan.io/v2/api). Some networks block the etherscan.io DNS;
-    // BaseScan's own domain is consistently reachable.
+    // Etherscan v2 unified API. Per-chain v1 endpoints (api-sepolia.basescan.org)
+    // were retired May 2025 and now hard-reject with a "deprecated V1 endpoint"
+    // error. The v2 API uses a single host (api.etherscan.io) plus a chainid
+    // query param. Single string apiKey is correct for v2; per-network map is
+    // a v1 concept.
+    apiKey: process.env.BASESCAN_API_KEY || "",
     customChains: [
       {
         network: "baseSepolia",
         chainId: 84532,
         urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
+          apiURL: "https://api.etherscan.io/v2/api?chainid=84532",
           browserURL: "https://sepolia.basescan.org",
         },
       },
@@ -77,7 +72,7 @@ const config: HardhatUserConfig = {
         network: "base",
         chainId: 8453,
         urls: {
-          apiURL: "https://api.basescan.org/api",
+          apiURL: "https://api.etherscan.io/v2/api?chainid=8453",
           browserURL: "https://basescan.org",
         },
       },

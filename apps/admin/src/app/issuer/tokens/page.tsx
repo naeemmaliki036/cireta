@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Abi } from "viem";
 import { Plus, ArrowUpRight, Coins, Pause, Play, Shield, Copy, Rocket, LayoutGrid, List } from "lucide-react";
@@ -20,14 +21,14 @@ function getToken() {
   return getAccessToken() ?? undefined;
 }
 
-/** Format supply fraction: "500K / 1M" or just "1,000,000" when no max */
+/** Format supply with full thousand-separated digits, e.g. "2,882" or "1,000,000,000".
+ *  Earlier we abbreviated to K/M/B which lost precision (2,882 → "3K"). */
 function fmtSupply(raw: string | null | undefined): string {
   const n = parseFloat(raw ?? "0");
   if (!raw || isNaN(n)) return "—";
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toLocaleString("en-US");
+  // Use locale formatting throughout; even 1B prints as "1,000,000,000" which is
+  // clearer than "1.0B" for issuers verifying their own numbers.
+  return n.toLocaleString("en-US", { maximumFractionDigits: 6 });
 }
 
 function SupplyCell({ token }: { token: Token }) {
@@ -303,37 +304,52 @@ function OTCTokenSection() {
 }
 
 function TokenRow({ token }: { token: Token }) {
+  const router = useRouter();
   const addr = token.contract_address;
   const deployed = addr && addr !== "0x0000000000000000000000000000000000000000";
   const masked = deployed ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : null;
 
+  const supplyText = (() => {
+    const cur = fmtSupply(token.current_supply ?? token.total_supply);
+    if (token.max_supply) return `${cur} / ${fmtSupply(token.max_supply)}`;
+    return cur;
+  })();
+
   return (
-    <Link href={`/issuer/tokens/${token.id}`}
-      className="flex items-center gap-4 px-4 py-3 bg-white border border-zinc-100 rounded-lg hover:border-darkAqua/30 hover:shadow-sm transition-all group">
-      <div className="min-w-0 flex-1">
-        <h3 className="font-semibold text-text text-sm">{token.name}</h3>
-        <p className="text-xs text-black/40 mt-0.5">{token.symbol} · {token.asset_type} · {token.decimals} decimals</p>
-      </div>
-      <div className="text-xs text-black/30 shrink-0">
-        <SupplyCell token={token} />
-        <p className="mt-0.5">{token.max_supply ? "Supply" : "Total Supply"}</p>
-      </div>
-      <div className="flex items-center gap-1.5 shrink-0">
+    <tr
+      onClick={() => router.push(`/issuer/tokens/${token.id}`)}
+      className="bg-white border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50/50 transition-colors cursor-pointer group"
+    >
+      <td className="px-4 py-3 align-top">
+        <p className="font-semibold text-text text-sm">{token.name}</p>
+        <p className="text-xs text-black/40 mt-0.5">
+          {token.symbol} · {token.asset_type} · {token.decimals} dec
+        </p>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <p className="font-mono text-sm text-text">{supplyText}</p>
+        <p className="text-[10px] text-black/40 mt-0.5">{token.max_supply ? "current / max" : "total supply"}</p>
+      </td>
+      <td className="px-4 py-3 align-top">
         <Badge variant={token.mintable ? "default" : "active"} size="sm">
           {token.mintable ? "Mintable" : "Fixed"}
         </Badge>
-      </div>
-      <div className="text-xs text-black/30 shrink-0">
+      </td>
+      <td className="px-4 py-3 align-top">
         {masked ? (
-          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(addr!); }}
-            className="flex items-center gap-1 font-mono font-semibold text-text hover:text-darkAqua transition-colors cursor-pointer">
-            {masked} <Copy className="h-3 w-3 text-black/20" />
+          <button
+            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(addr!); }}
+            className="flex items-center gap-1.5 font-mono text-xs text-text hover:text-darkAqua transition-colors"
+            title={addr!}
+          >
+            {masked}
+            <Copy className="h-3 w-3 text-black/30" />
           </button>
         ) : (
-          <p className="font-semibold text-black/30">Not Deployed</p>
+          <span className="text-xs text-black/30">Not Deployed</span>
         )}
-      </div>
-      <div className="flex items-center gap-1.5 shrink-0">
+      </td>
+      <td className="px-4 py-3 align-top">
         {token.is_paused ? (
           <Badge variant="pending" size="sm"><Pause className="h-3 w-3 mr-1" />Paused</Badge>
         ) : deployed ? (
@@ -341,9 +357,11 @@ function TokenRow({ token }: { token: Token }) {
         ) : (
           <Badge variant="pending" size="sm">Not Deployed</Badge>
         )}
-      </div>
-      <ArrowUpRight className="h-4 w-4 text-black/15 group-hover:text-darkAqua transition-colors shrink-0" />
-    </Link>
+      </td>
+      <td className="px-4 py-3 align-top text-right">
+        <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-darkAqua transition-colors inline-block" />
+      </td>
+    </tr>
   );
 }
 
@@ -437,12 +455,24 @@ export default function TokensPage() {
         </div>
       ) : (
         viewMode === "list" ? (
-          <div className="flex flex-col gap-2">
-            {filtered.map((token, i) => (
-              <motion.div key={token.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
-                <TokenRow token={token} />
-              </motion.div>
-            ))}
+          <div className="overflow-x-auto bg-white rounded-lg border border-zinc-100">
+            <table className="w-full">
+              <thead className="bg-zinc-50 border-b border-zinc-100">
+                <tr className="text-left text-[11px] font-semibold text-black/50 uppercase tracking-wider">
+                  <th className="px-4 py-2.5">Name</th>
+                  <th className="px-4 py-2.5">Supply</th>
+                  <th className="px-4 py-2.5">Type</th>
+                  <th className="px-4 py-2.5">Contract Address</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 text-right" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((token) => (
+                  <TokenRow key={token.id} token={token} />
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
