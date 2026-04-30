@@ -948,18 +948,32 @@ export default function ProjectDetailPage() {
               )}
 
               {activeTab === "Vesting" && saleRaw?.sale_mode === "vested" && (() => {
-                const cliffDays = saleRaw.cliff_duration_days ?? 0;
-                const vestingDays = saleRaw.vesting_duration_days ?? 0;
+                const cliffDays = Number(saleRaw.cliff_duration_days ?? 0);
+                const vestingDays = Number(saleRaw.vesting_duration_days ?? 0);
                 const fmtDur = (days: number) => {
-                  if (days >= 365 && days % 365 === 0) return `${days / 365} year${days / 365 > 1 ? "s" : ""}`;
-                  if (days >= 30 && days % 30 === 0) return `${days / 30} month${days / 30 > 1 ? "s" : ""}`;
-                  return `${days} day${days !== 1 ? "s" : ""}`;
+                  // Sub-day units for testing scenarios — same formatting as the issuer wizard
+                  if (days > 0 && days < 1 / 24) return `${Math.round(days * 1440)} min`;
+                  if (days > 0 && days < 1) {
+                    const h = (days * 24).toFixed(1).replace(/\.?0+$/, "");
+                    return `${h} hr`;
+                  }
+                  if (days < 30) return `${days.toFixed(0)} day${days !== 1 ? "s" : ""}`;
+                  if (days < 365) {
+                    const m = (days / 30).toFixed(1).replace(/\.?0+$/, "");
+                    return `${m} month${m === "1" ? "" : "s"}`;
+                  }
+                  const y = (days / 365).toFixed(1).replace(/\.?0+$/, "");
+                  return `${y} year${y === "1" ? "" : "s"}`;
                 };
-                const isCliffOnly = vestingDays <= cliffDays || vestingDays === 0;
+                // Lock-up = cliff and vesting are equal AND non-zero. 100% unlock at the cliff end.
+                const isLockup = cliffDays > 0 && cliffDays === vestingDays;
+                const isCliffOnly = !isLockup && (vestingDays <= cliffDays || vestingDays === 0);
                 const linearDays = Math.max(0, vestingDays - cliffDays);
                 // Build milestone schedule
                 const milestones: { label: string; pct: number }[] = [];
-                if (isCliffOnly) {
+                if (isLockup) {
+                  milestones.push({ label: `Day ${cliffDays} (lock-up ends)`, pct: 100 });
+                } else if (isCliffOnly) {
                   milestones.push({ label: `Day ${cliffDays} (cliff)`, pct: 100 });
                 } else {
                   const interval = linearDays <= 90 ? 30 : linearDays <= 365 ? 30 : 90;
@@ -970,6 +984,76 @@ export default function ProjectDetailPage() {
                   }
                   milestones.push({ label: `Day ${cliffDays + linearDays}`, pct: 100 });
                 }
+
+                // Lock-up variant: distinct labels and timeline copy.
+                if (isLockup) {
+                  return (
+                    <div className="space-y-10">
+                      <div className="bg-gray-50 rounded-xl p-5">
+                        <h3 className="font-bold text-text mb-4 text-base">Token Lock-up Schedule</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
+                          {[
+                            ["Lock-up Period", fmtDur(cliffDays)],
+                            ["Full Unlock At", `Day ${cliffDays}`],
+                            ["Unlock Type", "100% at end of lock-up"],
+                          ].map(([k, v]) => (
+                            <div key={k}>
+                              <p className="text-xs text-gray-400 mb-0.5">{k}</p>
+                              <p className="text-sm font-semibold text-text">{v}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-5">
+                        <h3 className="font-bold text-text mb-2 text-base">Lock-up Timeline</h3>
+                        <p className="text-xs text-gray-400 mb-5">
+                          After purchasing, your {project.tokenSymbol} tokens are locked for {fmtDur(cliffDays)}. At the end of the lock-up period, 100% of your tokens unlock at once and become claimable.
+                        </p>
+                        <div className="relative mb-2">
+                          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5 text-center">
+                            Token Lock-up · {fmtDur(cliffDays)}
+                          </div>
+                          <div className="h-4 bg-gray-100 rounded-full overflow-hidden relative">
+                            <div className="h-full absolute inset-0 rounded-full" style={{ backgroundColor: "#ECF3F4" }} />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
+                            <span>Day 0</span>
+                            <span>Day {cliffDays} · 100% unlock</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-5">
+                        <h3 className="font-bold text-text mb-3 text-base">Claim Schedule</h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-gray-100 text-gray-400 text-xs uppercase">
+                                <th className="text-left py-2 pr-4">Milestone</th>
+                                <th className="text-right py-2">Unlocked</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {milestones.map((m, i) => (
+                                <tr key={i} className="border-b border-gray-50 last:border-0">
+                                  <td className="py-2 pr-4 font-medium text-text">{m.label}</td>
+                                  <td className="py-2 text-right">
+                                    <span className={m.pct === 100 ? "text-green-600 font-semibold" : "text-gray-600"}>
+                                      {m.pct}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-5 text-sm text-gray-600 leading-relaxed">
+                        After purchasing, you receive fraction tokens (fr{project.tokenSymbol}) immediately as a receipt. These fractions cannot be redeemed for {project.tokenSymbol} until the {fmtDur(cliffDays)} lock-up period ends. Once the lock-up expires, you can claim 100% of your {project.tokenSymbol} tokens at any time from your portfolio.
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="space-y-10">
                     <div className="bg-gray-50 rounded-xl p-5">
