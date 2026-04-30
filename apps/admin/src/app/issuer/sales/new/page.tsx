@@ -1041,13 +1041,11 @@ export default function CreateSalePage() {
         )}
         {/* Step 9: Vesting (skip if direct or coming soon) */}
         {step === 9 && (() => {
-          // Sub-day testing presets are always visible — labeled "(test)" so they're
-          // obvious. Issuers running real sales pick the month/year presets instead.
           const TESTING_PRESETS = [
-            { label: "5 min (test)", days: 5 / 1440 },
-            { label: "30 min (test)", days: 30 / 1440 },
-            { label: "1 hour (test)", days: 1 / 24 },
-            { label: "1 day (test)", days: 1 },
+            { label: "5 min", days: 5 / 1440 },
+            { label: "30 min", days: 30 / 1440 },
+            { label: "1 hour", days: 1 / 24 },
+            { label: "1 day", days: 1 },
           ];
           const DURATION_PRESETS = [
             ...TESTING_PRESETS,
