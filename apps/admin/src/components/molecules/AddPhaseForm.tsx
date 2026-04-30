@@ -115,6 +115,8 @@ export function AddPhaseForm({
         isOpenEnded: !!isOpenEnded,
       })
     : ({ ok: true } as const);
+  const endBeforeStart = !!form.startTime && !!form.endTime
+    && new Date(form.endTime).getTime() <= new Date(form.startTime).getTime();
 
   // Price warning: check if new price is lower than any existing phase
   const newPrice = parseFloat(form.pricePerToken) || 0;
@@ -410,8 +412,13 @@ export function AddPhaseForm({
             onChange={(e) => updateField("endTime", e.target.value)}
             min={form.startTime || saleStartLocal || undefined}
             max={phaseMaxEnd || undefined}
-            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
+            className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua ${
+              endBeforeStart ? "border-red-300 bg-red-50/30" : "border-zinc-200"
+            }`}
           />
+          {endBeforeStart && (
+            <p className="text-[11px] text-red-600 mt-1">End time must be after start time.</p>
+          )}
         </div>
         {saleStartLocal ? (
           <div className="col-span-2 text-[11px] text-zinc-500">
@@ -453,7 +460,7 @@ export function AddPhaseForm({
         variant="primary"
         size="sm"
         onClick={handleSubmit}
-        disabled={addPhaseAction.isPending || addPhaseAction.isConfirming || allocationExceedsSupply || !windowCheck.ok}
+        disabled={addPhaseAction.isPending || addPhaseAction.isConfirming || allocationExceedsSupply || !windowCheck.ok || endBeforeStart}
         isLoading={addPhaseAction.isPending || addPhaseAction.isConfirming}
         leftIcon={<Plus className="h-4 w-4" />}
       >

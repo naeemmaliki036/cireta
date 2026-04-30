@@ -57,6 +57,13 @@ export default function CreateSalePage() {
     setStep(id);
     setVisitedSteps((prev) => prev.has(id) ? prev : new Set(prev).add(id));
   };
+
+  // Unit per custom-duration input. Internal storage stays in days (decimal)
+  // so the contract conversion (days * 86400) doesn't change.
+  type DurationUnit = "min" | "hr" | "day" | "mo" | "yr";
+  const [cliffUnit, setCliffUnit] = useState<DurationUnit>("day");
+  const [vestingUnit, setVestingUnit] = useState<DurationUnit>("day");
+  const [lockupUnit, setLockupUnit] = useState<DurationUnit>("day");
   const [prefilling, setPrefilling] = useState(isEditMode);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [paymentTokens, setPaymentTokens] = useState<PaymentToken[]>([]);
@@ -449,8 +456,8 @@ export default function CreateSalePage() {
         full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
         is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
         sale_mode: saleMode, sale_structure: saleStructure,
-        cliff_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(cliffDays) || 0,
-        vesting_duration_days: vestingPreset === "lockup" ? parseInt(lockupDays) || 365 : parseInt(vestingDays) || 365,
+        cliff_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0,
+        vesting_duration_days: vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365,
         token_id: selectedTokenId || undefined, payment_token: paymentToken,
         soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
         total_token_supply: totalTokenSupply || undefined,
@@ -827,40 +834,47 @@ export default function CreateSalePage() {
                           <span className="font-semibold text-darkAqua">${totalRaise} USDC</span>
                         </div>
                       )}
-                      <div className="grid grid-cols-2 gap-3">
-                        <Input
-                          label="Start Date"
-                          type="datetime-local"
-                          value={ph.startDate}
-                          onChange={(e) => updPhase(i, "startDate", e.target.value)}
-                          min={saleStartDate || undefined}
-                          max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
-                          disabled={!saleStartDate}
-                          helperText={!saleStartDate ? "Set Sale Start (step 7) first." : undefined}
-                        />
-                        <Input
-                          label="End Date"
-                          type="datetime-local"
-                          value={ph.endDate}
-                          onChange={(e) => updPhase(i, "endDate", e.target.value)}
-                          min={ph.startDate || saleStartDate || undefined}
-                          max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
-                          disabled={!saleStartDate}
-                          helperText={!saleStartDate ? "Set Sale Start (step 7) first." : undefined}
-                        />
-                      </div>
                       {(() => {
-                        const check = phaseOutsideSaleWindow({
+                        const endBeforeStart = ph.startDate && ph.endDate
+                          && new Date(ph.endDate).getTime() <= new Date(ph.startDate).getTime();
+                        const windowCheck = phaseOutsideSaleWindow({
                           phaseStart: ph.startDate,
                           phaseEnd: ph.endDate,
                           saleStart: saleStartDate,
                           saleEnd: saleEndDate,
                           isOpenEnded,
                         });
-                        return check.ok ? null : (
-                          <div className="px-3 py-2 rounded-md bg-red-50 border border-red-200 text-xs text-red-700">
-                            {check.reason}
-                          </div>
+                        return (
+                          <>
+                            <div className="grid grid-cols-2 gap-3">
+                              <Input
+                                label="Start Date"
+                                type="datetime-local"
+                                value={ph.startDate}
+                                onChange={(e) => updPhase(i, "startDate", e.target.value)}
+                                min={saleStartDate || undefined}
+                                max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
+                                disabled={!saleStartDate}
+                                helperText={!saleStartDate ? "Set Sale Start (step 7) first." : undefined}
+                              />
+                              <Input
+                                label="End Date"
+                                type="datetime-local"
+                                value={ph.endDate}
+                                onChange={(e) => updPhase(i, "endDate", e.target.value)}
+                                min={ph.startDate || saleStartDate || undefined}
+                                max={maxAllowedPhaseEnd({ saleStart: saleStartDate, saleEnd: saleEndDate, isOpenEnded }) || undefined}
+                                disabled={!saleStartDate}
+                                helperText={!saleStartDate ? "Set Sale Start (step 7) first." : undefined}
+                                error={endBeforeStart ? "End date must be after start date." : undefined}
+                              />
+                            </div>
+                            {!windowCheck.ok && (
+                              <div className="px-3 py-2 rounded-md bg-red-50 border border-red-200 text-xs text-red-700">
+                                {windowCheck.reason}
+                              </div>
+                            )}
+                          </>
                         );
                       })()}
                     </div>
@@ -1007,16 +1021,14 @@ export default function CreateSalePage() {
         )}
         {/* Step 9: Vesting (skip if direct or coming soon) */}
         {step === 9 && (() => {
-          // Sub-day testing presets exposed only when env flag is on. Lets QA/devs
-          // exercise the full claim flow without waiting weeks. Hidden in prod.
-          const allowTesting = process.env.NEXT_PUBLIC_VESTING_TESTING_PRESETS === "1";
-          const TESTING_PRESETS = allowTesting
-            ? [
-                { label: "5 min (test)", days: 5 / 1440 },
-                { label: "1 hour (test)", days: 1 / 24 },
-                { label: "1 day", days: 1 },
-              ]
-            : [];
+          // Sub-day testing presets are always visible — labeled "(test)" so they're
+          // obvious. Issuers running real sales pick the month/year presets instead.
+          const TESTING_PRESETS = [
+            { label: "5 min (test)", days: 5 / 1440 },
+            { label: "30 min (test)", days: 30 / 1440 },
+            { label: "1 hour (test)", days: 1 / 24 },
+            { label: "1 day (test)", days: 1 },
+          ];
           const DURATION_PRESETS = [
             ...TESTING_PRESETS,
             { label: "1 month", days: 30 },
@@ -1038,25 +1050,82 @@ export default function CreateSalePage() {
             { label: "9 months", days: 270 },
             { label: "1 year", days: 365 },
           ];
+          // Unit conversions — internal state always days (decimal).
+          const UNIT_DAYS: Record<DurationUnit, number> = {
+            min: 1 / 1440,
+            hr: 1 / 24,
+            day: 1,
+            mo: 30,
+            yr: 365,
+          };
+          const UNIT_LABEL: Record<DurationUnit, string> = {
+            min: "minutes", hr: "hours", day: "days", mo: "months", yr: "years",
+          };
+          const daysToUnit = (days: number, unit: DurationUnit): string => {
+            if (!days || days <= 0) return "";
+            const v = days / UNIT_DAYS[unit];
+            // Round to 4 decimals max, drop trailing zeros
+            return v.toFixed(4).replace(/\.?0+$/, "");
+          };
+          const unitToDaysStr = (value: string, unit: DurationUnit): string => {
+            const n = parseFloat(value);
+            if (!n || isNaN(n) || n <= 0) return "";
+            return String(n * UNIT_DAYS[unit]);
+          };
+
+          interface CustomDurationInputProps {
+            valueDays: string;
+            onChangeDays: (s: string) => void;
+            unit: DurationUnit;
+            onChangeUnit: (u: DurationUnit) => void;
+            allowZero?: boolean;
+          }
+          const CustomDurationInput = ({ valueDays, onChangeDays, unit, onChangeUnit, allowZero }: CustomDurationInputProps) => {
+            const days = parseFloat(valueDays) || 0;
+            return (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={allowZero ? 0 : 0.001}
+                  step="any"
+                  placeholder={`Custom ${UNIT_LABEL[unit]}`}
+                  value={daysToUnit(days, unit)}
+                  onChange={(e) => onChangeDays(unitToDaysStr(e.target.value, unit))}
+                />
+                <select
+                  value={unit}
+                  onChange={(e) => onChangeUnit(e.target.value as DurationUnit)}
+                  className="px-2 py-1.5 text-xs border border-zinc-200 rounded-md bg-white focus:outline-none focus:border-darkAqua"
+                >
+                  <option value="min">min</option>
+                  <option value="hr">hr</option>
+                  <option value="day">days</option>
+                  <option value="mo">months</option>
+                  <option value="yr">years</option>
+                </select>
+                {days > 0 && days < 1 && (
+                  <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(days)}</span>
+                )}
+              </div>
+            );
+          };
           const cliffNum = parseFloat(cliffDays) || 0;
           const vestingNum = parseFloat(vestingDays) || 0;
           const lockupNum = parseFloat(lockupDays) || 0;
           const cliffError = vestingPreset === "cliff_linear" && cliffNum > 0 && vestingNum > 0 && cliffNum >= vestingNum;
           const totalDays = vestingPreset === "lockup" ? lockupNum : cliffNum + vestingNum;
 
+          // Strip trailing zeros after the decimal so round numbers show as
+          // "9 months" instead of "9.0 months".
+          const trim = (n: number, places: number) =>
+            n.toFixed(places).replace(/\.?0+$/, "");
           const fmtDuration = (d: number): string => {
             if (d === 0) return "None";
-            if (d < 1 / 24) {
-              const minutes = Math.round(d * 1440);
-              return `${minutes} min`;
-            }
-            if (d < 1) {
-              const hours = (d * 24).toFixed(1);
-              return `${hours} hr`;
-            }
-            if (d < 30) return `${d.toFixed(d < 7 ? 1 : 0)} day${d > 1 ? "s" : ""}`;
-            if (d < 365) return `${(d / 30).toFixed(1)} months`;
-            return `${(d / 365).toFixed(1)} years`;
+            if (d < 1 / 24) return `${Math.round(d * 1440)} min`;
+            if (d < 1) return `${trim(d * 24, 1)} hr`;
+            if (d < 30) return `${trim(d, 1)} day${d > 1 ? "s" : ""}`;
+            if (d < 365) return `${trim(d / 30, 1)} months`;
+            return `${trim(d / 365, 1)} years`;
           };
 
           return (
@@ -1106,14 +1175,12 @@ export default function CreateSalePage() {
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Input type="number" min={allowTesting ? 0.001 : 1} step={allowTesting ? "any" : 1} placeholder="Custom days" value={lockupDays}
-                    onChange={(e) => setLockupDays(e.target.value)} />
-                  <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
-                  {lockupNum > 0 && lockupNum < 1 && (
-                    <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(lockupNum)}</span>
-                  )}
-                </div>
+                <CustomDurationInput
+                  valueDays={lockupDays}
+                  onChangeDays={setLockupDays}
+                  unit={lockupUnit}
+                  onChangeUnit={setLockupUnit}
+                />
               </div>
             ) : (
               /* Cliff + linear vesting */
@@ -1132,14 +1199,13 @@ export default function CreateSalePage() {
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Input type="number" min={0} step={allowTesting ? "any" : 1} placeholder="Custom days" value={cliffDays}
-                      onChange={(e) => setCliffDays(e.target.value)} />
-                    <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
-                    {cliffNum > 0 && cliffNum < 1 && (
-                      <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(cliffNum)}</span>
-                    )}
-                  </div>
+                  <CustomDurationInput
+                    valueDays={cliffDays}
+                    onChangeDays={setCliffDays}
+                    unit={cliffUnit}
+                    onChangeUnit={setCliffUnit}
+                    allowZero
+                  />
                 </div>
 
                 {/* Vesting */}
@@ -1156,14 +1222,12 @@ export default function CreateSalePage() {
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Input type="number" min={allowTesting ? 0.001 : 1} step={allowTesting ? "any" : 1} placeholder="Custom days" value={vestingDays}
-                      onChange={(e) => setVestingDays(e.target.value)} />
-                    <span className="text-xs text-zinc-400 whitespace-nowrap">days</span>
-                    {vestingNum > 0 && vestingNum < 1 && (
-                      <span className="text-xs text-darkAqua whitespace-nowrap">= {fmtDuration(vestingNum)}</span>
-                    )}
-                  </div>
+                  <CustomDurationInput
+                    valueDays={vestingDays}
+                    onChangeDays={setVestingDays}
+                    unit={vestingUnit}
+                    onChangeUnit={setVestingUnit}
+                  />
                 </div>
 
                 {cliffError && (
