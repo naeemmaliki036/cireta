@@ -302,6 +302,75 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     }
   };
 
+  // Sync phases from chain back into the DB. Used when an on-chain
+  // Sale.addPhase succeeded but the follow-up DB POST failed (e.g. transient
+  // 500 during a Railway redeploy). Without this the issuer is stuck —
+  // re-adding the phase reverts on-chain with PhaseOverlap, but the checklist
+  // still reads sale.phases.length=0.
+  const [syncingFromChain, setSyncingFromChain] = useState(false);
+  const [syncFromChainError, setSyncFromChainError] = useState<string | null>(null);
+  const handleSyncPhasesFromChain = async () => {
+    if (!sale?.contract_address || !resolvedId) return;
+    setSyncingFromChain(true);
+    setSyncFromChainError(null);
+    try {
+      const dbPhaseCount = sale.phases.length;
+      // Read every on-chain phase that's missing in the DB and POST it.
+      for (let i = dbPhaseCount; i < chainPhases; i++) {
+        const phase = await readContract(wagmiConfig, {
+          address: sale.contract_address as `0x${string}`,
+          abi: SALE_ABI as unknown as Abi,
+          functionName: "getPhase",
+          args: [BigInt(i)],
+        }) as {
+          name: string;
+          pricePerToken: bigint;
+          allocation: bigint;
+          minTokens: bigint;
+          maxTokens: bigint;
+          topUpMinTokens: bigint;
+          startTime: bigint;
+          endTime: bigint;
+          whitelistOnly: boolean;
+          allocationMode: number;
+        };
+        const tokenDec = 6;
+        const res = await fetch(`/api/proxy/api/v1/sales/${resolvedId}/phases`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            name: phase.name,
+            price_per_token: (Number(phase.pricePerToken) / 1e18).toString(),
+            allocation: (Number(phase.allocation) / 10 ** tokenDec).toString(),
+            min_contribution: phase.minTokens.toString(),
+            max_contribution: phase.maxTokens.toString(),
+            top_up_min: phase.topUpMinTokens.toString(),
+            start_time: new Date(Number(phase.startTime) * 1000).toISOString(),
+            end_time: new Date(Number(phase.endTime) * 1000).toISOString(),
+            whitelist_only: phase.whitelistOnly,
+            allocation_mode: phase.allocationMode === 0 ? "fixed" : "remaining",
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const detail = body?.detail;
+          const msg =
+            Array.isArray(detail)
+              ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ")
+              : (detail?.message ?? `${res.status} ${res.statusText}`);
+          throw new Error(`Phase ${i + 1}: ${msg}`);
+        }
+      }
+      await reload();
+    } catch (e) {
+      console.error("[handleSyncPhasesFromChain] failed:", e);
+      setSyncFromChainError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSyncingFromChain(false);
+    }
+  };
+
   const handleDeployOnChain = async () => {
     if (!sale || !walletAddress) {
       if (!isConnected) openConnectModal?.();
@@ -1050,8 +1119,19 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                 Deploy All On-Chain ({sale.phases.length - chainPhases} pending)
               </Button>
             )}
+            {sale.contract_address && chainPhases > sale.phases.length && (
+              <Button variant="outline" size="sm" onClick={handleSyncPhasesFromChain}
+                disabled={syncingFromChain} isLoading={syncingFromChain}>
+                Sync {chainPhases - sale.phases.length} from Chain
+              </Button>
+            )}
           </div>
         </div>
+        {syncFromChainError && (
+          <div className="mb-3 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-xs text-red-700">
+            Sync failed: {syncFromChainError}
+          </div>
+        )}
         {sale.contract_address && (
           <div className="mb-3 text-xs text-black/40">
             {chainPhases} of {sale.phases.length} phase{sale.phases.length !== 1 ? "s" : ""} deployed on-chain
