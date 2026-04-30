@@ -22,47 +22,54 @@ class SaleQueryService:
         """Get a sale by the token's slug, or by sale ID for tokenless sales.
 
         An issuer can deploy multiple sales for the same token (e.g. a
-        seed round followed by a public round, or a mistake draft they
-        never deleted). Token slug isn't unique across sales, so we
-        prefer the publicly visible one: ACTIVE > APPROVED_COMING_SOON >
-        APPROVED > everything else, then newest. Without this ordering
-        the route returned None whenever any duplicate existed, surfacing
-        as a confusing 404 on the public detail page.
+        seed round followed by a public round, or a stale draft never
+        deleted). Token slug isn't unique across sales, so we resolve in
+        two steps to avoid JOIN+selectinload+limit fragility:
+          1. Look up Token by slug to get its id.
+          2. Pick the most public-facing sale for that token: visible
+             rows beat hidden, then ACTIVE > APPROVED_COMING_SOON >
+             APPROVED > others, then newest.
+        Visibility is the first sort key so any sale that appears in the
+        public listing is guaranteed to resolve here too.
         """
-        from sqlalchemy import case
-
-        from apps.api.models.enums import SaleStatus
         from apps.api.models.token import Token
 
-        # Status priority — lower = more public-facing.
-        status_priority = case(
-            (TokenSale.status == SaleStatus.ACTIVE, 0),
-            (TokenSale.status == SaleStatus.APPROVED_COMING_SOON, 1),
-            (TokenSale.status == SaleStatus.APPROVED, 2),
-            (TokenSale.status == SaleStatus.PENDING_APPROVAL, 3),
-            (TokenSale.status == SaleStatus.FINALIZED_SUCCESS, 4),
-            else_=5,
-        )
-
-        query = (
-            select(TokenSale)
-            .join(Token, TokenSale.token_id == Token.id)
-            .where(Token.slug == slug)
-            .options(
-                selectinload(TokenSale.phases),
-                selectinload(TokenSale.token),
-                selectinload(TokenSale.issuer),
-                selectinload(TokenSale.images),
+        token_id = (
+            await self.db.execute(
+                select(Token.id).where(Token.slug == slug).limit(1)
             )
-            .order_by(status_priority.asc(), TokenSale.created_at.desc())
-            .limit(1)
-        )
-        result = await self.db.execute(query)
-        sale = result.scalar_one_or_none()
-        if sale:
-            return sale
+        ).scalar_one_or_none()
 
-        # Fallback: try sale ID (coming-soon sales have no token)
+        if token_id is not None:
+            status_priority = case(
+                (TokenSale.status == SaleStatus.ACTIVE, 0),
+                (TokenSale.status == SaleStatus.APPROVED_COMING_SOON, 1),
+                (TokenSale.status == SaleStatus.APPROVED, 2),
+                (TokenSale.status == SaleStatus.PENDING_APPROVAL, 3),
+                (TokenSale.status == SaleStatus.FINALIZED_SUCCESS, 4),
+                else_=5,
+            )
+            query = (
+                select(TokenSale)
+                .where(TokenSale.token_id == token_id)
+                .options(
+                    selectinload(TokenSale.phases),
+                    selectinload(TokenSale.token),
+                    selectinload(TokenSale.issuer),
+                    selectinload(TokenSale.images),
+                )
+                .order_by(
+                    TokenSale.is_visible.desc(),
+                    status_priority.asc(),
+                    TokenSale.created_at.desc(),
+                )
+                .limit(1)
+            )
+            sale = (await self.db.execute(query)).scalar_one_or_none()
+            if sale is not None:
+                return sale
+
+        # Fallback: tokenless sales (e.g. coming-soon) referenced by sale ID.
         try:
             sale_uuid = UUID(slug)
         except ValueError:
@@ -77,8 +84,7 @@ class SaleQueryService:
                 selectinload(TokenSale.images),
             )
         )
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none()
+        return (await self.db.execute(query)).scalar_one_or_none()
 
     async def list_sales(
         self,
