@@ -142,10 +142,6 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   const handleError = useCallback((err: unknown) => {
     console.error("Sumsub SDK error:", err);
-    // Sumsub's error payload is usually { reason, code, ... } or a string.
-    // Surface the message itself so users + support can see what failed
-    // (camera permission, expired token, missing module, network) instead
-    // of staring at a generic "try again" prompt.
     let detail = "";
     if (typeof err === "string") {
       detail = err;
@@ -153,7 +149,26 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
       const e = err as { reason?: string; message?: string; code?: string };
       detail = e.reason || e.message || e.code || "";
     }
-    const msg = detail
+    // Translate the most common opaque Sumsub error codes to plain
+    // English with a recovery hint instead of dumping the raw token.
+    const FRIENDLY: Record<string, string> = {
+      permissionsDenied:
+        "Camera or microphone access was blocked. Click the lock icon in the address bar, allow Camera + Microphone for this site, then refresh.",
+      cameraDisabled:
+        "Camera is disabled. Enable it in your browser settings (and check no other app is holding it), then retry.",
+      cameraNotFound:
+        "No camera detected. Connect a webcam (or use a phone) and retry.",
+      networkError:
+        "Couldn't reach the verification servers. Check your internet connection and retry.",
+      accessTokenExpired:
+        "Verification session expired. Refresh the page to start a new one.",
+      livenessNotAvailable:
+        "Liveness check isn't enabled on this account. Contact support.",
+    };
+    const friendly = FRIENDLY[detail];
+    const msg = friendly
+      ? friendly
+      : detail
       ? `Verification encountered an error: ${detail}. Please try again.`
       : "Verification encountered an error. Please try again. Open the browser console for details.";
     setError(msg);

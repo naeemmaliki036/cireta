@@ -38,9 +38,16 @@ const nextConfig: NextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       {
         key: "Permissions-Policy",
-        // Broad default-deny; camera/microphone are enabled for the same origin
-        // so Sumsub's embedded WebSDK can do liveness capture.
-        value: "camera=(self), microphone=(self), geolocation=(), payment=()",
+        // Broad default-deny; camera/microphone are enabled for our own
+        // origin AND Sumsub's WebSDK iframe (api.sumsub.com) so the
+        // liveness capture can request camera access. Without the
+        // sumsub origin here, the browser blocks the API at the policy
+        // layer BEFORE prompting — so the user sees "permissionsDenied"
+        // with no chance to grant access.
+        value:
+          "camera=(self \"https://api.sumsub.com\" \"https://static.sumsub.com\"), " +
+          "microphone=(self \"https://api.sumsub.com\" \"https://static.sumsub.com\"), " +
+          "geolocation=(), payment=()",
       },
     ];
     // HSTS only in prod — dev uses http://localhost, HSTS would break it.
