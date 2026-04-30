@@ -339,7 +339,13 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
     const softCap = BigInt(Math.round(parseFloat(sale.soft_cap || "0") * 1e6));
     const hardCap = BigInt(Math.round(parseFloat(sale.hard_cap || "0") * 1e6));
-    const otcTokenAddress = sale.otc_enabled ? (sale.otc_token_address ?? zeroAddress) : zeroAddress;
+    if (sale.otc_enabled && !isHexAddr(sale.otc_token_address)) {
+      setConfigError("OTC is enabled but no OTC token is set. Open the wizard, pick an OTC token, save, and retry.");
+      return;
+    }
+    const otcTokenAddress = sale.otc_enabled
+      ? (sale.otc_token_address as `0x${string}`)
+      : zeroAddress;
 
     // Round-5: derive sale window from phases (earliest start, latest end)
     const sortedPhases = [...sale.phases].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
