@@ -342,12 +342,12 @@ function LiveProjectCard({ project: p }: { project: Project }) {
             <div className="flex items-center gap-4">
               <div>
                 <p className="text-[10px] text-gray-400 uppercase">Target</p>
-                <p className="text-[12px] font-bold">{p.isComingSoon ? "TBD" : `${parseFloat((effectiveTarget / 1_000_000).toFixed(2))}M USDC`}</p>
+                <p className="text-[12px] font-bold">{p.isComingSoon ? "TBD" : effectiveTarget >= 1_000_000 ? `${parseFloat((effectiveTarget / 1_000_000).toFixed(2))}M USDC` : effectiveTarget >= 1_000 ? `${parseFloat((effectiveTarget / 1_000).toFixed(1))}K USDC` : `${effectiveTarget.toLocaleString()} USDC`}</p>
               </div>
               {!p.isComingSoon && effectiveRaised > 0 && (
                 <div>
                   <p className="text-[10px] text-gray-400 uppercase">Raised</p>
-                  <p className="text-[12px] font-bold text-darkAqua">{effectiveRaised >= 1_000_000 ? `${(effectiveRaised / 1_000_000).toFixed(2)}M USDC` : `${effectiveRaised.toLocaleString()} USDC`}</p>
+                  <p className="text-[12px] font-bold text-darkAqua">{effectiveRaised >= 1_000_000 ? `${parseFloat((effectiveRaised / 1_000_000).toFixed(2))}M USDC` : effectiveRaised >= 10_000 ? `${parseFloat((effectiveRaised / 1_000).toFixed(1))}K USDC` : `${effectiveRaised.toLocaleString()} USDC`}</p>
                 </div>
               )}
             </div>
