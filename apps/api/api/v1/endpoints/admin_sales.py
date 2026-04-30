@@ -64,6 +64,34 @@ async def approve_sale(
         msg = "Sale approved — issuer can now deploy on-chain"
 
     await sale_service.db.commit()
+
+    # Notify the issuer that their sale was approved and they can activate.
+    # Fire-and-log: don't roll back the approval if notification fails.
+    try:
+        from sqlalchemy.orm import selectinload
+
+        from apps.api.models.issuer import Issuer
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        issuer_row = await sale_service.db.execute(
+            select(Issuer).options(selectinload(Issuer.user)).where(Issuer.id == sale.issuer_id)
+        )
+        issuer = issuer_row.scalar_one_or_none()
+        if issuer and issuer.user:
+            user: User = issuer.user
+            notif = NotificationService(sale_service.db)
+            await notif.notify_sale_approved(
+                issuer_user_id=user.id,
+                issuer_email=user.email,
+                sale_id=sale_id,
+                sale_title=sale.title or "(untitled sale)",
+                issuer_display_name=user.first_name or user.email,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("notify issuer on approve failed: %s", e)
+
     return SaleActionResponse(sale_id=str(sale_id), status=sale.status.value, message=msg)
 
 

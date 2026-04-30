@@ -25,6 +25,9 @@ DIVIDEND_AVAILABLE = "dividend_available"
 REDEMPTION_FULFILLED = "redemption_fulfilled"
 WALLET_LINKED = "wallet_linked"
 TOKEN_RECOVERY = "token_recovery"
+SALE_SUBMITTED_FOR_APPROVAL = "sale_submitted_for_approval"
+SALE_APPROVED = "sale_approved"
+SALE_REJECTED = "sale_rejected"
 
 
 class NotificationService:
@@ -87,6 +90,83 @@ class NotificationService:
                 "token_name": token_name,
                 "amount": amount,
                 "tokens_allocated": tokens_allocated,
+            },
+        )
+
+    async def notify_sale_submitted_for_approval(
+        self,
+        admin_user_id: UUID,
+        admin_email: str,
+        sale_id: UUID,
+        sale_title: str,
+        issuer_name: str,
+        admin_display_name: str = "",
+    ) -> None:
+        """Tell platform admins a new sale is in their review queue."""
+        await self.create(
+            user_id=admin_user_id,
+            notif_type=SALE_SUBMITTED_FOR_APPROVAL,
+            title="Sale awaiting your approval",
+            message=f"{issuer_name} submitted '{sale_title}' for review.",
+            data={"sale_id": str(sale_id), "sale_title": sale_title, "issuer_name": issuer_name},
+            send_email=True,
+            email_template_key="sale_submitted_for_approval",
+            email_to=admin_email,
+            email_variables={
+                "display_name": admin_display_name,
+                "sale_title": sale_title,
+                "issuer_name": issuer_name,
+                "sale_id": str(sale_id),
+            },
+        )
+
+    async def notify_sale_approved(
+        self,
+        issuer_user_id: UUID,
+        issuer_email: str,
+        sale_id: UUID,
+        sale_title: str,
+        issuer_display_name: str = "",
+    ) -> None:
+        """Tell the issuer their sale was approved and they can now activate."""
+        await self.create(
+            user_id=issuer_user_id,
+            notif_type=SALE_APPROVED,
+            title="Sale approved — ready to activate",
+            message=f"'{sale_title}' has been approved. Sign Activate Sale On-Chain to make it live.",
+            data={"sale_id": str(sale_id), "sale_title": sale_title},
+            send_email=True,
+            email_template_key="sale_approved",
+            email_to=issuer_email,
+            email_variables={
+                "display_name": issuer_display_name,
+                "sale_title": sale_title,
+                "sale_id": str(sale_id),
+            },
+        )
+
+    async def notify_sale_rejected(
+        self,
+        issuer_user_id: UUID,
+        issuer_email: str,
+        sale_id: UUID,
+        sale_title: str,
+        reason: str | None,
+        issuer_display_name: str = "",
+    ) -> None:
+        await self.create(
+            user_id=issuer_user_id,
+            notif_type=SALE_REJECTED,
+            title="Sale rejected by admin",
+            message=f"'{sale_title}' was rejected. Edit and resubmit when ready.",
+            data={"sale_id": str(sale_id), "sale_title": sale_title, "reason": reason},
+            send_email=True,
+            email_template_key="sale_rejected",
+            email_to=issuer_email,
+            email_variables={
+                "display_name": issuer_display_name,
+                "sale_title": sale_title,
+                "reason": reason or "",
             },
         )
 
