@@ -19,7 +19,7 @@ interface SumsubVerificationProps {
 
 export function SumsubVerification({ className }: SumsubVerificationProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [state, setState] = useState<VerificationState>("loading");
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [sdkMounted, setSdkMounted] = useState(false);
@@ -52,10 +52,15 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
         const kycStatus = await getKYCStatus("");
         if (kycStatus.status === "approved") {
           setState("approved");
+          // Sync the auth context so the navbar drops "Complete Profile"
+          // and "Complete Verification" CTAs immediately. Without this,
+          // user.kycStatus stays at whatever it was on initial page load.
+          await refreshUser();
           return;
         }
         if (kycStatus.status === "pending") {
           setState("processing");
+          await refreshUser();
           return;
         }
       } catch {
@@ -118,16 +123,21 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
           const latest = await getKYCStatus("");
           if (latest.status === "approved") {
             setState("approved");
+            // Refresh auth context so the navbar drops the "Complete
+            // Profile" / "Complete Verification" CTAs immediately
+            // instead of waiting for a hard reload.
+            await refreshUser();
             setTimeout(() => router.push("/projects"), 2000);
           } else if (latest.status === "pending" || latest.submitted_at) {
             setState("processing");
+            await refreshUser();
           }
         } catch {
           // Leave state unchanged; next reconcile or reload recovers.
         }
       }, 3000);
     },
-    [router],
+    [router, refreshUser],
   );
 
   const handleError = useCallback((err: unknown) => {
