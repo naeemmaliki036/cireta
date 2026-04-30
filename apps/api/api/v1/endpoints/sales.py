@@ -880,21 +880,13 @@ async def add_phase(
                     ),
                 },
             )
-    elif sale.contract_address:
-        existing_starts = [p.start_time for p in sale.phases]
-        existing_ends = [p.end_time for p in sale.phases]
-        if existing_starts and existing_ends:
-            sale_window_start = min(existing_starts)
-            sale_window_end = max(existing_ends)
-            if start_dt < sale_window_start or end_dt > sale_window_end:
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "code": "PHASE_OUTSIDE_SALE_WINDOW",
-                        "message": "Phase must fall inside the sale window. "
-                        f"Sale window: {sale_window_start.isoformat()} to {sale_window_end.isoformat()}.",
-                    },
-                )
+    # Note: previously had a fallback that used min/max of existing phases as
+    # the "sale window" when sale_start_time was NULL. That was provably
+    # wrong — it forced every subsequent phase to fit inside the first
+    # phase's window, even though the on-chain sale runs for up to a year.
+    # The on-chain addPhase() already enforces start ∈ [saleStart, saleEnd];
+    # if our DB doesn't know the window, we defer to the chain rather than
+    # invent a tighter constraint that would reject what the chain accepts.
     # Round-5: top_up_min and allocation_mode validation
     top_up_min = Decimal(request.top_up_min)
     if top_up_min < Decimal("1000"):

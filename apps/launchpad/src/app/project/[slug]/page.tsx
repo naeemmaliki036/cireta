@@ -322,6 +322,55 @@ export default function ProjectDetailPage() {
     : parseFloat(saleRaw?.hard_cap ?? String(project.targetAmount));
   const softCap = onChain.ready ? onChain.softCap : parseFloat(saleRaw?.soft_cap ?? "0");
   const raised = onChain.ready ? onChain.totalRaised : project.currentRaised;
+  // Sale-level window — used for the "End" row in Sale Details so the
+  // user sees when the sale itself stops accepting buys, not whatever
+  // phase happens to be the fallback. Falls back to the latest phase
+  // end so older sales without sale_end_time still render usefully.
+  const sortedPhases = [...(project.phases ?? [])].sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+  );
+  const latestPhaseEnd = sortedPhases.length > 0
+    ? new Date(sortedPhases[sortedPhases.length - 1]!.end_time)
+    : null;
+  const earliestPhaseStart = sortedPhases.length > 0
+    ? new Date(sortedPhases[0]!.start_time)
+    : null;
+  const saleWindowStart = saleRaw?.sale_start_time
+    ? new Date(saleRaw.sale_start_time)
+    : earliestPhaseStart;
+  const saleWindowEnd = saleRaw?.is_open_ended
+    ? null
+    : saleRaw?.sale_end_time
+      ? new Date(saleRaw.sale_end_time)
+      : latestPhaseEnd;
+  const _nowMs = _now.getTime();
+  const saleEnded =
+    (saleWindowEnd && _nowMs >= saleWindowEnd.getTime()) ||
+    project.status === "finalized_success" ||
+    project.status === "finalized_failed" ||
+    project.status === "finalized" ||
+    project.status === "failed";
+  const hardCapReached = hardCap > 0 && raised >= hardCap;
+  // Next phase = first phase whose start is in the future.
+  const nextPhase = sortedPhases.find(
+    (p) => new Date(p.start_time).getTime() > _nowMs,
+  ) ?? null;
+  // Subscribe CTA only makes sense if there's a next event the buyer
+  // could be notified about: not finalised / not sold-out and either a
+  // future phase exists OR the sale window is still open (issuer might
+  // add one).
+  const showNotifyCta =
+    !hasActivePhase &&
+    !hardCapReached &&
+    !saleEnded &&
+    (nextPhase !== null ||
+      (saleWindowEnd === null) ||
+      (saleWindowEnd !== null && saleWindowEnd.getTime() > _nowMs));
+  const notifyCtaLabel = nextPhase
+    ? `Notify me when ${nextPhase.name} opens`
+    : earliestPhaseStart && _nowMs < earliestPhaseStart.getTime()
+      ? "Notify me when the sale opens"
+      : "Notify me when the next phase opens";
   const progressPctRaw = hardCap > 0 ? (raised / hardCap) * 100 : 0;
   const progressPct = raised >= hardCap ? 100 : Math.min(parseFloat(progressPctRaw.toFixed(2)), 99.99);
   // No fallback to a commodity-stock image — those have hard-coded text
@@ -509,38 +558,53 @@ export default function ProjectDetailPage() {
                       )}
                     </div>
                   ) : !hasActivePhase ? (
-                    /* No active phase — show subscribe */
+                    /* No active phase — show a state-aware status block.
+                     * The notify-me CTA only renders when something useful
+                     * is still ahead: hard cap not met, sale not finalised,
+                     * window not closed. Otherwise we just tell the buyer
+                     * the sale is sold out or ended. */
                     <div className="space-y-2">
-                      {subscribed ? (
-                        <div>
-                          <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
-                            {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                      {hardCapReached ? (
+                        <div className="w-full bg-black/5 text-black/60 font-semibold py-3 rounded-xl text-center">Sale Sold Out</div>
+                      ) : saleEnded ? (
+                        <div className="w-full bg-black/5 text-black/60 font-semibold py-3 rounded-xl text-center">Sale Ended</div>
+                      ) : showNotifyCta ? (
+                        subscribed ? (
+                          <div>
+                            <div className="w-full bg-green-50 border border-green-200 text-green-600 font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              {justSubscribed ? "Subscribed — We'll notify you" : "Subscribed"}
+                            </div>
+                            <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">Unsubscribe</button>
                           </div>
-                          <button onClick={handleUnsubscribe} disabled={subscribing} className="w-full text-xs text-gray-400 hover:text-red-400 mt-1.5 transition-colors">Unsubscribe</button>
-                        </div>
-                      ) : isAuthenticated ? (
-                        <button onClick={handleSubscribe} disabled={subscribing}
-                          className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-60 cursor-pointer">
-                          {subscribing ? <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg> : <Bell className="h-3.5 w-3.5" />}
-                          {subscribing ? "Subscribing..." : "Get Notified on Sale Opening"}
-                        </button>
-                      ) : !showEmailInput ? (
-                        <button onClick={() => setShowEmailInput(true)} className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
-                          <Bell className="h-3.5 w-3.5" /> Get Notified on Sale Opening
-                        </button>
+                        ) : isAuthenticated ? (
+                          <button onClick={handleSubscribe} disabled={subscribing}
+                            className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-60 cursor-pointer">
+                            {subscribing ? <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" /></svg> : <Bell className="h-3.5 w-3.5" />}
+                            {subscribing ? "Subscribing..." : notifyCtaLabel}
+                          </button>
+                        ) : !showEmailInput ? (
+                          <button onClick={() => setShowEmailInput(true)} className="w-full border border-darkAqua/30 text-darkAqua py-2.5 rounded-xl transition-colors hover:bg-darkAqua/5 flex items-center justify-center gap-2 text-sm font-medium cursor-pointer">
+                            <Bell className="h-3.5 w-3.5" /> {notifyCtaLabel}
+                          </button>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
+                                placeholder="Your email" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-darkAqua" autoFocus />
+                              <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
+                                className="shrink-0 bg-darkAqua text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer">
+                                {subscribing ? "..." : "Notify"}
+                              </button>
+                            </div>
+                            <button onClick={() => setShowEmailInput(false)} className="w-full text-[11px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">Cancel</button>
+                          </div>
+                        )
                       ) : (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <input type="email" value={subscribeEmail} onChange={(e) => setSubscribeEmail(e.target.value)}
-                              placeholder="Your email" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-darkAqua" autoFocus />
-                            <button onClick={handleSubscribe} disabled={subscribing || !subscribeEmail.includes("@")}
-                              className="shrink-0 bg-darkAqua text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer">
-                              {subscribing ? "..." : "Notify"}
-                            </button>
-                          </div>
-                          <button onClick={() => setShowEmailInput(false)} className="w-full text-[11px] text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">Cancel</button>
-                        </div>
+                        <div className="w-full bg-black/5 text-black/60 font-semibold py-3 rounded-xl text-center">Awaiting Next Phase</div>
+                      )}
+                      {nextPhase && showNotifyCta && (
+                        <p className="text-center text-[11px] text-gray-400">Next phase: {fmtDate(new Date(nextPhase.start_time))}</p>
                       )}
                     </div>
                   ) : ap?.deployed_on_chain === false ? (
@@ -688,8 +752,8 @@ export default function ProjectDetailPage() {
                         ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                         ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
                         ["Per-buyer Cap", project.isComingSoon ? "TBD" : maxTokensInvestor > 0 ? `${maxTokensInvestor.toLocaleString()} ${project.tokenSymbol}` : "Unlimited"],
-                        ["Start", startTime ? fmtDate(startTime) : "TBD"],
-                        ["End", endTime ? fmtDate(endTime) : "TBD"],
+                        ["Start", saleWindowStart ? fmtDate(saleWindowStart) : "TBD"],
+                        ["End", saleRaw?.is_open_ended ? "Open-ended" : saleWindowEnd ? fmtDate(saleWindowEnd) : "TBD"],
                       ].map(([k, v]) => (
                         <div key={k}>
                           <p className="text-xs text-gray-400 mb-0.5">{k}</p>
