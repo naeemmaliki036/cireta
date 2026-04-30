@@ -132,7 +132,21 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   const handleError = useCallback((err: unknown) => {
     console.error("Sumsub SDK error:", err);
-    setError("Verification encountered an error. Please try again.");
+    // Sumsub's error payload is usually { reason, code, ... } or a string.
+    // Surface the message itself so users + support can see what failed
+    // (camera permission, expired token, missing module, network) instead
+    // of staring at a generic "try again" prompt.
+    let detail = "";
+    if (typeof err === "string") {
+      detail = err;
+    } else if (err && typeof err === "object") {
+      const e = err as { reason?: string; message?: string; code?: string };
+      detail = e.reason || e.message || e.code || "";
+    }
+    const msg = detail
+      ? `Verification encountered an error: ${detail}. Please try again.`
+      : "Verification encountered an error. Please try again. Open the browser console for details.";
+    setError(msg);
     setState("error");
   }, []);
 
