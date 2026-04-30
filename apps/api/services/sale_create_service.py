@@ -36,6 +36,7 @@ class SaleCreateService:
         is_coming_soon: bool = False,
         otc_enabled: bool = False,
         otc_content: str | None = None,
+        otc_token_address: str | None = None,
         website_url: str | None = None,
         twitter_url: str | None = None,
         linkedin_url: str | None = None,
@@ -48,6 +49,9 @@ class SaleCreateService:
         cliff_duration_seconds: int = 0,
         vesting_duration_seconds: int = 365 * 86400,
         is_redeemable: bool = False,
+        total_token_supply: Decimal | None = None,
+        sale_start_time: object | None = None,
+        sale_end_time: object | None = None,
     ) -> TokenSale:
         """Create a new token sale.
 
@@ -130,6 +134,10 @@ class SaleCreateService:
                 sale.otc_content = default_setting.value
         else:
             sale.otc_content = otc_content
+        # Persist the OTC token address picked in the wizard. Without this
+        # the DB row stays NULL and the on-chain deploy guard rejects the
+        # sale with "OTC is enabled but no OTC token is set".
+        sale.otc_token_address = otc_token_address
         sale.website_url = website_url
         sale.twitter_url = twitter_url
         sale.linkedin_url = linkedin_url
@@ -142,6 +150,17 @@ class SaleCreateService:
         sale.cliff_duration_seconds = cliff_duration_seconds
         sale.vesting_duration_seconds = vesting_duration_seconds
         sale.is_redeemable = is_redeemable
+        # Round-5 fields. Persist when supplied; otherwise the model defaults
+        # leave total_token_supply at 0 and the sale window unset (open-ended).
+        # Without these assignments the wizard's draft reload showed empty
+        # Total Token Supply / Sale Start / Sale End even though the user
+        # filled them in — the create endpoint silently dropped them.
+        if total_token_supply is not None:
+            sale.total_token_supply = total_token_supply
+        if sale_start_time is not None:
+            sale.sale_start_time = sale_start_time  # type: ignore[assignment]
+        if sale_end_time is not None:
+            sale.sale_end_time = sale_end_time  # type: ignore[assignment]
         sale.status = SaleStatus.DRAFT
 
         self.db.add(sale)

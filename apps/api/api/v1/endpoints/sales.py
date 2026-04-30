@@ -325,6 +325,7 @@ async def create_sale(
         is_coming_soon=request.is_coming_soon,
         otc_enabled=request.otc_enabled,
         otc_content=request.otc_content,
+        otc_token_address=request.otc_token_address,
         website_url=request.website_url,
         twitter_url=request.twitter_url,
         linkedin_url=request.linkedin_url,
@@ -337,6 +338,9 @@ async def create_sale(
         cliff_duration_seconds=request.cliff_duration_seconds,
         vesting_duration_seconds=request.vesting_duration_seconds,
         is_redeemable=request.is_redeemable,
+        total_token_supply=request.total_token_supply,
+        sale_start_time=request.sale_start_time,
+        sale_end_time=request.sale_end_time,
     )
     return _sale_to_response(sale)
 
