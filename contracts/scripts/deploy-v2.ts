@@ -523,24 +523,46 @@ async function main() {
   }
 
   // ── STEP 5b: Identity Registrar role ────────────────────────────────
+  //
+  // We grant REGISTRAR_ROLE to BOTH the dedicated registrar wallet AND the
+  // platform admin. Reasons:
+  //   - Registrar wallet: meant to be the routine actor for IR.addToWhitelist
+  //     (e.g. when KYC approves an investor).
+  //   - Admin wallet: needed for one-off issuer whitelisting from the admin
+  //     UI without forcing the admin to first call grantRole(REGISTRAR_ROLE)
+  //     on themselves. Without this grant, the admin can only do it via a
+  //     separate role-grant tx, which is bad UX during e2e setup.
 
   const registrarAddr = process.env.V2_REGISTRAR_ADDRESS;
-  if (registrarAddr) {
+  const grantRegistrarRole = async (addr: string, label: string) => {
     try {
-      const hasRole = await sirContract.hasRole(REGISTRAR_ROLE, registrarAddr);
-      if (!hasRole) {
-        const tx = await sirContract.grantRole(REGISTRAR_ROLE, registrarAddr);
-        await tx.wait();
-        console.log(`  REGISTRAR_ROLE granted to Identity Registrar (${registrarAddr.slice(0, 10)}...)`);
-      } else {
-        console.log(`  REGISTRAR_ROLE: Identity Registrar already has role`);
+      const hasRole = await sirContract.hasRole(REGISTRAR_ROLE, addr);
+      if (hasRole) {
+        console.log(`  REGISTRAR_ROLE: ${label} already has role`);
+        return;
       }
+      const tx = await sirContract.grantRole(REGISTRAR_ROLE, addr);
+      await tx.wait();
+      console.log(`  REGISTRAR_ROLE granted to ${label} (${addr.slice(0, 10)}...)`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.log(`  WARN: could not grant REGISTRAR_ROLE to Identity Registrar: ${msg.slice(0, 80)}`);
+      console.log(`  WARN: could not grant REGISTRAR_ROLE to ${label}: ${msg.slice(0, 80)}`);
     }
+  };
+
+  if (registrarAddr) {
+    await grantRegistrarRole(registrarAddr, "Identity Registrar");
   } else {
     console.log(`  WARN: V2_REGISTRAR_ADDRESS not set — skipped Identity Registrar role grant`);
+  }
+
+  // Same role for the platform admin so issuer-whitelisting from the admin UI
+  // works without a separate role-grant tx after deploy.
+  const adminAddrForRoleGrant = process.env.V2_ADMIN_ADDRESS;
+  if (adminAddrForRoleGrant) {
+    await grantRegistrarRole(adminAddrForRoleGrant, "Platform Admin");
+  } else {
+    console.log(`  WARN: V2_ADMIN_ADDRESS not set — skipped Admin REGISTRAR_ROLE grant`);
   }
 
   // ── STEP 6: Handoff to Admin ─────────────────────────────────────────
