@@ -887,14 +887,16 @@ async def add_phase(
     # The on-chain addPhase() already enforces start ∈ [saleStart, saleEnd];
     # if our DB doesn't know the window, we defer to the chain rather than
     # invent a tighter constraint that would reject what the chain accepts.
-    # Round-5: top_up_min and allocation_mode validation
+    # top_up_min is a whole-token count (matches Sale.sol topUpMinTokens).
+    # The contract only requires > 0; the previous "≥ 1000 USDC" floor was
+    # a frontend convention and made no sense for token-denominated values.
     top_up_min = Decimal(request.top_up_min)
-    if top_up_min < Decimal("1000"):
+    if top_up_min <= 0:
         raise HTTPException(
             status_code=400,
             detail={
-                "code": "TOP_UP_BELOW_FLOOR",
-                "message": "Phase top_up_min must be at least 1000 USDC.",
+                "code": "ZERO_TOP_UP_MIN",
+                "message": "Phase top_up_min must be greater than zero.",
             },
         )
     if request.allocation_mode not in ("fixed", "remaining"):
@@ -917,6 +919,13 @@ async def add_phase(
     phase.min_contribution = min_contribution
     phase.max_contribution = max_contribution
     phase.top_up_min = top_up_min
+    # Mirror to the *_tokens columns too — these are what Sale.sol stores
+    # on-chain and what the launchpad reads for buyer-facing display. Same
+    # whole-token values; we double-write so a tentative phase looks the
+    # same in DB whether it was synced from chain or pre-deployed.
+    phase.min_tokens = min_contribution
+    phase.max_tokens = max_contribution
+    phase.top_up_min_tokens = top_up_min
     phase.allocation_mode = request.allocation_mode
     # Use the parsed datetime — request.start_time / end_time are strings
     # (the schema declares them as str, not datetime), and asyncpg refuses

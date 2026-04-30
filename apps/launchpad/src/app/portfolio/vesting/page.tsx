@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Clock, RefreshCw } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { Button, Spinner, Badge, ProgressBar } from "@/components/atoms";
+import { ErrorReportButton } from "@/components/molecules/ErrorReportButton";
 import { DashboardLayout } from "@/components/templates";
 import { getVesting, type VestingSchedule } from "@/lib/api/repositories/portfolio.repository";
 import { useContractAction } from "@/hooks/useContractAction";
@@ -58,6 +59,7 @@ export default function PortfolioVestingPage() {
   const [error, setError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const { isConnected } = useAccount();
+  const chainId = useChainId();
 
   // Unified contract action for vesting claims
   const claimAction = useContractAction();
@@ -264,7 +266,16 @@ export default function PortfolioVestingPage() {
                     </Button>
                   )}
                   {claimError && claimingId === s.id && (
-                    <p className="text-sm text-red-500 mt-2">Claim failed. Please try again.</p>
+                    <ErrorReportButton
+                      className="mt-2"
+                      context={{
+                        message: claimError || "Claim failed",
+                        functionName: "vault.claim",
+                        contractAddress: s.vault_address ?? null,
+                        txHash: claimHash ?? null,
+                        chainId: chainId ?? null,
+                      }}
+                    />
                   )}
                 </div>
               );

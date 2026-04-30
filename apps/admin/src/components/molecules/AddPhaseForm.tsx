@@ -154,20 +154,20 @@ export function AddPhaseForm({
       setValidationError(`Allocation cannot exceed available supply (${availableSupply!.toLocaleString()} tokens).`);
       return;
     }
-    // Round-5: top-up minimum hard floor of 1000 USDC
+    // Top-up min is a whole-token count — contract floor is just > 0
+    // (ZeroMinContribution revert). Form value of 1 is fine.
     const topUpMinNum = parseFloat(form.topUpMin) || 0;
-    if (topUpMinNum < 1000) {
-      setValidationError("Top-up minimum must be at least 1000 USDC (contract floor).");
+    if (topUpMinNum <= 0) {
+      setValidationError("Top-up minimum is required and must be > 0 tokens.");
       return;
     }
-    // Min contribution is required > 0 — mirrors Sale.addPhase ZeroMinContribution()
-    // revert. Issuers who want a low floor should set $1.
+    // minTokens is a whole-token count — contract requires > 0 too.
     if (!form.minContribution || parseFloat(form.minContribution) <= 0) {
-      setValidationError("Min contribution is required and must be greater than 0. Use $1 for a low floor.");
+      setValidationError("Min tokens is required and must be > 0.");
       return;
     }
     if (form.maxContribution && parseFloat(form.minContribution) > parseFloat(form.maxContribution)) {
-      setValidationError("Min contribution cannot exceed max contribution.");
+      setValidationError("Min tokens cannot exceed max tokens per buyer.");
       return;
     }
     if (!form.startTime || !form.endTime) {
@@ -193,18 +193,24 @@ export function AddPhaseForm({
     }
 
     try {
-      // pricePerToken is in payment-token raw units per whole sale token,
-      // not 18-decimal. USDC = 6. Wrong scale here = ERC20InsufficientAllowance
-      // on every buy because the contract asks for 1e12x the real amount.
+      // Sale.addPhase argument scales (per Phase struct + buy() logic):
+      //   pricePerToken      → payment-token raw units per whole sale token
+      //                        (USDC = 6 decimals, not 18)
+      //   allocation         → token-decimal raw units (Fixed mode hard cap)
+      //   minTokens          → WHOLE token count, NOT scaled. 1 = "min 1 token"
+      //   maxTokens          → WHOLE token count, NOT scaled. 0 = unlimited
+      //   topUpMinTokens     → WHOLE token count, NOT scaled
+      // Earlier these were parseUnits-scaled, which silently inflated all
+      // three by 10^6 and made every buy revert BelowMinContribution.
       const pricePerToken = parseUnits(form.pricePerToken, 6);
       const allocation = form.allocationMode === "fixed"
         ? parseUnits(form.allocation || "0", tokenDecimals)
         : BigInt(0);
-      const minContribution = parseUnits(form.minContribution, 6);
+      const minContribution = BigInt(form.minContribution || "1");
       const maxContribution = form.maxContribution
-        ? parseUnits(form.maxContribution, 6)
+        ? BigInt(form.maxContribution)
         : BigInt(0);
-      const topUpMin = parseUnits(form.topUpMin, 6);
+      const topUpMin = BigInt(form.topUpMin || "1");
       // AllocationMode enum: 0 = Fixed, 1 = Remaining
       const allocationModeEnum = form.allocationMode === "fixed" ? 0 : 1;
 
@@ -296,9 +302,27 @@ export function AddPhaseForm({
       {!expanded ? null : <div className="px-4 pb-4">
 
       {availableSupply !== undefined && availableSupply > 0 && (
-        <p className="text-xs text-black/40 mb-3">
-          Available supply: <span className="font-semibold text-text">{availableSupply.toLocaleString()}</span> tokens
-        </p>
+        <div className="mb-4 rounded-lg border border-darkAqua/30 bg-darkAqua/5 px-4 py-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-darkAqua/70">Available to allocate</p>
+              <p className="text-lg font-semibold text-darkAqua">
+                {availableSupply.toLocaleString()} <span className="text-xs font-normal text-darkAqua/70">tokens</span>
+              </p>
+            </div>
+            {allocationNum > 0 && (
+              <div className="text-right">
+                <p className="text-[11px] text-zinc-500">After this phase</p>
+                <p className={`text-sm font-semibold ${allocationExceedsSupply ? "text-red-600" : "text-zinc-700"}`}>
+                  {Math.max(0, availableSupply - allocationNum).toLocaleString()} tokens
+                </p>
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-zinc-500 leading-snug">
+            This is the total supply minus what other Fixed-mode phases already reserve. A Fixed phase&apos;s &quot;Allocation&quot; has to fit inside this number; a Remaining-mode phase ignores it and sells whatever is left at runtime.
+          </p>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -314,15 +338,15 @@ export function AddPhaseForm({
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
-            Price per Token <span className="text-zinc-400">(USD)</span>
+            Price per Token <span className="text-zinc-400">(USDC)</span>
           </label>
           <input
             type="text"
-            inputMode="decimal"
+            inputMode="numeric"
             value={form.pricePerToken}
             onChange={(e) => updateNumeric("pricePerToken", e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
-            placeholder="0.50"
+            placeholder="100"
           />
           {higherPhase && (
             <p className="text-xs text-amber-600 mt-1">
@@ -332,17 +356,18 @@ export function AddPhaseForm({
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
-            Allocation <span className="text-zinc-400">(tokens)</span>
+            Allocation <span className="text-zinc-400">(tokens — Fixed mode only)</span>
           </label>
           <input
             type="text"
-            inputMode="decimal"
-            value={form.allocation}
+            inputMode="numeric"
+            value={form.allocationMode === "remaining" ? "" : form.allocation}
             onChange={(e) => updateNumeric("allocation", e.target.value)}
+            disabled={form.allocationMode === "remaining"}
             className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua ${
               allocationExceedsSupply ? "border-red-300 bg-red-50/30" : "border-zinc-200"
-            }`}
-            placeholder="1000000"
+            } disabled:bg-zinc-50 disabled:text-zinc-400 disabled:cursor-not-allowed`}
+            placeholder={form.allocationMode === "remaining" ? "(unused — Remaining mode)" : "1000"}
           />
           {allocationExceedsSupply && (
             <p className="text-xs text-red-500 mt-1">Exceeds available supply ({availableSupply!.toLocaleString()})</p>
@@ -353,8 +378,8 @@ export function AddPhaseForm({
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
-            Min Contribution <span className="text-red-500">*</span>{" "}
-            <span className="text-zinc-400">(USDC, must be &gt; 0)</span>
+            Min Tokens per buyer <span className="text-red-500">*</span>{" "}
+            <span className="text-zinc-400">(whole tokens, must be &gt; 0)</span>
           </label>
           <input
             type="text"
@@ -362,13 +387,13 @@ export function AddPhaseForm({
             value={form.minContribution}
             onChange={(e) => updateNumeric("minContribution", e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
-            placeholder="100"
+            placeholder="1"
             required
           />
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
-            Max Contribution <span className="text-zinc-400">(USDC)</span>
+            Max Tokens per buyer <span className="text-zinc-400">(whole tokens, 0 = unlimited)</span>
           </label>
           <input
             type="text"
@@ -376,13 +401,13 @@ export function AddPhaseForm({
             value={form.maxContribution}
             onChange={(e) => updateNumeric("maxContribution", e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
-            placeholder="50000 (0 = unlimited)"
+            placeholder="0"
           />
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">
-            Top-up Minimum <span className="text-red-500">*</span>{" "}
-            <span className="text-zinc-400">(USDC, ≥ 1000)</span>
+            Top-up Min Tokens <span className="text-red-500">*</span>{" "}
+            <span className="text-zinc-400">(whole tokens, must be &gt; 0)</span>
           </label>
           <input
             type="text"
@@ -390,45 +415,50 @@ export function AddPhaseForm({
             value={form.topUpMin}
             onChange={(e) => updateNumeric("topUpMin", e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
-            placeholder="1000"
+            placeholder="1"
             required
           />
           <p className="text-xs text-zinc-400 mt-1">
-            Minimum amount for repeat buyers in this phase. Contract floor is 1000 USDC.
+            Minimum whole tokens a repeat buyer must purchase per call.
           </p>
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-zinc-500 mb-1">
             Allocation Mode <span className="text-red-500">*</span>
           </label>
-          <div className="flex gap-3">
-            <label className="flex items-center gap-2 text-sm">
+          <div className="flex flex-col gap-2">
+            <label className="flex items-start gap-2 text-sm">
               <input
                 type="radio"
                 name="allocationMode"
                 checked={form.allocationMode === "fixed"}
                 onChange={() => updateField("allocationMode", "fixed")}
-                className="text-darkAqua focus:ring-darkAqua/30"
+                className="mt-0.5 text-darkAqua focus:ring-darkAqua/30"
               />
               <span>
                 <strong>Fixed</strong>
-                <span className="text-zinc-400"> — phase has its own token cap</span>
+                <span className="text-zinc-400"> — this phase sells exactly the &quot;Allocation&quot; tokens above. Sum of all Fixed phases ≤ total token supply.</span>
               </span>
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-start gap-2 text-sm">
               <input
                 type="radio"
                 name="allocationMode"
                 checked={form.allocationMode === "remaining"}
                 onChange={() => updateField("allocationMode", "remaining")}
-                className="text-darkAqua focus:ring-darkAqua/30"
+                className="mt-0.5 text-darkAqua focus:ring-darkAqua/30"
               />
               <span>
                 <strong>Remaining</strong>
-                <span className="text-zinc-400"> — phase sells unsold supply from prior phases</span>
+                <span className="text-zinc-400"> — sells whatever is unsold across the whole sale up to total token supply. The &quot;Allocation&quot; field is ignored.</span>
               </span>
             </label>
           </div>
+          {form.allocationMode === "remaining" && (
+            <p className="mt-2 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+              Tip: use Remaining for a final &quot;sweep&quot; phase that mops up unsold tokens after your earlier Fixed phases finish.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1">Start Time</label>

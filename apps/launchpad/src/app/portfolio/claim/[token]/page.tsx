@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { Button, Spinner } from "@/components/atoms";
+import { ErrorReportButton } from "@/components/molecules/ErrorReportButton";
 import { VestingCard } from "@/components/organisms";
 import { DashboardLayout } from "@/components/templates";
 import {
@@ -33,6 +34,7 @@ export default function ClaimTokenPage({
   const [saleStatus, setSaleStatus] = useState<string | null>(null);
 
   const { isConnected } = useAccount();
+  const chainId = useChainId();
 
   // Unified contract actions for different claim types
   const saleClaimAction = useContractAction();
@@ -298,7 +300,19 @@ export default function ClaimTokenPage({
             />
           )}
           {claimError && (
-            <p className="mt-4 text-sm text-red-500 text-center">{claimError}</p>
+            <ErrorReportButton
+              className="mt-4"
+              context={{
+                message: claimError,
+                functionName: schedule?.sale_mode === "vested" && schedule?.vault_address ? "vault.claim" : "sale.claimTokens",
+                contractAddress:
+                  (schedule?.sale_mode === "vested" && schedule?.vault_address)
+                    ? schedule.vault_address
+                    : schedule?.sale_contract_address ?? null,
+                txHash: saleClaimHash ?? vaultClaimHash ?? null,
+                chainId: chainId ?? null,
+              }}
+            />
           )}
           {(isSaleClaimConfirming || isVaultClaimConfirming) && !isFailedSale && (
             <p className="mt-4 text-sm text-gray-400 text-center">

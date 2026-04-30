@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Coins, CheckCircle2, RefreshCw, Camera } from "lucide-react";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useChainId, useReadContract } from "wagmi";
+import { ErrorReportButton } from "@/components/molecules/ErrorReportButton";
 import { Button, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { getDividends, type DividendEntry } from "@/lib/api/repositories/portfolio.repository";
@@ -54,6 +55,7 @@ export default function DividendsPage() {
   const [actionMode, setActionMode] = useState<"snapshot" | "claim" | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
 
   // Unified contract action for dividend claims
   const claimAction = useContractAction();
@@ -292,7 +294,16 @@ export default function DividendsPage() {
                   </div>
                 );
               })}
-              {claimError && <p className="text-sm text-red-500 text-center">{claimError}</p>}
+              {claimError && (
+                <ErrorReportButton
+                  context={{
+                    message: claimError,
+                    functionName: "dividend.claim",
+                    txHash: claimHash ?? null,
+                    chainId: chainId ?? null,
+                  }}
+                />
+              )}
               {isClaimConfirming && <p className="text-sm text-gray-400 text-center">Confirming on-chain&hellip;</p>}
             </div>
           </>
