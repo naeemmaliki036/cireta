@@ -21,6 +21,7 @@ from apps.api.models.enums import (
     WalletApprovalStatus,
     WalletDeletionRequestStatus,
 )
+from apps.api.models.error_report import ErrorReport
 from apps.api.models.identity_sync_job import IdentitySyncJob
 from apps.api.models.issuer import Issuer
 from apps.api.models.issuer_whitelist import IssuerWhitelist
@@ -78,6 +79,7 @@ __all__ = [
     "VestingSchedule",
     "RedemptionRequest",
     "AuditLog",
+    "ErrorReport",
     "Notification",
     "DividendDistribution",
     "NotificationPreferences",

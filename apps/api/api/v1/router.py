@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from apps.api.api.v1.endpoints.admin_compliance import router as admin_compliance_router
 from apps.api.api.v1.endpoints.admin_email_templates import router as admin_email_templates_router
+from apps.api.api.v1.endpoints.error_reports import router as error_reports_router
 from apps.api.api.v1.endpoints.admin_identity_registry import (
     router as admin_identity_registry_router,
 )
@@ -63,3 +64,4 @@ router.include_router(admin_sales_router)
 router.include_router(uploads_router)
 router.include_router(issuer_onboarding_router)
 router.include_router(issuer_withdrawals_router)
+router.include_router(error_reports_router)

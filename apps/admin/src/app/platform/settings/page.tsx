@@ -25,6 +25,7 @@ export default function PlatformSettingsPage() {
     default_fee_bps: "200",
     blocked_countries: "US",
     kyc_min_level: "2",
+    support_email: "",
   });
   const [otcTemplate, setOtcTemplate] = useState(DEFAULT_OTC_TEMPLATE);
   const [saved, setSaved] = useState(false);
@@ -39,6 +40,7 @@ export default function PlatformSettingsPage() {
           default_fee_bps: data.default_fee_bps ?? "200",
           blocked_countries: data.blocked_countries ?? "US",
           kyc_min_level: data.kyc_min_level ?? "2",
+          support_email: data.support_email ?? "",
         });
         if (data.otc_default_content) {
           setOtcTemplate(data.otc_default_content);
@@ -139,6 +141,19 @@ export default function PlatformSettingsPage() {
                 <option value="2">Level 2 — Enhanced KYC</option>
                 <option value="3">Level 3 — Accredited</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1">Support Email</label>
+              <input
+                type="email"
+                value={settings.support_email}
+                onChange={(e) => setSettings((s) => ({ ...s, support_email: e.target.value }))}
+                className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 max-w-md"
+                placeholder="support@cireta.com"
+              />
+              <p className="text-zinc-400 text-[11px] mt-1">
+                User-submitted error reports go here. Leave empty to fall back to support@cireta.com.
+              </p>
             </div>
             <Button variant="primary" size="sm" onClick={handleSave}>
               {saved ? "Saved" : "Save Settings"}

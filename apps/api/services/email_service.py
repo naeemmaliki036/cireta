@@ -262,6 +262,30 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
         ),
         "description": "Sent to admin when a new issuer applies",
     },
+    "user_error_report": {
+        "subject": "User error report — {{function_name}}",
+        "html_body": (
+            f'{_STYLE_WRAP}'
+            '<h2 style="color:#111">User Error Report</h2>'
+            '<p style="color:#555">A user reported an error on the platform. Please investigate.</p>'
+            f'<div style="{_STYLE_BOX}">'
+            '<table style="width:100%;color:#555;font-size:13px">'
+            '<tr><td style="padding:6px 0;color:#888;width:140px">User</td><td style="font-weight:600">{{user_email}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Wallet</td><td style="font-family:monospace;font-size:12px">{{wallet_address}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Page</td><td style="font-family:monospace;font-size:12px;word-break:break-all">{{page_url}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Function</td><td style="font-weight:600">{{function_name}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Tx hash</td><td style="font-family:monospace;font-size:12px;word-break:break-all">{{tx_hash}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Tx link</td><td><a href="{{tx_url}}" style="color:#13636F">{{tx_url}}</a></td></tr>'
+            '<tr><td style="padding:6px 0;color:#888">Contract</td><td style="font-family:monospace;font-size:12px">{{contract_address}}</td></tr>'
+            '<tr><td style="padding:6px 0;color:#888;vertical-align:top">Error</td><td style="font-family:monospace;font-size:12px;word-break:break-all"><strong>{{error_code}}</strong><br>{{error_message}}</td></tr>'
+            '</table></div>'
+            '<p style="color:#888;font-size:13px"><strong>User notes:</strong></p>'
+            '<p style="color:#333;font-size:14px;background:#fffaeb;border-left:3px solid #f6c945;padding:12px;border-radius:4px;white-space:pre-wrap">{{additional_details}}</p>'
+            '<p style="color:#888;font-size:11px;margin-top:24px">User-Agent: {{user_agent}}</p>'
+            f'{_STYLE_FOOTER}'
+        ),
+        "description": "Sent to support email when a user clicks 'Report this issue' from the UI",
+    },
     "sale_submitted_for_approval": {
         "subject": "Sale awaiting your approval: {{sale_title}}",
         "html_body": (
@@ -385,6 +409,11 @@ TEMPLATE_VARIABLES: dict[str, list[str]] = {
         "display_name", "token_symbol", "dividend_amount", "frontend_url",
     ],
     "issuer_approval_request": ["issuer_name", "issuer_email", "admin_url"],
+    "user_error_report": [
+        "user_email", "wallet_address", "page_url", "function_name",
+        "tx_hash", "tx_url", "contract_address", "error_code", "error_message",
+        "additional_details", "user_agent",
+    ],
     "sale_submitted_for_approval": ["display_name", "sale_title", "issuer_name", "sale_id", "frontend_url"],
     "sale_approved": ["display_name", "sale_title", "sale_id", "frontend_url"],
     "sale_rejected": ["display_name", "sale_title", "reason", "frontend_url"],

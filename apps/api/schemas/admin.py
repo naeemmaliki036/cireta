@@ -217,6 +217,7 @@ class PlatformSettingsRequest(BaseModel):
     default_fee_bps: str | None = None
     blocked_countries: str | None = None
     kyc_min_level: str | None = None
+    support_email: str | None = None
 
 
 class PlatformSettingsResponse(BaseModel):

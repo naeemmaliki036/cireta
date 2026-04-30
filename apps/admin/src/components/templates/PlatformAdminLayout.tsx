@@ -25,6 +25,7 @@ import {
   TrendingUp,
   ListChecks,
   FileCode2,
+  AlertOctagon,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button, Badge } from "@/components/atoms";
@@ -142,6 +143,7 @@ export function PlatformAdminLayout({
           <div className="pt-4 border-t border-zinc-200 space-y-0.5">
             <NavLink href="/platform/contracts" label="Smart Contracts" icon={FileCode2} />
             <NavLink href="/platform/email-templates" label="Email Management" icon={Mail} />
+            <NavLink href="/platform/error-reports" label="Error Reports" icon={AlertOctagon} />
             <NavLink href="/platform/admins" label="Admin Accounts" icon={UserCog} />
             <NavLink href="/platform/settings" label="Settings" icon={Settings} />
           </div>

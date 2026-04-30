@@ -9,6 +9,9 @@ _DEFAULT_SETTINGS: dict[str, str] = {
     "default_fee_bps": "200",
     "blocked_countries": "US",
     "kyc_min_level": "2",
+    # Where 'Report this issue' submissions are emailed. Migration 046 seeds
+    # an actual address; this fallback is only hit if the row is wiped.
+    "support_email": "support@cireta.com",
 }
 
 
@@ -42,6 +45,7 @@ class PlatformSettingsService:
         default_fee_bps: str | None = None,
         blocked_countries: str | None = None,
         kyc_min_level: str | None = None,
+        support_email: str | None = None,
     ) -> dict[str, str]:
         """Update multiple settings and return the full current settings dict."""
         if default_fee_bps is not None:
@@ -50,5 +54,7 @@ class PlatformSettingsService:
             await self.upsert("blocked_countries", blocked_countries)
         if kyc_min_level is not None:
             await self.upsert("kyc_min_level", kyc_min_level)
+        if support_email is not None:
+            await self.upsert("support_email", support_email)
         await self._db.commit()
         return await self.load()

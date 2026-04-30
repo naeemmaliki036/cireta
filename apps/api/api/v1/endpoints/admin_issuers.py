@@ -472,5 +472,6 @@ async def update_platform_settings(
         default_fee_bps=request.default_fee_bps,
         blocked_countries=request.blocked_countries,
         kyc_min_level=request.kyc_min_level,
+        support_email=request.support_email,
     )
     return {"message": "Settings updated", **current}
