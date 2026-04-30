@@ -22,7 +22,7 @@ from apps.api.schemas.admin import (
 from apps.api.services.compliance_service import ComplianceService
 from apps.api.services.issuer_service import IssuerService
 from apps.api.services.platform_settings_service import PlatformSettingsService
-from packages.common.core.auth_deps import RequireAdmin, RequireIssuerOrAdmin
+from packages.common.core.auth_deps import CurrentUserId, RequireAdmin
 from packages.common.db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -448,14 +448,15 @@ async def get_settings_service(
 
 @router.get("/platform/settings")
 async def get_platform_settings(
-    _user_id: RequireIssuerOrAdmin,
+    _user_id: CurrentUserId,
     service: Annotated[PlatformSettingsService, Depends(get_settings_service)],
 ) -> dict:
     """Get current platform settings.
 
-    Read access is granted to issuers as well — they need to read the
-    `otc_default_content` template and other public defaults from their
-    sale-creation wizard. Mutating settings (PATCH) remains admin-only.
+    Any authenticated user (admin, issuer, investor) can read these — the
+    payload is just a public defaults bundle (e.g. otc_default_content,
+    blocked_countries) consumed by both portals' wizards. PATCH stays
+    admin-only.
     """
     return await service.load()
 
