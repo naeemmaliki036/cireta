@@ -19,21 +19,42 @@ class SaleQueryService:
         self.db = db
 
     async def get_sale_by_token_slug(self, slug: str) -> TokenSale | None:
-        """Get a sale by the token's slug, or by sale ID for tokenless sales.
+        """Resolve a sale by its public slug.
 
-        An issuer can deploy multiple sales for the same token (e.g. a
-        seed round followed by a public round, or a stale draft never
-        deleted). Token slug isn't unique across sales, so we resolve in
-        two steps to avoid JOIN+selectinload+limit fragility:
-          1. Look up Token by slug to get its id.
-          2. Pick the most public-facing sale for that token: visible
-             rows beat hidden, then ACTIVE > APPROVED_COMING_SOON >
-             APPROVED > others, then newest.
-        Visibility is the first sort key so any sale that appears in the
-        public listing is guaranteed to resolve here too.
+        Each sale has its own unique slug on TokenSale.slug — that's the
+        primary lookup. Two fallbacks exist for legacy URLs that referenced
+        the token's slug or the sale's UUID directly:
+          1. TokenSale.slug exact match (today's listing URLs)
+          2. Token.slug match → pick the most public-facing sale for that
+             token (visible > status > newest), with LIMIT 1
+          3. UUID match against TokenSale.id (tokenless coming-soon sales)
+        Each step is a small standalone query — no JOIN+selectinload+limit
+        combinations, which previously 500'd in production.
         """
         from apps.api.models.token import Token
 
+        eager = (
+            selectinload(TokenSale.phases),
+            selectinload(TokenSale.token),
+            selectinload(TokenSale.issuer),
+            selectinload(TokenSale.images),
+        )
+
+        # Step 1: TokenSale.slug — the source of truth post-migration 045.
+        sale = (
+            await self.db.execute(
+                select(TokenSale)
+                .where(TokenSale.slug == slug)
+                .options(*eager)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if sale is not None:
+            return sale
+
+        # Step 2: Token.slug — legacy URLs from before TokenSale had its
+        # own slug. Multiple sales may share a token, so prefer the one
+        # most likely to be public-facing.
         token_id = (
             await self.db.execute(
                 select(Token.id).where(Token.slug == slug).limit(1)
@@ -49,42 +70,34 @@ class SaleQueryService:
                 (TokenSale.status == SaleStatus.FINALIZED_SUCCESS, 4),
                 else_=5,
             )
-            query = (
-                select(TokenSale)
-                .where(TokenSale.token_id == token_id)
-                .options(
-                    selectinload(TokenSale.phases),
-                    selectinload(TokenSale.token),
-                    selectinload(TokenSale.issuer),
-                    selectinload(TokenSale.images),
+            sale = (
+                await self.db.execute(
+                    select(TokenSale)
+                    .where(TokenSale.token_id == token_id)
+                    .options(*eager)
+                    .order_by(
+                        TokenSale.is_visible.desc(),
+                        status_priority.asc(),
+                        TokenSale.created_at.desc(),
+                    )
+                    .limit(1)
                 )
-                .order_by(
-                    TokenSale.is_visible.desc(),
-                    status_priority.asc(),
-                    TokenSale.created_at.desc(),
-                )
-                .limit(1)
-            )
-            sale = (await self.db.execute(query)).scalar_one_or_none()
+            ).scalar_one_or_none()
             if sale is not None:
                 return sale
 
-        # Fallback: tokenless sales (e.g. coming-soon) referenced by sale ID.
+        # Step 3: UUID fallback for tokenless coming-soon sales.
         try:
             sale_uuid = UUID(slug)
         except ValueError:
             return None
-        query = (
-            select(TokenSale)
-            .where(TokenSale.id == sale_uuid)
-            .options(
-                selectinload(TokenSale.phases),
-                selectinload(TokenSale.token),
-                selectinload(TokenSale.issuer),
-                selectinload(TokenSale.images),
+        return (
+            await self.db.execute(
+                select(TokenSale)
+                .where(TokenSale.id == sale_uuid)
+                .options(*eager)
             )
-        )
-        return (await self.db.execute(query)).scalar_one_or_none()
+        ).scalar_one_or_none()
 
     async def list_sales(
         self,

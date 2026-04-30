@@ -45,6 +45,13 @@ class TokenSale(BaseModel):
 
     # Sale content fields
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Per-sale URL slug. Unique across all sales — required so an issuer
+    # can run multiple sales for the same token (seed → public) and each
+    # has its own /project/<slug> URL. Default derived from title; the
+    # issuer can override + system enforces uniqueness on save.
+    slug: Mapped[str | None] = mapped_column(
+        String(120), unique=True, index=True, nullable=True
+    )
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     full_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     banner_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

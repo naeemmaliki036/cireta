@@ -112,6 +112,7 @@ def _sale_to_response(
         token_id=str(sale.token_id) if sale.token_id else None,
         issuer_id=str(sale.issuer_id),
         title=sale.title,
+        slug=getattr(sale, "slug", None),
         description_text=sale.description,
         full_description=sale.full_description,
         banner_image_url=sale.banner_image_url or next((img.url for img in getattr(sale, "images", []) if img.is_banner), next((img.url for img in sorted(getattr(sale, "images", []), key=lambda i: i.sort_order or 0)), None)),
@@ -199,9 +200,10 @@ async def get_sale_by_slug(
     slug: str,
     sale_service: Annotated[SaleService, Depends(get_sale_service)],
 ) -> SaleResponse:
-    """Get a sale by its token slug.
+    """Get a sale by its slug.
 
-    Public endpoint.
+    Resolves against TokenSale.slug first, with fallbacks to Token.slug
+    and sale ID for legacy URLs. Public endpoint.
     """
     sale = await sale_service.get_sale_by_token_slug(slug)
     if not sale:
@@ -210,6 +212,54 @@ async def get_sale_by_slug(
         raise HTTPException(status_code=404, detail="Project not found")
     sold_map = await _phase_sold_map(sale_service.db, sale.id)
     return _sale_to_response(sale, sold_map)
+
+
+class SlugCheckResponse(BaseModel):
+    """Live slug availability check result."""
+
+    slug: str
+    available: bool
+    suggestion: str | None = None
+
+
+@router.get("/check-slug", response_model=SlugCheckResponse)
+async def check_slug(
+    slug: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    exclude_id: UUID | None = None,
+) -> SlugCheckResponse:
+    """Check whether ``slug`` is free, optionally ignoring ``exclude_id``.
+
+    Used by the wizard to show ✓/✗ as the issuer types. Returns a
+    next-available suggestion when taken so the UI can offer it.
+    """
+    from apps.api.schemas.sale import _validate_slug
+    from apps.api.services._sale_slug import ensure_unique_slug, is_slug_taken
+
+    try:
+        normalized = _validate_slug(slug)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "INVALID_SLUG", "message": str(exc)},
+        ) from exc
+    if not normalized:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "INVALID_SLUG", "message": "slug required"},
+        )
+
+    taken = await is_slug_taken(db, normalized, exclude_id=exclude_id)
+    suggestion = (
+        await ensure_unique_slug(db, normalized, exclude_id=exclude_id)
+        if taken
+        else None
+    )
+    return SlugCheckResponse(
+        slug=normalized,
+        available=not taken,
+        suggestion=suggestion,
+    )
 
 
 @router.get("", response_model=SaleListResponse)
@@ -299,6 +349,23 @@ async def update_sale(
             },
         )
 
+    # Slug is editable in any status, but must remain unique. Reject the
+    # update with 409 if the new slug is taken so the URL never collides.
+    if "slug" in update_data and update_data["slug"]:
+        from apps.api.services._sale_slug import is_slug_taken
+
+        new_slug = update_data["slug"]
+        if new_slug != sale.slug and await is_slug_taken(
+            db, new_slug, exclude_id=sale.id
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "SLUG_TAKEN",
+                    "message": f"slug '{new_slug}' is already in use",
+                },
+            )
+
     for field, value in update_data.items():
         setattr(sale, field, value)
 
@@ -325,6 +392,7 @@ async def create_sale(
         hard_cap=request.hard_cap,
         phases=[p.model_dump() for p in request.phases],
         title=request.title,
+        slug=request.slug,
         description=request.description,
         full_description=request.full_description,
         banner_image_url=request.banner_image_url,

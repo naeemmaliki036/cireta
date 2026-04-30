@@ -30,6 +30,7 @@ class SaleCreateService:
         hard_cap: Decimal,
         phases: list[dict],
         title: str | None = None,
+        slug: str | None = None,
         description: str | None = None,
         full_description: str | None = None,
         banner_image_url: str | None = None,
@@ -111,6 +112,33 @@ class SaleCreateService:
                 detail={"code": "INVALID_CAPS", "message": "Hard cap must be >= soft cap"},
             )
 
+        # Resolve slug. Issuer-supplied value takes precedence; we still
+        # 409 if it collides because a duplicate would silently break the
+        # public detail URL. Auto-derive from title (or token slug) when
+        # absent and increment a suffix until unique.
+        from apps.api.services._sale_slug import (
+            derive_slug_from_title,
+            is_slug_taken,
+            slugify,
+        )
+
+        if slug:
+            slug = slugify(slug)
+            if await is_slug_taken(self.db, slug):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "SLUG_TAKEN",
+                        "message": f"slug '{slug}' is already in use",
+                    },
+                )
+            resolved_slug = slug
+        else:
+            fallback = token.slug if token and token.slug else None
+            resolved_slug = await derive_slug_from_title(
+                self.db, title, fallback=fallback
+            )
+
         # Create sale
         sale = TokenSale()
         sale.token_id = token_id if token_id else None
@@ -119,6 +147,7 @@ class SaleCreateService:
         sale.soft_cap = soft_cap
         sale.hard_cap = hard_cap
         sale.title = title
+        sale.slug = resolved_slug
         sale.description = description
         sale.full_description = full_description
         sale.banner_image_url = banner_image_url

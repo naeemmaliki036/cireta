@@ -1,5 +1,6 @@
 """Token sale schemas for request/response validation."""
 
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -7,6 +8,30 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Mirrors Sale.sol MAX_SALE_DURATION = 730 days. Keep in lockstep with the contract.
 MAX_SALE_DURATION = timedelta(days=730)
+
+# Per-sale URL slug. Lowercase letters, digits, hyphens. 3–100 chars, no
+# leading/trailing/double hyphens. Matches what we generate from titles.
+SLUG_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+SLUG_MIN_LEN = 3
+SLUG_MAX_LEN = 100
+
+
+def _validate_slug(value: str | None) -> str | None:
+    if value is None:
+        return None
+    v = value.strip().lower()
+    if not v:
+        return None
+    if not (SLUG_MIN_LEN <= len(v) <= SLUG_MAX_LEN):
+        raise ValueError(
+            f"slug must be {SLUG_MIN_LEN}–{SLUG_MAX_LEN} characters"
+        )
+    if not SLUG_PATTERN.match(v):
+        raise ValueError(
+            "slug must contain only lowercase letters, digits and hyphens "
+            "(no leading/trailing/double hyphens)"
+        )
+    return v
 
 
 class SalePhaseCreate(BaseModel):
@@ -49,6 +74,9 @@ class SaleCreateRequest(BaseModel):
 
     # Content fields (Step 1-4)
     title: str | None = None
+    # Per-sale URL slug. Optional on create — service derives one from
+    # title when omitted, then ensures uniqueness with -2/-3 suffixes.
+    slug: str | None = None
     description: str | None = None
     full_description: str | None = None
     banner_image_url: str | None = None
@@ -104,6 +132,15 @@ class SaleCreateRequest(BaseModel):
                 raise ValueError("Invalid decimal format") from exc
         return v
 
+    @field_validator("slug", mode="before")
+    @classmethod
+    def validate_slug_field(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if not isinstance(v, str):
+            raise ValueError("slug must be a string")
+        return _validate_slug(v)
+
     @model_validator(mode="after")
     def validate_sale(self) -> "SaleCreateRequest":
         # soft_cap must be <= hard_cap
@@ -156,6 +193,7 @@ class SaleUpdateRequest(BaseModel):
 
     # Content / marketing — always editable
     title: str | None = None
+    slug: str | None = None
     description: str | None = None
     full_description: str | None = None
     banner_image_url: str | None = None
@@ -185,6 +223,15 @@ class SaleUpdateRequest(BaseModel):
     total_token_supply: Decimal | None = Field(default=None, ge=0)
     sale_start_time: datetime | None = None
     sale_end_time: datetime | None = None
+
+    @field_validator("slug", mode="before")
+    @classmethod
+    def validate_slug_field(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if not isinstance(v, str):
+            raise ValueError("slug must be a string")
+        return _validate_slug(v)
 
     @model_validator(mode="after")
     def validate_window(self) -> "SaleUpdateRequest":
@@ -245,6 +292,8 @@ class SaleResponse(BaseModel):
     issuer_id: str
     # Content fields
     title: str | None = None
+    # Per-sale URL slug — unique across all sales.
+    slug: str | None = None
     description_text: str | None = None
     full_description: str | None = None
     banner_image_url: str | None = None

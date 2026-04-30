@@ -23,6 +23,7 @@ import {
 } from "@/lib/sale/saleWindow";
 import { ImageGallery, type GalleryItem } from "@/components/molecules/ImageGallery";
 import { OTCTokenSelect } from "@/components/molecules/OTCTokenSelect";
+import { SaleSlugField } from "@/components/molecules/SaleSlugField";
 import { DEFAULT_OTC_TEMPLATE } from "@/lib/templates/otc";
 import { IssuerDashboardLayout } from "@/components/templates";
 
@@ -84,6 +85,7 @@ export default function CreateSalePage() {
   const [customPaymentToken, setCustomPaymentToken] = useState("");
   // Step 1: Sale Info
   const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [isComingSoon, setIsComingSoon] = useState(false);
   const [saleMode, setSaleMode] = useState("");
@@ -165,6 +167,7 @@ export default function CreateSalePage() {
         }
         setSavedSaleId(sale.id);
         setTitle(sale.title ?? "");
+        setSlug(sale.slug ?? "");
         setDescription(sale.description_text ?? "");
         setIsComingSoon(sale.is_coming_soon);
         setSaleMode(sale.sale_mode || "");
@@ -495,6 +498,7 @@ export default function CreateSalePage() {
       if (savedSaleId) {
         await updateSale(savedSaleId, {
           title: title || undefined,
+          slug: slug || undefined,
           description: description || undefined,
           full_description: fullDescription || undefined,
           banner_image_url: bannerImageUrl || undefined,
@@ -552,7 +556,9 @@ export default function CreateSalePage() {
 
       // Create mode: brand new sale
       const sale = await createSale({
-        title: title || undefined, description: description || undefined,
+        title: title || undefined,
+        slug: slug || undefined,
+        description: description || undefined,
         full_description: fullDescription || undefined, banner_image_url: bannerImageUrl || undefined,
         is_coming_soon: isComingSoon, otc_enabled: otcEnabled, otc_content: otcEnabled ? otcContent : undefined, otc_token_address: otcEnabled && otcTokenAddress ? otcTokenAddress : undefined,
         sale_mode: saleMode, sale_structure: saleStructure,
@@ -697,6 +703,12 @@ export default function CreateSalePage() {
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Sale Info</h2>
             <Input label="Sale Title" placeholder="e.g., Gold Reserve Token Sale" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <SaleSlugField
+              value={slug}
+              onChange={setSlug}
+              title={title}
+              excludeId={savedSaleId ?? undefined}
+            />
             <div><label className="input-label">Short Description</label>
               <textarea className={TA} rows={2} placeholder="Brief summary" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
             <div className="flex items-center gap-3 p-4 rounded-lg border border-black/10">

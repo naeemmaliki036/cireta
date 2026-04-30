@@ -39,6 +39,7 @@ export interface Sale {
   otc_content: string | null;
   otc_token_address: string | null;
   title: string | null;
+  slug: string | null;
   description_text: string | null;
   full_description: string | null;
   banner_image_url: string | null;
@@ -111,6 +112,7 @@ export async function getSale(id: string, token?: string): Promise<Sale> {
 
 export interface CreateSaleRequest {
   title?: string;
+  slug?: string;
   description?: string;
   full_description?: string;
   banner_image_url?: string;
@@ -309,6 +311,7 @@ export async function removeSaleDocument(
 export interface UpdateSaleRequest {
   // Content / marketing — always editable
   title?: string;
+  slug?: string;
   description?: string;
   full_description?: string;
   banner_image_url?: string;
@@ -347,6 +350,21 @@ export async function updateSale(
     method: "PATCH",
     body: data,
   });
+}
+
+export interface SlugCheckResponse {
+  slug: string;
+  available: boolean;
+  suggestion: string | null;
+}
+
+export async function checkSaleSlug(
+  slug: string,
+  excludeId?: string,
+): Promise<SlugCheckResponse> {
+  const qs = new URLSearchParams({ slug });
+  if (excludeId) qs.set("exclude_id", excludeId);
+  return apiFetch<SlugCheckResponse>(`/api/v1/sales/check-slug?${qs}`);
 }
 
 // Sub-resource getters (used by the wizard's edit-mode prefill)

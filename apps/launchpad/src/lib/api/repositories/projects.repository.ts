@@ -106,6 +106,10 @@ export interface SaleRaw {
   issuer_slug?: string;
   // Content & config fields
   title?: string;
+  // Per-sale URL slug (unique across all sales). Prefer this over
+  // token_slug for /project/<slug> URLs — it matches what the
+  // by-slug endpoint resolves on.
+  slug?: string;
   description_text?: string;
   full_description?: string;
   banner_image_url?: string;
@@ -147,7 +151,8 @@ function mapSaleToProject(sale: SaleRaw): Project {
   return {
     id: sale.id,
     title: sale.title ?? sale.token_name ?? "Unnamed Project",
-    slug: sale.token_slug ?? sale.id,
+    // Prefer the per-sale slug; fall back to legacy token slug, then id.
+    slug: sale.slug ?? sale.token_slug ?? sale.id,
     imageUrl: sale.banner_image_url ?? sale.token_image_url ?? "",
     assetType: sale.token_asset_type ?? "commodity",
     fundingRound: sale.phases?.[0]?.name ?? "Public Sale",
