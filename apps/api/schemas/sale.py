@@ -68,10 +68,11 @@ class SaleCreateRequest(BaseModel):
     sale_structure: str = "phase_allocated"  # "phase_allocated" or "price_tiered"
     # OTC token (optional — can also be set after sale creation via Sale.setOTCToken())
     otc_token_address: str | None = None
-    # Vesting config (Step 6, only if vested). Float so testing setups can
-    # use sub-day values (e.g. 0.00347 days = 5 minutes).
-    cliff_duration_days: float = Field(default=0, ge=0)
-    vesting_duration_days: float = Field(default=365, ge=0)
+    # Vesting config (Step 6, only if vested) in seconds — matches on-chain
+    # unit (Sale.initialize / addPhase take uint256 seconds). Sub-day testing
+    # values round-trip exactly: 5 min = 300, 1 hour = 3600, 1 day = 86400.
+    cliff_duration_seconds: int = Field(default=0, ge=0)
+    vesting_duration_seconds: int = Field(default=365 * 86400, ge=0)
     # Token & caps (Step 7, optional for coming soon)
     token_id: str | None = None
     payment_token: str = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
@@ -170,8 +171,8 @@ class SaleUpdateRequest(BaseModel):
     is_coming_soon: bool | None = None
     sale_mode: str | None = None
     sale_structure: str | None = None
-    cliff_duration_days: float | None = Field(default=None, ge=0)
-    vesting_duration_days: float | None = Field(default=None, ge=0)
+    cliff_duration_seconds: int | None = Field(default=None, ge=0)
+    vesting_duration_seconds: int | None = Field(default=None, ge=0)
     token_id: str | None = None
     payment_token: str | None = None
     soft_cap: Decimal | None = Field(default=None, ge=0)
@@ -255,8 +256,8 @@ class SaleResponse(BaseModel):
     telegram_url: str | None = None
     discord_url: str | None = None
     sale_structure: str = "phase_allocated"
-    cliff_duration_days: float = 0
-    vesting_duration_days: float = 365
+    cliff_duration_seconds: int = 0
+    vesting_duration_seconds: int = 365 * 86400
     payment_token: str
     soft_cap: str
     hard_cap: str

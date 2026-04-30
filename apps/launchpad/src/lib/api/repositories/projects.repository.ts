@@ -119,8 +119,8 @@ export interface SaleRaw {
   facebook_url?: string;
   telegram_url?: string;
   discord_url?: string;
-  cliff_duration_days?: number;
-  vesting_duration_days?: number;
+  cliff_duration_seconds?: number;
+  vesting_duration_seconds?: number;
   sale_structure?: "phase_allocated" | "price_tiered" | string;
   // Round-5 fields
   is_open_ended?: boolean;

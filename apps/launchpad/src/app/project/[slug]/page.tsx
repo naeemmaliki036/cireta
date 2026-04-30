@@ -948,8 +948,10 @@ export default function ProjectDetailPage() {
               )}
 
               {activeTab === "Vesting" && saleRaw?.sale_mode === "vested" && (() => {
-                const cliffDays = Number(saleRaw.cliff_duration_days ?? 0);
-                const vestingDays = Number(saleRaw.vesting_duration_days ?? 0);
+                // Backend stores seconds; convert to days for the existing
+                // formatter which keeps days as its working unit.
+                const cliffDays = Number(saleRaw.cliff_duration_seconds ?? 0) / 86400;
+                const vestingDays = Number(saleRaw.vesting_duration_seconds ?? 0) / 86400;
                 const fmtDur = (days: number) => {
                   // Sub-day units for testing scenarios — same formatting as the issuer wizard
                   if (days > 0 && days < 1 / 24) return `${Math.round(days * 1440)} min`;

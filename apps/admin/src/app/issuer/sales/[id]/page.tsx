@@ -406,8 +406,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
     let receipt;
     if (sale.sale_mode === "vested") {
       // Vested mode: deploy with vault + fraction token
-      const cliffSeconds = BigInt((sale.cliff_duration_days || 0) * 86400);
-      const vestingSeconds = BigInt((sale.vesting_duration_days || 365) * 86400);
+      // Backend already stores seconds; pass through directly to the contract.
+      const cliffSeconds = BigInt(sale.cliff_duration_seconds || 0);
+      const vestingSeconds = BigInt(sale.vesting_duration_seconds || 365 * 86400);
       receipt = await deployAction.execute({
         address: saleFactoryAddress,
         abi: SALE_FACTORY_ABI as unknown as Abi,
