@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { User, Building2, Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2, X, Home, Scale, Lock, Clock, Search, Copy } from "lucide-react";
+import { User, Building2, Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2, X, Home, Scale, Lock, Clock, Search, Copy, Bell, Compass } from "lucide-react";
 import { Button } from "@/components/atoms";
 import { useAuth } from "@/contexts/AuthContext";
 import { useKYC } from "@/contexts/KYCContext";
@@ -682,23 +682,112 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Complete */}
-        {step === "complete" && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-            <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="h-10 w-10 text-green-500" />
+        {/* Complete — personalized welcome + 3 next-step cards so a freshly
+            verified user lands on something actionable instead of a single
+            CTA in a sea of white. */}
+        {step === "complete" && (() => {
+          const firstName = user?.display_name?.split(" ")[0] || "there";
+          const cards = [
+            {
+              href: "/projects",
+              icon: Compass,
+              title: "Browse projects",
+              desc: "See live and upcoming RWA token sales.",
+              cta: "Explore",
+            },
+            {
+              href: "/settings/wallets",
+              icon: Wallet,
+              title: "Connect a wallet",
+              desc: "Link up to 10 wallets to invest from.",
+              cta: "Manage wallets",
+            },
+            {
+              href: "/settings/notifications",
+              icon: Bell,
+              title: "Set notifications",
+              desc: "Get alerts when new sales open or yours close.",
+              cta: "Open settings",
+            },
+          ];
+          return (
+            <div className="bg-white rounded-2xl border border-gray-100 p-8">
+              <div className="text-center">
+                <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="h-10 w-10 text-green-500" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome aboard, {firstName} 👋</h1>
+                <p className="text-gray-500 text-sm mb-8 max-w-md mx-auto">
+                  Your account is verified and ready. Pick where to start — you can always come back to the others later.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                {cards.map((c) => {
+                  const Icon = c.icon;
+                  return (
+                    <Link
+                      key={c.href}
+                      href={c.href}
+                      className="group rounded-xl border border-gray-200 p-5 hover:border-darkAqua hover:bg-darkAqua/[0.03] transition-colors flex flex-col"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-darkAqua/10 text-darkAqua flex items-center justify-center mb-3 group-hover:bg-darkAqua group-hover:text-white transition-colors">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 mb-1">{c.title}</p>
+                      <p className="text-xs text-gray-500 mb-3 flex-1">{c.desc}</p>
+                      <span className="text-xs font-semibold text-darkAqua inline-flex items-center gap-1">
+                        {c.cta} <ArrowRight className="h-3 w-3" />
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Account summary + what-you-can-do checklist */}
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-5 mb-6">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Summary</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                  <div>
+                    <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{user?.email ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">KYC Level</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      Level {user?.kycLevel ?? 2} <span className="text-green-600 ml-1">✓ Verified</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-0.5">Wallets</p>
+                    <p className="text-sm font-medium text-gray-900">Up to 10 allowed</p>
+                  </div>
+                </div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">What you can do now</p>
+                <ul className="space-y-1.5">
+                  {[
+                    "Browse and invest in active sales using USDC",
+                    "Buy via OTC for sales that accept off-platform payments",
+                    "Hold fraction tokens and claim project tokens after vesting",
+                    "Receive dividends and redeem when sales finalize",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-gray-600">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="text-center">
+                <Link href="/projects">
+                  <Button className="bg-gray-900 text-white rounded-xl hover:bg-gray-800 px-10" size="lg">
+                    Browse Projects <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">You&apos;re all set!</h1>
-            <p className="text-gray-500 text-sm mb-8 max-w-md mx-auto">
-              Your account is verified and ready. Start exploring purchase opportunities.
-            </p>
-            <Link href="/projects">
-              <Button className="bg-gray-900 text-white rounded-xl hover:bg-gray-800 px-12" size="lg">
-                Browse Projects <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
