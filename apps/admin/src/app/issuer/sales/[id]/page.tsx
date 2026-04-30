@@ -137,6 +137,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [editing, setEditing] = useState(searchParams.get("edit") === "1");
+  // Gates the header "Submit for Approval" button. Lifted from the
+  // SaleSetupChecklist via onReadinessChange so we don't fire approval
+  // before all required setup steps (deploy, whitelist, phases, deposit)
+  // are complete on-chain.
+  const [setupReady, setSetupReady] = useState(false);
   const [editForm, setEditForm] = useState<UpdateSaleRequest>({});
   const [saving, setSaving] = useState(false);
   // Gallery management
@@ -672,8 +677,20 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           {isDraft && sale.contract_address && (
             <Button
               variant="primary"
-              onClick={handleSubmitForApproval}
+              onClick={() => {
+                if (!setupReady) {
+                  setActiveTab("onchain");
+                  return;
+                }
+                handleSubmitForApproval();
+              }}
               isLoading={actionLoading === "submit"}
+              disabled={!setupReady}
+              title={
+                setupReady
+                  ? "Submit this sale for admin approval"
+                  : "Complete all required setup steps in the On-Chain tab first"
+              }
             >
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Submit for Approval
@@ -867,6 +884,26 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             </div>
           </div>
         </motion.div>
+      )}
+
+      {/* Setup-incomplete banner — surfaces the checklist when the sale is
+          deployed but pending setup steps. Clickable to jump to the On-Chain
+          tab so the issuer doesn't have to hunt for it. */}
+      {isDraft && sale.contract_address && !setupReady && (
+        <button
+          type="button"
+          onClick={() => setActiveTab("onchain")}
+          className="w-full mb-4 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 text-left hover:bg-amber-100 transition-colors flex items-center gap-3"
+        >
+          <CheckCircle2 className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-900">Sale setup is not complete</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Finish the required steps in the On-Chain tab (deploy, whitelist, phases, deposit) before you can submit for approval. Click to jump there.
+            </p>
+          </div>
+          <span className="text-xs font-medium text-amber-700">Open →</span>
+        </button>
       )}
 
       {/* Tab Navigation */}
@@ -1134,6 +1171,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             onReload={reload}
             onSubmitForApproval={handleSubmitForApproval}
             isSubmitting={actionLoading === "submit"}
+            onReadinessChange={setSetupReady}
           />
 
           {/* On-Chain Contract Actions */}
