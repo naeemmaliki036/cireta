@@ -591,8 +591,14 @@ export default function CreateSalePage() {
           <div className="flex items-center gap-3">
             {isFirst ? <Link href="/issuer/sales"><Button variant="outline" size="sm">Cancel</Button></Link>
               : <Button variant="outline" size="sm" onClick={prevStep}>Back</Button>}
-            {!savedSaleId && <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>{isSaving ? "Saving..." : "Save Draft"}</Button>}
-            {savedSaleId && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
+            {/* Always-available save: "Save Draft" before first save, "Save
+                Changes" after. Previously the button was hidden once savedSaleId
+                was set, which left users editing intermediate steps with no way
+                to persist without walking to the Review tab. */}
+            <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
+              {isSaving ? "Saving..." : savedSaleId ? "Save Changes" : "Save Draft"}
+            </Button>
+            {savedSaleId && !error && !isSaving && <span className="text-xs text-green-600 font-medium">Draft saved</span>}
             {error && <span className="text-xs text-red-600">{error}</span>}
           </div>
           <Button variant="primary" size="sm" onClick={nextStep} disabled={!canProceed} rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
