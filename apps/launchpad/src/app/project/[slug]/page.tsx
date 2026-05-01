@@ -758,20 +758,29 @@ export default function ProjectDetailPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-5">
                       {[
                         ["Token Price", pricePerToken > 0 ? `${pricePerToken.toLocaleString()} USDC` : "TBD"],
-                        ["Total Supply", token ? `${Number(token.total_supply).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
+                        ["Total Supply", token ? `${(Number(token.total_supply) / Math.pow(10, token.decimals ?? 6)).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
                         ["Currency", "USDC"],
                         ["Current Round", ap ? ap.name : "—"],
                         ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
                         ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
-                        ["Per-buyer Cap", project.isComingSoon ? "TBD" : maxTokensInvestor > 0 ? `${maxTokensInvestor.toLocaleString()} ${project.tokenSymbol}` : "Unlimited"],
-                        ["Start", saleWindowStart ? fmtDate(saleWindowStart) : "TBD"],
-                        ["End", saleRaw?.is_open_ended ? "Open-ended" : saleWindowEnd ? fmtDate(saleWindowEnd) : "TBD"],
+                        ["Per-buyer Cap", project.isComingSoon ? "TBD" : maxTokensInvestor > 0 ? `${maxTokensInvestor.toLocaleString()} ${project.tokenSymbol}` : "No per-buyer limit"],
                       ].map(([k, v]) => (
                         <div key={k}>
                           <p className="text-xs text-gray-400 mb-0.5">{k}</p>
                           <p className="text-sm font-semibold text-text">{v}</p>
                         </div>
                       ))}
+                    </div>
+                    {/* Sale window — Start + End on the same row regardless of grid wrap. */}
+                    <div className="grid grid-cols-2 gap-x-8 mt-5 pt-5 border-t border-black/5">
+                      <div>
+                        <p className="text-xs text-gray-400 mb-0.5">Start</p>
+                        <p className="text-sm font-semibold text-text">{saleWindowStart ? fmtDate(saleWindowStart) : "TBD"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 mb-0.5">End</p>
+                        <p className="text-sm font-semibold text-text">{saleRaw?.is_open_ended ? "Open-ended" : saleWindowEnd ? fmtDate(saleWindowEnd) : "TBD"}</p>
+                      </div>
                     </div>
                   </div>
 
