@@ -14,6 +14,14 @@ import "../fraction/CiretaFractionToken1155.sol";
 import "../vault/CiretaVault.sol";
 import "../otc/IssuerOTCToken.sol";
 
+/// Minimal interface for the PFM's fee-receiver lookup. Sale uses this at
+/// finalize time so platform fees flow directly to the configured EOA
+/// (or wherever the PFM owner has set), instead of piling up in the PFM
+/// contract itself with no withdraw mechanism.
+interface IFeeReceiverLookup {
+    function feeReceiver() external view returns (address);
+}
+
 /// @title Sale
 /// @notice Multi-phase token sale with soft/hard cap, platform fee, OTC allocation, and refunds.
 ///         Admin is resolved dynamically from factory.owner() — single source of truth.
@@ -924,7 +932,21 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
                 fee = (paymentContributedTotal * feeBasisPoints) / 10000;
                 if (feeCapUsdc > 0 && fee > feeCapUsdc) fee = feeCapUsdc;
                 platformFeeCollected = fee;
-                paymentToken.safeTransfer(feeManager, fee);
+                // Route the fee to the PFM's configured feeReceiver EOA so
+                // it doesn't accumulate inside the PFM contract (which has
+                // no withdraw fn). Only attempt the lookup if feeManager is
+                // actually a contract — passing an EOA as feeManager is
+                // valid for tests + edge cases, and the lookup would
+                // bubble a decode error out of try/catch.
+                address feeRecipient = feeManager;
+                if (feeManager.code.length > 0) {
+                    try IFeeReceiverLookup(feeManager).feeReceiver() returns (address r) {
+                        if (r != address(0)) feeRecipient = r;
+                    } catch {
+                        // PFM-incompatible contract — keep feeRecipient = feeManager
+                    }
+                }
+                paymentToken.safeTransfer(feeRecipient, fee);
             }
 
             if (saleMode == SaleMode.Vested) {
