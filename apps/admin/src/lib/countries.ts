@@ -137,27 +137,3 @@ export function countryToMode(c: Country, mode: CountryMode): string | number {
   if (mode === "alpha3") return c.alpha3;
   return c.numeric;
 }
-
-// ── Legacy exports — kept so existing callers (e.g. /onboarding) don't break. ──
-// New code should prefer COUNTRIES + resolveCountry + CountrySelect.
-
-export interface CountryOption {
-  code: string;
-  name: string;
-}
-
-export const COUNTRY_OPTIONS: readonly CountryOption[] = COUNTRIES.map((c) => ({
-  code: c.alpha2,
-  name: c.name,
-}));
-
-export function countryNameFromCode(value: string | null | undefined): string {
-  const c = resolveCountry(value);
-  return c?.name ?? (value ?? "");
-}
-
-export function countryCodeFromName(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const found = COUNTRIES.find((c) => c.name.toLowerCase() === value.toLowerCase());
-  return found?.alpha2 ?? null;
-}

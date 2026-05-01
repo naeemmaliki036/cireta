@@ -77,6 +77,66 @@ def _has_sumsub_credentials(settings: Any) -> bool:
     return bool(token and token.lower() not in ("placeholder", "test", "") and not token.startswith("test-"))
 
 
+def _persist_verified_kyc_info(user: User, applicant: dict) -> None:
+    """Mirror Sumsub's verified `info`/`fixedInfo`/`companyInfo` onto users.verified_*.
+
+    Never overwrites self-reported users.* fields — those are what the user
+    typed at onboarding and stay forever for compliance comparison. This
+    helper ONLY writes to users.verified_*. Sumsub returns alpha-3 country
+    codes and E.164 phones — we store as-is.
+    """
+    info = applicant.get("info") or applicant.get("fixedInfo") or {}
+
+    # Individual KYC: build a full name from first + middle + last
+    first = (info.get("firstName") or "").strip()
+    middle = (info.get("middleName") or "").strip()
+    last = (info.get("lastName") or "").strip()
+    full_name = " ".join(p for p in (first, middle, last) if p)
+    if full_name:
+        user.verified_full_name = full_name
+
+    if dob := info.get("dob"):
+        try:
+            user.verified_date_of_birth = datetime.strptime(dob, "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            log.warning("Invalid Sumsub dob format for user %s: %s", user.id, dob)
+
+    # Sumsub returns alpha-3 country codes by default
+    if nat := info.get("nationality"):
+        user.verified_nationality = str(nat).upper()[:3]
+    if country := info.get("country"):
+        user.verified_country_of_residence = str(country).upper()[:3]
+    if phone := info.get("phone"):
+        user.verified_phone_number = str(phone)[:32]
+
+    # Corporate / KYB: companyInfo is keyed under info.companyInfo
+    company = info.get("companyInfo") or applicant.get("companyInfo") or {}
+    if company:
+        if name := company.get("companyName"):
+            user.verified_company_name = str(name)[:255]
+        if reg := company.get("registrationNumber"):
+            user.verified_company_registration_number = str(reg)[:100]
+        if jur := company.get("country"):
+            user.verified_company_jurisdiction = str(jur).upper()[:3]
+        if owners := company.get("beneficiaries"):
+            # Keep only the fields we render: name + ownership percentage
+            user.verified_beneficial_owners = [
+                {
+                    "name": " ".join(
+                        p for p in (
+                            (b.get("firstName") or "").strip(),
+                            (b.get("lastName") or "").strip(),
+                        ) if p
+                    ) or b.get("companyName") or "Unknown",
+                    "ownership_pct": b.get("share") or b.get("ownershipPct"),
+                }
+                for b in owners
+                if isinstance(b, dict)
+            ] or None
+
+    user.kyc_synced_at = datetime.now(UTC)
+
+
 class KYCService:
     """Service for KYC operations with Sumsub integration."""
 
@@ -461,6 +521,24 @@ class KYCService:
                 user.kyc_provider = "sumsub"
                 user.kyc_external_id = applicant_id
                 user.kyc_verified_at = datetime.now(UTC)
+                # Pull the full applicant payload from Sumsub and mirror the
+                # verified personal/corporate fields onto users.verified_*.
+                # Webhook itself doesn't carry info — only the applicant
+                # endpoint does. Failure here is non-fatal: KYC still
+                # approves, we just have empty verified_* until next sync.
+                try:
+                    from packages.common.core.config import get_settings as _gs
+                    s = _gs()
+                    if _has_sumsub_credentials(s):
+                        applicant = await _sumsub_request(
+                            "GET",
+                            f"/resources/applicants/{applicant_id}/one",
+                            s.sumsub_app_token,
+                            s.sumsub_secret_key,
+                        )
+                        _persist_verified_kyc_info(user, applicant)
+                except Exception as exc:
+                    log.warning("verified_* sync failed for user %s: %s", user.id, exc)
                 await self._issue_onchain_claims(user)
                 try:
                     notif_service = NotificationService(self.db)

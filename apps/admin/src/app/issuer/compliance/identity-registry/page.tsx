@@ -12,6 +12,7 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/identityRegistryAbi";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { CountrySelect } from "@/components/molecules/CountrySelect";
 import {
   listIdentitySyncJobs,
   retryIdentitySyncJob,
@@ -272,16 +273,15 @@ export default function IdentityRegistryAdminPage() {
             </div>
             {action === "add" && (
               <div>
-                <label className="block text-xs text-white/50 mb-1">Country code (numeric, optional)</label>
-                <input
-                  type="number"
-                  value={country}
-                  onChange={(e) => setCountry(parseInt(e.target.value || "0", 10))}
-                  placeholder="0"
-                  min={0}
-                  max={999}
-                  className="w-32 px-3 py-2 text-sm bg-white/5 border border-white/10 text-white rounded-lg focus:outline-none focus:border-white/30"
-                />
+                <label className="block text-xs text-white/50 mb-1">Country</label>
+                <div className="w-72">
+                  <CountrySelect
+                    mode="numeric"
+                    value={country || null}
+                    onChange={(v) => setCountry(typeof v === "number" ? v : 0)}
+                    placeholder="Select country"
+                  />
+                </div>
               </div>
             )}
 
@@ -387,14 +387,12 @@ export default function IdentityRegistryAdminPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-white/50 mb-1">New country code (numeric)</label>
-              <input
-                type="number"
-                value={updateCountryCode}
-                onChange={(e) => setUpdateCountryCode(parseInt(e.target.value || "0", 10))}
-                min={0}
-                max={999}
-                className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 text-white rounded-lg"
+              <label className="block text-xs text-white/50 mb-1">New country</label>
+              <CountrySelect
+                mode="numeric"
+                value={updateCountryCode || null}
+                onChange={(v) => setUpdateCountryCode(typeof v === "number" ? v : 0)}
+                placeholder="Select country"
               />
             </div>
           </div>

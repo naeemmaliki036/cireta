@@ -14,6 +14,7 @@ import {
   TIME_TRANSFERS_LIMIT_MODULE_ABI,
 } from "./NumericTimeModuleConfig";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { CountrySelect } from "@/components/molecules/CountrySelect";
 import { useContractAction } from "@/hooks/useContractAction";
 import { CountrySelector, COUNTRIES } from "@/components/molecules/CountrySelector";
 import type { ComplianceModule } from "@/lib/api/repositories/token-compliance";
@@ -133,15 +134,14 @@ function CountryAllowConfig({
       <div>
         <h4 className="text-xs font-semibold text-zinc-500 mb-2">Quick Add Single Country</h4>
         <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={0}
-            max={999}
-            placeholder="Country code (e.g. 784)"
-            value={singleCountry !== null ? String(singleCountry) : ""}
-            onChange={(e) => setSingleCountry(e.target.value === "" ? null : parseInt(e.target.value, 10))}
-            className="w-48"
-          />
+          <div className="w-72">
+            <CountrySelect
+              mode="numeric"
+              value={singleCountry}
+              onChange={(v) => setSingleCountry(typeof v === "number" ? v : null)}
+              placeholder="Search country…"
+            />
+          </div>
           <Button
             variant="outline"
             size="sm"

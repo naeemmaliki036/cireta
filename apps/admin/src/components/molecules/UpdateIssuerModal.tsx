@@ -6,6 +6,7 @@ import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { X, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/atoms";
+import { CountrySelect } from "@/components/molecules/CountrySelect";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { useContractAction } from "@/hooks/useContractAction";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
@@ -92,11 +93,11 @@ export function UpdateIssuerModal({
           </div>
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Jurisdiction</label>
-            <input
+            <CountrySelect
+              mode="alpha2"
               value={jurisdiction}
-              onChange={(e) => setJurisdiction(e.target.value)}
-              className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua"
-              placeholder="e.g. UAE, Switzerland"
+              onChange={(v) => setJurisdiction(typeof v === "string" ? v : "")}
+              placeholder="Select jurisdiction"
             />
           </div>
         </div>

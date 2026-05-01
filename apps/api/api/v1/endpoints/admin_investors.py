@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from uuid import UUID
 
@@ -15,7 +16,23 @@ from apps.api.models.user import User
 from packages.common.core.auth_deps import RequireAdmin, RequireIssuerOrAdmin
 from packages.common.db.session import get_db
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(tags=["admin"])
+
+
+class HoldingResponse(BaseModel):
+    sale_id: str
+    sale_name: str
+    token_symbol: str | None = None
+    tokens_held: str               # Decimal serialized as string for precision
+    contributed_usdc: str          # Decimal serialized as string
+    claim_status: str              # "pending" | "claimed" | "refunded"
+
+
+class BeneficialOwnerResponse(BaseModel):
+    name: str
+    ownership_pct: str | None = None
 
 
 class InvestorResponse(BaseModel):
@@ -32,21 +49,42 @@ class InvestorResponse(BaseModel):
     email_verified: bool = False
     created_at: datetime
 
+    # Self-reported (typed at onboarding)
+    date_of_birth: str | None = None
+    nationality: str | None = None
+    country_of_residence: str | None = None
+    phone_number: str | None = None
+    company_name: str | None = None
+    company_registration_number: str | None = None
+    company_jurisdiction: str | None = None
+
+    # Sumsub-verified mirror
+    verified_full_name: str | None = None
+    verified_date_of_birth: str | None = None
+    verified_nationality: str | None = None
+    verified_country_of_residence: str | None = None
+    verified_phone_number: str | None = None
+    verified_company_name: str | None = None
+    verified_company_registration_number: str | None = None
+    verified_company_jurisdiction: str | None = None
+    verified_beneficial_owners: list[BeneficialOwnerResponse] | None = None
+    kyc_synced_at: datetime | None = None
+
+    # Activity (aggregated from sale_contributions)
+    participation_count: int = 0
+    total_contributed_usdc: str = "0"
+    top_holdings: list[HoldingResponse] = []
+
     class Config:
         from_attributes = True
 
 
 class InvestorDetailResponse(InvestorResponse):
-    nationality: str | None = None
-    country_of_residence: str | None = None
-    date_of_birth: str | None = None
-    company_name: str | None = None
-    company_registration_number: str | None = None
-    company_jurisdiction: str | None = None
     kyc_provider: str | None = None
     kyc_verified_at: datetime | None = None
     is_accredited: bool = False
     wallets: list[dict] = []
+    holdings: list[HoldingResponse] = []   # full list, no cap
 
 
 class InvestorListResponse(BaseModel):
@@ -54,6 +92,171 @@ class InvestorListResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+def _build_investor_response(
+    u: User,
+    holdings: list[HoldingResponse],
+    contributed_total: str,
+    *,
+    holdings_cap: int | None = 3,
+) -> InvestorResponse:
+    """Map a User row + pre-aggregated activity into an InvestorResponse.
+
+    holdings_cap=3 trims for the list view; pass None to keep all (detail view
+    uses the InvestorDetailResponse subclass which exposes `holdings` instead
+    of `top_holdings`).
+    """
+    primary_addr = None
+    if u.wallets:
+        addr = u.wallets[0].address
+        primary_addr = (addr[:6] + "…" + addr[-4:]) if addr and len(addr) > 10 else addr
+
+    top = holdings if holdings_cap is None else holdings[:holdings_cap]
+
+    bo: list[BeneficialOwnerResponse] | None = None
+    if u.verified_beneficial_owners:
+        bo = [
+            BeneficialOwnerResponse(
+                name=b.get("name", "Unknown"),
+                ownership_pct=str(b["ownership_pct"]) if b.get("ownership_pct") is not None else None,
+            )
+            for b in u.verified_beneficial_owners
+            if isinstance(b, dict)
+        ] or None
+
+    return InvestorResponse(
+        id=str(u.id),
+        email=u.email,
+        display_name=u.display_name,
+        investor_type=u.investor_type,
+        kyc_status=u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status),
+        kyc_level=u.kyc_level,
+        onchain_id=u.onchain_id,
+        wallet_address=primary_addr,
+        wallet_count=len(u.wallets) if u.wallets else 0,
+        onboarding_completed=u.onboarding_completed,
+        email_verified=u.email_verified,
+        created_at=u.created_at,
+
+        # Self-reported
+        date_of_birth=str(u.date_of_birth) if u.date_of_birth else None,
+        nationality=u.nationality,
+        country_of_residence=u.country_of_residence,
+        phone_number=u.phone_number,
+        company_name=u.company_name,
+        company_registration_number=u.company_registration_number,
+        company_jurisdiction=u.company_jurisdiction,
+
+        # Sumsub-verified
+        verified_full_name=u.verified_full_name,
+        verified_date_of_birth=str(u.verified_date_of_birth) if u.verified_date_of_birth else None,
+        verified_nationality=u.verified_nationality,
+        verified_country_of_residence=u.verified_country_of_residence,
+        verified_phone_number=u.verified_phone_number,
+        verified_company_name=u.verified_company_name,
+        verified_company_registration_number=u.verified_company_registration_number,
+        verified_company_jurisdiction=u.verified_company_jurisdiction,
+        verified_beneficial_owners=bo,
+        kyc_synced_at=u.kyc_synced_at,
+
+        # Activity
+        participation_count=len(holdings),
+        total_contributed_usdc=contributed_total,
+        top_holdings=top,
+    )
+
+
+async def _aggregate_holdings(
+    db: AsyncSession, user_ids: list[UUID]
+) -> tuple[dict[UUID, list[HoldingResponse]], dict[UUID, str]]:
+    """Single grouped query: per (user, sale) totals + claim-status rollup.
+
+    Returns (holdings_by_user_id, contributed_total_by_user_id).
+    Rolling claim_status across multiple phase-level contributions:
+      - any REFUNDED → "refunded"
+      - else all CLAIMED → "claimed"
+      - else → "pending"
+    """
+    if not user_ids:
+        return {}, {}
+
+    from apps.api.models.contribution import Contribution
+    from apps.api.models.enums import ContributionStatus
+    from apps.api.models.token import Token
+    from apps.api.models.token_sale import TokenSale
+
+    rows = (
+        await db.execute(
+            select(
+                Contribution.user_id,
+                Contribution.sale_id,
+                TokenSale.title.label("sale_title"),
+                Token.symbol.label("token_symbol"),
+                Contribution.payment_amount,
+                Contribution.tokens_allocated,
+                Contribution.status,
+            )
+            .join(TokenSale, TokenSale.id == Contribution.sale_id)
+            .outerjoin(Token, Token.id == TokenSale.token_id)
+            .where(Contribution.user_id.in_(user_ids))
+        )
+    ).all()
+
+    # Bucket by (user_id, sale_id)
+    from collections import defaultdict
+    from decimal import Decimal
+
+    bucket: dict[tuple[UUID, UUID], dict] = defaultdict(
+        lambda: {
+            "tokens_held": Decimal("0"),
+            "contributed": Decimal("0"),
+            "any_refunded": False,
+            "all_claimed": True,
+            "sale_title": "",
+            "token_symbol": None,
+        }
+    )
+    contributed_total: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0"))
+
+    for r in rows:
+        key = (r.user_id, r.sale_id)
+        b = bucket[key]
+        b["tokens_held"] += r.tokens_allocated or Decimal("0")
+        b["contributed"] += r.payment_amount or Decimal("0")
+        b["sale_title"] = r.sale_title or "(unnamed)"
+        b["token_symbol"] = r.token_symbol
+        if r.status == ContributionStatus.REFUNDED:
+            b["any_refunded"] = True
+        if r.status != ContributionStatus.CLAIMED:
+            b["all_claimed"] = False
+        contributed_total[r.user_id] += r.payment_amount or Decimal("0")
+
+    holdings_by_user: dict[UUID, list[HoldingResponse]] = defaultdict(list)
+    for (user_id, sale_id), b in bucket.items():
+        if b["any_refunded"]:
+            claim_status = "refunded"
+        elif b["all_claimed"]:
+            claim_status = "claimed"
+        else:
+            claim_status = "pending"
+        holdings_by_user[user_id].append(
+            HoldingResponse(
+                sale_id=str(sale_id),
+                sale_name=b["sale_title"],
+                token_symbol=b["token_symbol"],
+                tokens_held=str(b["tokens_held"]),
+                contributed_usdc=str(b["contributed"]),
+                claim_status=claim_status,
+            )
+        )
+
+    # Sort each user's holdings by contributed DESC so [:3] shows the heaviest
+    for hl in holdings_by_user.values():
+        hl.sort(key=lambda h: Decimal(h.contributed_usdc), reverse=True)
+
+    contributed_str = {uid: str(v) for uid, v in contributed_total.items()}
+    return holdings_by_user, contributed_str
 
 
 @router.get("/investors", response_model=InvestorListResponse)
@@ -64,7 +267,7 @@ async def list_investors(
     size: int = Query(20, ge=1, le=100),
     kyc_status: str | None = Query(None),
 ) -> InvestorListResponse:
-    """List all investor accounts with optional KYC status filter."""
+    """List all investor accounts with KYC + activity aggregates."""
     from sqlalchemy.orm import selectinload
 
     from apps.api.models.enums import UserRole
@@ -82,22 +285,16 @@ async def list_investors(
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     rows = (await db.execute(q.offset(offset).limit(size))).scalars().all()
 
+    holdings_by_user, contributed_by_user = await _aggregate_holdings(
+        db, [u.id for u in rows]
+    )
+
     items = [
-        InvestorResponse(
-            id=str(u.id),
-            email=u.email,
-            display_name=u.display_name,
-            investor_type=u.investor_type,
-            kyc_status=u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status),
-            kyc_level=u.kyc_level,
-            onchain_id=u.onchain_id,
-            wallet_address=(u.wallets[0].address[:6] + "…" + u.wallets[0].address[-4:])
-            if u.wallets and u.wallets[0].address and len(u.wallets[0].address) > 10
-            else (u.wallets[0].address if u.wallets else None),
-            wallet_count=len(u.wallets) if u.wallets else 0,
-            onboarding_completed=u.onboarding_completed,
-            email_verified=u.email_verified,
-            created_at=u.created_at,
+        _build_investor_response(
+            u,
+            holdings=holdings_by_user.get(u.id, []),
+            contributed_total=contributed_by_user.get(u.id, "0"),
+            holdings_cap=3,
         )
         for u in rows
     ]
@@ -126,7 +323,6 @@ async def get_investor_detail(
         )
 
     wallet_list = []
-    primary_address = None
     if user.wallets:
         for w in user.wallets:
             wallet_list.append({
@@ -135,34 +331,26 @@ async def get_investor_detail(
                 "is_primary": getattr(w, "is_primary", False),
                 "created_at": w.created_at.isoformat() if w.created_at else None,
             })
-        if user.wallets[0].address and len(user.wallets[0].address) > 10:
-            primary_address = user.wallets[0].address[:6] + "…" + user.wallets[0].address[-4:]
-        else:
-            primary_address = user.wallets[0].address if user.wallets else None
+
+    # Aggregate holdings + total contributed for this single user
+    holdings_by_user, contributed_by_user = await _aggregate_holdings(db, [user.id])
+    user_holdings = holdings_by_user.get(user.id, [])
+    user_contributed = contributed_by_user.get(user.id, "0")
+
+    base = _build_investor_response(
+        user,
+        holdings=user_holdings,
+        contributed_total=user_contributed,
+        holdings_cap=None,  # detail view shows everything
+    )
 
     return InvestorDetailResponse(
-        id=str(user.id),
-        email=user.email,
-        display_name=user.display_name,
-        investor_type=user.investor_type,
-        kyc_status=user.kyc_status.value if hasattr(user.kyc_status, "value") else str(user.kyc_status),
-        kyc_level=user.kyc_level,
-        onchain_id=user.onchain_id,
-        wallet_address=primary_address,
-        wallet_count=len(user.wallets) if user.wallets else 0,
-        onboarding_completed=user.onboarding_completed,
-        email_verified=user.email_verified,
-        nationality=user.nationality,
-        country_of_residence=user.country_of_residence,
-        date_of_birth=str(user.date_of_birth) if user.date_of_birth else None,
-        company_name=user.company_name,
-        company_registration_number=user.company_registration_number,
-        company_jurisdiction=user.company_jurisdiction,
+        **base.model_dump(),
         kyc_provider=user.kyc_provider,
         kyc_verified_at=user.kyc_verified_at,
         is_accredited=user.is_accredited,
         wallets=wallet_list,
-        created_at=user.created_at,
+        holdings=user_holdings,
     )
 
 
@@ -419,6 +607,14 @@ async def admin_confirm_sync(
         user.kyc_level = 2
         user.kyc_provider = "sumsub"
         user.kyc_verified_at = datetime.now(tz=__import__("datetime").timezone.utc)
+
+        # Mirror Sumsub-verified personal/corporate fields onto users.verified_*
+        # so the admin UI can compare against self-reported.
+        try:
+            from apps.api.services.kyc_service import _persist_verified_kyc_info
+            _persist_verified_kyc_info(user, applicant_data)
+        except Exception as exc:
+            log.warning("verified_* sync failed for user %s: %s", user.id, exc)
 
         # On-chain registration
         onchain_result = None

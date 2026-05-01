@@ -1,5 +1,19 @@
 import { apiFetch } from "../client";
 
+export interface Holding {
+  sale_id: string;
+  sale_name: string;
+  token_symbol: string | null;
+  tokens_held: string;
+  contributed_usdc: string;
+  claim_status: "pending" | "claimed" | "refunded";
+}
+
+export interface BeneficialOwner {
+  name: string;
+  ownership_pct: string | null;
+}
+
 export interface Investor {
   id: string;
   email: string;
@@ -13,19 +27,40 @@ export interface Investor {
   onboarding_completed: boolean;
   email_verified: boolean;
   created_at: string;
-}
 
-export interface InvestorDetail extends Investor {
+  // Self-reported (typed at onboarding)
+  date_of_birth: string | null;
   nationality: string | null;
   country_of_residence: string | null;
-  date_of_birth: string | null;
+  phone_number: string | null;
   company_name: string | null;
   company_registration_number: string | null;
   company_jurisdiction: string | null;
+
+  // Sumsub-verified mirror
+  verified_full_name: string | null;
+  verified_date_of_birth: string | null;
+  verified_nationality: string | null;
+  verified_country_of_residence: string | null;
+  verified_phone_number: string | null;
+  verified_company_name: string | null;
+  verified_company_registration_number: string | null;
+  verified_company_jurisdiction: string | null;
+  verified_beneficial_owners: BeneficialOwner[] | null;
+  kyc_synced_at: string | null;
+
+  // Activity aggregates
+  participation_count: number;
+  total_contributed_usdc: string;
+  top_holdings: Holding[];
+}
+
+export interface InvestorDetail extends Investor {
   kyc_provider: string | null;
   kyc_verified_at: string | null;
   is_accredited: boolean;
   wallets: { id: string; address: string; is_primary: boolean; created_at: string | null }[];
+  holdings: Holding[];
 }
 
 export interface InvestorListResponse {

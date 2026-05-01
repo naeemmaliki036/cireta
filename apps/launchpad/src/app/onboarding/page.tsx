@@ -18,7 +18,7 @@ import {
   completeOnboarding,
   type OnboardingStatus,
 } from "@/lib/api/repositories/auth.repository";
-import { COUNTRY_OPTIONS } from "@/lib/countries";
+import { CountrySelect } from "@/components/molecules/CountrySelect";
 
 type Step = "type" | "details" | "wallet" | "kyc" | "complete";
 
@@ -397,21 +397,23 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Nationality</label>
-                  <select value={nationality} onChange={(e) => setNationality(e.target.value)}
+                  <CountrySelect
+                    mode="alpha2"
+                    value={nationality || null}
+                    onChange={(v) => setNationality(typeof v === "string" ? v : "")}
                     disabled={isDetailsCompleted}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <option value="">Select nationality</option>
-                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-                  </select>
+                    placeholder="Select nationality"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Country of Residence</label>
-                  <select value={countryOfResidence} onChange={(e) => setCountryOfResidence(e.target.value)}
+                  <CountrySelect
+                    mode="alpha2"
+                    value={countryOfResidence || null}
+                    onChange={(v) => setCountryOfResidence(typeof v === "string" ? v : "")}
                     disabled={isDetailsCompleted}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <option value="">Select country</option>
-                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-                  </select>
+                    placeholder="Select country"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Mobile Phone <span className="text-gray-400 font-normal">(optional)</span></label>
@@ -438,12 +440,13 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Jurisdiction</label>
-                  <select value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)}
+                  <CountrySelect
+                    mode="alpha2"
+                    value={jurisdiction || null}
+                    onChange={(v) => setJurisdiction(typeof v === "string" ? v : "")}
                     disabled={isDetailsCompleted}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed">
-                    <option value="">Select country of incorporation</option>
-                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-                  </select>
+                    placeholder="Select country of incorporation"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Phone <span className="text-gray-400 font-normal">(optional)</span></label>

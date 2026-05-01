@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from apps.api.models.enums import KYCStatus, UserRole
@@ -57,14 +58,29 @@ class User(BaseModel):
     country_code: Mapped[str | None] = mapped_column(String(2), nullable=True, default=None)
     investor_type: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
 
-    # Investor onboarding
+    # ── Self-reported (what the user typed at onboarding) ──
+    # Never overwritten by Sumsub. Compared against verified_* for compliance.
     date_of_birth: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
     country_of_residence: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    phone_number: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     company_registration_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     company_jurisdiction: Mapped[str | None] = mapped_column(String(100), nullable=True)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── Sumsub-verified mirror (only the webhook writes here) ──
+    # All country fields are ISO 3166-1 alpha-3 (Sumsub's default).
+    verified_full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    verified_date_of_birth: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    verified_nationality: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    verified_country_of_residence: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    verified_phone_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    verified_company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    verified_company_registration_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    verified_company_jurisdiction: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    verified_beneficial_owners: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    kyc_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # On-chain identity
     onchain_id: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True, default=None)

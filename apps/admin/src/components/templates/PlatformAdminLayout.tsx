@@ -50,7 +50,7 @@ const PLATFORM_LINKS = [
 const MANAGE_LINKS = [
   { href: "/platform/issuers", label: "Issuers", icon: Building2 },
   { href: "/platform/issuers/whitelist", label: "Issuer Whitelist", icon: ListChecks },
-  { href: "/platform/users", label: "Users", icon: Users },
+  { href: "/platform/users", label: "Users / Buyers", icon: Users },
 ];
 
 const WEBSITE_CMS_LINKS = [
