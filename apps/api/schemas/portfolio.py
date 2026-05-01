@@ -48,6 +48,7 @@ class VestingScheduleResponse(BaseModel):
     id: str
     token_id: str
     token_symbol: str
+    token_name: str = ""
     total_amount: str
     claimed_amount: str
     remaining_amount: str
@@ -58,6 +59,11 @@ class VestingScheduleResponse(BaseModel):
     last_claim_at: datetime | None
     is_revocable: bool = True
     is_revoked: bool = False
+    # Sale-linked fields used by the claim page to dispatch the on-chain call.
+    sale_mode: str = "vested"
+    vault_address: str | None = None
+    sale_contract_address: str | None = None
+    fraction_token_address: str | None = None
 
     class Config:
         from_attributes = True

@@ -70,12 +70,18 @@ def _holding_to_response(holding: dict) -> HoldingResponse:
     )
 
 
-def _vesting_to_response(schedule) -> VestingScheduleResponse:
-    """Convert vesting schedule to response."""
+def _vesting_to_response(schedule, sale=None) -> VestingScheduleResponse:
+    """Convert vesting schedule to response.
+
+    `sale` is the matching TokenSale row (optional). When provided, the
+    response carries the contract addresses the claim page needs to dispatch
+    the on-chain call.
+    """
     return VestingScheduleResponse(
         id=str(schedule.id),
         token_id=str(schedule.token_id),
         token_symbol=schedule.token.symbol,
+        token_name=schedule.token.name or "",
         total_amount=str(schedule.total_amount),
         claimed_amount=str(schedule.claimed_amount),
         remaining_amount=str(schedule.remaining_amount),
@@ -84,6 +90,10 @@ def _vesting_to_response(schedule) -> VestingScheduleResponse:
         vesting_end=schedule.vesting_end,
         cliff_passed=schedule.cliff_passed,
         last_claim_at=schedule.last_claim_at,
+        sale_mode=getattr(sale, "sale_mode", "vested") or "vested",
+        vault_address=getattr(sale, "vault_address", None),
+        sale_contract_address=getattr(sale, "contract_address", None),
+        fraction_token_address=getattr(sale, "fraction_token_address", None),
     )
 
 
@@ -147,11 +157,33 @@ async def get_portfolio_summary(
 @router.get("/vesting", response_model=list[VestingScheduleResponse])
 async def get_vesting_schedules(
     user_id: CurrentUserId,
+    db: Annotated[AsyncSession, Depends(get_db)],
     vesting_service: Annotated[VestingService, Depends(get_vesting_service)],
+    token_id: UUID | None = Query(None),
 ) -> list[VestingScheduleResponse]:
-    """Get user's vesting schedules."""
-    schedules = await vesting_service.get_user_schedules(user_id)
-    return [_vesting_to_response(s) for s in schedules]
+    """Get user's vesting schedules — optionally filter to a single token."""
+    schedules = await vesting_service.get_schedules(user_id, token_id=token_id)
+
+    # Sale info (vault/contract/fraction addresses) lives on token_sales, not
+    # the vesting schedule. Fetch the most recent sale per token in one round
+    # trip and attach it to each schedule's response.
+    from sqlalchemy import select as _select
+
+    from apps.api.models.token_sale import TokenSale
+
+    token_ids = list({s.token_id for s in schedules})
+    sales_by_token: dict = {}
+    if token_ids:
+        sales_result = await db.execute(
+            _select(TokenSale)
+            .where(TokenSale.token_id.in_(token_ids))
+            .order_by(TokenSale.created_at.desc())
+        )
+        for sale in sales_result.scalars().all():
+            # Keep the latest sale per token (first row in DESC order wins).
+            sales_by_token.setdefault(sale.token_id, sale)
+
+    return [_vesting_to_response(s, sales_by_token.get(s.token_id)) for s in schedules]
 
 
 @router.post("/vesting/{schedule_id}/claim", response_model=VestingClaimResponse)
