@@ -425,7 +425,11 @@ async def get_transactions(
             }
 
             # Buy event — always emitted. The buy happened the moment the row
-            # was created, regardless of subsequent claim/refund.
+            # was created, regardless of subsequent claim/refund. Status is
+            # always "confirmed" for the buy itself — the contribution's
+            # row-level status (which can be "claimed" or "refunded") tells
+            # us what happened later, but the buy tx itself was just
+            # confirmed on-chain.
             if not tx_type or tx_type == "investment":
                 txs.append(
                     {
@@ -433,7 +437,7 @@ async def get_transactions(
                         "id": f"{c.id}-buy",
                         "type": "investment",
                         "tx_hash": c.tx_hash,
-                        "status": c_status,
+                        "status": "confirmed",
                         "created_at": c.created_at.isoformat() if c.created_at else None,
                     }
                 )
