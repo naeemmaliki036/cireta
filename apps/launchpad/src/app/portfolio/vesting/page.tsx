@@ -49,7 +49,10 @@ function buildClaimSchedule(
     milestones.push({ label: `Day ${d}`, date, pct });
   }
 
-  milestones.push({ label: "Fully vested", date: vestingEnd, pct: 100 });
+  // Same convention as the badge below: lockup schedules unlock all at once
+  // at the cliff, so the final milestone label says "unlocked" not "vested".
+  const isLockup = Math.abs(vestingEnd.getTime() - cliffEnd.getTime()) < 1000;
+  milestones.push({ label: isLockup ? "Fully unlocked" : "Fully vested", date: vestingEnd, pct: 100 });
   return milestones;
 }
 
@@ -161,6 +164,11 @@ export default function PortfolioVestingPage() {
               const now = new Date();
               const cliffPassed = cliffEnd <= now;
               const vestingComplete = vestingEnd <= now;
+              // Lockup variant: everything unlocks at the cliff (no linear ramp).
+              // We treat any schedule where cliff and vesting end land within
+              // a second of each other as a lockup-only schedule.
+              const isLockup = Math.abs(vestingEnd.getTime() - cliffEnd.getTime()) < 1000;
+              const completeLabel = isLockup ? "Fully unlocked" : "Fully vested";
               const vestedPct = vestingComplete
                 ? 100
                 : cliffPassed && total > 0
@@ -186,7 +194,7 @@ export default function PortfolioVestingPage() {
                         Cliff ends in {cliffDays}d {cliffHours}h
                       </Badge>
                     ) : vestingComplete ? (
-                      <Badge variant="active" size="sm">Fully vested</Badge>
+                      <Badge variant="active" size="sm">{completeLabel}</Badge>
                     ) : (
                       <Badge variant="active" size="sm">
                         {vestedPct}% vested

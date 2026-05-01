@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   formatNextUnlock,
   getVestingState,
+  isLockupSchedule,
   vestingPercent,
 } from "@/lib/vesting";
 import type { Holding } from "@/lib/api/repositories/portfolio.repository";
@@ -16,15 +17,17 @@ export interface VestingMiniCardProps {
   className?: string;
 }
 
-const STATE_LABEL: Record<ReturnType<typeof getVestingState>, string> = {
-  direct: "Direct",
-  locked: "Locked",
-  vesting: "Vesting",
-  "fully-vested": "Unlocked",
-};
+function stateLabel(state: ReturnType<typeof getVestingState>, lockup: boolean): string {
+  if (state === "direct") return "Direct";
+  if (state === "locked") return "Locked";
+  if (state === "vesting") return "Vesting";
+  // fully-vested
+  return lockup ? "Unlocked" : "Vested";
+}
 
 export function VestingMiniCard({ holding, className }: VestingMiniCardProps) {
   const state = getVestingState(holding);
+  const lockup = isLockupSchedule(holding);
   const pct = vestingPercent(holding);
   const claimable = parseFloat(holding.claimable_amount ?? holding.claimable ?? "0");
 
@@ -52,7 +55,7 @@ export function VestingMiniCard({ holding, className }: VestingMiniCardProps) {
               : "bg-box text-black/60"
           )}
         >
-          {STATE_LABEL[state]}
+          {stateLabel(state, lockup)}
         </span>
       </div>
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/atoms";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   formatVestingStatus,
+  getStateLabel,
   getVestingState,
   vestingPercent,
 } from "@/lib/vesting";
@@ -92,7 +93,7 @@ function HoldingRow({ h }: { h: HoldingItem }) {
               {h.token_name}
             </p>
             <p className="text-xs text-black/50">
-              {balLabel} · {state === "direct" ? "direct" : state === "locked" ? "locked" : state === "vesting" ? "vesting" : "vested"}
+              {balLabel} · {getStateLabel(h)}
             </p>
           </div>
         </Link>

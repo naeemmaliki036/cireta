@@ -36,6 +36,10 @@ export function VestingCard({
   const now = new Date();
   const isCliffPassed = now >= cliffEnd;
   const isVestingComplete = now >= vestingEnd;
+  // Lockup-only schedules unlock all at once at the cliff (cliff_end ==
+  // vesting_end). Differentiate the badge label so investors aren't told
+  // their lockup-only position is "vesting".
+  const isLockup = Math.abs(vestingEnd.getTime() - cliffEnd.getTime()) < 1000;
   const vestedPercent = isVestingComplete
     ? 100
     : isCliffPassed
@@ -86,17 +90,17 @@ export function VestingCard({
         {isVestingComplete ? (
           <Badge variant="active">
             <Unlock className="h-3 w-3 mr-1" />
-            Fully Vested
+            {isLockup ? "Fully Unlocked" : "Fully Vested"}
           </Badge>
         ) : isCliffPassed ? (
           <Badge variant="active">
             <Clock className="h-3 w-3 mr-1" />
-            Vesting
+            {isLockup ? "Unlocked" : "Vesting"}
           </Badge>
         ) : (
           <Badge variant="pending">
             <Lock className="h-3 w-3 mr-1" />
-            Cliff Period
+            {isLockup ? "Locked" : "Cliff Period"}
           </Badge>
         )}
       </div>

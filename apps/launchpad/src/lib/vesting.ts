@@ -17,6 +17,29 @@ export function getVestingState(h: Holding): VestingState {
   return "vesting";
 }
 
+/**
+ * Lockup-only variant: every fraction unlocks at the cliff, no linear ramp.
+ * Detected by cliff_end == vesting_end (within 1s tolerance for DB rounding).
+ * The label "vesting" doesn't apply to these — they're "locked" then "unlocked".
+ */
+export function isLockupSchedule(h: Holding): boolean {
+  if (!h.cliff_end || !h.vesting_end) return false;
+  const cliff = new Date(h.cliff_end).getTime();
+  const end = new Date(h.vesting_end).getTime();
+  return Math.abs(end - cliff) < 1000;
+}
+
+/** Short label for the asset row's secondary line. */
+export function getStateLabel(h: Holding): string {
+  const state = getVestingState(h);
+  const lockup = isLockupSchedule(h);
+  if (state === "direct") return "direct";
+  if (state === "locked") return "locked";
+  if (state === "vesting") return "vesting";
+  // fully-vested
+  return lockup ? "unlocked" : "vested";
+}
+
 function fmtDate(d: Date): string {
   return d.toLocaleString(undefined, {
     month: "short",
@@ -56,8 +79,11 @@ export function formatVestingStatus(h: Holding): string {
   if (state === "direct") return "Direct (immediate)";
   if (!h.next_unlock_at) return "—";
   const target = new Date(h.next_unlock_at);
+  const lockup = isLockupSchedule(h);
   if (state === "locked") return `Unlocks ${fmtDate(target)} · ${fmtRemaining(target.getTime())}`;
-  if (state === "fully-vested") return `Unlocked ${fmtDate(target)}`;
+  if (state === "fully-vested") {
+    return lockup ? `Unlocked ${fmtDate(target)}` : `Fully vested ${fmtDate(target)}`;
+  }
   // mid-vesting
   const pct = Math.round((h.vesting_progress ?? 0) * 100);
   return `${pct}% vested · full unlock ${fmtDate(target)}`;
@@ -68,9 +94,10 @@ export function formatNextUnlock(h: Holding): string {
   const state = getVestingState(h);
   if (!h.next_unlock_at) return "—";
   const target = new Date(h.next_unlock_at);
+  const lockup = isLockupSchedule(h);
   if (state === "locked") return `Unlocks ${fmtDate(target)}`;
   if (state === "vesting") return `Full unlock ${fmtDate(target)}`;
-  return `Unlocked ${fmtDate(target)}`;
+  return lockup ? `Unlocked ${fmtDate(target)}` : `Fully vested ${fmtDate(target)}`;
 }
 
 export function vestingPercent(h: Holding): number {
