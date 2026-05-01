@@ -140,7 +140,7 @@ export default function VerificationSettingsPage() {
           <AlertCircle className="w-5 h-5 text-text shrink-0" />
           <div>
             <p className="text-text text-sm font-semibold">Verification Expired</p>
-            <p className="text-black/60 text-xs mt-0.5">Your verification has expired. Please re-verify to continue investing.</p>
+            <p className="text-black/60 text-xs mt-0.5">Your verification has expired. Please re-verify to continue buying.</p>
           </div>
         </div>
       )}

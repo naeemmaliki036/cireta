@@ -21,7 +21,7 @@ const ACCOUNT_TIPS: InfoSidebarItem[] = [
     icon: Wallet,
     title: "Connect multiple wallets",
     body:
-      "You can link up to 10 wallets to your account. Each linked wallet inherits your KYC status, so you can buy or claim from any of them.",
+      "You can link up to 5 wallets to your account. Each linked wallet inherits your KYC status, so you can buy or claim from any of them.",
     href: "/settings/wallets",
     hrefLabel: "Manage wallets",
   },

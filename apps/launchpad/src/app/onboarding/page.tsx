@@ -684,7 +684,7 @@ export default function OnboardingPage() {
               href: "/settings/wallets",
               icon: Wallet,
               title: "Connect a wallet",
-              desc: "Link up to 10 wallets to invest from.",
+              desc: "Link up to 5 wallets to buy from.",
               cta: "Manage wallets",
             },
             {
@@ -750,7 +750,7 @@ export default function OnboardingPage() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">What you can do now</p>
                 <ul className="space-y-1.5">
                   {[
-                    "Browse and invest in active sales using USDC",
+                    "Browse and buy in active sales using USDC",
                     "Buy via OTC for sales that accept off-platform payments",
                     "Hold fraction tokens and claim project tokens after vesting",
                     "Receive dividends and redeem when sales finalize",

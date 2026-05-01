@@ -153,7 +153,7 @@ export default function CorporateVerifyPage() {
               </div>
               <h2 className="text-2xl font-semibold text-text mb-2">Corporate KYB Verified</h2>
               <p className="text-black/50 mb-8">Your company has been verified (Level 4)</p>
-              <Button variant="primary" onClick={() => router.push("/projects")}>Start Investing</Button>
+              <Button variant="primary" onClick={() => router.push("/projects")}>Browse Sales</Button>
             </div>
           )}
 

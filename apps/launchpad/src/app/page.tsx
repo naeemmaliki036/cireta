@@ -527,7 +527,7 @@ function HowItWorksSection() {
           <div className="flex items-stretch">
             <div className="w-1 bg-darkAqua shrink-0" />
             <div className="p-6 md:p-8 flex-1">
-              <h4 className="text-[17px] font-bold text-text mb-4">After Investing</h4>
+              <h4 className="text-[17px] font-bold text-text mb-4">After Purchase</h4>
               <p className="text-[15px] text-black/50 leading-[1.7] mb-5">
                 Following your 12-month vesting period, you can take <a href="https://www.cireta.com/tokenized-gold" className="text-darkAqua font-medium hover:underline">physical delivery</a> of your commodity, settle in USDC, or continue holding your position. Your tokens remain fully transferable on-chain.
               </p>
@@ -769,7 +769,7 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
               >
-                Cireta connects investors with blockchain-secured commodity and infrastructure projects through a compliance-first platform. Our tokenized gold and copper offerings are backed by verified reserves, institutional insurance, and SPV-protected legal structures designed to safeguard every investment.
+                Cireta connects buyers with blockchain-secured commodity and infrastructure projects through a compliance-first platform. Our tokenized gold and copper offerings are backed by verified reserves, institutional insurance, and SPV-protected legal structures designed to safeguard every purchase.
               </motion.p>
             </div>
           </div>

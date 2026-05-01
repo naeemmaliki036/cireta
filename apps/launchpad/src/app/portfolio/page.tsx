@@ -285,7 +285,7 @@ export default function PortfolioPage() {
                 <div className="w-14 h-14 rounded-2xl bg-darkAqua/10 flex items-center justify-center mx-auto mb-4">
                   <FolderOpen className="h-7 w-7 text-darkAqua" />
                 </div>
-                <h3 className="text-base font-semibold text-text mb-1">Start your investment journey</h3>
+                <h3 className="text-base font-semibold text-text mb-1">Start your buying journey</h3>
                 <p className="text-sm text-black/60 mb-5">Buy in a sale to start building your portfolio.</p>
                 <Link
                   href="/projects"

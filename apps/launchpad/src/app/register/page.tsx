@@ -114,7 +114,7 @@ function RegisterForm() {
   return (
     <SplitAuthLayout
       title={step === "info" ? "Create Account" : "Enter Verification Code"}
-      subtitle={step === "info" ? "Start investing in tokenized real-world assets" : `We sent a 6-digit code to ${email}`}
+      subtitle={step === "info" ? "Start buying tokenized real-world assets" : `We sent a 6-digit code to ${email}`}
     >
       {/* Dev OTP Toast */}
       {devOtp && (
