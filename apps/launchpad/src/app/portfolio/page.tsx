@@ -309,16 +309,16 @@ export default function PortfolioPage() {
                 <div className="min-w-0 space-y-6">
                   {/* Holdings */}
                   <section>
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-text">Holdings</h2>
-                      <Link
-                        href="/portfolio/holdings"
-                        className="text-xs font-medium text-darkAqua hover:underline"
-                      >
-                        View all
-                      </Link>
-                    </div>
                     <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-black/5 flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-text">Holdings</h2>
+                        <Link
+                          href="/portfolio/holdings"
+                          className="text-xs font-medium text-darkAqua hover:underline"
+                        >
+                          View all
+                        </Link>
+                      </div>
                       <PortfolioTable holdings={holdings} />
                     </div>
                   </section>
@@ -386,18 +386,18 @@ export default function PortfolioPage() {
 
                   {/* Recent transactions */}
                   <section>
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-text">Recent Transactions</h2>
-                      {transactions.length > 0 && (
-                        <Link
-                          href="/portfolio/transactions"
-                          className="text-xs font-medium text-darkAqua hover:underline"
-                        >
-                          View all
-                        </Link>
-                      )}
-                    </div>
-                    <div className="bg-white rounded-2xl border border-black/10">
+                    <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-black/5 flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-text">Recent Transactions</h2>
+                        {transactions.length > 0 && (
+                          <Link
+                            href="/portfolio/transactions"
+                            className="text-xs font-medium text-darkAqua hover:underline"
+                          >
+                            View all
+                          </Link>
+                        )}
+                      </div>
                       {transactions.length > 0 ? (
                         <div className="px-4 py-1">
                           {transactions.map((tx) => (

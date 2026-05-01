@@ -110,11 +110,11 @@ export default function PortfolioHoldingsPage() {
             <div className="min-w-0 space-y-6">
               {unlockedHoldings.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Unlock className="w-3.5 h-3.5 text-darkAqua" />
-                    <h2 className="text-sm font-semibold text-text">Available (Transferable)</h2>
-                  </div>
                   <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-black/5 flex items-center gap-2">
+                      <Unlock className="w-3.5 h-3.5 text-darkAqua" />
+                      <h2 className="text-sm font-semibold text-text">Available (Transferable)</h2>
+                    </div>
                     <PortfolioTable holdings={unlockedHoldings} />
                   </div>
                 </section>
@@ -122,14 +122,14 @@ export default function PortfolioHoldingsPage() {
 
               {lockedHoldings.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <Lock className="w-3.5 h-3.5 text-text" />
-                    <h2 className="text-sm font-semibold text-text">Locked / Vesting</h2>
-                    <span className="text-xs text-black/50">
-                      Fraction tokens — claim after the vesting cliff to unlock.
-                    </span>
-                  </div>
                   <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-black/5 flex items-center gap-2 flex-wrap">
+                      <Lock className="w-3.5 h-3.5 text-text" />
+                      <h2 className="text-sm font-semibold text-text">Locked / Vesting</h2>
+                      <span className="text-xs text-black/50">
+                        Fraction tokens — claim after the vesting cliff to unlock.
+                      </span>
+                    </div>
                     <PortfolioTable holdings={lockedHoldings} />
                   </div>
                 </section>
