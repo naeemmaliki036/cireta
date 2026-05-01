@@ -68,11 +68,19 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [showRejectForm, setShowRejectForm] = useState(false);
   const whitelistRegistryAddress = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS || "";
   const [whitelistCountryCode, setWhitelistCountryCode] = useState("840"); // US default
+  const [mismatchAcknowledged, setMismatchAcknowledged] = useState(false);
+
+  // Country update (per-user batch)
+  const [updateCountryCode, setUpdateCountryCode] = useState<string>("");
+  const [updateScope, setUpdateScope] = useState<"all" | "selected">("all");
+  const [selectedWalletIds, setSelectedWalletIds] = useState<Set<string>>(new Set());
+  const [updateProgress, setUpdateProgress] = useState<{ done: number; total: number; failures: string[] } | null>(null);
 
   // On-chain whitelisting
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
   const whitelistAction = useContractAction();
+  const updateCountryAction = useContractAction();
 
   const reload = async () => {
     try {
@@ -174,6 +182,46 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     });
   };
 
+  // Sequential per-wallet updateCountry — the contract has no batch version,
+  // so we send one tx per wallet and surface progress as we go.
+  const handleUpdateCountryAcrossWallets = async () => {
+    if (!isConnected) { openConnectModal?.(); return; }
+    if (!whitelistRegistryAddress || !user) return;
+    const code = parseInt(updateCountryCode, 10);
+    if (!code) {
+      setActionMessage({ type: "error", text: "Pick a country first." });
+      return;
+    }
+    const targets = updateScope === "all"
+      ? user.wallets
+      : user.wallets.filter((w) => selectedWalletIds.has(w.id));
+    if (targets.length === 0) {
+      setActionMessage({ type: "error", text: "Select at least one wallet." });
+      return;
+    }
+    setUpdateProgress({ done: 0, total: targets.length, failures: [] });
+    let done = 0;
+    const failures: string[] = [];
+    for (const w of targets) {
+      try {
+        await updateCountryAction.execute({
+          address: whitelistRegistryAddress as `0x${string}`,
+          abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
+          functionName: "updateCountry",
+          args: [w.address as `0x${string}`, code],
+        });
+      } catch (e) {
+        failures.push(`${w.address.slice(0, 6)}…${w.address.slice(-4)}: ${e instanceof Error ? e.message : "failed"}`);
+      }
+      done += 1;
+      setUpdateProgress({ done, total: targets.length, failures: [...failures] });
+    }
+    setActionMessage(failures.length === 0
+      ? { type: "success", text: `Updated country on ${targets.length} wallet(s).` }
+      : { type: "error", text: `${targets.length - failures.length} succeeded, ${failures.length} failed.` }
+    );
+  };
+
   if (loading) {
     return (
       <PlatformAdminLayout title="User Details" description="">
@@ -200,6 +248,19 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const isIndividual = user.investor_type === "individual" || !user.investor_type;
   const isApproved = user.kyc_status === "approved";
   const hasWallets = user.wallets.length > 0;
+
+  // Compute whitelist country mismatch once for the whole render — the
+  // banner needs it AND the per-wallet shield buttons need to be gated by
+  // the same consent. (verified beats self-reported per the audit overhaul.)
+  const expectedCountrySource = isIndividual
+    ? (user.verified_country_of_residence || user.country_of_residence)
+    : (user.verified_company_jurisdiction || user.company_jurisdiction);
+  const expectedCountry = resolveCountry(expectedCountrySource);
+  const selectedCountry = whitelistCountryCode ? resolveCountry(Number(whitelistCountryCode)) : null;
+  const countryMismatch = !!(
+    expectedCountry && selectedCountry && expectedCountry.numeric !== selectedCountry.numeric
+  );
+  const whitelistBlocked = countryMismatch && !mismatchAcknowledged;
 
   return (
     <PlatformAdminLayout
@@ -444,8 +505,17 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         variant="ghost"
                         size="sm"
                         onClick={() => handleWhitelistOnChain(w.address)}
-                        disabled={whitelistAction.isPending || whitelistAction.isConfirming || !whitelistRegistryAddress}
-                        title="Whitelist on-chain"
+                        disabled={
+                          whitelistAction.isPending ||
+                          whitelistAction.isConfirming ||
+                          !whitelistRegistryAddress ||
+                          whitelistBlocked
+                        }
+                        title={
+                          whitelistBlocked
+                            ? "Tick the country-mismatch consent below before whitelisting"
+                            : "Whitelist on-chain"
+                        }
                       >
                         <Shield className="h-3.5 w-3.5" />
                       </Button>
@@ -478,15 +548,59 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
             <div className="w-72">
-              <label className="block text-xs text-zinc-500 mb-1">Country</label>
+              <label className="block text-xs text-zinc-500 mb-1">
+                Country
+                {expectedCountry && (
+                  <span className="ml-1 text-zinc-400 font-normal">
+                    (default: {expectedCountry.name})
+                  </span>
+                )}
+              </label>
               <CountrySelect
                 mode="numeric"
                 value={whitelistCountryCode ? Number(whitelistCountryCode) : null}
-                onChange={(v) => setWhitelistCountryCode(v === null ? "" : String(v))}
+                onChange={(v) => {
+                  setWhitelistCountryCode(v === null ? "" : String(v));
+                  setMismatchAcknowledged(false);
+                }}
                 placeholder="Select country"
               />
             </div>
           </div>
+
+          {countryMismatch && (
+            <div className="mb-4 p-3 rounded-lg border border-amber-300 bg-amber-50">
+              <div className="flex items-start gap-2 mb-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-amber-800">
+                  <p className="font-semibold mb-0.5">Country code mismatch</p>
+                  <p>
+                    You selected <span className="font-medium">{selectedCountry?.name} ({selectedCountry?.numeric})</span>,
+                    but this {isIndividual ? "user's residence" : "company's jurisdiction"} is{" "}
+                    <span className="font-medium">{expectedCountry?.name} ({expectedCountry?.numeric})</span>.
+                    Whitelisting with a different code can affect compliance-module checks (CountryAllow, MaxOwnership)
+                    and the audit trail.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-amber-900 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={mismatchAcknowledged}
+                  onChange={(e) => setMismatchAcknowledged(e.target.checked)}
+                  className="rounded"
+                />
+                I understand the risk and want to proceed with this country code anyway.
+              </label>
+            </div>
+          )}
+
+          {whitelistBlocked && (
+            <p className="text-xs text-amber-700 mb-3">
+              Tick the consent box above before whitelisting.
+            </p>
+          )}
+
           <TransactionStatus
             isPending={whitelistAction.isPending}
             isConfirming={whitelistAction.isConfirming}
@@ -495,6 +609,107 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             txUrl={whitelistAction.txUrl}
             error={whitelistAction.error}
             successMessage="Wallet whitelisted on-chain successfully."
+          />
+        </div>
+      )}
+
+      {/* Update Country across this user's wallets — sequential per-wallet
+          updateCountry txns. Contract has no batch primitive, so we loop
+          and surface progress. */}
+      {isApproved && hasWallets && (
+        <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
+          <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2 mb-4">
+            <Shield className="h-4 w-4 text-zinc-400" /> Update Country On Wallets
+          </h3>
+          <p className="text-xs text-zinc-500 mb-3">
+            Change the on-chain country code for one, several, or all of this buyer&apos;s already-whitelisted wallets.
+            Each wallet is updated by a separate <code className="font-mono">updateCountry</code> transaction
+            (the registry contract has no batch primitive).
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div className="md:col-span-2">
+              <label className="block text-xs text-zinc-500 mb-1">New country</label>
+              <CountrySelect
+                mode="numeric"
+                value={updateCountryCode ? Number(updateCountryCode) : null}
+                onChange={(v) => setUpdateCountryCode(v === null ? "" : String(v))}
+                placeholder="Select country"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-1">Apply to</label>
+              <select
+                value={updateScope}
+                onChange={(e) => setUpdateScope(e.target.value as "all" | "selected")}
+                className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#13636F]"
+              >
+                <option value="all">All {user.wallets.length} wallets</option>
+                <option value="selected">Selected wallets only</option>
+              </select>
+            </div>
+          </div>
+
+          {updateScope === "selected" && (
+            <div className="mb-3 border border-zinc-200 rounded-lg divide-y divide-zinc-100 max-h-56 overflow-y-auto">
+              {user.wallets.map((w) => (
+                <label key={w.id} className="flex items-center gap-3 px-3 py-2 text-xs cursor-pointer hover:bg-zinc-50">
+                  <input
+                    type="checkbox"
+                    checked={selectedWalletIds.has(w.id)}
+                    onChange={(e) => {
+                      const next = new Set(selectedWalletIds);
+                      if (e.target.checked) next.add(w.id);
+                      else next.delete(w.id);
+                      setSelectedWalletIds(next);
+                    }}
+                  />
+                  <span className="font-mono text-zinc-700">{w.address}</span>
+                  {w.is_primary && <Badge variant="success" size="sm">Primary</Badge>}
+                </label>
+              ))}
+            </div>
+          )}
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleUpdateCountryAcrossWallets}
+            disabled={
+              updateCountryAction.isPending ||
+              updateCountryAction.isConfirming ||
+              !updateCountryCode ||
+              (updateScope === "selected" && selectedWalletIds.size === 0)
+            }
+          >
+            {updateCountryAction.isConfirming
+              ? "Confirming on chain…"
+              : updateCountryAction.isPending
+              ? "Sign in your wallet…"
+              : `Update country${
+                  updateScope === "all"
+                    ? ` on all ${user.wallets.length} wallets`
+                    : ` on ${selectedWalletIds.size} selected wallet(s)`
+                }`}
+          </Button>
+
+          {updateProgress && (
+            <p className="mt-3 text-xs text-zinc-600">
+              Progress: {updateProgress.done} / {updateProgress.total}
+              {updateProgress.failures.length > 0 && (
+                <span className="ml-2 text-red-600">— {updateProgress.failures.length} failed</span>
+              )}
+            </p>
+          )}
+
+          <TransactionStatus
+            isPending={updateCountryAction.isPending}
+            isConfirming={updateCountryAction.isConfirming}
+            isConfirmed={updateCountryAction.isConfirmed}
+            txHash={updateCountryAction.txHash}
+            txUrl={updateCountryAction.txUrl}
+            error={updateCountryAction.error}
+            successMessage="Country updated."
           />
         </div>
       )}
