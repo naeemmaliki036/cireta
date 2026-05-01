@@ -9,13 +9,9 @@ import {
   Wallet,
   User,
   Building2,
-  Globe,
-  Calendar,
   CheckCircle2,
   XCircle,
   Clock,
-  Copy,
-  Flag,
   RefreshCw,
   AlertCircle,
   Shield,
@@ -25,8 +21,10 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi } from "viem";
 import { Button, Badge } from "@/components/atoms";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
+import { CountrySelect } from "@/components/molecules/CountrySelect";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { PlatformAdminLayout } from "@/components/templates";
+import { resolveCountry } from "@/lib/countries";
 import {
   getInvestor,
   updateInvestorKYC,
@@ -56,17 +54,6 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function InfoRow({ label, value, icon: Icon }: { label: string; value: string | null | undefined; icon?: typeof Mail }) {
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-zinc-50 last:border-0">
-      {Icon && <Icon className="h-4 w-4 text-zinc-400 mt-0.5 flex-shrink-0" />}
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-zinc-400">{label}</p>
-        <p className="text-sm font-medium text-zinc-900 break-all">{value || "—"}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -475,14 +462,13 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 {whitelistRegistryAddress}
               </div>
             </div>
-            <div className="w-32">
-              <label className="block text-xs text-zinc-500 mb-1">Country Code</label>
-              <input
-                type="number"
-                value={whitelistCountryCode}
-                onChange={(e) => setWhitelistCountryCode(e.target.value)}
-                placeholder="840"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+            <div className="w-72">
+              <label className="block text-xs text-zinc-500 mb-1">Country</label>
+              <CountrySelect
+                mode="numeric"
+                value={whitelistCountryCode ? Number(whitelistCountryCode) : null}
+                onChange={(v) => setWhitelistCountryCode(v === null ? "" : String(v))}
+                placeholder="Select country"
               />
             </div>
           </div>
@@ -498,27 +484,102 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      {/* Personal / Corporate Details */}
+      {/* Profile — dual-source comparison */}
       <div className="bg-white rounded-lg border border-zinc-100 p-6">
-        <h3 className="text-sm font-semibold text-zinc-900 mb-4">
-          {isIndividual ? "Personal Details" : "Company Details"}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-          {isIndividual ? (
-            <>
-              <InfoRow label="Date of Birth" value={user.date_of_birth} icon={Calendar} />
-              <InfoRow label="Nationality" value={user.nationality} icon={Flag} />
-              <InfoRow label="Country of Residence" value={user.country_of_residence} icon={Globe} />
-            </>
-          ) : (
-            <>
-              <InfoRow label="Company Name" value={user.company_name} icon={Building2} />
-              <InfoRow label="Registration Number" value={user.company_registration_number} icon={Copy} />
-              <InfoRow label="Jurisdiction" value={user.company_jurisdiction} icon={Globe} />
-            </>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-zinc-900">
+            Profile {isIndividual ? "(Individual)" : "(Corporate)"}
+          </h3>
+          {user.kyc_synced_at && (
+            <span className="text-[11px] text-zinc-400">
+              Last KYC sync: {new Date(user.kyc_synced_at).toLocaleString()}
+            </span>
           )}
         </div>
+        <DualSourceTable
+          rows={
+            isIndividual
+              ? [
+                  { label: "Full name", self: user.display_name, verified: user.verified_full_name },
+                  { label: "Date of birth", self: user.date_of_birth, verified: user.verified_date_of_birth },
+                  { label: "Phone", self: user.phone_number, verified: user.verified_phone_number },
+                  { label: "Nationality", self: fmtCountry(user.nationality), verified: fmtCountry(user.verified_nationality) },
+                  { label: "Country of residence", self: fmtCountry(user.country_of_residence), verified: fmtCountry(user.verified_country_of_residence) },
+                ]
+              : [
+                  { label: "Company name", self: user.company_name, verified: user.verified_company_name },
+                  { label: "Registration #", self: user.company_registration_number, verified: user.verified_company_registration_number },
+                  { label: "Jurisdiction", self: fmtCountry(user.company_jurisdiction), verified: fmtCountry(user.verified_company_jurisdiction) },
+                ]
+          }
+        />
+
+        {/* KYB beneficial owners */}
+        {!isIndividual && user.verified_beneficial_owners && user.verified_beneficial_owners.length > 0 && (
+          <div className="mt-4 border border-zinc-200 rounded-lg overflow-hidden">
+            <div className="bg-[#ECF3F4] text-[11px] font-medium text-zinc-600 px-3 py-2">
+              Beneficial owners ({user.verified_beneficial_owners.length})
+            </div>
+            <ul className="divide-y divide-zinc-100">
+              {user.verified_beneficial_owners.map((b, i) => (
+                <li key={i} className="flex items-center justify-between px-3 py-2 text-xs">
+                  <span className="text-zinc-900">{b.name}</span>
+                  {b.ownership_pct && (
+                    <span className="font-mono text-zinc-500 tabular-nums">{b.ownership_pct}%</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </PlatformAdminLayout>
+  );
+}
+
+function fmtCountry(v: string | null): string | null {
+  if (!v) return null;
+  const c = resolveCountry(v);
+  return c ? `${c.name} · ${v}` : v;
+}
+
+function DualSourceTable({
+  rows,
+}: {
+  rows: { label: string; self: string | null; verified: string | null }[];
+}) {
+  return (
+    <div className="border border-zinc-200 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-12 bg-[#ECF3F4] text-[11px] font-medium text-zinc-600 px-3 py-2">
+        <div className="col-span-3">Field</div>
+        <div className="col-span-4">Self-reported</div>
+        <div className="col-span-4">Sumsub-verified</div>
+        <div className="col-span-1 text-center">Match</div>
+      </div>
+      {rows.map((r) => {
+        const both = !!r.self && !!r.verified;
+        const match = both && r.self === r.verified;
+        return (
+          <div key={r.label} className="grid grid-cols-12 items-center px-3 py-2 text-xs border-t border-zinc-100">
+            <div className="col-span-3 text-zinc-500">{r.label}</div>
+            <div className="col-span-4 text-zinc-900 truncate" title={r.self ?? ""}>
+              {r.self || <span className="text-zinc-300">—</span>}
+            </div>
+            <div className="col-span-4 text-zinc-900 truncate" title={r.verified ?? ""}>
+              {r.verified || <span className="text-zinc-300">—</span>}
+            </div>
+            <div className="col-span-1 flex justify-center">
+              {!both ? (
+                <span className="text-zinc-300">—</span>
+              ) : match ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" aria-label="Match" />
+              ) : (
+                <AlertCircle className="h-3.5 w-3.5 text-amber-500" aria-label="Mismatch" />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
