@@ -1,0 +1,179 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-05-01T16:43:43.415Z",
+  "sales": [
+    {
+      "tokenName": "Locked 20 Days Test",
+      "tokenSymbol": "LOCK20",
+      "cliffSeconds": 1728000,
+      "vestingSeconds": 0,
+      "token": {
+        "address": "0xa7098e049787D0d0495743eA34A4b00303dEd789",
+        "name": "Locked 20 Days Test",
+        "symbol": "LOCK20",
+        "decimals": 6,
+        "totalSupply": "1000000000"
+      },
+      "sale": {
+        "address": "0x2884B1A70855956baB85ce2aE7b8833B4686f916",
+        "vault": "0xA31Fa36f15DBc38344908dF3685c83d2140Ee07a",
+        "fraction": "0xE056Ae5C49C0c4834fBE85E96ccfa46D22d713E8",
+        "mode": "Vested",
+        "cliffSeconds": 1728000,
+        "vestingSeconds": 0,
+        "startTime": 1777652672,
+        "endTime": 1777652972,
+        "softCap": "1000000",
+        "hardCap": "1000000000",
+        "totalTokenSupply": "1000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "1000000",
+          "allocation": "1000000000",
+          "minTokens": "10",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777652672,
+          "endTime": 1777652971,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650",
+        "name": "AGENT Issuer",
+        "jurisdiction": "GB"
+      },
+      "investor": {
+        "wallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "contributedUsdc": "1000.0",
+        "tokensHeld": "1000",
+        "buyTxHashes": ["0xf0738509760b049abd40ab0c2434b1bc16da14fcc334f81bd78616fe8cf10a90"],
+        "claimTxHashes": []
+      },
+      "finalizedAtUnix": 1777653014,
+      "finalizeTxHash": "0xf447ff374694bcc5f87f5841a5e64c5d4ad3c65aacad0d490c3d60e8d9b10185",
+      "feeBps": 200
+    },
+    {
+      "tokenName": "Vested 5 Days Test",
+      "tokenSymbol": "VEST5",
+      "cliffSeconds": 1800,
+      "vestingSeconds": 432000,
+      "token": {
+        "address": "0xef0CeBD73a106E26c8df012965563970fbb1aaD0",
+        "name": "Vested 5 Days Test",
+        "symbol": "VEST5",
+        "decimals": 6,
+        "totalSupply": "1000000000"
+      },
+      "sale": {
+        "address": "0xa8cf74910E80F034D7E342A7fabfb09bE4DBFb59",
+        "vault": "0xE70Ef075eE6257695Ad96d04649d95E2fec55221",
+        "fraction": "0xA334c1eBB03838180F913aAA38953A3995453C56",
+        "mode": "Vested",
+        "cliffSeconds": 1800,
+        "vestingSeconds": 432000,
+        "startTime": 1777653110,
+        "endTime": 1777653410,
+        "softCap": "1000000",
+        "hardCap": "1000000000",
+        "totalTokenSupply": "1000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "1000000",
+          "allocation": "1000000000",
+          "minTokens": "10",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777653110,
+          "endTime": 1777653409,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650",
+        "name": "AGENT Issuer",
+        "jurisdiction": "GB"
+      },
+      "investor": {
+        "wallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "contributedUsdc": "1000.0",
+        "tokensHeld": "1000",
+        "buyTxHashes": [
+          "0x98214a3caf9cdea92506759db54e3c6801abee94b97d1badbdf12f58d4283d59"
+        ],
+        "claimTxHashes": []
+      },
+      "finalizedAtUnix": 1777653422,
+      "finalizeTxHash": "0x7dcbfcb64034be42a22572028b9d900fa0f59ff6798278b14ca48cc176202552",
+      "feeBps": 200
+    },
+    {
+      "tokenName": "Locked 5 Minutes Test",
+      "tokenSymbol": "LOCK5",
+      "cliffSeconds": 300,
+      "vestingSeconds": 0,
+      "token": {
+        "address": "0x25d43B6743D8859449Da5Eb7149694577d43138A",
+        "name": "Locked 5 Minutes Test",
+        "symbol": "LOCK5",
+        "decimals": 6,
+        "totalSupply": "1000000000"
+      },
+      "sale": {
+        "address": "0x1a869D28B34C58aFD1f9a0E4B2a51AFfB0Ca10B7",
+        "vault": "0xC39f48361dAAE7b3043344822A5831630e5cb1Ad",
+        "fraction": "0x8ad2bC49BE47Bac1655007928eB932aa6220Ad47",
+        "mode": "Vested",
+        "cliffSeconds": 300,
+        "vestingSeconds": 0,
+        "startTime": 1777653514,
+        "endTime": 1777653814,
+        "softCap": "1000000",
+        "hardCap": "1000000000",
+        "totalTokenSupply": "1000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "1000000",
+          "allocation": "1000000000",
+          "minTokens": "10",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777653514,
+          "endTime": 1777653813,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650",
+        "name": "AGENT Issuer",
+        "jurisdiction": "GB"
+      },
+      "investor": {
+        "wallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "contributedUsdc": "1000.0",
+        "tokensHeld": "1000",
+        "buyTxHashes": [
+          "0xd8172632496f7f3a48a43d6115badde33c47b97d8c6da3e49fa578b5ea3e7520"
+        ],
+        "claimTxHashes": []
+      },
+      "finalizedAtUnix": 1777653822,
+      "finalizeTxHash": "0x5dcd1313ca9e470964404dd24ca8495b653ab574b2edf9064aedaf772f5806d4",
+      "feeBps": 200
+    }
+  ]
+}

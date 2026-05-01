@@ -1,0 +1,56 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-05-01T18:04:00.000Z",
+  "token": {
+    "address": "0xAc55eBBefc0277eb217Bd6d5bAC89b59361b0337",
+    "name": "AGENT",
+    "symbol": "AGENT",
+    "decimals": 6,
+    "totalSupply": "1000000000"
+  },
+  "sale": {
+    "address": "0xDD9BBC3Ef408D7c31C53C9AB0031Ec751786c642",
+    "vault": "0x7326B72BaAf2586bc249276dF6fC92f1ce4aa25A",
+    "fraction": "0xf202265B8061a02597836bfFae69fAB872d1ff60",
+    "mode": "Vested",
+    "cliffSeconds": 300,
+    "vestingSeconds": 300,
+    "startTime": 1777643646,
+    "endTime": 1777643946,
+    "softCap": "1000000",
+    "hardCap": "1000000000",
+    "totalTokenSupply": "1000000000"
+  },
+  "phases": [
+    {
+      "index": 0,
+      "name": "Seed",
+      "pricePerToken": "1000000",
+      "allocation": "1000000000",
+      "minTokens": "10",
+      "maxTokens": "0",
+      "topUpMinTokens": "5",
+      "startTime": 1777643646,
+      "endTime": 1777643945,
+      "whitelistOnly": false,
+      "allocationMode": "Fixed"
+    }
+  ],
+  "issuer": {
+    "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650",
+    "name": "AGENT Issuer",
+    "jurisdiction": "GB"
+  },
+  "investor": {
+    "wallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+    "contributedUsdc": "350000000",
+    "tokensHeld": "350000000",
+    "buyTxHashes": [
+      "0x7e133767496ae382c95d896e24b681640305090570c4f76186c5fbd5bf21b552",
+      "0x6cfcb6ab4c9a70060af601a499dd74bb3dad63238df3b41fde87134069d0179c",
+      "0x4c07562200af4eb74690ce1b4738e2c430fd83d54a69b261be01d4df0846f651"
+    ]
+  },
+  "feeBps": 200
+}

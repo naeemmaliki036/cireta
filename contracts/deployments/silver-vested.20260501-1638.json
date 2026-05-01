@@ -1,0 +1,63 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-05-01T16:38:55.605Z",
+  "finalizedAtUnix": 1777649874,
+  "token": {
+    "address": "0x53c786be865F1C2Fc7016Ec3eA15a29B68dB6041",
+    "name": "SILVER",
+    "symbol": "SILVER",
+    "decimals": 6,
+    "totalSupply": "800000000"
+  },
+  "sale": {
+    "address": "0x2bcDaA8e90cBa61f9C80b34b821A064d6dE97c31",
+    "vault": "0x086aD7007c614366b5079837fF127fF2369259bC",
+    "fraction": "0x51Ab7c2C0749877D15dc0Ac18CAdd78ACcE3E7D1",
+    "mode": "Vested",
+    "cliffSeconds": 0,
+    "vestingSeconds": 3600,
+    "startTime": 1777649262,
+    "endTime": 1777649862,
+    "softCap": "1000000",
+    "hardCap": "1600000000",
+    "totalTokenSupply": "800000000"
+  },
+  "phases": [
+    {
+      "index": 0,
+      "name": "Seed",
+      "pricePerToken": "2000000",
+      "allocation": "800000000",
+      "minTokens": "10",
+      "maxTokens": "0",
+      "topUpMinTokens": "5",
+      "startTime": 1777649262,
+      "endTime": 1777649861,
+      "whitelistOnly": false,
+      "allocationMode": "Fixed"
+    }
+  ],
+  "issuer": {
+    "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650",
+    "name": "AGENT Issuer",
+    "jurisdiction": "GB"
+  },
+  "investor": {
+    "wallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+    "contributedUsdc": "360000000",
+    "tokensHeld": "180000000",
+    "buyTxHashes": [
+      "0x2e7e5182aa7407b4d41c155c7da26468b6c8a66d41a72c48370b114fb009435c",
+      "0x81c99f5372bf244419b55c6163098cfd845d997eb5148763c27eb29b6f48469b",
+      "0x2134837193e489fab952e21dad13f1116e364d908eb177c62a5e546dbb7f9a63"
+    ],
+    "claimTxHashes": [
+      "0x37968b8211a9c95bf0fd8c5136a38e191ab3f38f07d6d5690838706902ef9b16",
+      "0x93887078ca8caf26492ac5a05f382e336948b557fc57b1a3bfea85c008db27d1",
+      "0xc8f8555f111b6a246f740869c26bd6110d03c78c4112805b48d88fa4a46c0b21",
+      "0x8cc85e1506b7240587a1b0cf218f67602cfa2bae634580bf6f1cd1cba9ef146d"
+    ]
+  },
+  "feeBps": 200
+}

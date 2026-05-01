@@ -1,0 +1,52 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-05-01T15:11:24.916Z",
+  "token": {
+    "address": "0x306d4B12A17911f634ea2C45e91766422aEC01eA",
+    "name": "TIN",
+    "symbol": "TIN",
+    "decimals": 6,
+    "totalSupply": "500000000"
+  },
+  "sale": {
+    "address": "0xCa44F4453DFf92E630f1C00792df17E103777bDc",
+    "vault": null,
+    "fraction": null,
+    "mode": "Direct",
+    "cliffSeconds": 0,
+    "vestingSeconds": 0,
+    "startTime": 1777647672,
+    "endTime": 1777647852,
+    "softCap": "1000000",
+    "hardCap": "500000000",
+    "totalTokenSupply": "500000000"
+  },
+  "phases": [
+    {
+      "index": 0,
+      "name": "Seed",
+      "pricePerToken": "1000000",
+      "allocation": "500000000",
+      "minTokens": "10",
+      "maxTokens": "0",
+      "topUpMinTokens": "5",
+      "startTime": 1777647672,
+      "endTime": 1777647851,
+      "whitelistOnly": false,
+      "allocationMode": "Fixed"
+    }
+  ],
+  "issuer": {
+    "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650",
+    "name": "AGENT Issuer",
+    "jurisdiction": "GB"
+  },
+  "investor": {
+    "wallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+    "contributedUsdc": "175000000",
+    "tokensHeld": "175000000",
+    "buyTxHashes": []
+  },
+  "feeBps": 200
+}

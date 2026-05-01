@@ -177,6 +177,16 @@ async function main() {
     pass(`TIN already past Draft (status=${tinStatus})`);
   }
 
+  // tinBuyHashes is hoisted so the manifest write at the end can reference
+  // it even when we skip buys (resume path on a finalized sale).
+  const tinBuyHashes: string[] = [];
+
+  // Skip the rest of TIN if already finalized
+  const tinStatusForBuyCheck = await safeRead(() => tinSale.status());
+  if (tinStatusForBuyCheck >= 3n) {
+    pass("TIN already finalized — skipping buys + finalize");
+    // proceed to SILVER section by jumping past the TIN flow
+  } else {
   // Mint USDC + buy 50 + 100 + 25 = 175
   const tinAllowance = await usdc.allowance(investor.address, tinSaleAddr);
   if (tinAllowance < ethers.parseUnits("500", 6)) {
@@ -189,7 +199,6 @@ async function main() {
     pass("USDC.approve(tinSale, 1000)", r.txHash);
   }
 
-  const tinBuyHashes: string[] = [];
   let tinBalanceBefore = await tin.balanceOf(investor.address);
   for (const qty of [50n, 100n, 25n]) {
     if (tinBalanceBefore >= ethers.parseUnits("175", 6)) {
@@ -215,6 +224,7 @@ async function main() {
   } else {
     pass(`TIN already finalized (status=${tinStatusBeforeFinalize})`);
   }
+  } // end of "if not already finalized" wrap
 
   // Persist TIN manifest
   const tinManifestPath = path.join(__dirname, "..", "deployments", `tin-direct.${dateStamp()}.json`);
@@ -287,12 +297,11 @@ async function main() {
   }
   const silverSale = await ethers.getContractAt("Sale", silverSaleAddr, issuer);
   if (SILVER_START === 0) {
-    const p = await silverSale.getPhase(0);
-    SILVER_START = Number(p.startTime);
-    SILVER_END = Number(await silverSale.saleEndTime());
+    SILVER_START = Number(await safeRead(() => silverSale.saleStartTime()));
+    SILVER_END = Number(await safeRead(() => silverSale.saleEndTime()));
   }
-  const silverVaultAddr = await silverSale.vault();
-  const silverFracAddr = await silverSale.fractionToken();
+  const silverVaultAddr = await safeRead(() => silverSale.vault());
+  const silverFracAddr = await safeRead(() => silverSale.fractionToken());
 
   // Phase + deposit + approve + activate
   const silverStatus = await safeRead(() => silverSale.status());
