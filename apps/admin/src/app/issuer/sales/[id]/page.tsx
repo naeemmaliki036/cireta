@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   Clock, ArrowLeft, AlertCircle, Coins, Bell,
   Pencil, X, Check, CheckCircle2, Upload, ImageIcon, Globe, Star, Rocket,
-  BarChart3, Users, Blocks,
+  BarChart3, Users, Blocks, Calendar, Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -167,6 +167,9 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
   // Read on-chain phase count for deployed sales
   const phaseDeployAction = useContractAction();
   const activateAction = useContractAction();
+  const extendPhaseAction = useContractAction();
+  const [extendPhaseId, setExtendPhaseId] = useState<number | null>(null);
+  const [extendNewEnd, setExtendNewEnd] = useState("");
   const { data: onChainPhaseCount, refetch: refetchPhaseCount, error: phaseCountError, isLoading: phaseCountLoading } = useReadContract({
     address: (sale?.contract_address as `0x${string}`) || undefined,
     abi: SALE_ABI as unknown as Abi,
@@ -294,6 +297,23 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
    * Deploy Sale contract on-chain via CiretaSaleFactory.deploySale().
    * Encodes Sale.initialize() calldata with the correct parameters.
    */
+  const handleExtendPhase = async (phaseIdx: number) => {
+    if (!sale?.contract_address || !extendNewEnd) return;
+    if (!isConnected) { openConnectModal?.(); return; }
+    const newEndTimestamp = BigInt(Math.floor(new Date(extendNewEnd).getTime() / 1000));
+    const receipt = await extendPhaseAction.execute({
+      address: sale.contract_address as `0x${string}`,
+      abi: SALE_ABI as unknown as Abi,
+      functionName: "extendPhase",
+      args: [BigInt(phaseIdx), newEndTimestamp],
+    });
+    if (receipt) {
+      setExtendPhaseId(null);
+      setExtendNewEnd("");
+      reload();
+    }
+  };
+
   const handleDeployPhaseOnChain = async (phase: NonNullable<typeof sale>["phases"][0], tokenDecimals = 6) => {
     if (!sale?.contract_address) return;
     // pricePerToken is in payment-token raw units per WHOLE sale token
@@ -1257,6 +1277,26 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                           Deploy On-Chain
                         </Button>
                       )}
+                      {/* Extend button — only for on-chain phases that haven't ended yet.
+                          Sale.extendPhase is onlyIssuer at the contract level, so the
+                          connected wallet must be the issuer wallet. */}
+                      {sale.contract_address && isOnChain && phaseStatus !== "ended" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setExtendPhaseId(idx);
+                            // Pre-fill picker with current end so the issuer just nudges it forward.
+                            const cur = new Date(phase.end_time);
+                            const pad = (n: number) => String(n).padStart(2, "0");
+                            setExtendNewEnd(`${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}T${pad(cur.getHours())}:${pad(cur.getMinutes())}`);
+                          }}
+                          disabled={extendPhaseAction.isPending || extendPhaseAction.isConfirming}
+                          leftIcon={<Calendar className="h-3 w-3" />}
+                        >
+                          Extend
+                        </Button>
+                      )}
                       <div className="flex items-center gap-1.5 text-xs text-black/40">
                         <Clock className="h-3 w-3" />
                         <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
@@ -1268,6 +1308,72 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                       </span>
                     </div>
                   </div>
+                  {/* Inline extend-phase form */}
+                  {extendPhaseId === idx && (() => {
+                    const curEndMs = new Date(phase.end_time).getTime();
+                    const newEndMs = extendNewEnd ? new Date(extendNewEnd).getTime() : 0;
+                    // Contract requires strictly greater than current end
+                    const tooEarly = newEndMs > 0 && newEndMs <= curEndMs;
+                    // Sale-window cap: open-ended → start + 730d, fixed-window → saleEnd
+                    const saleStartMs = sale.sale_start_time ? new Date(sale.sale_start_time).getTime() : 0;
+                    const saleEndMs = sale.is_open_ended
+                      ? saleStartMs + 730 * 24 * 60 * 60 * 1000
+                      : sale.sale_end_time ? new Date(sale.sale_end_time).getTime() : 0;
+                    const tooLate = saleEndMs > 0 && newEndMs > saleEndMs;
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    const minDate = new Date(curEndMs + 60_000);
+                    const minStr = `${minDate.getFullYear()}-${pad(minDate.getMonth() + 1)}-${pad(minDate.getDate())}T${pad(minDate.getHours())}:${pad(minDate.getMinutes())}`;
+                    const maxStr = saleEndMs > 0
+                      ? (() => { const d = new Date(saleEndMs); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; })()
+                      : undefined;
+                    return (
+                      <div className="mt-3 p-3 rounded-lg bg-darkAqua/5 border border-darkAqua/20">
+                        <p className="text-xs text-darkAqua mb-2">
+                          Extend phase end time. Must be after the current end ({new Date(phase.end_time).toLocaleString()})
+                          {saleEndMs > 0 && ` and at or before the sale window close (${new Date(saleEndMs).toLocaleString()})`}.
+                          On-chain action — requires the issuer wallet.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="datetime-local"
+                            value={extendNewEnd}
+                            onChange={(e) => setExtendNewEnd(e.target.value)}
+                            min={minStr}
+                            max={maxStr}
+                            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-darkAqua/30 flex-1"
+                          />
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleExtendPhase(idx)}
+                            disabled={!extendNewEnd || tooEarly || tooLate || extendPhaseAction.isPending || extendPhaseAction.isConfirming}
+                            isLoading={extendPhaseAction.isPending || extendPhaseAction.isConfirming}
+                            leftIcon={<Timer className="h-3 w-3" />}
+                          >
+                            Confirm
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => { setExtendPhaseId(null); setExtendNewEnd(""); }}>
+                            Cancel
+                          </Button>
+                        </div>
+                        {tooEarly && (
+                          <p className="text-xs text-red-600 mt-2">New end must be strictly after the current end.</p>
+                        )}
+                        {tooLate && (
+                          <p className="text-xs text-red-600 mt-2">New end exceeds the sale window — pick a date at or before {new Date(saleEndMs).toLocaleString()}.</p>
+                        )}
+                        <TransactionStatus
+                          isPending={extendPhaseAction.isPending}
+                          isConfirming={extendPhaseAction.isConfirming}
+                          isConfirmed={extendPhaseAction.isConfirmed}
+                          txHash={extendPhaseAction.txHash}
+                          txUrl={extendPhaseAction.txUrl}
+                          error={extendPhaseAction.error}
+                          successMessage="Phase extended successfully."
+                        />
+                      </div>
+                    );
+                  })()}
                   <ProgressBar value={phasePct} size="sm" />
                   <div className="flex justify-between text-xs mt-2 text-black/40">
                     <span>Price: <span className="text-text font-medium">${parseFloat(phase.price_per_token).toLocaleString()}</span></span>
