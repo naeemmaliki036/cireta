@@ -1040,17 +1040,17 @@ export default function ProjectDetailPage() {
                 // Build milestone schedule
                 const milestones: { label: string; pct: number }[] = [];
                 if (isLockup) {
-                  milestones.push({ label: `Day ${cliffDays} (lock-up ends)`, pct: 100 });
+                  milestones.push({ label: `${fmtDur(cliffDays)} (lock-up ends)`, pct: 100 });
                 } else if (isCliffOnly) {
-                  milestones.push({ label: `Day ${cliffDays} (cliff)`, pct: 100 });
+                  milestones.push({ label: `${fmtDur(cliffDays)} (cliff)`, pct: 100 });
                 } else {
                   const interval = linearDays <= 90 ? 30 : linearDays <= 365 ? 30 : 90;
-                  milestones.push({ label: `Day ${cliffDays} (cliff)`, pct: 0 });
+                  milestones.push({ label: `${fmtDur(cliffDays)} (cliff)`, pct: 0 });
                   for (let d = interval; d < linearDays; d += interval) {
                     const pct = Math.round((d / linearDays) * 100 * 10) / 10;
-                    milestones.push({ label: `Day ${cliffDays + d}`, pct });
+                    milestones.push({ label: fmtDur(cliffDays + d), pct });
                   }
-                  milestones.push({ label: `Day ${cliffDays + linearDays}`, pct: 100 });
+                  milestones.push({ label: fmtDur(cliffDays + linearDays), pct: 100 });
                 }
 
                 // Lock-up variant: distinct labels and timeline copy.
@@ -1062,7 +1062,7 @@ export default function ProjectDetailPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
                           {[
                             ["Lock-up Period", fmtDur(cliffDays)],
-                            ["Full Unlock At", `Day ${cliffDays}`],
+                            ["Full Unlock At", fmtDur(cliffDays)],
                             ["Unlock Type", "100% at end of lock-up"],
                           ].map(([k, v]) => (
                             <div key={k}>
@@ -1085,8 +1085,8 @@ export default function ProjectDetailPage() {
                             <div className="h-full absolute inset-0 rounded-full" style={{ backgroundColor: "#ECF3F4" }} />
                           </div>
                           <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
-                            <span>Day 0</span>
-                            <span>Day {cliffDays} · 100% unlock</span>
+                            <span>Start</span>
+                            <span>{fmtDur(cliffDays)} · 100% unlock</span>
                           </div>
                         </div>
                       </div>
@@ -1182,13 +1182,13 @@ export default function ProjectDetailPage() {
                         </div>
                         {/* Markers below */}
                         <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
-                          <span>Day 0</span>
+                          <span>Start</span>
                           {cliffDays > 0 && cliffDays < vestingDays && (
                             <span style={{ position: "absolute", left: `${(cliffDays / vestingDays) * 100}%`, transform: "translateX(-50%)" }}>
-                              Day {cliffDays}
+                              {fmtDur(cliffDays)}
                             </span>
                           )}
-                          <span>Day {vestingDays}</span>
+                          <span>{fmtDur(vestingDays)}</span>
                         </div>
                       </div>
                     </div>
