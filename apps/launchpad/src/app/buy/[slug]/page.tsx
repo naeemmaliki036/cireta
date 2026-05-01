@@ -30,7 +30,7 @@ import { Spinner } from "@/components/atoms";
 // Auth token handled by httpOnly cookie via proxy — no manual token needed
 import { SALE_ABI } from "@/lib/contracts/saleAbi";
 import { OTC_TOKEN_ABI, SALE_OTC_ABI } from "@/lib/contracts/otcTokenAbi";
-import { getUsdcAddress } from "@/lib/contracts/addresses";
+import { getUsdcAddress, getTxUrl } from "@/lib/contracts/addresses";
 import { parseRevertReason } from "@/lib/contracts/revertReasons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3 } from "@/contexts/Web3Context";
@@ -70,6 +70,10 @@ export default function InvestPage() {
   // portfolio + transaction history. The button stays in its loading state
   // until both the on-chain receipt and the backend recording are done.
   const [isRecording, setIsRecording] = useState(false);
+  // recordingError: surfaces a backend-recording failure to the buyer so they
+  // never end up on a "Success" screen with their tx missing from /portfolio.
+  // Set when all retries fail; cleared on retry success or manual dismiss.
+  const [recordingError, setRecordingError] = useState<string | null>(null);
 
   // Payment token from the sale (e.g. cUSDC, USDT) — validated as a 0x hex address.
   // Falls back to the chain-wide default when the DB has a label (e.g. "USDC") or is null.
@@ -353,6 +357,35 @@ export default function InvestPage() {
     }
   }, [approveConfirmed]);
 
+  // recordContribution: retries the backend POST up to 3 times with
+  // exponential backoff (1s → 3s → 8s) before surfacing the failure. The
+  // earlier silent-catch swallowed ANY backend hiccup and advanced the
+  // user to the Success screen with their tx never landing in DB —
+  // which is how an on-chain buy could go missing from /portfolio.
+  const recordContribution = useCallback(
+    async (hash: `0x${string}`) => {
+      if (!saleId) return "Sale not loaded.";
+      const phaseId = activePhase?.id || "";
+      const amountStr = usdcRequired.toString();
+      const delays = [1_000, 3_000, 8_000];
+      for (let attempt = 0; attempt < delays.length; attempt++) {
+        try {
+          await buy(saleId, { phase_id: phaseId, amount: amountStr, tx_hash: hash });
+          return null; // success
+        } catch (err) {
+          const isLast = attempt === delays.length - 1;
+          console.error(`[invest] Backend recording failed (attempt ${attempt + 1}/${delays.length}):`, err);
+          if (isLast) {
+            return err instanceof Error ? err.message : "Could not record on the backend after multiple attempts.";
+          }
+          await new Promise((r) => setTimeout(r, delays[attempt]));
+        }
+      }
+      return "Could not record on the backend.";
+    },
+    [activePhase?.id, saleId, usdcRequired],
+  );
+
   // When on-chain contribute confirms, record in backend then show success.
   // The success card is gated on the backend POST so the buyer's purchase
   // appears in their portfolio + transaction history immediately.
@@ -361,21 +394,28 @@ export default function InvestPage() {
     const hash = saleContributeAction.txHash;
     setTxHash(hash);
     setIsRecording(true);
+    setRecordingError(null);
 
     (async () => {
-      try {
-        // Send the USDC value (not the token quantity) — backend `amount`
-        // is the payment-token amount and is used as the fallback when
-        // on-chain verification can't extract event data.
-        await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
-      } catch (err) {
-        console.error("[invest] Backend recording failed:", err);
-      }
+      const errMsg = await recordContribution(hash);
       setIsContributing(false);
       setIsRecording(false);
-      setStep("success");
+      if (errMsg) {
+        // Stay on the confirm step with an error banner. The on-chain tx
+        // succeeded (the buyer has tokens / fractions), but the DB hasn't
+        // caught up. They can retry or contact support — never silently
+        // "Success".
+        setRecordingError(errMsg);
+        showError(
+          "Recording failed",
+          "Your buy went through on-chain but couldn't be saved on the platform. Use the Retry button to try again.",
+        );
+      } else {
+        setStep("success");
+      }
     })();
-  }, [contributeConfirmed, saleContributeAction.txHash, saleId, usdcRequired]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contributeConfirmed, saleContributeAction.txHash, saleId]);
   // Note: activePhase?.id intentionally excluded — recording must fire even
   // if frontend couldn't resolve the phase (backend resolves from on-chain event)
 
@@ -398,19 +438,24 @@ export default function InvestPage() {
     const hash = otcBuyAction.txHash;
     setTxHash(hash);
     setIsRecording(true);
+    setRecordingError(null);
     (async () => {
-      try {
-        // OTC buys: send USDC-equivalent value as the amount field for backend fallback.
-        await buy(saleId, { phase_id: activePhase?.id || "", amount: usdcRequired.toString(), tx_hash: hash });
-      } catch (err) {
-        console.error("[invest] OTC backend recording failed:", err);
-      }
+      const errMsg = await recordContribution(hash);
       setIsContributing(false);
       setIsRecording(false);
       refetchOtcBalance();
-      setStep("success");
+      if (errMsg) {
+        setRecordingError(errMsg);
+        showError(
+          "Recording failed",
+          "Your OTC buy went through on-chain but couldn't be saved on the platform. Use the Retry button to try again.",
+        );
+      } else {
+        setStep("success");
+      }
     })();
-  }, [buyOtcConfirmed, otcBuyAction.txHash, saleId, usdcRequired, refetchOtcBalance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyOtcConfirmed, otcBuyAction.txHash, saleId, refetchOtcBalance]);
 
   // OTC: Handle buyOTC error
   useEffect(() => {
@@ -1177,18 +1222,64 @@ export default function InvestPage() {
               />
             )}
             {paymentMethod === "crypto" && step === "confirm" && (
-              <InvestConfirmStep
-                project={project} amount={numericAmount}
-                tokensToReceive={tokensToReceive} isLoading={confirmLoading || isRecording}
-                error={error} onConfirm={handleConfirm}
-                onBack={() => setStep("amount")}
-                errorContext={{
-                  txHash: saleContributeAction.txHash ?? null,
-                  contractAddress: saleContractAddress ?? null,
-                  functionName: "buy",
-                  chainId: chainId ?? null,
-                }}
-              />
+              <>
+                {recordingError && txHash && (
+                  <div className="mb-4 p-4 rounded-2xl bg-box border border-black/10">
+                    <p className="text-sm font-semibold text-text mb-1">
+                      On-chain buy succeeded — recording on Cireta failed
+                    </p>
+                    <p className="text-xs text-black/60 mb-3">
+                      Your tokens are safe on-chain (
+                      <a
+                        href={getTxUrl(chainId, txHash) ?? undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-darkAqua hover:underline font-mono"
+                      >
+                        {txHash.slice(0, 10)}…
+                      </a>
+                      ), but the platform couldn&apos;t save the receipt. Retry the recording —
+                      no new on-chain transaction will be sent. If it keeps failing, contact support.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        isLoading={isRecording}
+                        onClick={async () => {
+                          if (!txHash) return;
+                          setIsRecording(true);
+                          setRecordingError(null);
+                          const errMsg = await recordContribution(txHash as `0x${string}`);
+                          setIsRecording(false);
+                          if (errMsg) {
+                            setRecordingError(errMsg);
+                          } else {
+                            setStep("success");
+                          }
+                        }}
+                      >
+                        Retry recording
+                      </Button>
+                      <Link href="/portfolio">
+                        <Button size="sm" variant="outline">View portfolio</Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+                <InvestConfirmStep
+                  project={project} amount={numericAmount}
+                  tokensToReceive={tokensToReceive} isLoading={confirmLoading || isRecording}
+                  error={error} onConfirm={handleConfirm}
+                  onBack={() => setStep("amount")}
+                  errorContext={{
+                    txHash: saleContributeAction.txHash ?? null,
+                    contractAddress: saleContractAddress ?? null,
+                    functionName: "buy",
+                    chainId: chainId ?? null,
+                  }}
+                />
+              </>
             )}
             {step === "success" && (
               <InvestSuccessStep
