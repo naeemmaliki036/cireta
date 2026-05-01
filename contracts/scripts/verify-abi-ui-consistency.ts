@@ -141,6 +141,9 @@ function scanFile(file: string) {
     re.lastIndex = 0;
     while ((m = re.exec(line)) !== null) {
       const fnName = m[1]!;
+      // Solidity identifiers can't contain dots — anything dotted is a
+      // telemetry label (e.g. ErrorReportButton context "vault.claim").
+      if (fnName.includes(".")) continue;
       if (!abiAllFns.has(fnName)) {
         findings.push({
           file: path.relative(REPO, file),
