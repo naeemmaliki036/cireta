@@ -39,6 +39,8 @@ export interface VestingSchedule {
   sale_mode: "direct" | "vested";
   vault_address: string | null;
   sale_contract_address: string | null;
+  /** Address of the ERC-1155 fraction token contract (vested sales only). */
+  fraction_token_address?: string | null;
 }
 
 export interface PortfolioSummary {

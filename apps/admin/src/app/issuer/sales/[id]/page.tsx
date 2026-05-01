@@ -37,6 +37,7 @@ import { getChainId } from "@/lib/chain";
 import { PLATFORM_FEE_MANAGER_ABI } from "@/lib/contracts/abis/platformFeeManager";
 import { readContract } from "wagmi/actions";
 import { OTCTokenManager } from "@/components/organisms/OTCTokenManager";
+import { VaultExcessPolicyPanel } from "@/components/molecules/VaultExcessPolicyPanel";
 
 /** Read fee from PlatformFeeManager on-chain (fallback when useReadContract hook didn't fire) */
 async function readFeeFromChain(
@@ -1396,6 +1397,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               isOpenEnded={sale.is_open_ended}
               onSuccess={reload}
             />
+          )}
+
+          {/* Vault Excess Policy — only shown for vested sales that have a vault */}
+          {sale.vault_address && (
+            <VaultExcessPolicyPanel vaultAddress={sale.vault_address as `0x${string}`} />
           )}
         </div>
       )}

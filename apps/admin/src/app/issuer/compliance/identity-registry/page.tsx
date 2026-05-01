@@ -11,6 +11,7 @@ import { Button, Spinner, Badge } from "@/components/atoms";
 import { useContractAction } from "@/hooks/useContractAction";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/identityRegistryAbi";
+import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import {
   listIdentitySyncJobs,
   retryIdentitySyncJob,
@@ -44,6 +45,11 @@ export default function IdentityRegistryAdminPage() {
   // Contract actions with proper gas handling
   const manualSyncAction = useContractAction();
   const batchSyncAction = useContractAction();
+
+  // updateCountry form
+  const [updateCountryWallet, setUpdateCountryWallet] = useState("");
+  const [updateCountryCode, setUpdateCountryCode] = useState(0);
+  const updateCountryAction = useContractAction();
 
   const { data: onChainStatus, refetch: refetchStatus } = useReadContract({
     address: REGISTRY_ADDRESS,
@@ -172,6 +178,26 @@ export default function IdentityRegistryAdminPage() {
       }
     } catch (e: any) {
       const msg = e.message || "Transaction failed";
+      if (!msg.toLowerCase().includes("user rejected") && !msg.toLowerCase().includes("user denied")) {
+        setError(msg);
+      }
+    }
+  };
+
+  const handleUpdateCountry = async () => {
+    if (!isConnected) { setError("Connect your admin wallet first."); return; }
+    if (!isAddress(updateCountryWallet)) { setError("Invalid wallet address."); return; }
+    if (!REGISTRY_ADDRESS) { setError("NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS not configured."); return; }
+    setError(null);
+    try {
+      await updateCountryAction.execute({
+        address: REGISTRY_ADDRESS,
+        abi: SIMPLE_IDENTITY_REGISTRY_ABI,
+        functionName: "updateCountry",
+        args: [updateCountryWallet as `0x${string}`, updateCountryCode],
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Transaction failed";
       if (!msg.toLowerCase().includes("user rejected") && !msg.toLowerCase().includes("user denied")) {
         setError(msg);
       }
@@ -340,6 +366,64 @@ export default function IdentityRegistryAdminPage() {
                     : `Sign + Remove ${batchRows.length} wallet${batchRows.length !== 1 ? "s" : ""}`}
             </Button>
           </div>
+        </section>
+
+        {/* Update Country */}
+        <section className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-white mb-1">Update Country Code</h2>
+          <p className="text-xs text-white/50 mb-4">
+            Change the numeric country code stored for a whitelisted wallet.
+            Requires REGISTRAR_ROLE or DEFAULT_ADMIN_ROLE on the registry.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div className="md:col-span-2">
+              <label className="block text-xs text-white/50 mb-1">Wallet address</label>
+              <input
+                type="text"
+                value={updateCountryWallet}
+                onChange={(e) => setUpdateCountryWallet(e.target.value.trim())}
+                placeholder="0x..."
+                className="w-full px-3 py-2 text-sm font-mono bg-white/5 border border-white/10 text-white rounded-lg focus:outline-none focus:border-white/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/50 mb-1">New country code (numeric)</label>
+              <input
+                type="number"
+                value={updateCountryCode}
+                onChange={(e) => setUpdateCountryCode(parseInt(e.target.value || "0", 10))}
+                min={0}
+                max={999}
+                className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 text-white rounded-lg"
+              />
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleUpdateCountry}
+            disabled={
+              updateCountryAction.isPending ||
+              updateCountryAction.isConfirming ||
+              !isConnected ||
+              !isAddress(updateCountryWallet)
+            }
+          >
+            {updateCountryAction.isConfirming
+              ? "Confirming on chain…"
+              : updateCountryAction.isPending
+                ? "Sign in your wallet…"
+                : "Update Country"}
+          </Button>
+          <TransactionStatus
+            isPending={updateCountryAction.isPending}
+            isConfirming={updateCountryAction.isConfirming}
+            isConfirmed={updateCountryAction.isConfirmed}
+            txHash={updateCountryAction.txHash}
+            txUrl={updateCountryAction.txUrl}
+            error={updateCountryAction.error}
+            successMessage="Country code updated on-chain."
+          />
         </section>
 
         {/* Sync jobs */}

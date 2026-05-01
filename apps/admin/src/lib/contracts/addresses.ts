@@ -8,6 +8,8 @@
 export interface ContractAddresses {
   tokenFactory: `0x${string}` | null;
   saleFactory: `0x${string}` | null;
+  fractionFactory: `0x${string}` | null;
+  otcTokenFactory: `0x${string}` | null;
   issuerRegistry: `0x${string}` | null;
   platformFeeManager: `0x${string}` | null;
 }
@@ -17,6 +19,10 @@ const addresses: ContractAddresses = {
     (process.env.NEXT_PUBLIC_TOKEN_FACTORY_ADDRESS as `0x${string}`) || null,
   saleFactory:
     (process.env.NEXT_PUBLIC_SALE_FACTORY_ADDRESS as `0x${string}`) || null,
+  fractionFactory:
+    (process.env.NEXT_PUBLIC_FRACTION_FACTORY_ADDRESS as `0x${string}`) || null,
+  otcTokenFactory:
+    (process.env.NEXT_PUBLIC_OTC_TOKEN_FACTORY_ADDRESS as `0x${string}`) || null,
   issuerRegistry:
     (process.env.NEXT_PUBLIC_ISSUER_REGISTRY_ADDRESS as `0x${string}`) || null,
   platformFeeManager:

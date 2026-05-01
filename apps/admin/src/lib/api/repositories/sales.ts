@@ -69,6 +69,7 @@ export interface Sale {
   sale_start_time: string | null;
   sale_end_time: string | null;
   display_order: number | null;
+  vault_address: string | null;
 }
 
 export interface SaleListResponse {

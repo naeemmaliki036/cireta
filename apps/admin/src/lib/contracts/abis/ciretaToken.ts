@@ -33,4 +33,10 @@ export const CIRETA_TOKEN_ABI = [
   { name: "batchForcedTransfer", type: "function", stateMutability: "nonpayable", inputs: [{ name: "fromList", type: "address[]" }, { name: "toList", type: "address[]" }, { name: "amounts", type: "uint256[]" }], outputs: [] },
   { name: "batchTransfer", type: "function", stateMutability: "nonpayable", inputs: [{ name: "toList", type: "address[]" }, { name: "amounts", type: "uint256[]" }], outputs: [] },
   { name: "hasRole", type: "function", stateMutability: "view", inputs: [{ name: "role", type: "bytes32" }, { name: "account", type: "address" }], outputs: [{ name: "", type: "bool" }] },
+  // ── Admin setters (DEFAULT_ADMIN_ROLE) ──
+  { name: "setIdentityRegistry", type: "function", stateMutability: "nonpayable", inputs: [{ name: "_identityRegistry", type: "address" }], outputs: [] },
+  { name: "setCompliance", type: "function", stateMutability: "nonpayable", inputs: [{ name: "_compliance", type: "address" }], outputs: [] },
+  { name: "setName", type: "function", stateMutability: "nonpayable", inputs: [{ name: "_name", type: "string" }], outputs: [] },
+  { name: "setSymbol", type: "function", stateMutability: "nonpayable", inputs: [{ name: "_symbol", type: "string" }], outputs: [] },
+  { name: "setOnchainID", type: "function", stateMutability: "nonpayable", inputs: [{ name: "_onchainID", type: "address" }], outputs: [] },
 ] as const;

@@ -37,6 +37,7 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { useIssuerChainActions } from "@/hooks/useIssuerChainActions";
 import { COUNTRIES } from "@/components/molecules/CountrySelector";
 import { ExplorerLinkIcon } from "@/components/atoms/ExplorerLinkIcon";
+import { UpdateIssuerModal } from "@/components/molecules/UpdateIssuerModal";
 
 function mapIssuer(i: APIIssuer): Issuer {
   return {
@@ -77,6 +78,7 @@ type OnChainStatus =
 export default function IssuersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [apiIssuers, setApiIssuers] = useState<Issuer[]>([]);
+  const [updateIssuerTarget, setUpdateIssuerTarget] = useState<Issuer | null>(null);
   const [onChainStatus, setOnChainStatus] = useState<Record<string, OnChainStatus>>({});
   const [registeringId, setRegisteringId] = useState<string | null>(null);
   /** Tracks which issuer is mid-suspend or mid-reactivate on-chain */
@@ -639,6 +641,16 @@ export default function IssuersPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        {/* Edit On-Chain button for registered issuers */}
+                        {(chainStatus === "registered" || chainStatus === "needs_whitelist") && issuer.wallet !== "—" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUpdateIssuerTarget(issuer)}
+                          >
+                            Edit On-Chain
+                          </Button>
+                        )}
                         {chainStatus === "checking" ? (
                           <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
                         ) : chainStatus === "registered" ? (
@@ -765,6 +777,16 @@ export default function IssuersPage() {
       </PlatformAdminLayout>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Update issuer on-chain modal */}
+      {updateIssuerTarget && (
+        <UpdateIssuerModal
+          issuerWallet={updateIssuerTarget.wallet}
+          issuerName={updateIssuerTarget.name}
+          issuerJurisdiction={updateIssuerTarget.jurisdiction}
+          onClose={() => setUpdateIssuerTarget(null)}
+        />
+      )}
     </>
   );
 }

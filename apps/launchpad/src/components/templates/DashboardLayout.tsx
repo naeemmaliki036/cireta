@@ -28,6 +28,7 @@ const ACCOUNT_LINKS = [
   { href: "/portfolio", label: "Holdings", icon: LayoutDashboard },
   { href: "/portfolio/vesting", label: "Vesting", icon: Clock },
   { href: "/portfolio/transfer", label: "Transfer", icon: Send },
+  { href: "/portfolio/fraction-transfer", label: "Fraction Transfer", icon: Send },
   { href: "/portfolio/transactions", label: "Transactions", icon: FileText },
 ];
 

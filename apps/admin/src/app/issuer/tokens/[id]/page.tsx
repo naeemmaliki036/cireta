@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Pause, Play, Rocket, Coins, Lock } from "lucide-react";
+import { ArrowLeft, Shield, Pause, Play, Rocket, Coins, Lock, Settings } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -177,6 +177,12 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
           <Link href={`/issuer/tokens/${resolvedId}/compliance`}>
             <Button variant="outline" size="sm" leftIcon={<Shield className="h-4 w-4" />}>
               Compliance
+            </Button>
+          </Link>
+          <Link href={`/issuer/tokens/${resolvedId}/settings`}>
+            <Button variant="outline" size="sm" leftIcon={<Settings className="h-4 w-4" />}
+              disabled={!token?.contract_address}>
+              Token Settings
             </Button>
           </Link>
         </div>

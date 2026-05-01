@@ -26,6 +26,7 @@ import {
 
 const COUNTRY_ALLOW_ABI = [
   { name: "batchAllowCountries", type: "function", stateMutability: "nonpayable", inputs: [{ name: "compliance", type: "address" }, { name: "countries", type: "uint16[]" }], outputs: [] },
+  { name: "addAllowedCountry", type: "function", stateMutability: "nonpayable", inputs: [{ name: "compliance", type: "address" }, { name: "country", type: "uint16" }], outputs: [] },
   { name: "removeAllowedCountry", type: "function", stateMutability: "nonpayable", inputs: [{ name: "compliance", type: "address" }, { name: "country", type: "uint16" }], outputs: [] },
 ] as const;
 
@@ -41,11 +42,13 @@ function CountryAllowConfig({
   module, complianceAddress, onRefresh,
 }: { module: ComplianceModule; complianceAddress: string; onRefresh: () => void }) {
   const [selectedCodes, setSelectedCodes] = useState<Set<number>>(new Set());
+  const [singleCountry, setSingleCountry] = useState<number | null>(null);
   const allowed = module.config.allowed_countries ?? [];
   const { isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
   const batchAddAction = useContractAction();
   const removeAction = useContractAction();
+  const singleAddAction = useContractAction();
 
   const handleBatchAdd = async () => {
     if (!isConnected) { openConnectModal?.(); return; }
@@ -81,6 +84,18 @@ function CountryAllowConfig({
     if (receipt) onRefresh();
   };
 
+  const handleSingleAdd = async () => {
+    if (!isConnected) { openConnectModal?.(); return; }
+    if (singleCountry === null) return;
+    const receipt = await singleAddAction.execute({
+      address: module.address as `0x${string}`,
+      abi: COUNTRY_ALLOW_ABI as unknown as Abi,
+      functionName: "addAllowedCountry",
+      args: [complianceAddress as `0x${string}`, singleCountry],
+    });
+    if (receipt) { setSingleCountry(null); onRefresh(); }
+  };
+
   return (
     <div className="space-y-4">
       {/* Tx status */}
@@ -114,9 +129,45 @@ function CountryAllowConfig({
         )}
       </div>
 
+      {/* Single-country quick-add */}
+      <div>
+        <h4 className="text-xs font-semibold text-zinc-500 mb-2">Quick Add Single Country</h4>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={0}
+            max={999}
+            placeholder="Country code (e.g. 784)"
+            value={singleCountry !== null ? String(singleCountry) : ""}
+            onChange={(e) => setSingleCountry(e.target.value === "" ? null : parseInt(e.target.value, 10))}
+            className="w-48"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSingleAdd}
+            disabled={singleCountry === null || singleAddAction.isPending || singleAddAction.isConfirming}
+            isLoading={singleAddAction.isPending || singleAddAction.isConfirming}
+          >
+            Add
+          </Button>
+        </div>
+        {(singleAddAction.isPending || singleAddAction.isConfirming || singleAddAction.isConfirmed || singleAddAction.error) && (
+          <TransactionStatus
+            isPending={singleAddAction.isPending}
+            isConfirming={singleAddAction.isConfirming}
+            isConfirmed={singleAddAction.isConfirmed}
+            txHash={singleAddAction.txHash}
+            txUrl={singleAddAction.txUrl}
+            error={singleAddAction.error}
+            successMessage="Country added."
+          />
+        )}
+      </div>
+
       {/* Add countries — region-grouped multi-select */}
       <div>
-        <h4 className="text-xs font-semibold text-zinc-500 mb-2">Add Countries</h4>
+        <h4 className="text-xs font-semibold text-zinc-500 mb-2">Add Countries (Batch)</h4>
         <p className="text-[11px] text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5 mb-2">
           Country code 0 (System) is automatically included to allow smart contracts (sale, vault) to hold tokens.
         </p>
