@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   BarChart3, Clock, ArrowLeft, CheckCircle2, XCircle, Flag,
   AlertCircle, Pause, Play, ShieldAlert, Eye, EyeOff,
-  Timer, Power, RefreshCw, Calendar,
+  Power, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
@@ -36,8 +36,9 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const [rejectReason, setRejectReason] = useState("");
   const [emergencyRecipient, setEmergencyRecipient] = useState("");
   // Extend phase state
-  const [extendPhaseId, setExtendPhaseId] = useState<number | null>(null);
-  const [extendNewEnd, setExtendNewEnd] = useState("");
+  // Phase extension is issuer-only at the contract level (Sale.extendPhase has
+  // onlyIssuer); the admin-side button used to be here was a footgun — the tx
+  // would always revert. Moved to the issuer's sale detail page.
 
   // On-chain actions
   const { isConnected, address: connectedWallet } = useAccount();
@@ -107,7 +108,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   const finalizeAction = useContractAction();
   const emergencyAction = useContractAction();
   const closeSaleAction = useContractAction();
-  const extendPhaseAction = useContractAction();
   const activateRefundsAction = useContractAction();
 
   useEffect(() => { paramsPromise.then((p) => setResolvedId(p.id)); }, [paramsPromise]);
@@ -258,22 +258,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       try {
         await apiFetch(`/api/v1/sales/${resolvedId}/finalize`, { method: "POST", body: { tx_hash: receipt.transactionHash }, token: getToken() });
       } catch { /* on-chain is source of truth */ }
-      await reload();
-    }
-  };
-
-  const handleExtendPhase = async () => {
-    if (!sale?.contract_address || !requireWallet() || extendPhaseId === null || !extendNewEnd) return;
-    const newEndTimestamp = BigInt(Math.floor(new Date(extendNewEnd).getTime() / 1000));
-    const receipt = await extendPhaseAction.execute({
-      address: sale.contract_address as `0x${string}`,
-      abi: SALE_ABI as unknown as Abi,
-      functionName: "extendPhase",
-      args: [BigInt(extendPhaseId), newEndTimestamp],
-    });
-    if (receipt) {
-      setExtendPhaseId(null);
-      setExtendNewEnd("");
       await reload();
     }
   };
@@ -727,7 +711,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           <p className="text-black/40 text-center py-4">No phases configured</p>
         ) : (
           <div className="space-y-4">
-            {sale.phases.map((phase, idx) => {
+            {sale.phases.map((phase) => {
               const phaseSold = parseFloat(phase.sold || "0");
               const phaseAlloc = parseFloat(phase.allocation || "0");
               const phasePct = phaseAlloc > 0 ? (phaseSold / phaseAlloc) * 100 : 0;
@@ -736,7 +720,6 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
               const now = new Date();
               const isPhaseActive = now >= phaseStart && now <= phaseEnd;
               const isPhaseUpcoming = now < phaseStart;
-              const canExtend = hasContract && (isActive || isPaused) && (isPhaseActive || isPhaseUpcoming);
               return (
                 <div key={phase.id} className="p-4 rounded-lg bg-box">
                   <div className="flex items-center justify-between mb-2">
@@ -745,40 +728,11 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                       {isPhaseActive && <Badge variant="active" size="sm">Active</Badge>}
                       {isPhaseUpcoming && <Badge variant="default" size="sm">Upcoming</Badge>}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-sm text-black/50">
-                        <Clock className="h-3 w-3" />
-                        <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
-                      </div>
-                      {canExtend && (
-                        <Button variant="outline" size="sm" onClick={() => { setExtendPhaseId(idx); setExtendNewEnd(""); }}>
-                          <Calendar className="h-3 w-3 mr-1" /> Extend
-                        </Button>
-                      )}
+                    <div className="flex items-center gap-2 text-sm text-black/50">
+                      <Clock className="h-3 w-3" />
+                      <span>{phase.start_time.slice(0, 10)} → {phase.end_time.slice(0, 10)}</span>
                     </div>
                   </div>
-                  {/* Extend phase inline form */}
-                  {extendPhaseId === idx && (
-                    <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                      <p className="text-xs text-blue-700 mb-2">Extend phase end time (must be after {phase.end_time.slice(0, 16)})</p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="datetime-local"
-                          value={extendNewEnd}
-                          onChange={(e) => setExtendNewEnd(e.target.value)}
-                          min={phase.end_time.slice(0, 16)}
-                          className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 flex-1"
-                        />
-                        <Button variant="primary" size="sm" onClick={handleExtendPhase}
-                          disabled={!extendNewEnd || extendPhaseAction.isPending || extendPhaseAction.isConfirming}
-                          isLoading={extendPhaseAction.isPending || extendPhaseAction.isConfirming}>
-                          <Timer className="h-3 w-3 mr-1" /> Confirm
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => setExtendPhaseId(null)}>Cancel</Button>
-                      </div>
-                      <TransactionStatus isPending={extendPhaseAction.isPending} isConfirming={extendPhaseAction.isConfirming} isConfirmed={extendPhaseAction.isConfirmed} txHash={extendPhaseAction.txHash} txUrl={extendPhaseAction.txUrl} error={extendPhaseAction.error} successMessage="Phase extended successfully." />
-                    </div>
-                  )}
                   <ProgressBar value={phasePct} size="sm" />
                   <div className="flex justify-between text-xs mt-1 text-black/40">
                     <span>Price: ${parseFloat(phase.price_per_token).toLocaleString()}</span>
