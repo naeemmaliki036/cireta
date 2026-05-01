@@ -124,11 +124,15 @@ export function resolveCountry(value: string | number | null | undefined): Count
   return COUNTRIES.find((c) => c.name.toLowerCase() === String(value).toLowerCase()) ?? null;
 }
 
-/** Format any country value as "United Kingdom · 826" or fallback to the raw value. */
+/**
+ * Format any country value (alpha-2/alpha-3/numeric/name) as a plain country
+ * name for display. Falls back to the raw value if no match is found.
+ * Investor-facing UI never shows ISO codes.
+ */
 export function formatCountry(value: string | number | null | undefined): string {
   const c = resolveCountry(value);
   if (!c) return value !== null && value !== undefined ? String(value) : "—";
-  return `${c.name} · ${c.numeric}`;
+  return c.name;
 }
 
 /** Convert a Country to whatever mode the caller needs. */

@@ -6,6 +6,7 @@ import { Shield, AlertCircle } from "lucide-react";
 import { Button, Spinner, Badge } from "@/components/atoms";
 import { me, type User } from "@/lib/api/repositories/auth.repository";
 import { apiGet } from "@/lib/api/client";
+import { formatCountry } from "@/lib/countries";
 
 interface KYCDetails {
   status: string;
@@ -123,7 +124,7 @@ export default function VerificationSettingsPage() {
           </div>
           <div className="flex justify-between py-3 border-b border-black/5">
             <span className="text-black/50 text-sm">Country</span>
-            <span className="text-text text-sm font-medium">{kyc.country_code || "—"}</span>
+            <span className="text-text text-sm font-medium">{kyc.country_code ? formatCountry(kyc.country_code) : "—"}</span>
           </div>
           <div className="flex justify-between py-3">
             <span className="text-black/50 text-sm">Expiry Date</span>

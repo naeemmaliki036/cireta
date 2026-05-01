@@ -103,7 +103,7 @@ export function CountrySelect({
         `}
       >
         <span className={selected ? "text-zinc-900" : "text-zinc-400"}>
-          {selected ? `${selected.name} · ${selected.numeric}` : placeholder}
+          {selected ? selected.name : placeholder}
         </span>
         <span className="flex items-center gap-1 text-zinc-400">
           {selected && !disabled && (
@@ -127,7 +127,7 @@ export function CountrySelect({
             <input
               autoFocus
               type="text"
-              placeholder="Search country, code, or number…"
+              placeholder="Search country…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full px-2 py-1.5 text-sm bg-[#ECF3F4] border border-transparent rounded focus:outline-none focus:border-[#13636F]"
@@ -151,9 +151,6 @@ export function CountrySelect({
                   `}
                 >
                   <span className="flex-1 truncate">{c.name}</span>
-                  <span className={`text-xs font-mono ${isSelected ? "text-white/80" : "text-zinc-400"}`}>
-                    {c.alpha3} · {c.numeric}
-                  </span>
                   {isSelected && <Check className="h-3.5 w-3.5" />}
                 </li>
               );
