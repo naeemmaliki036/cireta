@@ -59,10 +59,59 @@ export const ISSUER_REGISTRY_ABI = [
     ],
   },
   {
+    name: "suspendIssuer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "wallet", type: "address" },
+      { name: "reason", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "reactivateIssuer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "wallet", type: "address" }],
+    outputs: [],
+  },
+  {
+    name: "ISSUER_MANAGER_ROLE",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    name: "hasRole",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "role", type: "bytes32" },
+      { name: "account", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
     name: "IssuerActivated",
     type: "event",
     inputs: [
       { name: "wallet", type: "address", indexed: true },
+    ],
+  },
+  {
+    name: "IssuerSuspended",
+    type: "event",
+    inputs: [
+      { name: "wallet", type: "address", indexed: true },
+      { name: "reason", type: "string", indexed: false },
     ],
   },
 ] as const;

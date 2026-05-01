@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Shield, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi } from "viem";
 import { Button, Badge, Spinner } from "@/components/atoms";
@@ -20,6 +20,7 @@ import { ALL_COMPLIANCE_MODULES } from "@/lib/contracts/complianceModules";
 import { ModuleCard } from "./ComplianceModuleCards";
 import { AvailableModulesList } from "./AvailableModulesList";
 import { AdvancedModuleConfigurator } from "./AdvancedModuleConfigurator";
+import { AllowedSelectorPanel } from "./AllowedSelectorPanel";
 
 // CountryAllowModule ABI — for auto-configuring system access after attach
 const COUNTRY_ALLOW_ABI = [
@@ -38,7 +39,7 @@ export default function TokenCompliancePage({
   const [error, setError] = useState("");
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const { isConnected } = useAccount();
+  const { isConnected, address: connectedAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
   const attachAction = useContractAction();
   const removeAction = useContractAction();
@@ -67,6 +68,19 @@ export default function TokenCompliancePage({
   useEffect(() => { loadData(); }, [loadData]);
 
   const complianceAddr = token?.compliance_address;
+
+  // Read compliance owner to gate the AllowedSelectorPanel pre-flight warning
+  const { data: complianceOwner } = useReadContract({
+    address: complianceAddr as `0x${string}` | undefined,
+    abi: MODULAR_COMPLIANCE_ABI as unknown as Abi,
+    functionName: "owner",
+    query: { enabled: !!complianceAddr },
+  });
+  const isComplianceOwner =
+    !!connectedAddress &&
+    !!complianceOwner &&
+    (complianceOwner as string).toLowerCase() === connectedAddress.toLowerCase();
+
   const attachedAddresses = new Set(
     (compliance?.modules ?? []).map((m) => m.address.toLowerCase())
   );
@@ -229,6 +243,7 @@ export default function TokenCompliancePage({
           <div className="space-y-4">
             {compliance.modules.map((mod) => (
               <ModuleCard key={mod.address} module={mod} tokenId={tokenId}
+                tokenDecimals={token.decimals}
                 complianceAddress={complianceAddr || ""}
                 onRemove={handleRemove} onRefresh={loadData}
                 removing={removeAction.isPending || removeAction.isConfirming} />
@@ -249,6 +264,13 @@ export default function TokenCompliancePage({
         <AdvancedModuleConfigurator
           complianceAddress={complianceAddr}
           attachedModules={compliance.modules.map((m) => ({ address: m.address, name: m.name }))}
+        />
+      )}
+
+      {complianceAddr && (
+        <AllowedSelectorPanel
+          complianceAddress={complianceAddr}
+          isOwner={isComplianceOwner}
         />
       )}
     </IssuerDashboardLayout>

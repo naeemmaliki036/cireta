@@ -32,4 +32,5 @@ export const CIRETA_TOKEN_ABI = [
   { name: "batchUnfreezePartialTokens", type: "function", stateMutability: "nonpayable", inputs: [{ name: "addrList", type: "address[]" }, { name: "amounts", type: "uint256[]" }], outputs: [] },
   { name: "batchForcedTransfer", type: "function", stateMutability: "nonpayable", inputs: [{ name: "fromList", type: "address[]" }, { name: "toList", type: "address[]" }, { name: "amounts", type: "uint256[]" }], outputs: [] },
   { name: "batchTransfer", type: "function", stateMutability: "nonpayable", inputs: [{ name: "toList", type: "address[]" }, { name: "amounts", type: "uint256[]" }], outputs: [] },
+  { name: "hasRole", type: "function", stateMutability: "view", inputs: [{ name: "role", type: "bytes32" }, { name: "account", type: "address" }], outputs: [{ name: "", type: "bool" }] },
 ] as const;

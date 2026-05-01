@@ -1,44 +1,72 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Wallet, Pause, StopCircle, Download,
+  Wallet, Pause, StopCircle, Power, AlertCircle,
 } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import type { Abi } from "viem";
 import { Button } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { CloseSaleModal } from "@/components/molecules/CloseSaleModal";
+import { ActivateRefundsPanel } from "@/components/molecules/ActivateRefundsPanel";
+import { SaleWithdrawPanels } from "@/components/molecules/SaleWithdrawPanels";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SALE_ABI } from "@/lib/contracts/abis/sale";
 
 interface SaleContractActionsProps {
   contractAddress: string;
   saleStatus: string;
+  /** Issuer wallet address (from Sale.issuer() or sale.issuer.wallet_address). Used for pre-flight check. */
+  issuerAddress?: string | null;
+  /** Whether this sale is open-ended. Gates the Close Sale button. */
+  isOpenEnded?: boolean;
   onSuccess?: () => void;
 }
 
 /**
- * On-chain sale actions: Withdraw Funds, Withdraw Tokens, Pause, Finalize.
+ * On-chain sale actions: Withdraw Funds, Withdraw Tokens, Pause, Finalize,
+ * Close Sale (open-ended), Activate Refunds.
  * Each action uses its own useContractAction instance for independent tx tracking.
  */
 export function SaleContractActions({
   contractAddress,
   saleStatus,
+  issuerAddress,
+  isOpenEnded = false,
   onSuccess,
 }: SaleContractActionsProps) {
-  const { isConnected } = useAccount();
+  const { isConnected, address: connectedWallet } = useAccount();
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
-  // Only initialize wagmi hooks when wallet is connected to prevent console errors
-  const withdrawFundsAction = useContractAction();
-  const withdrawTokensAction = useContractAction();
-  const withdrawUnsoldAction = useContractAction();
   const pauseAction = useContractAction();
   const finalizeAction = useContractAction();
+  const closeSaleAction = useContractAction();
 
   const addr = contractAddress as `0x${string}`;
   const abi = SALE_ABI as unknown as Abi;
 
+  // On-chain Sale.issuer() read — used for wallet pre-flight when prop is absent
+  const { data: onChainIssuerAddr } = useReadContract({
+    address: addr,
+    abi,
+    functionName: "issuer",
+    query: { enabled: !!contractAddress && !issuerAddress },
+  });
+  const resolvedIssuerAddress = issuerAddress ?? (onChainIssuerAddr as string | undefined) ?? null;
+
+  // On-chain refundsActive() read — gates Activate Refunds button
+  const { data: refundsActiveOnChain } = useReadContract({
+    address: addr,
+    abi,
+    functionName: "refundsActive",
+    query: { enabled: !!contractAddress && saleStatus === "finalized_failed" },
+  });
+  const refundsAlreadyActive = refundsActiveOnChain === true;
+
   const isFinalizedSuccess = saleStatus === "finalized_success" || saleStatus === "finalized";
+  const isFinalizedFailed = saleStatus === "finalized_failed";
   const isDraft = saleStatus === "draft";
   const isRejected = saleStatus === "rejected";
   const isActive = saleStatus === "active";
@@ -47,10 +75,20 @@ export function SaleContractActions({
   const showWithdrawUnsold = isFinalizedSuccess;
   const showWithdrawTokens = (isDraft || isRejected) && !!contractAddress;
   const showPauseFinalize = isActive && !!contractAddress;
+  const showCloseSale = isOpenEnded && isActive && !!contractAddress;
+  const showActivateRefunds = isFinalizedFailed && !refundsAlreadyActive && !!contractAddress;
 
-  if (!showWithdrawFunds && !showWithdrawUnsold && !showWithdrawTokens && !showPauseFinalize) return null;
+  const showWithdraw = showWithdrawFunds || showWithdrawUnsold || showWithdrawTokens;
+  const hasAnyAction = showWithdraw || showPauseFinalize || showActivateRefunds;
 
-  // Show wallet connection prompt when not connected
+  if (!hasAnyAction) return null;
+
+  // Pre-flight: connected wallet must match the issuer
+  const connectedAddr = connectedWallet?.toLowerCase();
+  const issuerAddr = resolvedIssuerAddress?.toLowerCase();
+  const isWalletMismatch =
+    isConnected && !!issuerAddr && !!connectedAddr && connectedAddr !== issuerAddr;
+
   if (!isConnected) {
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -72,47 +110,23 @@ export function SaleContractActions({
     );
   }
 
-  const handleWithdrawFunds = async () => {
-    const receipt = await withdrawFundsAction.execute({
-      address: addr,
-      abi,
-      functionName: "withdrawFunds",
-    });
-    if (receipt) onSuccess?.();
-  };
-
-  const handleWithdrawTokens = async () => {
-    const receipt = await withdrawTokensAction.execute({
-      address: addr,
-      abi,
-      functionName: "withdrawTokens",
-    });
-    if (receipt) onSuccess?.();
-  };
-
-  const handleWithdrawUnsold = async () => {
-    const receipt = await withdrawUnsoldAction.execute({
-      address: addr,
-      abi,
-      functionName: "withdrawUnsoldTokens",
-    });
-    if (receipt) onSuccess?.();
-  };
-
   const handlePause = async () => {
-    const receipt = await pauseAction.execute({
-      address: addr,
-      abi,
-      functionName: "pause",
-    });
+    const receipt = await pauseAction.execute({ address: addr, abi, functionName: "pause" });
     if (receipt) onSuccess?.();
   };
 
   const handleFinalize = async () => {
-    const receipt = await finalizeAction.execute({
+    const receipt = await finalizeAction.execute({ address: addr, abi, functionName: "finalizeSale" });
+    if (receipt) onSuccess?.();
+  };
+
+  const handleCloseSaleConfirm = async (failed: boolean) => {
+    setShowCloseModal(false);
+    const receipt = await closeSaleAction.execute({
       address: addr,
       abi,
-      functionName: "finalizeSale",
+      functionName: "closeSale",
+      args: [failed],
     });
     if (receipt) onSuccess?.();
   };
@@ -127,116 +141,41 @@ export function SaleContractActions({
         <Wallet className="h-5 w-5" /> On-Chain Actions
       </h2>
 
+      {/* Wallet mismatch warning */}
+      {isWalletMismatch && (
+        <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold mb-0.5">Connected wallet does not match the issuer.</p>
+            <p>
+              Expected: <code className="font-mono">{issuerAddr}</code> — switch MetaMask to this address before signing.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {/* Withdraw USDC Proceeds */}
-        {showWithdrawFunds && (
-          <div className="p-4 rounded-lg bg-green-50/50 border border-green-100">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="font-medium text-text">Withdraw USDC Proceeds</p>
-                <p className="text-sm text-black/50">
-                  Withdraw all raised USDC to your issuer wallet.
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleWithdrawFunds}
-                disabled={withdrawFundsAction.isPending || withdrawFundsAction.isConfirming}
-                isLoading={withdrawFundsAction.isPending || withdrawFundsAction.isConfirming}
-                leftIcon={<Download className="h-4 w-4" />}
-              >
-                Withdraw Funds
-              </Button>
-            </div>
-            <TransactionStatus
-              isPending={withdrawFundsAction.isPending}
-              isConfirming={withdrawFundsAction.isConfirming}
-              isConfirmed={withdrawFundsAction.isConfirmed}
-              txHash={withdrawFundsAction.txHash}
-              txUrl={withdrawFundsAction.txUrl}
-              error={withdrawFundsAction.error}
-              successMessage="USDC proceeds withdrawn to your wallet."
-            />
-          </div>
+        {/* Withdraw panels (post-success, draft/rejected recovery) */}
+        {showWithdraw && (
+          <SaleWithdrawPanels
+            contractAddress={contractAddress}
+            showFundsAndUnsold={showWithdrawFunds}
+            showProjectTokens={showWithdrawTokens}
+            disabled={isWalletMismatch}
+            onSuccess={onSuccess}
+          />
         )}
 
-        {/* Sweep Unsold Tokens (Vested mode, post-success) */}
-        {showWithdrawUnsold && (
-          <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-100">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="font-medium text-text">Sweep Unsold Tokens</p>
-                <p className="text-sm text-black/50">
-                  Reclaim project tokens not sold during the sale (vested mode calls vault.withdrawExcess).
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleWithdrawUnsold}
-                disabled={withdrawUnsoldAction.isPending || withdrawUnsoldAction.isConfirming}
-                isLoading={withdrawUnsoldAction.isPending || withdrawUnsoldAction.isConfirming}
-                leftIcon={<Download className="h-4 w-4" />}
-              >
-                Sweep Unsold
-              </Button>
-            </div>
-            <TransactionStatus
-              isPending={withdrawUnsoldAction.isPending}
-              isConfirming={withdrawUnsoldAction.isConfirming}
-              isConfirmed={withdrawUnsoldAction.isConfirmed}
-              txHash={withdrawUnsoldAction.txHash}
-              txUrl={withdrawUnsoldAction.txUrl}
-              error={withdrawUnsoldAction.error}
-              successMessage="Unsold tokens swept back to your wallet."
-            />
-          </div>
-        )}
-
-        {/* Withdraw Project Tokens (Draft/Rejected) */}
-        {showWithdrawTokens && (
-          <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-100">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="font-medium text-text">Withdraw Project Tokens</p>
-                <p className="text-sm text-black/50">
-                  Recover deposited project tokens from the sale contract.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleWithdrawTokens}
-                disabled={withdrawTokensAction.isPending || withdrawTokensAction.isConfirming}
-                isLoading={withdrawTokensAction.isPending || withdrawTokensAction.isConfirming}
-                leftIcon={<Download className="h-4 w-4" />}
-              >
-                Withdraw Project Tokens
-              </Button>
-            </div>
-            <TransactionStatus
-              isPending={withdrawTokensAction.isPending}
-              isConfirming={withdrawTokensAction.isConfirming}
-              isConfirmed={withdrawTokensAction.isConfirmed}
-              txHash={withdrawTokensAction.txHash}
-              txUrl={withdrawTokensAction.txUrl}
-              error={withdrawTokensAction.error}
-              successMessage="Project tokens withdrawn to your wallet."
-            />
-          </div>
-        )}
-
-        {/* Pause / Finalize (Active sales) */}
+        {/* Pause / Finalize / Close Sale (Active sales) */}
         {showPauseFinalize && (
           <div className="p-4 rounded-lg bg-box border border-black/5">
             <p className="font-medium text-text mb-3">Sale Controls</p>
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handlePause}
-                disabled={pauseAction.isPending || pauseAction.isConfirming}
+                disabled={isWalletMismatch || pauseAction.isPending || pauseAction.isConfirming}
                 isLoading={pauseAction.isPending || pauseAction.isConfirming}
                 leftIcon={<Pause className="h-4 w-4" />}
               >
@@ -246,12 +185,24 @@ export function SaleContractActions({
                 variant="primary"
                 size="sm"
                 onClick={handleFinalize}
-                disabled={finalizeAction.isPending || finalizeAction.isConfirming}
+                disabled={isWalletMismatch || finalizeAction.isPending || finalizeAction.isConfirming}
                 isLoading={finalizeAction.isPending || finalizeAction.isConfirming}
                 leftIcon={<StopCircle className="h-4 w-4" />}
               >
                 Finalize Sale
               </Button>
+              {showCloseSale && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCloseModal(true)}
+                  disabled={isWalletMismatch || closeSaleAction.isPending || closeSaleAction.isConfirming}
+                  isLoading={closeSaleAction.isPending || closeSaleAction.isConfirming}
+                  leftIcon={<Power className="h-4 w-4" />}
+                >
+                  Close Sale
+                </Button>
+              )}
             </div>
             <TransactionStatus
               isPending={pauseAction.isPending}
@@ -271,9 +222,35 @@ export function SaleContractActions({
               error={finalizeAction.error}
               successMessage="Sale finalized on-chain."
             />
+            <TransactionStatus
+              isPending={closeSaleAction.isPending}
+              isConfirming={closeSaleAction.isConfirming}
+              isConfirmed={closeSaleAction.isConfirmed}
+              txHash={closeSaleAction.txHash}
+              txUrl={closeSaleAction.txUrl}
+              error={closeSaleAction.error}
+              successMessage="Sale closed on-chain."
+            />
           </div>
         )}
+
+        {/* Activate Refunds (FinalizedFailed, refunds not yet active) */}
+        {showActivateRefunds && (
+          <ActivateRefundsPanel
+            contractAddress={contractAddress}
+            disabled={isWalletMismatch}
+            onSuccess={onSuccess}
+          />
+        )}
       </div>
+
+      {/* Close Sale Modal */}
+      {showCloseModal && (
+        <CloseSaleModal
+          onConfirm={handleCloseSaleConfirm}
+          onCancel={() => setShowCloseModal(false)}
+        />
+      )}
     </motion.div>
   );
 }

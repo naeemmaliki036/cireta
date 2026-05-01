@@ -22,7 +22,7 @@ export interface IssuerRow {
   createdAt: string;
 }
 
-type Action = "approve" | "fee" | "revoke";
+export type IssuerAction = "approve" | "fee" | "revoke" | "reactivate";
 
 function MiniPill({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -35,14 +35,16 @@ function MiniPill({ status }: { status: string }) {
     none: "bg-zinc-100 text-zinc-500",
   };
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${colors[status] ?? colors.none}`}>
+    <span
+      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${colors[status] ?? colors.none}`}
+    >
       {status.replace("_", " ")}
     </span>
   );
 }
 
 export function buildIssuerColumns(
-  _onAction: (issuer: IssuerRow, action: Action, fee?: number) => void,
+  onAction: (issuer: IssuerRow, action: IssuerAction, fee?: number) => void,
 ): Column<IssuerRow>[] {
   return [
     {
@@ -83,7 +85,16 @@ export function buildIssuerColumns(
       key: "status",
       header: "Status",
       render: (row) => (
-        <Badge variant={row.status === "active" ? "active" : row.status === "pending" ? "pending" : "error"} size="sm">
+        <Badge
+          variant={
+            row.status === "active"
+              ? "active"
+              : row.status === "pending"
+              ? "pending"
+              : "error"
+          }
+          size="sm"
+        >
           {row.status}
         </Badge>
       ),
@@ -91,15 +102,28 @@ export function buildIssuerColumns(
     {
       key: "feeBps",
       header: "Fee",
-      render: (row) => <span className="font-mono text-sm">{row.feeBps} bps</span>,
+      render: (row) => (
+        <span className="font-mono text-sm">{row.feeBps} bps</span>
+      ),
     },
     {
       key: "id",
       header: "",
       render: (row) => (
-        <Link href={`/platform/issuers/${row.id}`}>
-          <Button variant="ghost" size="sm">View</Button>
-        </Link>
+        <div className="flex items-center gap-1.5">
+          {row.status === "suspended" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onAction(row, "reactivate")}
+            >
+              Reactivate
+            </Button>
+          )}
+          <Link href={`/platform/issuers/${row.id}`}>
+            <Button variant="ghost" size="sm">View</Button>
+          </Link>
+        </div>
       ),
     },
   ];

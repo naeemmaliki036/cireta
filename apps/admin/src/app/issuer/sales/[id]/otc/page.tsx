@@ -3,8 +3,10 @@
 import { useState, useEffect, use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useAccount } from "wagmi";
 import { apiFetch } from "@/lib/api/client";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
+import { DeployOTCTokenPanel } from "@/components/organisms/DeployOTCTokenPanel";
 
 interface OTCRecord {
   id: string;
@@ -16,11 +18,24 @@ interface OTCRecord {
 
 export default function OTCPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { isConnected } = useAccount();
   const [form, setForm] = useState({ investor_wallet: "", token_amount: "", payment_reference: "", notes: "" });
   const [records, setRecords] = useState<OTCRecord[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Sale contract address fetched lazily for the deploy panel
+  const [saleContractAddress, setSaleContractAddress] = useState<`0x${string}` | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ contract_address?: string }>(`/api/v1/sales/${id}`)
+      .then((data) => {
+        if (data.contract_address) {
+          setSaleContractAddress(data.contract_address as `0x${string}`);
+        }
+      })
+      .catch(() => { /* non-fatal */ });
+  }, [id]);
 
   const fetchRecords = async () => {
     try {
@@ -110,6 +125,17 @@ export default function OTCPage({ params }: { params: Promise<{ id: string }> })
           )}
         </div>
       </div>
+
+      {/* Deploy a new OTC token from the factory */}
+      {saleContractAddress && isConnected && (
+        <DeployOTCTokenPanel
+          saleContractAddress={saleContractAddress}
+          issuerIsActive
+          onDeployed={(addr) => {
+            setSuccess(`OTC token deployed: ${addr}`);
+          }}
+        />
+      )}
     </div>
   );
 }
