@@ -8,6 +8,8 @@ export interface Holding {
   balance: string;
   value_usd: string;
   claimable: string;
+  claimable_amount?: string;
+  vested_amount?: string;
   /** On-chain token contract address (if deployed). */
   contract_address?: string | null;
   /**
@@ -23,6 +25,12 @@ export interface Holding {
   /** Per-source balance breakdown (vested mode only). Optional; backend may not populate. */
   balance_usdc?: string;
   balance_otc?: string;
+  /** Vesting timeline (vested holdings only). 0..1 progress between cliff and full unlock. */
+  vesting_progress?: number;
+  cliff_end?: string | null;
+  vesting_end?: string | null;
+  /** Earliest upcoming unlock — cliff_end if not yet passed, vesting_end otherwise. */
+  next_unlock_at?: string | null;
 }
 
 export interface VestingSchedule {

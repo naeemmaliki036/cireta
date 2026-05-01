@@ -13,25 +13,25 @@ const ACCOUNT_CARDS = [
     href: "/settings/profile",
     icon: User,
     title: "Profile",
-    description: "Display name, email, and basic info",
+    description: "Display name & email",
   },
   {
     href: "/settings/wallets",
     icon: Wallet,
     title: "Connected Wallets",
-    description: "Manage your linked blockchain wallets",
+    description: "Linked blockchain wallets",
   },
   {
     href: "/settings/verification",
     icon: ShieldCheck,
     title: "Identity Verification",
-    description: "Complete or review your KYC status",
+    description: "KYC status",
   },
   {
     href: "/settings/notifications",
     icon: Bell,
     title: "Notifications",
-    description: "Email, SMS and in-app preferences",
+    description: "Email & in-app",
   },
 ];
 
@@ -64,47 +64,49 @@ export default function AccountPage() {
   if (!user) {
     return (
       <DashboardLayout title="Account">
-        <p className="text-center text-gray-400 py-24">Please log in</p>
+        <p className="text-center text-black/50 py-24">Please log in</p>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout title="Account" description="Your profile and preferences">
-      {/* User header card */}
-      <div className="bg-gradient-to-r from-darkAqua to-darkAqua/80 rounded-2xl p-6 mb-8 text-white">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-xl font-bold">
+      <div className="max-w-4xl py-2">
+        {/* Slim hero — about half the previous height, brand colors */}
+        <div className="bg-darkAqua rounded-2xl px-5 py-4 mb-5 text-white flex items-center gap-4">
+          <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center text-base font-bold shrink-0">
             {(user.display_name || user.email).charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold truncate">{user.display_name || "Buyer"}</h2>
-            <p className="text-white/70 text-sm truncate">{user.email}</p>
+            <p className="text-base font-semibold truncate leading-tight">
+              {user.display_name || "Buyer"}
+            </p>
+            <p className="text-white/70 text-xs truncate">{user.email}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <KYCBadge status={user.kyc_status} level={user.kyc_level} />
-          </div>
+          <KYCBadge status={user.kyc_status} level={user.kyc_level} className="shrink-0" />
         </div>
-      </div>
 
-      {/* Quick links to settings sub-pages */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {ACCOUNT_CARDS.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="group bg-white border border-gray-100 rounded-2xl p-5 hover:border-darkAqua/30 hover:shadow-sm transition-all flex items-center gap-4"
-          >
-            <div className="w-11 h-11 rounded-xl bg-darkAqua/10 flex items-center justify-center flex-shrink-0">
-              <card.icon className="h-5 w-5 text-darkAqua" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-text">{card.title}</p>
-              <p className="text-sm text-gray-500 truncate">{card.description}</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-darkAqua transition-colors" />
-          </Link>
-        ))}
+        {/* Account cards — denser 4-column grid on lg, 2-column otherwise */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {ACCOUNT_CARDS.map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group bg-white border border-black/10 rounded-2xl p-4 hover:border-darkAqua/40 transition-colors flex items-start gap-3"
+            >
+              <div className="w-9 h-9 rounded-xl bg-box flex items-center justify-center shrink-0">
+                <card.icon className="h-4 w-4 text-darkAqua" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                  <p className="text-sm font-semibold text-text truncate">{card.title}</p>
+                  <ChevronRight className="h-3.5 w-3.5 text-black/30 group-hover:text-darkAqua transition-colors shrink-0" />
+                </div>
+                <p className="text-xs text-black/50 truncate">{card.description}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -17,7 +17,7 @@ const STATUS_CONFIG = {
   none: {
     icon: Shield,
     label: "Not Started",
-    colors: "bg-gray-100 text-gray-600 border-gray-200",
+    colors: "bg-box text-black/60 border-black/10",
   },
   pending: {
     icon: Clock,
@@ -27,17 +27,17 @@ const STATUS_CONFIG = {
   approved: {
     icon: ShieldCheck,
     label: "Verified",
-    colors: "bg-green-100 text-green-700 border-green-200",
+    colors: "bg-darkAqua text-white border-darkAqua",
   },
   rejected: {
     icon: XCircle,
     label: "Rejected",
-    colors: "bg-red-100 text-red-700 border-red-200",
+    colors: "bg-text/5 text-text border-text/20",
   },
   expired: {
     icon: AlertCircle,
     label: "Expired",
-    colors: "bg-orange-500/10 border-orange-500/20 text-orange-400",
+    colors: "bg-text/5 text-text border-text/20",
   },
 };
 
@@ -61,7 +61,7 @@ export function KYCBadge({
       <Icon className="h-4 w-4" />
       <span className="text-sm font-medium">{config.label}</span>
       {showLevel && status === "approved" && level > 0 && (
-        <span className="text-xs px-1.5 py-0.5 rounded-full bg-darkAqua text-white font-semibold">
+        <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/20 text-white font-semibold">
           Level {level}
         </span>
       )}

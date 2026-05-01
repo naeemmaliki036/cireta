@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowUpRight, RefreshCw, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  RefreshCw,
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  ArrowDownLeft,
+  ArrowUpFromLine,
+  Wallet,
+  Undo2,
+} from "lucide-react";
 import { Button, Spinner, Select } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import {
@@ -32,22 +42,22 @@ const TYPE_LABELS: Record<string, string> = {
   refund: "Refund",
 };
 
-const TYPE_STYLES: Record<string, string> = {
-  investment: "bg-blue-50 text-blue-700",
-  claim: "bg-green-50 text-green-700",
-  redemption: "bg-purple-50 text-purple-700",
-  refund: "bg-orange-50 text-orange-700",
+const TYPE_ICONS: Record<string, React.ElementType> = {
+  investment: ArrowDownLeft,
+  claim: ArrowUpFromLine,
+  redemption: Wallet,
+  refund: Undo2,
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  confirmed: "bg-green-100 text-green-700",
-  claimed: "bg-green-100 text-green-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  processing: "bg-yellow-100 text-yellow-700",
-  fulfilled: "bg-green-100 text-green-700",
-  refunded: "bg-orange-100 text-orange-700",
-  failed: "bg-red-100 text-red-700",
-  cancelled: "bg-red-100 text-red-700",
+const STATUS_LABELS: Record<string, string> = {
+  confirmed: "Confirmed",
+  claimed: "Claimed",
+  pending: "Pending",
+  processing: "Processing",
+  fulfilled: "Fulfilled",
+  refunded: "Refunded",
+  failed: "Failed",
+  cancelled: "Cancelled",
 };
 
 export default function TransactionsPage() {
@@ -58,20 +68,17 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
   const [filterType, setFilterType] = useState("");
   const [filterTokenId, setFilterTokenId] = useState("");
 
-  // Token options for dropdown
   const [tokenOptions, setTokenOptions] = useState<{ value: string; label: string }[]>([]);
 
-  // Load token options from holdings
   useEffect(() => {
     getPortfolio()
       .then((data) => {
         const opts = data.holdings.map((h: Holding) => ({
           value: h.token_id,
-          label: `${h.token_symbol} - ${h.token_name}`,
+          label: `${h.token_symbol} — ${h.token_name}`,
         }));
         setTokenOptions([{ value: "", label: "All Tokens" }, ...opts]);
       })
@@ -105,7 +112,6 @@ export default function TransactionsPage() {
     fetchData();
   }, [fetchData]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(0);
   }, [filterType, filterTokenId]);
@@ -113,9 +119,8 @@ export default function TransactionsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "\u2014";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -124,43 +129,39 @@ export default function TransactionsPage() {
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString("en-US", {
+    return new Date(dateStr).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
   return (
-    <DashboardLayout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-text">Transaction History</h1>
-          <Button variant="secondary" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-        <p className="text-xs text-black/40 mb-6">
-          Newly purchased tokens may take a few minutes to appear here.
-        </p>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6">
-          <div className="w-full sm:w-48">
+    <DashboardLayout
+      title="Transactions"
+      description="Newly purchased tokens may take a few minutes to appear here"
+    >
+      <div className="max-w-5xl py-2">
+        {/* Header strip with inline filters */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="w-44">
             <Select
               options={tokenOptions}
               value={filterTokenId}
               onChange={(e) => setFilterTokenId(e.target.value)}
             />
           </div>
-          <div className="w-full sm:w-40">
+          <div className="w-36">
             <Select
               options={TYPE_OPTIONS}
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
             />
+          </div>
+          <div className="ml-auto">
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
         </div>
 
@@ -170,130 +171,125 @@ export default function TransactionsPage() {
             <Spinner size="lg" />
           </div>
         ) : error ? (
-          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
-            <p className="text-red-500 mb-4">{error}</p>
+          <div className="bg-white rounded-2xl border border-black/10 p-10 text-center">
+            <p className="text-text mb-4">{error}</p>
             <Button variant="primary" size="sm" onClick={fetchData}>
               Retry
             </Button>
           </div>
         ) : txs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
-            <Receipt className="w-10 h-10 text-black/20 mx-auto mb-3" />
-            <p className="text-black/40 font-medium">No transactions yet</p>
-            <p className="text-black/20 text-sm mt-1">
-              Your transactions will appear here after you buy.
-            </p>
+          <div className="bg-white rounded-2xl border border-black/10 p-10 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-box flex items-center justify-center mx-auto mb-3">
+              <Receipt className="w-5 h-5 text-darkAqua" />
+            </div>
+            <p className="text-base font-semibold text-text">No transactions yet</p>
+            <p className="text-sm text-black/50 mt-1">Your activity will appear here after you buy.</p>
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-xl border border-black/10 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full">
                   <thead>
-                    <tr className="border-b border-black/10 text-black/40 text-xs uppercase">
-                      <th className="text-left px-2 sm:px-4 py-3">Date</th>
-                      <th className="text-left px-2 sm:px-4 py-3">Type</th>
-                      <th className="hidden sm:table-cell text-left px-2 sm:px-4 py-3">Token</th>
-                      <th className="text-right px-2 sm:px-4 py-3">Amount</th>
-                      <th className="text-left px-2 sm:px-4 py-3">Status</th>
-                      <th className="hidden sm:table-cell text-left px-2 sm:px-4 py-3">Tx Hash</th>
+                    <tr className="text-[11px] uppercase tracking-wider text-black/50 bg-box">
+                      <th className="text-left px-4 py-3 font-medium rounded-tl-2xl">Date</th>
+                      <th className="text-left px-4 py-3 font-medium">Type</th>
+                      <th className="hidden sm:table-cell text-left px-4 py-3 font-medium">Token</th>
+                      <th className="text-right px-4 py-3 font-medium">Amount</th>
+                      <th className="text-left px-4 py-3 font-medium">Status</th>
+                      <th className="hidden md:table-cell text-left px-4 py-3 font-medium rounded-tr-2xl">Tx</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {txs.map((tx) => (
-                      <tr
-                        key={tx.id}
-                        className="border-b border-black/5 last:border-0 hover:bg-gray-50/50 transition-colors"
-                      >
-                        {/* Date */}
-                        <td className="px-2 sm:px-4 py-3">
-                          <p className="text-text text-sm">
-                            <span className="sm:hidden">{formatDate(tx.created_at).replace(/(\w{3}) (\d+), (\d{4})/, "$1 $2")}</span>
-                            <span className="hidden sm:inline">{formatDate(tx.created_at)}</span>
-                          </p>
-                          <p className="text-black/30 text-xs">{formatTime(tx.created_at)}</p>
-                        </td>
+                    {txs.map((tx) => {
+                      const Icon = TYPE_ICONS[tx.type] ?? Receipt;
+                      const isOtc = tx.is_otc || tx.tx_hash?.startsWith("otc-");
+                      const hasOnChainHash = tx.tx_hash && !tx.tx_hash.startsWith("otc-");
+                      return (
+                        <tr
+                          key={tx.id}
+                          className="border-t border-black/5 hover:bg-box/50 transition-colors"
+                        >
+                          {/* Date */}
+                          <td className="px-4 py-3.5">
+                            <p className="text-sm text-text">{formatDate(tx.created_at)}</p>
+                            <p className="text-xs text-black/50">{formatTime(tx.created_at)}</p>
+                          </td>
 
-                        {/* Type */}
-                        <td className="px-2 sm:px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                TYPE_STYLES[tx.type] ?? "bg-black/5 text-black/50"
-                              }`}
-                            >
-                              {TYPE_LABELS[tx.type] ?? tx.type}
-                            </span>
-                            {(tx.is_otc || tx.tx_hash?.startsWith("otc-")) ? (
-                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
-                                OTC
-                              </span>
-                            ) : tx.type === "investment" ? (
-                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
-                                On-chain
-                              </span>
-                            ) : null}
-                          </div>
-                        </td>
+                          {/* Type */}
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-box flex items-center justify-center shrink-0">
+                                <Icon className="h-3.5 w-3.5 text-darkAqua" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-text">
+                                  {TYPE_LABELS[tx.type] ?? tx.type}
+                                </span>
+                                {isOtc && (
+                                  <span className="text-[10px] uppercase tracking-wider text-black/50">
+                                    OTC
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
 
-                        {/* Token */}
-                        <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
-                          {tx.token_symbol ? (
-                            <span className="text-text font-medium">{tx.token_symbol}</span>
-                          ) : (
-                            <span className="text-black/30">{"\u2014"}</span>
-                          )}
-                        </td>
-
-                        {/* Amount */}
-                        <td className="px-2 sm:px-4 py-3 text-right">
-                          <p className="text-text font-semibold">
-                            {Number(tx.amount).toLocaleString(undefined, {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            })}{" "}
-                            <span className="text-black/40 font-normal text-xs">USDC</span>
-                          </p>
-                          {tx.tokens_allocated &&
-                            Number(tx.tokens_allocated) > 0 &&
-                            tx.type === "investment" && (
-                              <p className="text-black/30 text-xs">
-                                {formatTokenDisplay(tx.tokens_allocated)} tokens
-                              </p>
+                          {/* Token */}
+                          <td className="hidden sm:table-cell px-4 py-3.5">
+                            {tx.token_symbol ? (
+                              <span className="text-sm font-medium text-text">{tx.token_symbol}</span>
+                            ) : (
+                              <span className="text-sm text-black/40">—</span>
                             )}
-                        </td>
+                          </td>
 
-                        {/* Status */}
-                        <td className="px-2 sm:px-4 py-3">
-                          <span
-                            className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-                              STATUS_STYLES[tx.status] ?? "bg-black/5 text-black/40"
-                            }`}
-                          >
-                            {tx.status}
-                          </span>
-                        </td>
+                          {/* Amount */}
+                          <td className="px-4 py-3.5 text-right">
+                            <p className="text-sm font-semibold text-text tabular-nums">
+                              {Number(tx.amount).toLocaleString(undefined, {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              })}
+                              <span className="text-xs font-normal text-black/50 ml-1">USDC</span>
+                            </p>
+                            {tx.tokens_allocated &&
+                              Number(tx.tokens_allocated) > 0 &&
+                              tx.type === "investment" && (
+                                <p className="text-xs text-black/50 tabular-nums">
+                                  {formatTokenDisplay(tx.tokens_allocated)} tokens
+                                </p>
+                              )}
+                          </td>
 
-                        {/* Tx Hash */}
-                        <td className="hidden sm:table-cell px-2 sm:px-4 py-3">
-                          {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (
-                            <a
-                              href={getTxUrl(chainId, tx.tx_hash) ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-darkAqua hover:text-darkAqua/80 inline-flex items-center gap-1 text-xs font-mono"
-                            >
-                              {truncateAddress(tx.tx_hash, 6)}
-                              <ArrowUpRight className="w-3.5 h-3.5" />
-                            </a>
-                          ) : tx.tx_hash?.startsWith("otc-") ? (
-                            <span className="text-black/30 text-xs">OTC</span>
-                          ) : (
-                            <span className="text-black/30 text-xs">{"\u2014"}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          {/* Status */}
+                          <td className="px-4 py-3.5">
+                            <span className="text-xs text-text/80 capitalize">
+                              {STATUS_LABELS[tx.status] ?? tx.status}
+                            </span>
+                          </td>
+
+                          {/* Tx hash */}
+                          <td className="hidden md:table-cell px-4 py-3.5">
+                            {hasOnChainHash ? (
+                              <a
+                                href={getTxUrl(chainId, tx.tx_hash as string) ?? undefined}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-mono text-darkAqua hover:underline"
+                              >
+                                {truncateAddress(tx.tx_hash as string, 6)}
+                                <ArrowUpRight className="w-3 h-3" />
+                              </a>
+                            ) : isOtc ? (
+                              <span className="text-xs text-black/40">Off-chain</span>
+                            ) : (
+                              <span className="text-xs text-black/40">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -302,30 +298,28 @@ export default function TransactionsPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
-                <p className="text-sm text-black/40">
-                  Showing {page * PAGE_SIZE + 1}
-                  {"\u2013"}
-                  {Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+                <p className="text-xs text-black/50">
+                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     disabled={page === 0}
                     onClick={() => setPage((p) => Math.max(0, p - 1))}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </Button>
-                  <span className="text-sm text-black/50">
+                  <span className="text-xs text-black/60 tabular-nums">
                     Page {page + 1} of {totalPages}
                   </span>
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     disabled={page >= totalPages - 1}
                     onClick={() => setPage((p) => p + 1)}
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>

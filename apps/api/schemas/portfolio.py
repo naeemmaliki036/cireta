@@ -29,6 +29,14 @@ class HoldingResponse(BaseModel):
     locked: bool = False
     is_redeemable: bool = False
     sale_mode: str = "direct"
+    # On-chain token contract — needed by /portfolio/transfer to look up
+    # balanceOf and submit transfer txs.
+    contract_address: str | None = None
+    # Vesting timeline — populated for vested holdings, None for direct.
+    vesting_progress: float = 0.0
+    cliff_end: datetime | None = None
+    vesting_end: datetime | None = None
+    next_unlock_at: datetime | None = None
 
     class Config:
         from_attributes = True

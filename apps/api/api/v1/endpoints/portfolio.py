@@ -62,6 +62,11 @@ def _holding_to_response(holding: dict) -> HoldingResponse:
         locked=bool(holding.get("locked", False)),
         is_redeemable=bool(holding.get("is_redeemable", False)),
         sale_mode=holding.get("sale_mode", "direct"),
+        contract_address=holding.get("contract_address"),
+        vesting_progress=float(holding.get("vesting_progress") or 0.0),
+        cliff_end=holding.get("cliff_end"),
+        vesting_end=holding.get("vesting_end"),
+        next_unlock_at=holding.get("next_unlock_at"),
     )
 
 
@@ -359,17 +364,12 @@ async def get_transactions(
             contrib_q.order_by(Contribution.created_at.desc())
         )
         for c in contribs.scalars().all():
-            # Determine transaction type from status
+            # A single Contribution row represents the buyer's full lifecycle in
+            # a sale: an initial buy, an optional claim, an optional refund.
+            # Emit one transaction per *event* that actually happened so the
+            # investor sees the full timeline (buy → claim) instead of a single
+            # row whose label flips with the latest status.
             c_status = c.status if isinstance(c.status, str) else c.status.value
-            if c_status == "refunded":
-                c_type = "refund"
-            elif c_status == "claimed":
-                c_type = "claim"
-            else:
-                c_type = "investment"
-
-            if tx_type and c_type != tx_type:
-                continue
 
             token_sym = ""
             token_name_val = ""
@@ -382,22 +382,56 @@ async def get_transactions(
                 else:
                     token_name_val = c.sale.title or ""
 
-            txs.append(
-                {
-                    "id": str(c.id),
-                    "type": c_type,
-                    "amount": str(c.amount),
-                    "tokens_allocated": str(c.tokens_allocated),
-                    "token_symbol": token_sym,
-                    "token_name": token_name_val,
-                    "token_id": sale_token_id,
-                    "tx_hash": c.claim_tx_hash if c_type == "claim" else c.tx_hash,
-                    "status": c_status,
-                    "is_otc": bool(getattr(c, "is_otc", False)),
-                    "created_at": c.created_at.isoformat() if c.created_at else None,
-                    "phase_name": c.phase.name if c.phase else None,
-                }
-            )
+            base_row = {
+                "amount": str(c.amount),
+                "tokens_allocated": str(c.tokens_allocated),
+                "token_symbol": token_sym,
+                "token_name": token_name_val,
+                "token_id": sale_token_id,
+                "is_otc": bool(getattr(c, "is_otc", False)),
+                "phase_name": c.phase.name if c.phase else None,
+            }
+
+            # Buy event — always emitted. The buy happened the moment the row
+            # was created, regardless of subsequent claim/refund.
+            if not tx_type or tx_type == "investment":
+                txs.append(
+                    {
+                        **base_row,
+                        "id": f"{c.id}-buy",
+                        "type": "investment",
+                        "tx_hash": c.tx_hash,
+                        "status": c_status,
+                        "created_at": c.created_at.isoformat() if c.created_at else None,
+                    }
+                )
+
+            # Claim event — only when the buyer has actually claimed.
+            if c.claimed_at and (not tx_type or tx_type == "claim"):
+                txs.append(
+                    {
+                        **base_row,
+                        "id": f"{c.id}-claim",
+                        "type": "claim",
+                        "tx_hash": c.claim_tx_hash,
+                        "status": "claimed",
+                        "created_at": c.claimed_at.isoformat(),
+                    }
+                )
+
+            # Refund event — only when the contribution was refunded.
+            if c_status == "refunded" and (not tx_type or tx_type == "refund"):
+                refund_at = getattr(c, "refunded_at", None) or c.updated_at or c.created_at
+                txs.append(
+                    {
+                        **base_row,
+                        "id": f"{c.id}-refund",
+                        "type": "refund",
+                        "tx_hash": getattr(c, "refund_tx_hash", None) or c.tx_hash,
+                        "status": "refunded",
+                        "created_at": refund_at.isoformat() if refund_at else None,
+                    }
+                )
 
     # --- Redemptions ---
     include_redemptions = tx_type in (None, "redemption")

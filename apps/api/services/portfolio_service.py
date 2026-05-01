@@ -1,5 +1,6 @@
 """Portfolio service for user holdings overview."""
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -12,6 +13,34 @@ from apps.api.models.enums import ContributionStatus, RedemptionStatus
 from apps.api.models.redemption_request import RedemptionRequest
 from apps.api.models.token_sale import TokenSale
 from apps.api.models.vesting_schedule import VestingSchedule
+
+
+def _compute_vesting_progress(
+    cliff_end: datetime | None,
+    vesting_end: datetime | None,
+) -> tuple[float, datetime | None]:
+    """Return (progress 0..1, next_unlock_at) for a vesting schedule.
+
+    Cliff-only schedules collapse to a step function (0% before cliff, 100% after).
+    Linear schedules interpolate between cliff_end and vesting_end.
+    """
+    if cliff_end is None:
+        return (0.0, None)
+    now = datetime.now(UTC)
+    cliff = cliff_end if cliff_end.tzinfo else cliff_end.replace(tzinfo=UTC)
+    end = vesting_end if vesting_end and vesting_end.tzinfo else (
+        vesting_end.replace(tzinfo=UTC) if vesting_end else None
+    )
+    if now < cliff:
+        return (0.0, cliff)
+    if end is None or end <= cliff:
+        # cliff-only schedule — fully unlocked at cliff
+        return (1.0, cliff)
+    if now >= end:
+        return (1.0, end)
+    span = (end - cliff).total_seconds()
+    elapsed = (now - cliff).total_seconds()
+    return (max(0.0, min(1.0, elapsed / span)), end)
 
 
 class PortfolioService:
@@ -74,6 +103,11 @@ class PortfolioService:
                     "locked": is_locked,
                     "is_redeemable": getattr(contrib.sale, "is_redeemable", False) or False,
                     "sale_mode": getattr(contrib.sale, "sale_mode", "direct") or "direct",
+                    "contract_address": getattr(token, "contract_address", None),
+                    "vesting_progress": 0.0,
+                    "cliff_end": None,
+                    "vesting_end": None,
+                    "next_unlock_at": None,
                 }
 
             # Promote is_redeemable if any contributing sale has it enabled
@@ -107,10 +141,28 @@ class PortfolioService:
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
                     "locked": False,
+                    "contract_address": getattr(schedule.token, "contract_address", None),
+                    "vesting_progress": 0.0,
+                    "cliff_end": None,
+                    "vesting_end": None,
+                    "next_unlock_at": None,
                 }
 
             holdings[bucket_key]["vested_amount"] += schedule.claimed_amount
             holdings[bucket_key]["claimable_amount"] += schedule.claimable_amount
+
+            # Populate vesting timeline from the schedule. When a holding has
+            # multiple schedules (rare), use the latest unlock as the canonical
+            # one — investors care about when the *last* slice opens.
+            progress, next_unlock = _compute_vesting_progress(
+                schedule.cliff_end, schedule.vesting_end
+            )
+            existing_next = holdings[bucket_key]["next_unlock_at"]
+            if existing_next is None or (next_unlock and next_unlock > existing_next):
+                holdings[bucket_key]["cliff_end"] = schedule.cliff_end
+                holdings[bucket_key]["vesting_end"] = schedule.vesting_end
+                holdings[bucket_key]["next_unlock_at"] = next_unlock
+                holdings[bucket_key]["vesting_progress"] = progress
 
         return list(holdings.values())
 
