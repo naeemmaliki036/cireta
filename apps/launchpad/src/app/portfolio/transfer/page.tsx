@@ -11,7 +11,7 @@ import {
   useReadContract,
 } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { parseUnits, formatUnits, isAddress } from "viem";
+import { parseUnits, formatUnits, isAddress, type Abi } from "viem";
 import { Button, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +21,7 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { useToast, ToastContainer } from "@/components/molecules/Toast";
 
 /**
- * Minimal ERC-20 ABI for transfer + balanceOf + decimals.
+ * Minimal ERC-20 ABI for transfer + batchTransfer + balanceOf + decimals.
  */
 const ERC20_TRANSFER_ABI = [
   {
@@ -33,6 +33,16 @@ const ERC20_TRANSFER_ABI = [
       { name: "amount", type: "uint256" },
     ],
     outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "batchTransfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "toList", type: "address[]" },
+      { name: "amounts", type: "uint256[]" },
+    ],
+    outputs: [],
   },
   {
     name: "balanceOf",
@@ -49,6 +59,34 @@ const ERC20_TRANSFER_ABI = [
     outputs: [{ name: "", type: "uint8" }],
   },
 ] as const;
+
+interface BatchRow {
+  address: string;
+  amount: string;
+  valid: boolean;
+  error: string;
+}
+
+function parseBatchInput(raw: string, decimals: number): { rows: BatchRow[]; parseError: string | null } {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { rows: [], parseError: null };
+  const rows: BatchRow[] = lines.map((line): BatchRow => {
+    const parts = line.split(",").map((p) => p.trim());
+    if (parts.length !== 2) return { address: line, amount: "", valid: false, error: "Expected format: address,amount" };
+    const addr = parts[0] ?? "";
+    const amt = parts[1] ?? "";
+    if (!isAddress(addr)) return { address: addr, amount: amt, valid: false, error: "Invalid address" };
+    const numAmt = parseFloat(amt);
+    if (isNaN(numAmt) || numAmt <= 0) return { address: addr, amount: amt, valid: false, error: "Invalid amount" };
+    try {
+      parseUnits(amt, decimals);
+      return { address: addr, amount: amt, valid: true, error: "" };
+    } catch {
+      return { address: addr, amount: amt, valid: false, error: "Amount parsing failed" };
+    }
+  });
+  return { rows, parseError: null };
+}
 
 interface TokenOption {
   tokenId: string;
@@ -71,6 +109,11 @@ export default function TransferPage() {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "confirm" | "success">("form");
+
+  // Batch send mode
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchInput, setBatchInput] = useState("");
+  const batchAction = useContractAction();
 
   // Unified contract action for transfer
   const transferAction = useContractAction();
@@ -178,6 +221,30 @@ export default function TransferPage() {
     setError(null);
     setStep("confirm");
   }, [selectedToken, recipient, numericAmount, onChainBalanceFormatted]);
+
+  const executeBatchTransfer = useCallback(async () => {
+    if (!selectedToken) return;
+    const { rows } = parseBatchInput(batchInput, decimals);
+    const valid = rows.filter((r) => r.valid);
+    if (valid.length === 0) { setError("No valid rows."); return; }
+    setError(null);
+    try {
+      await batchAction.execute({
+        address: selectedToken.contractAddress,
+        abi: ERC20_TRANSFER_ABI as unknown as Abi,
+        functionName: "batchTransfer",
+        args: [
+          valid.map((r) => r.address as `0x${string}`),
+          valid.map((r) => parseUnits(r.amount, decimals)),
+        ],
+      });
+      showSuccess("Batch Transfer Initiated", `Sending to ${valid.length} recipients.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Batch transfer failed";
+      setError(msg);
+      showError("Batch Transfer Failed", msg);
+    }
+  }, [batchAction, selectedToken, batchInput, decimals, showSuccess, showError]);
 
   const executeTransfer = useCallback(async () => {
     if (!selectedToken) return;
@@ -297,8 +364,23 @@ export default function TransferPage() {
         ) : (
           /* Form step */
           <div className="bg-white rounded-2xl p-8 border border-gray-100">
-            <h2 className="text-xl font-semibold text-text mb-1">Transfer Tokens</h2>
-            <p className="text-sm text-black/40 mb-6">Send security tokens to another KYC-verified wallet.</p>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-xl font-semibold text-text">
+                {batchMode ? "Batch Send Tokens" : "Transfer Tokens"}
+              </h2>
+              <button
+                onClick={() => { setBatchMode((m) => !m); setError(null); }}
+                className="text-xs font-medium text-darkAqua hover:underline"
+              >
+                {batchMode ? "Single send" : "Batch send"}
+              </button>
+            </div>
+            <p className="text-sm text-black/40 mb-6">
+              {batchMode
+                ? "Send to multiple KYC-verified wallets in one transaction."
+                : "Send security tokens to another KYC-verified wallet."
+              }
+            </p>
 
             {/* Warning */}
             <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex gap-3 mb-6">
@@ -402,15 +484,62 @@ export default function TransferPage() {
 
                 {error && <p className="text-sm text-red-500">{error}</p>}
 
-                <Button
-                  variant="primary"
-                  className="w-full"
-                  size="lg"
-                  disabled={!selectedToken || !recipient || numericAmount <= 0}
-                  onClick={handleTransfer}
-                >
-                  <Send className="h-4 w-4 mr-2" /> Review Transfer
-                </Button>
+                {batchMode ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-text mb-2">
+                        Recipients (one per line: <code className="text-xs font-mono">address,amount</code>)
+                      </label>
+                      <textarea
+                        value={batchInput}
+                        onChange={(e) => setBatchInput(e.target.value)}
+                        rows={6}
+                        placeholder={`0xabc123...,100\n0xdef456...,250`}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-darkAqua/30 focus:border-darkAqua resize-y"
+                      />
+                      {batchInput && (() => {
+                        const { rows } = parseBatchInput(batchInput, decimals);
+                        const validCount = rows.filter((r) => r.valid).length;
+                        const invalidRows = rows.filter((r) => !r.valid);
+                        return (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-zinc-500">{validCount} valid / {rows.length} total rows</p>
+                            {invalidRows.map((r, i) => (
+                              <p key={i} className="text-xs text-red-500">{r.address.slice(0, 10)}… — {r.error}</p>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    {batchAction.isConfirmed && (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        <CheckCircle2 className="h-4 w-4" /> Batch transfer confirmed
+                      </div>
+                    )}
+                    {batchAction.error && <p className="text-sm text-red-500">{batchAction.error}</p>}
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      size="lg"
+                      disabled={!selectedToken || !batchInput.trim() || batchAction.isPending || batchAction.isConfirming}
+                      isLoading={batchAction.isPending || batchAction.isConfirming}
+                      onClick={executeBatchTransfer}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      {batchAction.isPending ? "Sign in Wallet..." : batchAction.isConfirming ? "Confirming..." : "Send Batch"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    size="lg"
+                    disabled={!selectedToken || !recipient || numericAmount <= 0}
+                    onClick={handleTransfer}
+                  >
+                    <Send className="h-4 w-4 mr-2" /> Review Transfer
+                  </Button>
+                )}
               </div>
             )}
           </div>

@@ -51,4 +51,40 @@ export const OTC_TOKEN_FACTORY_ABI = [
       { name: "otcToken", type: "address", indexed: true },
     ],
   },
+  // ── Admin setters ──
+  {
+    name: "setOTCTokenImplementation",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "impl", type: "address" }],
+    outputs: [],
+  },
+  {
+    name: "setIssuerRegistry",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "registry", type: "address" }],
+    outputs: [],
+  },
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "otcTokenImplementation",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "issuerRegistry",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
 ] as const;

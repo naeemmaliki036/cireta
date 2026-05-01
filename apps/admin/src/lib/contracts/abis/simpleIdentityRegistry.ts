@@ -150,6 +150,16 @@ export const SIMPLE_IDENTITY_REGISTRY_ABI = [
     inputs: [],
     outputs: [],
   },
+  {
+    name: "updateCountry",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "wallet", type: "address" },
+      { name: "country", type: "uint16" },
+    ],
+    outputs: [],
+  },
   // ── Events ──
   {
     name: "IdentityRegistered",

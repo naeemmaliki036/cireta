@@ -26,6 +26,7 @@ import {
   ListChecks,
   FileCode2,
   AlertOctagon,
+  Cpu,
 } from "lucide-react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button, Badge } from "@/components/atoms";
@@ -143,6 +144,7 @@ export function PlatformAdminLayout({
               but the user profile below is pinned outside this scroll region. */}
           <div className="pt-4 border-t border-zinc-200 space-y-0.5">
             <NavLink href="/platform/contracts" label="Smart Contracts" icon={FileCode2} />
+            <NavLink href="/platform/protocol-config" label="Protocol Config" icon={Cpu} />
             <NavLink href="/platform/email-templates" label="Email Management" icon={Mail} />
             <NavLink href="/platform/error-reports" label="Error Reports" icon={AlertOctagon} />
             <NavLink href="/platform/admins" label="Admin Accounts" icon={UserCog} />

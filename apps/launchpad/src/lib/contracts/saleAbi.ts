@@ -50,6 +50,13 @@ export const SALE_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    name: "softCap",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     name: "getPhaseCount",
     type: "function",
     stateMutability: "view",

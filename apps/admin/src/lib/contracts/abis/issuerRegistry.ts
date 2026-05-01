@@ -114,4 +114,15 @@ export const ISSUER_REGISTRY_ABI = [
       { name: "reason", type: "string", indexed: false },
     ],
   },
+  {
+    name: "updateIssuer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "wallet", type: "address" },
+      { name: "newName", type: "string" },
+      { name: "newJurisdiction", type: "string" },
+    ],
+    outputs: [],
+  },
 ] as const;

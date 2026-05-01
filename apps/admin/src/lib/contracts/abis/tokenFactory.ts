@@ -45,4 +45,51 @@ export const TOKEN_FACTORY_ABI = [
     inputs: [],
     outputs: [{ name: "", type: "bool" }],
   },
+  // ── Admin setters ──
+  {
+    name: "updateImplementations",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenImpl", type: "address" },
+      { name: "identityRegistryImpl", type: "address" },
+      { name: "complianceImpl", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "setSimpleIdentityMode",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "enabled", type: "bool" }],
+    outputs: [],
+  },
+  {
+    name: "owner",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "tokenImplementation",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "identityRegistryImplementation",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "complianceImplementation",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
+  },
 ] as const;
