@@ -50,6 +50,10 @@ contract PlatformFeeManager is
         uint256 amount,
         uint256 feeBps
     );
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -70,8 +74,9 @@ contract PlatformFeeManager is
         defaultFeeBps = _defaultFeeBps;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.

@@ -38,11 +38,17 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     uint256[100] private __gap;
 
     event VaultDeployed(address indexed sale, address vault, address fractionToken, address projectToken);
+    event FractionTokenImplementationUpdated(address indexed oldImpl, address indexed newImpl);
+    event VaultImplementationUpdated(address indexed oldImpl, address indexed newImpl);
     event SystemContractWhitelisted(
         address indexed contractAddr,
         address indexed registry,
         bool success
     );
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() { _disableInitializers(); }
@@ -154,16 +160,21 @@ contract CiretaFractionFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
 
     function setFractionTokenImplementation(address impl) external onlyOwner {
         require(impl != address(0), "zero impl");
+        address old = fractionTokenImplementation;
         fractionTokenImplementation = impl;
+        emit FractionTokenImplementationUpdated(old, impl);
     }
 
     function setVaultImplementation(address impl) external onlyOwner {
         require(impl != address(0), "zero impl");
+        address old = vaultImplementation;
         vaultImplementation = impl;
+        emit VaultImplementationUpdated(old, impl);
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.

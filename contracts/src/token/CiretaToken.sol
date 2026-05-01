@@ -89,6 +89,16 @@ contract CiretaToken is
     event AddressFrozen(address indexed addr, bool indexed isFrozen, address indexed agent);
     event TokensFrozen(address indexed addr, uint256 amount);
     event TokensUnfrozen(address indexed addr, uint256 amount);
+    /// @notice Emitted on every mint/batchMint entry. ERC20 `Transfer(0,...)` is
+    /// also emitted by `_mint` but consumers (subgraphs, workers) often need a
+    /// dedicated mint event to filter without inspecting the `from` field.
+    event TokensMinted(address indexed to, uint256 amount, address indexed minter);
+    /// @notice Emitted on every burn/batchBurn entry — paired with ERC20 `Transfer(...,0,...)`.
+    event TokensBurned(address indexed from, uint256 amount, address indexed burner);
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -176,7 +186,9 @@ contract CiretaToken is
         internal
         override
         onlyRole(DEFAULT_ADMIN_ROLE)
-    {}
+    {
+        emit ImplementationUpgraded(newImplementation, 0);
+    }
 
     // ============ Supply Getters ============
 
@@ -342,11 +354,13 @@ contract CiretaToken is
         require(totalSupply() + amount <= _maxSupply, "exceeds max supply");
         _mint(to, amount);
         _compliance.created(to, amount);
+        emit TokensMinted(to, amount, msg.sender);
     }
 
     function burn(address account, uint256 amount) external onlyRole(SUPPLY_ROLE) {
         _burn(account, amount);
         _compliance.destroyed(account, amount);
+        emit TokensBurned(account, amount, msg.sender);
     }
 
     function batchMint(
@@ -360,6 +374,7 @@ contract CiretaToken is
             require(_identityRegistry.isVerified(toList[i]), "identity not verified");
             _mint(toList[i], amounts[i]);
             _compliance.created(toList[i], amounts[i]);
+            emit TokensMinted(toList[i], amounts[i], msg.sender);
             currentSupply += amounts[i];
         }
     }
@@ -372,6 +387,7 @@ contract CiretaToken is
         for (uint256 i = 0; i < fromList.length; i++) {
             _burn(fromList[i], amounts[i]);
             _compliance.destroyed(fromList[i], amounts[i]);
+            emit TokensBurned(fromList[i], amounts[i], msg.sender);
         }
     }
 
@@ -398,6 +414,9 @@ contract CiretaToken is
         _forcedOperation = true;
         _transfer(from, to, amount);
         _forcedOperation = false;
+        // Emit a dedicated event so consumers can distinguish a regulatory
+        // forced transfer from a voluntary ERC20 transfer using only logs.
+        emit ForceTransferSuccess(from, to, amount, "agent forced transfer");
         return true;
     }
 
@@ -422,6 +441,7 @@ contract CiretaToken is
             }
 
             _transfer(fromList[i], toList[i], amounts[i]);
+            emit ForceTransferSuccess(fromList[i], toList[i], amounts[i], "agent batch forced transfer");
         }
         _forcedOperation = false;
     }

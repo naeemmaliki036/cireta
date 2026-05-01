@@ -502,7 +502,12 @@ export default function ProjectDetailPage() {
                   )}
                   {!project.isComingSoon && <ProgressBar value={progressPct} className="h-1.5 mb-4" />}
                   <div className="space-y-2.5 text-sm mb-4">
-                    {!project.isComingSoon && endTime && !isOpenEnded && <div className="flex justify-between"><span className="text-gray-500">Ends</span><span className="font-medium">{fmtDate(endTime)}</span></div>}
+                    {!project.isComingSoon && endTime && !isOpenEnded && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">{endTime.getTime() < Date.now() ? "Ended" : "Ends"}</span>
+                        <span className="font-medium">{fmtDate(endTime)}</span>
+                      </div>
+                    )}
                     {!project.isComingSoon && isOpenEnded && ap && getPhaseStatus(ap) === "active" && (
                       <div className="flex justify-between"><span className="text-gray-500">Phase Ends</span><span className="font-medium">{fmtDate(new Date(ap.end_time))}</span></div>
                     )}

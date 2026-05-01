@@ -77,6 +77,10 @@ contract CiretaTokenFactory is
         address compliance
     );
     event IdentityModeChanged(bool simpleMode);
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     /**
      * @dev Emitted for each auto-whitelist attempt on the identity registry.
@@ -115,7 +119,9 @@ contract CiretaTokenFactory is
         issuerRegistry = _issuerRegistry;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        emit ImplementationUpgraded(newImplementation, 0);
+    }
 
     /**
      * @dev Toggle between simple whitelist mode and full ERC-3643 ONCHAINID mode.
