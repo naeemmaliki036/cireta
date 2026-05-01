@@ -192,16 +192,18 @@ export default function WalletsPage() {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div>
+      <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-text mb-0.5">Wallets</h2>
-          <p className="text-sm text-black/60">Connect, name and manage your blockchain wallets.</p>
+          <h1 className="text-2xl font-bold text-text tracking-tight">Wallets</h1>
+          <p className="text-sm text-black/60 mt-1.5">Connect, name and manage your blockchain wallets.</p>
         </div>
-        <span className="text-xs text-black/50 bg-box border border-black/10 px-2.5 py-1 rounded-full">
+        <span className="text-xs text-black/60 bg-box border border-black/10 px-2.5 py-1 rounded-full">
           {wallets.length}/{process.env.NEXT_PUBLIC_MAX_WALLETS || "5"} wallets
         </span>
       </div>
+
+      <div className="space-y-5">
 
       {isVerified && (
         <div className="flex items-start gap-2.5 text-xs p-3.5 bg-box rounded-xl border border-black/10">
@@ -444,6 +446,7 @@ export default function WalletsPage() {
         </div>
       )}
       <ConfirmationModal />
+      </div>
     </div>
   );
 }
