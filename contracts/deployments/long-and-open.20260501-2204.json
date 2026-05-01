@@ -1,0 +1,241 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-05-01T22:04:38.539Z",
+  "investor": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+  "usdcMintTxHash": "",
+  "sales": [
+    {
+      "tokenName": "Long-Running Test",
+      "tokenSymbol": "LONG",
+      "tokenType": "fixed",
+      "cliffSeconds": 31536000,
+      "vestingSeconds": 31536000,
+      "saleMode": "Vested",
+      "openEnded": false,
+      "token": {
+        "address": "0xA0D8C5c772Aa21FA67aa79521F339911Cbd8AA9C",
+        "name": "Long-Running Test",
+        "symbol": "LONG",
+        "decimals": 6,
+        "totalSupply": "36000000000",
+        "initialMint": "36000000000",
+        "mintable": false
+      },
+      "sale": {
+        "address": "0x89F5B0C29169E92Cd0074354dBFd5E7D415Bb15a",
+        "vault": "0x0652ed17179ADA7fc5779D098625bD9302Af6Ec0",
+        "fraction": "0x04Cc16c5eC6FB9900A0ed1A4a598A512A9dd3332",
+        "mode": "Vested",
+        "cliffSeconds": 31536000,
+        "vestingSeconds": 31536000,
+        "startTime": 1777671076,
+        "endTime": 1809207076,
+        "softCap": "1000000",
+        "hardCap": "180000000000000",
+        "pricePerToken": "5000000000",
+        "totalTokenSupply": "36000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "5000000000",
+          "allocation": "36000000000",
+          "minTokens": "1",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777671076,
+          "endTime": 1785447076,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "testBuy": {
+        "buyerWallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "tokensWhole": "3600",
+        "usdcRaw": "18000000000000",
+        "buyTxHash": "0x7e6b8c8ec236d71afd8653aa25967b416d832a2fb9a9f6336d061f5b6a678487",
+        "buyAtUnix": 1777672730
+      },
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650"
+      },
+      "feeBps": 200
+    },
+    {
+      "tokenName": "Open-Ended Test",
+      "tokenSymbol": "OPEN",
+      "tokenType": "fixed",
+      "cliffSeconds": 31536000,
+      "vestingSeconds": 31536000,
+      "saleMode": "Vested",
+      "openEnded": true,
+      "token": {
+        "address": "0x7C39a2E432b7704c024cf8d6BD88DCD3539F4832",
+        "name": "Open-Ended Test",
+        "symbol": "OPEN",
+        "decimals": 6,
+        "totalSupply": "36000000000",
+        "initialMint": "36000000000",
+        "mintable": false
+      },
+      "sale": {
+        "address": "0x052641a06C2751b51a2A719A72D9d2e14ae28587",
+        "vault": "0x37982f91E5FB440A235712F30B3203E3B6c08dCE",
+        "fraction": "0xF06a06b84DB5538dfbF83143a8ca6a8Ef2CDE1a0",
+        "mode": "Vested",
+        "cliffSeconds": 31536000,
+        "vestingSeconds": 31536000,
+        "startTime": 1777671758,
+        "endTime": 0,
+        "softCap": "1000000",
+        "hardCap": "360000000000000",
+        "pricePerToken": "10000000000",
+        "totalTokenSupply": "36000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "10000000000",
+          "allocation": "36000000000",
+          "minTokens": "1",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777671758,
+          "endTime": 1777758158,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "testBuy": {
+        "buyerWallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "tokensWhole": "3600",
+        "usdcRaw": "36000000000000",
+        "buyTxHash": "0xdc4442b52abcd2f021073c2faa22110ae736a75e7601db9b9d5c32de447519e9",
+        "buyAtUnix": 1777672738
+      },
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650"
+      },
+      "feeBps": 200
+    },
+    {
+      "tokenName": "Quick Fee Test",
+      "tokenSymbol": "QUICK",
+      "tokenType": "fixed",
+      "cliffSeconds": 0,
+      "vestingSeconds": 0,
+      "saleMode": "Direct",
+      "openEnded": false,
+      "token": {
+        "address": "0x4CE11ad5Ed1d8dd80996993944A83221e7FE83eF",
+        "name": "Quick Fee Test",
+        "symbol": "QUICK",
+        "decimals": 6,
+        "totalSupply": "100000000000",
+        "initialMint": "100000000000",
+        "mintable": false
+      },
+      "sale": {
+        "address": "0x6DE0F3e525b87e35d02834af2c0C77DcACa9E005",
+        "vault": null,
+        "fraction": null,
+        "mode": "Direct",
+        "cliffSeconds": 0,
+        "vestingSeconds": 0,
+        "startTime": 1777672094,
+        "endTime": 1777758494,
+        "softCap": "1000000",
+        "hardCap": "200000000000",
+        "pricePerToken": "2000000",
+        "totalTokenSupply": "100000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "2000000",
+          "allocation": "100000000000",
+          "minTokens": "1",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777672094,
+          "endTime": 1777758494,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "testBuy": {
+        "buyerWallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "tokensWhole": "10000",
+        "usdcRaw": "20000000000",
+        "buyTxHash": "0x8994747249a4bac936f963642cc0c5691fa933f65526bae5f985d40f7dbbd562",
+        "buyAtUnix": 1777672748
+      },
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650"
+      },
+      "feeBps": 200
+    },
+    {
+      "tokenName": "Mintable Test",
+      "tokenSymbol": "MINT",
+      "tokenType": "mintable",
+      "cliffSeconds": 0,
+      "vestingSeconds": 0,
+      "saleMode": "Direct",
+      "openEnded": false,
+      "token": {
+        "address": "0x0d7a00a356f52d86657aDf0277b45A5D3b7E8332",
+        "name": "Mintable Test",
+        "symbol": "MINT",
+        "decimals": 6,
+        "totalSupply": "10000000000",
+        "initialMint": "5000000000",
+        "mintable": true
+      },
+      "sale": {
+        "address": "0xF6C538dd9f9038CF95d5D2ca951c22699Cb87AA8",
+        "vault": null,
+        "fraction": null,
+        "mode": "Direct",
+        "cliffSeconds": 0,
+        "vestingSeconds": 0,
+        "startTime": 1777673052,
+        "endTime": 1777759452,
+        "softCap": "1000000",
+        "hardCap": "500000000000",
+        "pricePerToken": "100000000",
+        "totalTokenSupply": "5000000000"
+      },
+      "phases": [
+        {
+          "index": 0,
+          "name": "Seed",
+          "pricePerToken": "100000000",
+          "allocation": "5000000000",
+          "minTokens": "1",
+          "maxTokens": "0",
+          "topUpMinTokens": "5",
+          "startTime": 1777673052,
+          "endTime": 1777759452,
+          "whitelistOnly": false,
+          "allocationMode": "Fixed"
+        }
+      ],
+      "testBuy": {
+        "buyerWallet": "0x5c5C4A2563ea79D494a0CA2dCd8d596790651fba",
+        "tokensWhole": "500",
+        "usdcRaw": "50000000000",
+        "buyTxHash": "0x2acaa8e33e030d3c2d97c562b6aff59c63165e7d4729f04f0df3f7b82e38f03d",
+        "buyAtUnix": 1777673078
+      },
+      "issuer": {
+        "wallet": "0x759948398F66310cAE12896644aCD9eAd86A9650"
+      },
+      "feeBps": 200
+    }
+  ]
+}

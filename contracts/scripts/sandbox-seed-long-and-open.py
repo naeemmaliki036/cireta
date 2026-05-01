@@ -161,7 +161,6 @@ def seed_sale(conn, sale_entry: dict, investor_user_id: str, investor_wallet: st
                 is_redeemable,
                 total_raised, total_raised_on_platform, platform_fee_collected, total_withdrawn,
                 finalization_pending,
-                start_at, end_at,
                 created_at, updated_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
@@ -177,7 +176,6 @@ def seed_sale(conn, sale_entry: dict, investor_user_id: str, investor_wallet: st
                 FALSE,
                 0, 0, 0, 0,
                 FALSE,
-                %s, %s,
                 NOW(), NOW()
             )
             """,
@@ -209,8 +207,6 @@ def seed_sale(conn, sale_entry: dict, investor_user_id: str, investor_wallet: st
                 sale_start_dt, sale_end_dt, open_ended,
                 sale_start_dt,         # approved_at
                 sale_start_dt,         # activated_at
-                sale_start_dt,         # start_at
-                sale_end_dt,           # end_at
             ),
         )
         print(
@@ -448,7 +444,7 @@ def main():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT t.symbol, ts.status, ts.sale_mode, ts.start_at, ts.end_at
+                SELECT t.symbol, ts.status, ts.sale_mode, ts.sale_start_time AS start_at, ts.sale_end_time AS end_at
                 FROM tokens t
                 JOIN token_sales ts ON ts.token_id = t.id
                 WHERE t.symbol IN ('LONG','OPEN','QUICK','MINT')
@@ -456,7 +452,7 @@ def main():
                 """,
             )
             rows = [dict(r) for r in cur.fetchall()]
-        print("  SELECT t.symbol, ts.status, ts.sale_mode, ts.start_at, ts.end_at ...")
+        print("  SELECT t.symbol, ts.status, ts.sale_mode, ts.sale_start_time, ts.sale_end_time ...")
         for row in rows:
             print(f"  {row['symbol']:6}  status={row['status']:8}  mode={row['sale_mode']:8}  "
                   f"start={str(row['start_at'])[:19]}  end={str(row['end_at'])[:19]}")
@@ -470,7 +466,8 @@ def main():
                 conn,
                 """SELECT id, status, sale_mode, vault_address,
                           cliff_duration_seconds, vesting_duration_seconds,
-                          start_at, end_at, is_visible, is_open_ended
+                          sale_start_time AS start_at, sale_end_time AS end_at,
+                          is_visible, is_open_ended
                    FROM token_sales WHERE id = %s""",
                 (str(sale_ids[i]),),
             )
