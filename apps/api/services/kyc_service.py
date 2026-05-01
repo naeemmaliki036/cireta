@@ -411,9 +411,19 @@ class KYCService:
         if new_local_status is not None and user.kyc_status != new_local_status:
             user.kyc_status = new_local_status
             changed = True
-            # Don't self-approve here; on-chain claim issuance is driven by
-            # the applicantReviewed webhook which has the full reviewResult
-            # and also enqueues the ONCHAINID deployment job.
+            # When the reconcile path is the first to see APPROVED (e.g. the
+            # webhook didn't fire or arrived late), promote kyc_level too.
+            # Without this, can_invest() stays false (it requires level >= 2)
+            # and the buyer hits KYC_REQUIRED at /contribute even though their
+            # KYC is technically approved.
+            if new_local_status == KYCStatus.APPROVED and user.kyc_level < 2:
+                user.kyc_level = 2
+                if not user.kyc_verified_at:
+                    user.kyc_verified_at = datetime.now(UTC)
+            # On-chain claim issuance is still driven by the applicantReviewed
+            # webhook — it carries the full reviewResult and enqueues the
+            # ONCHAINID deployment job. Reconcile path only fixes the local
+            # gate so the user can buy.
 
         if application and review_status and application.status != review_status:
             application.status = review_status
