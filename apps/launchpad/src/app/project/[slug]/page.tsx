@@ -656,23 +656,30 @@ export default function ProjectDetailPage() {
                         : `Target: ${fmtUsdc(hardCap)} USDC`}
                   </p>
                 </div>
-                {/* Right: CTA button */}
-                {project.isComingSoon || !hasActivePhase ? (
+                {/* Right: CTA button — gate matches the desktop sale widget so
+                    we don't show "Notify Me" on ended / sold-out sales. */}
+                {saleEnded ? (
+                  <span className="shrink-0 text-xs font-medium text-black/60 bg-box border border-black/10 px-4 py-2.5 rounded-xl">Sale Ended</span>
+                ) : hardCapReached ? (
+                  <span className="shrink-0 text-xs font-medium text-black/60 bg-box border border-black/10 px-4 py-2.5 rounded-xl">Sold Out</span>
+                ) : showNotifyCta || project.isComingSoon ? (
                   subscribed ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-3 py-2 rounded-xl shrink-0">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-darkAqua bg-darkAqua/10 px-3 py-2 rounded-xl shrink-0">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Subscribed
                     </span>
                   ) : (
                     <button
-                      onClick={() => isAuthenticated ? handleSubscribe() : setShowEmailInput(true)}
+                      onClick={() => isAuthenticated ? handleSubscribe() : setShowLoginDialog(true)}
                       disabled={subscribing}
                       className="shrink-0 inline-flex items-center gap-1.5 border border-darkAqua/30 text-darkAqua px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-darkAqua/5 transition-colors cursor-pointer disabled:opacity-60"
                     >
                       <Bell className="h-3.5 w-3.5" /> Notify Me
                     </button>
                   )
+                ) : !hasActivePhase ? (
+                  <span className="shrink-0 text-xs text-black/60 bg-box border border-black/10 px-4 py-2.5 rounded-xl">Closed</span>
                 ) : ap?.deployed_on_chain === false ? (
-                  <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-3 py-2 rounded-xl">Not Available</span>
+                  <span className="shrink-0 text-xs text-black/60 bg-box border border-black/10 px-3 py-2 rounded-xl">Not Available</span>
                 ) : isAuthenticated ? (
                   <Link href={`/buy/${project.slug}`} data-tour-id="buy-button" className="shrink-0 btn-cta px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors">Buy Now</Link>
                 ) : (

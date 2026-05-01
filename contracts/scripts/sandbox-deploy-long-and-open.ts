@@ -436,21 +436,30 @@ async function deploySale(
     }
   }
 
-  // ── 7. Test buy: 10% of allocation ────────────────────────────────────
-  // Check + approve USDC for this sale
-  const allowance = await usdc.allowance(investor.address, saleAddr);
-  if (allowance < spec.testBuyUsdcRaw) {
-    const ra = await gasOf(await usdc.connect(investor).approve(saleAddr, spec.testBuyUsdcRaw));
-    pass(`${spec.tokenSymbol} USDC.approve(sale, ${ethers.formatUnits(spec.testBuyUsdcRaw, 6)})`, ra.txHash);
+  // ── 7. Test buy: 10% of allocation (idempotent via env var) ──────────
+  // Resume: if EXISTING_<SYM>_BUY_TX is set, skip the buy (already done).
+  const existingBuyTxEnv = `EXISTING_${spec.tokenSymbol}_BUY_TX`;
+  let buyTxHash = process.env[existingBuyTxEnv] ?? "";
+  let buyAtUnix = 0;
+
+  if (buyTxHash) {
+    buyAtUnix = await chainTimestamp();
+    pass(`${spec.tokenSymbol} test buy already done (tx=${buyTxHash})`);
   } else {
-    pass(`${spec.tokenSymbol} USDC allowance already sufficient`);
+    const allowance = await usdc.allowance(investor.address, saleAddr);
+    if (allowance < spec.testBuyUsdcRaw) {
+      const ra = await gasOf(await usdc.connect(investor).approve(saleAddr, spec.testBuyUsdcRaw));
+      pass(`${spec.tokenSymbol} USDC.approve(sale, ${ethers.formatUnits(spec.testBuyUsdcRaw, 6)})`, ra.txHash);
+    } else {
+      pass(`${spec.tokenSymbol} USDC allowance already sufficient`);
+    }
+
+    buyTxHash = await buyWithRetry(sale, investor, spec.testBuyWhole, spec.tokenSymbol);
+    buyAtUnix = await chainTimestamp();
+    pass(`${spec.tokenSymbol}.buy(${spec.testBuyWhole} whole tokens)  cost=${ethers.formatUnits(spec.testBuyUsdcRaw, 6)} USDC`, buyTxHash);
   }
 
-  const buyTxHash = await buyWithRetry(sale, investor, spec.testBuyWhole, spec.tokenSymbol);
-  const buyAtUnix = await chainTimestamp();
-  pass(`${spec.tokenSymbol}.buy(${spec.testBuyWhole} whole tokens)  cost=${ethers.formatUnits(spec.testBuyUsdcRaw, 6)} USDC`, buyTxHash);
-
-  // Verify totalRaised
+  // Print on-chain confirmation
   const totalRaised = await safeRead(() => sale.totalRaised());
   console.log(`  ${spec.tokenSymbol} totalRaised() = ${ethers.formatUnits(totalRaised, 6)} USDC`);
 
@@ -463,7 +472,6 @@ async function deploySale(
     console.log(`  ${spec.tokenSymbol} vault.totalMintedFractions() = ${ethers.formatUnits(minted, 6)}`);
   }
 
-  // DO NOT finalize — sale stays Active
   pass(`${spec.tokenSymbol} DONE — status=Active, bought ${spec.testBuyWhole} tokens (10%)`);
 
   return { spec, tokenAddr, saleAddr, vaultAddr, fracAddr, saleStart, saleEnd, openEnded, buyTxHash, buyAtUnix };
