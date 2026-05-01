@@ -543,41 +543,41 @@ export default function ExplorePage() {
             )}
           </section>
 
-          {/* Coming Soon */}
-          <section>
-            <div className="flex items-center gap-3 mb-1">
-              <Sparkles className="h-6 w-6 text-gray-400" />
-              <h2 className="text-2xl font-bold text-text">Coming Soon</h2>
-            </div>
-            <p className="text-sm text-gray-500 ml-9 mb-8">Upcoming opportunities - be the first to know when to launch</p>
+          {/* Coming Soon — only render when loading or there are upcoming projects */}
+          {(loading || comingSoonProjects.length > 0) && (
+            <section>
+              <div className="flex items-center gap-3 mb-1">
+                <Sparkles className="h-6 w-6 text-gray-400" />
+                <h2 className="text-2xl font-bold text-text">Coming Soon</h2>
+              </div>
+              <p className="text-sm text-gray-500 ml-9 mb-8">Upcoming opportunities — be the first to know when they launch</p>
 
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-                    <div className="h-44 bg-gray-100" />
-                    <div className="p-4 space-y-2">
-                      <div className="h-4 bg-gray-100 rounded w-2/3" />
-                      <div className="h-3 bg-gray-100 rounded w-1/2" />
-                      <div className="h-8 bg-gray-100 rounded-xl w-full mt-3" />
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                      <div className="h-44 bg-gray-100" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-4 bg-gray-100 rounded w-2/3" />
+                        <div className="h-3 bg-gray-100 rounded w-1/2" />
+                        <div className="h-8 bg-gray-100 rounded-xl w-full mt-3" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : comingSoonProjects.length === 0 ? (
-              <p className="text-gray-400 text-sm ml-9">No upcoming projects at the moment.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {comingSoonProjects.map((p, i) => (
-                  <ComingSoonCard
-                    key={p.id}
-                    project={p}
-                    isFirst={i === 0 && activeProjects.length === 0}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {comingSoonProjects.map((p, i) => (
+                    <ComingSoonCard
+                      key={p.id}
+                      project={p}
+                      isFirst={i === 0 && activeProjects.length === 0}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Completed Sales */}
           {!loading && completedProjects.length > 0 && (
