@@ -134,6 +134,7 @@ export interface SaleRaw {
   approved_at?: string | null;
   activated_at?: string | null;
   refunds_activated_at?: string | null;
+  finalized_at?: string | null;
   finalization_pending?: boolean;
   sale_mode?: string;
 }

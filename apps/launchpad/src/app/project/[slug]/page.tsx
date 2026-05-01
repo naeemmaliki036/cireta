@@ -1055,6 +1055,32 @@ export default function ProjectDetailPage() {
 
                 // Lock-up variant: distinct labels and timeline copy.
                 if (isLockup) {
+                  // Compute "real" unlock state once the sale is finalized.
+                  // Lockup starts at the on-chain finalize tx (mirrored to
+                  // sale.finalized_at). For sales not finalized yet, we
+                  // intentionally don't show progress or a date — they don't
+                  // exist yet, so showing "0%" or a fake date misleads.
+                  const isFinalized =
+                    saleRaw?.status === "finalized_success" || saleRaw?.status === "finalized";
+                  const finalizedAt = saleRaw?.finalized_at ? new Date(saleRaw.finalized_at) : null;
+                  const lockupStart = finalizedAt
+                    ?? (saleRaw?.sale_end_time ? new Date(saleRaw.sale_end_time) : null);
+                  const lockupSeconds = Number(saleRaw?.cliff_duration_seconds ?? 0);
+                  const unlockAt = lockupStart && lockupSeconds > 0
+                    ? new Date(lockupStart.getTime() + lockupSeconds * 1000)
+                    : null;
+                  const elapsedSec = lockupStart
+                    ? Math.max(0, (Date.now() - lockupStart.getTime()) / 1000)
+                    : 0;
+                  const progressPct = lockupSeconds > 0
+                    ? Math.min(100, Math.max(0, (elapsedSec / lockupSeconds) * 100))
+                    : 0;
+                  const unlocked = unlockAt ? Date.now() >= unlockAt.getTime() : false;
+                  const fmtDate = (d: Date) =>
+                    d.toLocaleString(undefined, {
+                      month: "short", day: "numeric", year: "numeric",
+                      hour: "numeric", minute: "2-digit",
+                    });
                   return (
                     <div className="space-y-10">
                       <div className="bg-gray-50 rounded-xl p-5">
@@ -1062,7 +1088,12 @@ export default function ProjectDetailPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-5">
                           {[
                             ["Lock-up Period", fmtDur(cliffDays)],
-                            ["Full Unlock At", fmtDur(cliffDays)],
+                            [
+                              "Full Unlock At",
+                              isFinalized && unlockAt
+                                ? fmtDate(unlockAt)
+                                : `${fmtDur(cliffDays)} after sale finalizes`,
+                            ],
                             ["Unlock Type", "100% at end of lock-up"],
                           ].map(([k, v]) => (
                             <div key={k}>
@@ -1080,13 +1111,29 @@ export default function ProjectDetailPage() {
                         <div className="relative mb-2">
                           <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5 text-center">
                             Token Lock-up · {fmtDur(cliffDays)}
+                            {isFinalized && (
+                              <span className="ml-2 text-[#13636F] normal-case">
+                                · {unlocked ? "100% unlocked" : `${progressPct.toFixed(1)}% elapsed`}
+                              </span>
+                            )}
                           </div>
                           <div className="h-4 bg-gray-100 rounded-full overflow-hidden relative">
-                            <div className="h-full absolute inset-0 rounded-full" style={{ backgroundColor: "#ECF3F4" }} />
+                            {isFinalized ? (
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${progressPct}%`,
+                                  backgroundColor: unlocked ? "#13636F" : "#ECF3F4",
+                                  borderRight: !unlocked && progressPct > 0 ? "2px solid #13636F" : undefined,
+                                }}
+                              />
+                            ) : (
+                              <div className="h-full absolute inset-0 rounded-full" style={{ backgroundColor: "#ECF3F4" }} />
+                            )}
                           </div>
                           <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
-                            <span>Start</span>
-                            <span>{fmtDur(cliffDays)} · 100% unlock</span>
+                            <span>{isFinalized && lockupStart ? fmtDate(lockupStart) : "Sale finalize"}</span>
+                            <span>{isFinalized && unlockAt ? fmtDate(unlockAt) : `+${fmtDur(cliffDays)}`} · 100% unlock</span>
                           </div>
                         </div>
                       </div>
@@ -1404,9 +1451,34 @@ export default function ProjectDetailPage() {
                                     )}
                                   </td>
                                   <td className="px-4 py-3">
-                                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full capitalize", statusStyle[tx.status] ?? "bg-gray-100 text-gray-400")}>
-                                      {tx.status}
-                                    </span>
+                                    {(() => {
+                                      // For investment (Buy) rows, "claimed" means the on-chain
+                                      // buy tx confirmed AND the underlying tokens have already
+                                      // been released from the vault to the buyer's wallet.
+                                      // Show "Confirmed · Claimed" so the buyer sees both.
+                                      const isBuy = tx.type === "investment";
+                                      const label =
+                                        isBuy && tx.status === "claimed" ? "Confirmed · Claimed"
+                                        : isBuy && tx.status === "confirmed" ? "Confirmed"
+                                        : tx.status;
+                                      const tip =
+                                        isBuy && tx.status === "claimed"
+                                          ? "The buy was confirmed on-chain and the underlying tokens have since been claimed from the vault."
+                                          : isBuy && tx.status === "confirmed"
+                                          ? "Buy confirmed on-chain. Underlying tokens unlock from the vault after the lock-up."
+                                          : undefined;
+                                      return (
+                                        <span
+                                          title={tip}
+                                          className={cn(
+                                            "text-xs font-medium px-2 py-0.5 rounded-full",
+                                            statusStyle[tx.status] ?? "bg-gray-100 text-gray-400",
+                                          )}
+                                        >
+                                          {label}
+                                        </span>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="px-4 py-3">
                                     {tx.tx_hash && !tx.tx_hash.startsWith("otc-") ? (

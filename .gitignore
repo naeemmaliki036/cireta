@@ -145,3 +145,6 @@ contracts/deployments/localhost.v2.*
 
 # Generated subgraph artifacts
 subgraph/generated/
+
+# Local-only test wallet keys (sandbox E2E flows)
+.env.sandbox-e2e

@@ -349,6 +349,7 @@ class SaleResponse(BaseModel):
     approved_at: datetime | None = None
     activated_at: datetime | None = None
     refunds_activated_at: datetime | None = None
+    finalized_at: datetime | None = None
     finalization_pending: bool = False
     display_order: int | None = None
     is_redeemable: bool = False

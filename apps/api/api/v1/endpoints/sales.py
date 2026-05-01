@@ -171,6 +171,7 @@ def _sale_to_response(
         approved_at=getattr(sale, "approved_at", None),
         activated_at=getattr(sale, "activated_at", None),
         refunds_activated_at=getattr(sale, "refunds_activated_at", None),
+        finalized_at=getattr(sale, "finalized_at", None),
         finalization_pending=getattr(sale, "finalization_pending", False) or False,
         display_order=getattr(sale, "display_order", None),
         is_redeemable=getattr(sale, "is_redeemable", False) or False,
