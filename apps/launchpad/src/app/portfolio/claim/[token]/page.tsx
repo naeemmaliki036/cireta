@@ -142,6 +142,10 @@ export default function ClaimTokenPage({
 
     const isVested = schedule.sale_mode === "vested" && schedule.vault_address;
 
+    const claimedDisplay = parseFloat(schedule.claimable_amount).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 4,
+    });
     try {
       if (isVested && schedule.vault_address) {
         await vaultClaimAction.execute({
@@ -149,14 +153,14 @@ export default function ClaimTokenPage({
           abi: VAULT_ABI,
           functionName: "claim",
         });
-        showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
+        showSuccess("Tokens Claimed", `${claimedDisplay} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
       } else if (schedule.sale_contract_address) {
         await saleClaimAction.execute({
           address: schedule.sale_contract_address as `0x${string}`,
           abi: SALE_ABI,
           functionName: "claimTokens",
         });
-        showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
+        showSuccess("Tokens Claimed", `${claimedDisplay} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
       } else {
         setClaimError("No contract address available for claiming");
       }

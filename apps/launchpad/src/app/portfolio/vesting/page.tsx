@@ -101,13 +101,17 @@ export default function PortfolioVestingPage() {
     if (!schedule.vault_address || !isConnected) return;
     setClaimingId(schedule.id);
 
+    const claimedDisplay = parseFloat(schedule.claimable_amount).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 4,
+    });
     try {
       await claimAction.execute({
         address: schedule.vault_address as `0x${string}`,
         abi: VAULT_CLAIM_ABI,
         functionName: "claim",
       });
-      showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
+      showSuccess("Tokens Claimed", `${claimedDisplay} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Claim failed";
       showError("Claim Failed", errorMsg);

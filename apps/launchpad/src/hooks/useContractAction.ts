@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useWriteContract, useChainId, useConfig } from "wagmi";
+import { useWriteContract, useChainId, useConfig, useSwitchChain } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import type { Abi, TransactionReceipt } from "viem";
 import { useSafeDetection } from "@/hooks/useSafeDetection";
@@ -9,6 +9,7 @@ import { useSafeContractAction } from "@/hooks/useSafeContractAction";
 import type { SafeTxState } from "@/components/molecules/SafeTransactionStatus";
 import { parseRevertReason } from "@/lib/contracts/revertReasons";
 import { getTxUrl as getExplorerTxUrl } from "@/lib/contracts/addresses";
+import { getChainId as getExpectedChainId, getChainName } from "@/lib/chain";
 
 export interface ContractActionState {
   /** Execute a contract write. Returns the receipt on success, null on error. */
@@ -67,6 +68,7 @@ export function useContractAction(): ContractActionState {
   const { writeContractAsync } = useWriteContract();
   const config = useConfig();
   const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
   const { isSafe } = useSafeDetection();
   const safeAction = useSafeContractAction();
 
@@ -113,6 +115,30 @@ export function useContractAction(): ContractActionState {
 
       // --- EOA wallet: direct execution ---
       try {
+        // Network gate — refuse to send when the wallet is on the wrong
+        // chain (e.g. Base mainnet when the deploy is on Base Sepolia).
+        // Without this, MetaMask happily simulates the call against the
+        // wrong RPC, finds no contract at the address, and reverts as
+        // "no changes" pre-submission.
+        let expectedChainId: number | null = null;
+        try {
+          expectedChainId = getExpectedChainId();
+        } catch {
+          // NEXT_PUBLIC_CHAIN_ID not configured — skip the gate. Production
+          // builds set this; only dev-without-env hits this branch.
+        }
+        if (expectedChainId !== null && chainId !== expectedChainId) {
+          try {
+            await switchChainAsync({ chainId: expectedChainId });
+          } catch {
+            setIsPending(false);
+            setError(
+              `Wrong network — switch your wallet to ${getChainName()} to continue.`
+            );
+            return null;
+          }
+        }
+
         // Intelligent gas estimation with defaults based on operation type
         let gas = params.gas;
         if (!gas) {
@@ -156,7 +182,7 @@ export function useContractAction(): ContractActionState {
         return null;
       }
     },
-    [writeContractAsync, config, isSafe, safeAction],
+    [writeContractAsync, config, isSafe, safeAction, chainId, switchChainAsync],
   );
 
   const txUrl = txHash ? getExplorerTxUrl(chainId, txHash) : null;

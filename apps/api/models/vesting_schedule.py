@@ -118,4 +118,8 @@ class VestingSchedule(BaseModel):
 
         vesting_ratio = Decimal(str(elapsed_seconds)) / Decimal(str(total_vesting_seconds))
         vested_amount = self.total_amount * vesting_ratio
-        return max(Decimal("0"), vested_amount - self.claimed_amount)
+        # Decimal/Decimal carries 28-digit precision by default — keep a sane
+        # 8-place quantize so the API doesn't ship "27.12681290562529..." to
+        # the UI for what is really a 6-decimal token.
+        result = max(Decimal("0"), vested_amount - self.claimed_amount)
+        return result.quantize(Decimal("0.00000001"))
