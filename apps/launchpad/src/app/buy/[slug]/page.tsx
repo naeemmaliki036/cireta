@@ -614,7 +614,7 @@ export default function InvestPage() {
                 <div key={s} className="flex flex-col items-center z-10">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     step === s ? "bg-darkAqua text-white"
-                      : i < STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number]) ? "bg-green-500 text-white"
+                      : i < STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number]) ? "bg-darkAqua text-white"
                       : "bg-black/10 text-black/50"
                   }`}>
                     {i < STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number])
@@ -624,7 +624,7 @@ export default function InvestPage() {
                 </div>
               ))}
               <div className="absolute top-5 left-0 right-0 h-0.5 bg-black/10 -z-0">
-                <div className="h-full bg-green-500 transition-all"
+                <div className="h-full bg-darkAqua transition-all"
                   style={{ width: `${STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number]) * 50}%` }}/>
               </div>
             </div>
@@ -634,9 +634,9 @@ export default function InvestPage() {
 
             {/* Wrong network — highest priority banner */}
             {isWrongChain && (
-              <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
-                <p className="text-sm font-semibold text-red-700 mb-1">Wrong network</p>
-                <p className="text-sm text-red-600 mb-3">
+              <div className="mb-6 p-4 rounded-xl bg-text/5 border border-text/20">
+                <p className="text-sm font-semibold text-text mb-1">Wrong network</p>
+                <p className="text-sm text-text mb-3">
                   Your wallet is connected to the wrong network. Switch to <span className="font-semibold">{expectedChainName}</span> to continue.
                 </p>
                 <Button
@@ -653,9 +653,9 @@ export default function InvestPage() {
 
             {/* Logged-out state — show sign in / register prompt, no KYC/wallet messaging */}
             {!isWrongChain && !isAuthenticated && (
-              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <p className="text-sm font-semibold text-amber-800 mb-1">Sign in to buy</p>
-                <p className="text-sm text-amber-700 mb-3">
+              <div className="mb-6 p-4 rounded-xl bg-box border border-black/10">
+                <p className="text-sm font-semibold text-text mb-1">Sign in to buy</p>
+                <p className="text-sm text-black/70 mb-3">
                   You need a Cireta account to buy. Sign in with an existing account or register a new one.
                 </p>
                 <div className="flex gap-3">
@@ -693,9 +693,9 @@ export default function InvestPage() {
                 const buttonLabel =
                   kyc === "pending" ? "Check KYC Status" : "Start KYC Verification";
                 return (
-                  <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
-                    <p className="text-sm font-semibold text-red-700 mb-1">Identity verification required</p>
-                    <p className="text-sm text-red-600 mb-3">
+                  <div className="mb-6 p-4 rounded-xl bg-text/5 border border-text/20">
+                    <p className="text-sm font-semibold text-text mb-1">Identity verification required</p>
+                    <p className="text-sm text-text mb-3">
                       {statusLabel}. You must complete KYC before buying regulated security tokens.
                     </p>
                     <Link
@@ -714,9 +714,9 @@ export default function InvestPage() {
                   ? `${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`
                   : "";
                 return (
-                  <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                    <p className="text-sm font-semibold text-amber-800 mb-1">Link this wallet to your profile</p>
-                    <p className="text-sm text-amber-700 mb-3">
+                  <div className="mb-6 p-4 rounded-xl bg-box border border-black/10">
+                    <p className="text-sm font-semibold text-text mb-1">Link this wallet to your profile</p>
+                    <p className="text-sm text-black/70 mb-3">
                       You&apos;re verified, but the connected wallet{shortAddr && <> (<code className="font-mono text-xs">{shortAddr}</code>)</>} isn&apos;t linked to your Cireta account yet.
                       Add it from your profile before you can buy.
                     </p>
@@ -734,9 +734,9 @@ export default function InvestPage() {
               // This shouldn't normally happen — the backend auto-whitelists verified wallets.
               // Show a gentle hint in case of sync delay.
               return (
-                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                  <p className="text-sm font-semibold text-amber-800 mb-1">Sync in progress</p>
-                  <p className="text-sm text-amber-700">
+                <div className="mb-6 p-4 rounded-xl bg-box border border-black/10">
+                  <p className="text-sm font-semibold text-text mb-1">Sync in progress</p>
+                  <p className="text-sm text-black/70">
                     Your wallet is being registered for on-chain buying. This usually takes a few seconds — please refresh in a moment.
                   </p>
                 </div>
@@ -745,9 +745,9 @@ export default function InvestPage() {
 
             {/* Wallet not verified — error banner (blocks buying) */}
             {!isWrongChain && isAuthenticated && isConnected && isWalletVerified === false && user?.kycStatus === "approved" && step !== "amount" && (
-              <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                <p className="text-sm font-medium text-red-700">
+              <div className="mb-6 p-3 rounded-xl bg-text/5 border border-text/20 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-text flex-shrink-0" />
+                <p className="text-sm font-medium text-text">
                   This wallet is not registered on the identity registry. Please link a verified wallet or contact support.
                 </p>
               </div>
@@ -758,8 +758,8 @@ export default function InvestPage() {
               <div className="text-center py-8 space-y-3">
                 {allPhasesEnded ? (
                   <>
-                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
-                      <CheckCircle2 className="h-6 w-6 text-gray-400" />
+                    <div className="w-12 h-12 rounded-full bg-box flex items-center justify-center mx-auto mb-2">
+                      <CheckCircle2 className="h-6 w-6 text-black/40" />
                     </div>
                     <h2 className="text-xl font-semibold text-text">Sale Concluded</h2>
                     <p className="text-black/50">This sale has concluded. No active phases.</p>
@@ -769,8 +769,8 @@ export default function InvestPage() {
                   </>
                 ) : allPhasesUpcoming && nextUpcomingPhase ? (
                   <>
-                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-2">
-                      <ArrowLeft className="h-6 w-6 text-blue-500 rotate-180" />
+                    <div className="w-12 h-12 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-2">
+                      <ArrowLeft className="h-6 w-6 text-darkAqua rotate-180" />
                     </div>
                     <h2 className="text-xl font-semibold text-text">Sale Not Yet Open</h2>
                     <p className="text-black/50">
@@ -790,7 +790,7 @@ export default function InvestPage() {
                     <h2 className="text-xl font-semibold text-text">No Active Phase</h2>
                     <p className="text-black/50">There is currently no active sale phase. Please check back later.</p>
                     {nextUpcomingPhase && (
-                      <p className="text-sm text-blue-600 font-medium">
+                      <p className="text-sm text-darkAqua font-medium">
                         Next phase starts{" "}
                         {new Date(nextUpcomingPhase.start_time).toLocaleDateString("en-GB", {
                           day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -816,7 +816,7 @@ export default function InvestPage() {
                   >
                     <span className="text-2xl">&#x1F4B0;</span>
                     <h3 className="font-semibold text-text">On-Chain (USDC)</h3>
-                    <p className="text-sm text-gray-500">Pay with USDC from your connected wallet. Instant on-chain settlement.</p>
+                    <p className="text-sm text-black/50">Pay with USDC from your connected wallet. Instant on-chain settlement.</p>
                   </button>
                   {saleHasOtcToken && hasOtcBalance && (
                     <button
@@ -826,7 +826,7 @@ export default function InvestPage() {
                     >
                       <span className="text-2xl">&#x1F3AB;</span>
                       <h3 className="font-semibold text-text">OTC Token ({otcTokenSymbol})</h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-black/50">
                         Use your {otcTokenSymbol} balance: {otcBalanceFormatted.toLocaleString()} tokens available.
                       </p>
                     </button>
@@ -837,7 +837,7 @@ export default function InvestPage() {
                   >
                     <span className="text-2xl">&#x1F3E6;</span>
                     <h3 className="font-semibold text-text">OTC & Bank Transfer</h3>
-                    <p className="text-sm text-gray-500">Pay via wire transfer or OTC allocation. Suitable for larger purchases.</p>
+                    <p className="text-sm text-black/50">Pay via wire transfer or OTC allocation. Suitable for larger purchases.</p>
                   </button>
                 </div>
               </div>
@@ -847,8 +847,8 @@ export default function InvestPage() {
             {paymentMethod === "otc" && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-text">OTC & Bank Transfer</h2>
-                <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100 space-y-3">
-                  <p className="text-sm text-gray-700">
+                <div className="p-5 rounded-2xl bg-darkAqua/10 border border-darkAqua/20 space-y-3">
+                  <p className="text-sm text-text">
                     This sale accepts purchases via bank wire transfer and OTC allocation.
                     Review the full instructions on the project page.
                   </p>
@@ -859,14 +859,14 @@ export default function InvestPage() {
                     View OTC & Bank Instructions on Project Page &#x2192;
                   </Link>
                 </div>
-                <div className="p-4 rounded-xl bg-gray-50 text-sm space-y-2">
+                <div className="p-4 rounded-xl bg-box text-sm space-y-2">
                   <p className="font-medium text-text">For large allocations ($50,000+)</p>
-                  <p className="text-gray-500">Contact our OTC desk directly for preferential pricing and dedicated support.</p>
+                  <p className="text-black/50">Contact our OTC desk directly for preferential pricing and dedicated support.</p>
                   <p className="font-medium text-darkAqua">otc@cireta.com</p>
                 </div>
                 <button
                   onClick={() => setPaymentMethod(null)}
-                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                  className="text-sm text-black/50 hover:text-text underline"
                 >
                   &#x2190; Back to payment options
                 </button>
@@ -938,12 +938,12 @@ export default function InvestPage() {
                         </button>
                       </div>
                       {exceedsOtcBalance && (
-                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
+                        <div className="p-3 rounded-lg bg-text/5 border border-text/20 mb-4 text-sm text-text">
                           You need {otcRequired.toLocaleString()} {otcTokenSymbol} but only have {otcBalanceFormatted.toLocaleString()}.
                         </div>
                       )}
                       {tokenQty > availableTokens && availableTokens > 0 && (
-                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 text-sm text-red-600">
+                        <div className="p-3 rounded-lg bg-text/5 border border-text/20 mb-4 text-sm text-text">
                           Only {availableTokens.toLocaleString()} {project.tokenSymbol} are available for purchase.
                         </div>
                       )}
@@ -966,7 +966,7 @@ export default function InvestPage() {
                         </p>
                       )}
                       {ethBalance != null && ethBalance < 0.0005 && (
-                        <div className="mb-4 p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
+                        <div className="mb-4 p-3 rounded-xl bg-box border border-black/10 text-sm text-text">
                           Low ETH for gas: you have {ethBalance.toFixed(5)} ETH. Top up before continuing.
                         </div>
                       )}
@@ -999,7 +999,7 @@ export default function InvestPage() {
                 </Button>
                 <button
                   onClick={() => { setPaymentMethod(null); setAmount(""); setStep("amount"); }}
-                  className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline block mx-auto"
+                  className="mt-4 text-sm text-black/50 hover:text-text underline block mx-auto"
                 >
                   Back to payment options
                 </button>
@@ -1012,7 +1012,7 @@ export default function InvestPage() {
             {/* OTC Token flow — approve step (blocked if wallet not verified) */}
             {paymentMethod === "otc_token" && step === "approve" && isWalletVerified === false && (
               <div className="text-center py-8 space-y-3">
-                <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
+                <AlertCircle className="h-10 w-10 text-text mx-auto" />
                 <h2 className="text-lg font-semibold text-text">Wallet Not Verified</h2>
                 <p className="text-black/50 text-sm">
                   This wallet is not registered on the identity registry. You cannot proceed with the purchase.
@@ -1035,7 +1035,7 @@ export default function InvestPage() {
                 <div className="p-4 rounded-xl bg-darkAqua/10 border border-darkAqua/30 flex gap-3 mb-6">
                   <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet.</p>
                 </div>
-                {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+                {error && <p className="text-sm text-text mb-4">{error}</p>}
                 <div className="flex gap-3">
                   <Button
                     variant="outline" className="flex-1" size="lg"
@@ -1078,7 +1078,7 @@ export default function InvestPage() {
                 <p className="text-xs text-black/40 mb-4 text-center">
                   Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
                 </p>
-                {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+                {error && <p className="text-sm text-text mb-4">{error}</p>}
                 <Button
                   variant="primary" className="w-full" size="lg"
                   onClick={handleOtcConfirm}
@@ -1094,7 +1094,7 @@ export default function InvestPage() {
             {paymentMethod === "crypto" && activePhase && step === "amount" && (
               <>
                 {insufficientUsdc && (
-                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
+                  <div className="mb-4 p-3 rounded-xl bg-text/5 border border-text/20 text-sm text-text">
                     Insufficient USDC balance. You have {usdcBalance?.toLocaleString()} USDC but need {usdcRequired.toLocaleString()} USDC.
                   </div>
                 )}
@@ -1155,7 +1155,7 @@ export default function InvestPage() {
             )}
             {paymentMethod === "crypto" && step === "approve" && isWalletVerified === false && (
               <div className="text-center py-8 space-y-3">
-                <AlertCircle className="h-10 w-10 text-red-500 mx-auto" />
+                <AlertCircle className="h-10 w-10 text-text mx-auto" />
                 <h2 className="text-lg font-semibold text-text">Wallet Not Verified</h2>
                 <p className="text-black/50 text-sm">
                   This wallet is not registered on the identity registry. You cannot proceed with the purchase.
