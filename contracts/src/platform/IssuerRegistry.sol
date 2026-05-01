@@ -56,6 +56,14 @@ contract IssuerRegistry is
     event IssuerActivated(address indexed wallet);
     event IssuerSuspended(address indexed wallet, string reason);
     event IssuerUpdated(address indexed wallet, string name, string jurisdiction);
+    /// @notice One-time migration to AccessControl. Parity with
+    /// SimpleIdentityRegistry — ops tooling uses this to confirm the
+    /// registry was upgraded.
+    event MigratedToRoles(address indexed admin);
+    /// @notice Emitted on every UUPS upgrade. The proxy also emits
+    /// ERC1967 `Upgraded(impl)`; this adds the nonce so monitors can
+    /// distinguish the upgrade sequence.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     /// @dev Can manage issuers: ISSUER_MANAGER_ROLE or owner
     modifier onlyIssuerManager() {
@@ -77,8 +85,9 @@ contract IssuerRegistry is
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.
@@ -96,6 +105,7 @@ contract IssuerRegistry is
         require(!_rolesInitialized, "already migrated");
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
         _rolesInitialized = true;
+        emit MigratedToRoles(owner());
     }
 
     modifier onlyActiveIssuer() {

@@ -46,6 +46,10 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         address indexed sale,
         address indexed issuer
     );
+    event SaleImplementationUpdated(address indexed oldImpl, address indexed newImpl);
+    event FractionFactoryUpdated(address indexed oldFactory, address indexed newFactory);
+    event FractionVaultImplDelegated(address indexed newImpl);
+    event FractionTokenImplDelegated(address indexed newImpl);
     event IssuerRegistrySet(address indexed registry);
     event PlatformFeeManagerSet(address indexed feeManager);
     event SystemContractWhitelisted(
@@ -53,6 +57,10 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         address indexed registry,
         bool success
     );
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     error NotActiveIssuer();
     error FeeMismatch();
@@ -70,8 +78,9 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
         saleImplementation = _saleImplementation;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.
@@ -81,12 +90,16 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
 
     function setSaleImplementation(address impl) external onlyOwner {
         require(impl != address(0), "zero impl");
+        address old = saleImplementation;
         saleImplementation = impl;
+        emit SaleImplementationUpdated(old, impl);
     }
 
     function setFractionFactory(address _fractionFactory) external onlyOwner {
         require(_fractionFactory != address(0), "zero addr");
+        address old = address(fractionFactory);
         fractionFactory = CiretaFractionFactory(_fractionFactory);
+        emit FractionFactoryUpdated(old, _fractionFactory);
     }
 
     function setIssuerRegistry(address _registry) external onlyOwner {
@@ -107,12 +120,14 @@ contract CiretaSaleFactory is Initializable, OwnableUpgradeable, UUPSUpgradeable
     function setFractionVaultImpl(address impl) external onlyOwner {
         require(impl != address(0), "zero impl");
         fractionFactory.setVaultImplementation(impl);
+        emit FractionVaultImplDelegated(impl);
     }
 
     /// @notice Pass-through setter: update the fraction token implementation on CiretaFractionFactory.
     function setFractionTokenImpl(address impl) external onlyOwner {
         require(impl != address(0), "zero impl");
         fractionFactory.setFractionTokenImplementation(impl);
+        emit FractionTokenImplDelegated(impl);
     }
 
     // ── Modifiers ───────────────────────────────────────────────────────────

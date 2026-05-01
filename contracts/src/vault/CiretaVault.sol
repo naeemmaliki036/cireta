@@ -62,6 +62,16 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     event ExcessPolicyUpdated(ExcessPolicy oldPolicy, ExcessPolicy newPolicy);
     event IssuerExcessWithdrawn(address indexed issuer, uint256 amount);
     event FractionTokenSet(address fractionToken);
+    /// @notice Emitted on every Sale-driven fraction mint. Indexers reconstruct
+    /// the outstanding-fraction balance from these events without replaying
+    /// every Sale.buy().
+    event AllocationRecorded(uint256 indexed id, uint256 fractionAmount, uint256 newTotal);
+    /// @notice Emitted when fractions are burned outside of claim() (e.g. refund).
+    event MintedFractionsDecremented(uint256 amount, uint256 newTotal);
+    /// @notice Emitted on every UUPS upgrade. The proxy also emits ERC1967
+    /// `Upgraded(impl)`; this adds the nonce so monitors can distinguish
+    /// the upgrade sequence.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     // --- Errors ---
     error NotFinalized();
@@ -142,12 +152,14 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
     function recordAllocation(address, uint256 id, uint256 fractionAmount) external onlySale {
         if (id != 1 && id != 2) revert InvalidId();
         totalMintedFractions += fractionAmount;
+        emit AllocationRecorded(id, fractionAmount, totalMintedFractions);
     }
 
     /// @notice Decrement minted counter when fractions are burned outside of claim
     /// (e.g. refund burns ID=1). Keeps withdrawExcess accounting correct.
     function decrementMinted(uint256 amount) external onlySale {
         totalMintedFractions -= amount;
+        emit MintedFractionsDecremented(amount, totalMintedFractions);
     }
 
     /// @notice Mark sale as finalized, start vesting clock for all investors.
@@ -312,8 +324,9 @@ contract CiretaVault is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reen
         return (balance * linearElapsed) / linearDuration;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.

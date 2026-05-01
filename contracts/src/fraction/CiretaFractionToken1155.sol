@@ -60,6 +60,10 @@ contract CiretaFractionToken1155 is
         uint256 amount,
         bytes reason
     );
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     // --- Errors ---
     error ZeroAddress();
@@ -157,8 +161,9 @@ contract CiretaFractionToken1155 is
         emit FractionsRecovered(from, to, id, amount, reason);
     }
 
-    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.

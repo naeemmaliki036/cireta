@@ -44,7 +44,13 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
 
     // --- Events ---
     event OTCTokenDeployed(address indexed issuer, address indexed otcToken);
+    event OTCTokenImplementationUpdated(address indexed oldImpl, address indexed newImpl);
+    event IssuerRegistryUpdated(address indexed oldRegistry, address indexed newRegistry);
     event SystemContractWhitelisted(address indexed contractAddr, address indexed registry, bool success);
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     // --- Errors ---
     error ZeroAddress();
@@ -69,8 +75,9 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
         otcTokenImplementation = _otcTokenImpl;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.
@@ -79,11 +86,15 @@ contract IssuerOTCTokenFactory is Initializable, OwnableUpgradeable, UUPSUpgrade
     /// @notice Update the OTC token implementation for future deployments.
     function setOTCTokenImplementation(address impl) external onlyOwner {
         if (impl == address(0)) revert ZeroAddress();
+        address old = otcTokenImplementation;
         otcTokenImplementation = impl;
+        emit OTCTokenImplementationUpdated(old, impl);
     }
 
     function setIssuerRegistry(address _registry) external onlyOwner {
+        address old = address(issuerRegistry);
         issuerRegistry = IssuerRegistry(_registry);
+        emit IssuerRegistryUpdated(old, _registry);
     }
 
     /// @notice Deploy a new OTC token proxy for an issuer.

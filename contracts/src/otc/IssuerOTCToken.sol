@@ -32,6 +32,10 @@ contract IssuerOTCToken is
     // --- Events ---
     event OTCMinted(address indexed to, uint256 amount);
     event OTCBurned(address indexed from, uint256 amount);
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     // --- Errors ---
     error RecipientNotVerified(address to);
@@ -106,8 +110,9 @@ contract IssuerOTCToken is
         super._update(from, to, amount);
     }
 
-    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(DEFAULT_ADMIN_ROLE) {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version.

@@ -161,6 +161,16 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     event FinalizationPending(uint256 totalRaised, uint256 totalTokenSold);
     event RefundsActivated();
     event SaleClosed(bool failed, address closer);
+    /// @notice Sale switched from Direct to Vested. Subgraph/worker need this
+    /// to know the claim flow now goes through the vault + fraction token.
+    event VestedModeSet(address indexed vault, address indexed fractionToken);
+    /// @notice OTC token address set or updated. Worker needs this so it
+    /// monitors the right OTC token for mints and approval syncs.
+    event OTCTokenSet(address indexed previousToken, address indexed newToken);
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce when
+    /// available, so off-chain monitors can sequence upgrade-related events.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     // ── Errors ───────────────────────────────────────────────────────────────
     error InvalidStatus();
@@ -334,8 +344,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         status = SaleStatus.Draft;
     }
 
-    function _authorizeUpgrade(address) internal override adminOnly {
+    function _authorizeUpgrade(address newImplementation) internal override adminOnly {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
 
     /// @notice Contract version — used to verify which impl is live on-chain.
@@ -424,6 +435,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
         saleMode = SaleMode.Vested;
         vault = CiretaVault(_vault);
         fractionToken = CiretaFractionToken1155(_fractionToken);
+        emit VestedModeSet(_vault, _fractionToken);
     }
 
     // ── Issuer-Only Functions ───────────────────────────────────────────────
@@ -595,7 +607,9 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     /// @notice Set or update the OTC token address. Only issuer.
     function setOTCToken(address _otcToken) external onlyIssuer {
         if (status == SaleStatus.Rejected) revert InvalidStatus();
+        address previous = address(otcToken);
         otcToken = IssuerOTCToken(_otcToken);
+        emit OTCTokenSet(previous, _otcToken);
     }
 
     // Round-5: setSaleStructure REMOVED — replaced by per-phase AllocationMode.

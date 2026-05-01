@@ -40,7 +40,17 @@ contract ModularCompliance is
         __Ownable_init(initialOwner);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    /// @notice Emitted when an externally-callable selector is allow-listed or
+    /// removed. Changes the security perimeter — monitors must surface this.
+    event SelectorAllowed(bytes4 indexed selector, bool allowed);
+    /// @notice Emitted on every UUPS upgrade. The proxy emits ERC1967
+    /// `Upgraded(impl)` already; this is a parallel marker for off-chain
+    /// indexers that prefer per-impl events with custom payloads.
+    event ImplementationUpgraded(address indexed newImplementation);
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        emit ImplementationUpgraded(newImplementation);
+    }
 
     // ============ Token Binding ============
 
@@ -119,6 +129,7 @@ contract ModularCompliance is
 
     function setAllowedSelector(bytes4 selector, bool allowed) external onlyOwner {
         _allowedSelectors[selector] = allowed;
+        emit SelectorAllowed(selector, allowed);
     }
 
     function callModuleFunction(

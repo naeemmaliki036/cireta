@@ -107,9 +107,14 @@ contract SimpleIdentityRegistry is
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
         upgradeNonce++;
+        emit ImplementationUpgraded(newImplementation, upgradeNonce);
     }
+
+    /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
+    /// from the proxy; this is a parallel marker that includes the nonce.
+    event ImplementationUpgraded(address indexed newImplementation, uint256 nonce);
 
     /// @notice Contract version.
     function version() external pure returns (string memory) { return "5.0.0"; }
@@ -118,6 +123,10 @@ contract SimpleIdentityRegistry is
 
     /// @dev Flag to prevent double-initialization of AccessControl
     bool private _rolesInitialized;
+
+    /// @notice Emitted when the legacy-to-AccessControl migration is performed.
+    /// Ops tooling and indexers use this to confirm a registry was upgraded.
+    event MigratedToRoles(address indexed admin);
 
     /**
      * @dev One-time migration from legacy agent system to AccessControl.
@@ -130,6 +139,7 @@ contract SimpleIdentityRegistry is
         // AccessControl doesn't need initialization — just grant the role directly.
         _grantRole(DEFAULT_ADMIN_ROLE, owner());
         _rolesInitialized = true;
+        emit MigratedToRoles(owner());
     }
 
     // ============ Agent Management (backward compatible) ============
