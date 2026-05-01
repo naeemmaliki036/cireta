@@ -1,0 +1,157 @@
+{
+  "upgradedAt": "2026-05-01T07:13:44.110Z",
+  "network": "base-sepolia",
+  "admin": "0x8eE48b43abb1a53e0a61bB31d0Fc7E898e7f2ac3",
+  "sourceV2File": "base-sepolia.v2.20260430.json",
+  "newImplementations": {
+    "token": "0xd59552cd4D368B9D3Ae2e8BB85d83990107C44dD",
+    "simpleIdentityRegistry": "0x1Ae32B4a6B79a9faF0Ecd105ad9AD792B6525A61",
+    "modularCompliance": "0xf5d4A790ba783B722dbAEbde19Bd392DFf95581D",
+    "sale": "0x9282e404c509938b6AE30816ab2bf34720e9B12C",
+    "vault": "0x741531f3252EC91Ee9430559D0bBA63F13589a07",
+    "fractionToken1155": "0x1c39D2A4A0fF81C6852e4d84c3B9022C626C22eF",
+    "otcToken": "0x2a3eE2477b175fE0a87d94C4c0512e69337c79F0",
+    "issuerRegistry": "0x266b3D5BE8d5b7a2337F9b1b25d532170EfFbC6f",
+    "platformFeeManager": "0xC4210B8dd7ef7B60AC042fA815b5cB5E6EdE7925",
+    "tokenFactory": "0x3661819830D675FA500Af30f5B12456e5c46cF4D",
+    "saleFactory": "0x420ffBaFF5D6D2036c04c8068886A785aC5b99b9",
+    "otcTokenFactory": "0x8cBCf2B9938042A62dE00E9d0cFa1FDE66074A03"
+  },
+  "proxies": {
+    "simpleIdentityRegistry": "0x5B344d1E07B57D36B8FD99b2e241dd7E8674d7BE",
+    "issuerRegistry": "0x601D0DC8025CEA6B89E922E38f2Af0CCC61bBEDa",
+    "platformFeeManager": "0xA6d90EAf016981d706474C8E3e56EB3D1859640b",
+    "tokenFactory": "0x14e2A35c35DC58d4eB6BFE329811Ca1bDbbF94E4",
+    "saleFactory": "0xFfC765aB999CF3D718Aa81869DE3D32Ff3E0d2d9",
+    "fractionFactory": "0x4E9412A787731A20A7C28cF92Aa6a799539b1C64",
+    "otcTokenFactory": "0x0094c64d3bA4218381C77cCE7493991CBe42b969"
+  },
+  "log": [
+    {
+      "label": "CiretaToken impl",
+      "ok": true,
+      "detail": "0xd59552cd4D368B9D3Ae2e8BB85d83990107C44dD"
+    },
+    {
+      "label": "SimpleIdentityRegistry impl",
+      "ok": true,
+      "detail": "0x1Ae32B4a6B79a9faF0Ecd105ad9AD792B6525A61"
+    },
+    {
+      "label": "ModularCompliance impl",
+      "ok": true,
+      "detail": "0xf5d4A790ba783B722dbAEbde19Bd392DFf95581D"
+    },
+    {
+      "label": "Sale impl",
+      "ok": true,
+      "detail": "0x9282e404c509938b6AE30816ab2bf34720e9B12C"
+    },
+    {
+      "label": "CiretaVault impl",
+      "ok": true,
+      "detail": "0x741531f3252EC91Ee9430559D0bBA63F13589a07"
+    },
+    {
+      "label": "CiretaFractionToken1155 impl",
+      "ok": true,
+      "detail": "0x1c39D2A4A0fF81C6852e4d84c3B9022C626C22eF"
+    },
+    {
+      "label": "IssuerOTCToken impl",
+      "ok": true,
+      "detail": "0x2a3eE2477b175fE0a87d94C4c0512e69337c79F0"
+    },
+    {
+      "label": "IssuerRegistry impl",
+      "ok": true,
+      "detail": "0x266b3D5BE8d5b7a2337F9b1b25d532170EfFbC6f"
+    },
+    {
+      "label": "PlatformFeeManager impl",
+      "ok": true,
+      "detail": "0xC4210B8dd7ef7B60AC042fA815b5cB5E6EdE7925"
+    },
+    {
+      "label": "CiretaTokenFactory impl",
+      "ok": true,
+      "detail": "0x3661819830D675FA500Af30f5B12456e5c46cF4D"
+    },
+    {
+      "label": "CiretaSaleFactory impl",
+      "ok": true,
+      "detail": "0x420ffBaFF5D6D2036c04c8068886A785aC5b99b9"
+    },
+    {
+      "label": "IssuerOTCTokenFactory impl",
+      "ok": true,
+      "detail": "0x8cBCf2B9938042A62dE00E9d0cFa1FDE66074A03"
+    },
+    {
+      "label": "SimpleIdentityRegistry",
+      "ok": true,
+      "detail": "0x9FC4f304… → 0x1Ae32B4a…",
+      "tx": "0x5bc96d4da4d807e0330cb463795aa3f043902f11221af8496bbd40c4b9eb1e2c"
+    },
+    {
+      "label": "IssuerRegistry",
+      "ok": true,
+      "detail": "0x767E3c5C… → 0x266b3D5B…",
+      "tx": "0x31b4312e39a5e81c3011d8a7896eeabdbcbb7dc553731b3797a674b517b4cdd6"
+    },
+    {
+      "label": "PlatformFeeManager",
+      "ok": true,
+      "detail": "0xae5Ad89c… → 0xC4210B8d…",
+      "tx": "0xfd6ca35ed399b01e875754098b554b7bb2e0eff8bb0769f3dd07bd50d2a5d7ee"
+    },
+    {
+      "label": "CiretaTokenFactory",
+      "ok": true,
+      "detail": "0xB6d86Ce9… → 0x36618198…",
+      "tx": "0xa03dcbbbdb0973b65c6579bfcc96d9300152501f574b618050759b990a1ac023"
+    },
+    {
+      "label": "CiretaSaleFactory",
+      "ok": true,
+      "detail": "0x114dedD3… → 0x420ffBaF…",
+      "tx": "0x2c75b49ceced259d6ef267a8b6706f4f759ed80ae0a051d63e99a1c279f19686"
+    },
+    {
+      "label": "IssuerOTCTokenFactory",
+      "ok": true,
+      "detail": "0x1A909e93… → 0x8cBCf2B9…",
+      "tx": "0xfa3bbd79286f630a0476a3afa3f762a64821bb98e76ea8aae31237490f565a33"
+    },
+    {
+      "label": "TokenFactory.updateImplementations",
+      "ok": true,
+      "detail": "token+idRegistry+compliance",
+      "tx": "0xd33bdccb25c1bad4c8700f353ab779361b58ebe58cb77235d4a16299cabf9eb2"
+    },
+    {
+      "label": "SaleFactory.setSaleImplementation",
+      "ok": true,
+      "detail": "→ 0x9282e404…",
+      "tx": "0xad4fb60f4911f679fd8dedd290f59fb1745de3a0256a5c0295f8b6f6ba77d1bd"
+    },
+    {
+      "label": "SaleFactory.setFractionVaultImpl",
+      "ok": true,
+      "detail": "vault → 0x741531f3…",
+      "tx": "0xdd261bd283ff92e70eec3c741851e444c2f9717461d1d8171e00573e810537ac"
+    },
+    {
+      "label": "SaleFactory.setFractionTokenImpl",
+      "ok": true,
+      "detail": "fraction → 0x1c39D2A4…",
+      "tx": "0xa992b1a48f496117f700bb44f42b57b795902580c9b8d0684d37714b372cb5b5"
+    },
+    {
+      "label": "OTCFactory.setOTCTokenImplementation",
+      "ok": true,
+      "detail": "→ 0x2a3eE247…",
+      "tx": "0x129d3c3840d315827b47b4e149d6be200c904f27658a5f3262c21ecfc258ce62"
+    }
+  ]
+}
