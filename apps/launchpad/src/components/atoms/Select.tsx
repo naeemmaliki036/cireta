@@ -30,7 +30,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             id={selectId}
             className={cn(
               "input-field appearance-none pr-10",
-              error && "border-red-500 focus:border-red-500 focus:ring-red-500",
+              error && "border-text/30 focus:border-text/40 focus:ring-text/10",
               className
             )}
             ref={ref}
@@ -47,7 +47,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-black/40 pointer-events-none" />
         </div>
         {error && <p className="input-error">{error}</p>}
       </div>

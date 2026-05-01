@@ -52,7 +52,7 @@ export default function ProfilePage() {
   if (error && !user) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 text-sm mb-4">{error}</p>
+        <p className="text-sm text-text mb-4">{error}</p>
         <Button variant="primary" size="sm" onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
@@ -61,22 +61,24 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Profile</h2>
-        <p className="text-gray-500 text-sm">Manage your account details.</p>
+        <h2 className="text-lg font-semibold text-text mb-0.5">Profile</h2>
+        <p className="text-sm text-black/60">Manage your account details.</p>
       </div>
 
-      {error && <p className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
+      {error && (
+        <p className="text-sm text-text p-3 bg-box rounded-xl border border-black/10">{error}</p>
+      )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+      <div className="bg-white rounded-2xl border border-black/10 p-6 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
-          <p className="text-gray-900 font-medium">{user.email}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Email cannot be changed after verification.</p>
+          <label className="block text-xs font-semibold text-text mb-1 uppercase tracking-wider">Email</label>
+          <p className="text-sm font-medium text-text">{user.email}</p>
+          <p className="text-xs text-black/40 mt-0.5">Email cannot be changed after verification.</p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-500 mb-1">Display Name</label>
+          <label className="block text-xs font-semibold text-text mb-1 uppercase tracking-wider">Display Name</label>
           <Input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -85,33 +87,35 @@ export default function ProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-500 mb-1">KYC Status</label>
+          <label className="block text-xs font-semibold text-text mb-1 uppercase tracking-wider">KYC Status</label>
           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
-            user.kyc_status === "approved" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-            user.kyc_status === "pending" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-            "bg-gray-100 text-gray-600 border border-gray-200"
+            user.kyc_status === "approved"
+              ? "bg-darkAqua/10 text-darkAqua border border-darkAqua/20"
+              : user.kyc_status === "pending"
+              ? "bg-box text-darkAqua border border-black/10"
+              : "bg-box text-black/60 border border-black/10"
           }`}>
             {user.kyc_status === "approved" ? "Verified" : user.kyc_status === "pending" ? "Pending review" : user.kyc_status}
           </span>
         </div>
         <Button onClick={handleSave} disabled={saving} variant="primary" size="sm">
-          {saving ? "Saving..." : saved ? "Saved \u2713" : "Save Changes"}
+          {saving ? "Saving..." : saved ? "Saved ✓" : "Save Changes"}
         </Button>
       </div>
 
       {/* Linked Wallets */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Linked Wallets</h3>
+      <div className="bg-white rounded-2xl border border-black/10 p-6">
+        <h3 className="text-sm font-semibold text-text mb-3">Linked Wallets</h3>
         {wallets.length === 0 ? (
-          <p className="text-gray-400 text-sm">No wallets linked. Go to Settings &gt; Wallets to link one.</p>
+          <p className="text-sm text-black/40">No wallets linked. Go to Settings &gt; Wallets to link one.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-0">
             {wallets.map((w) => (
-              <div key={w.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-                <CopyableAddress address={w.address} truncate className="text-gray-900 text-sm" />
+              <div key={w.id} className="flex items-center gap-3 py-2.5 border-b border-black/5 last:border-0">
+                <CopyableAddress address={w.address} truncate className="text-sm text-text" />
                 {w.is_primary && <Badge variant="active" size="sm">Primary</Badge>}
                 {w.screening_status && (
-                  <Badge variant={w.screening_status === "clear" ? "success" : "pending"} size="sm">
+                  <Badge variant={w.screening_status === "clear" ? "default" : "pending"} size="sm">
                     {w.screening_status}
                   </Badge>
                 )}

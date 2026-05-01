@@ -24,7 +24,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={textareaId}
           className={cn(
             "input-field min-h-[120px] resize-y",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-500",
+            error && "border-text/30 focus:border-text/40 focus:ring-text/10",
             className
           )}
           ref={ref}

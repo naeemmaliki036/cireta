@@ -61,7 +61,7 @@ export default function VerificationSettingsPage() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 text-sm mb-4">{error}</p>
+        <p className="text-sm text-text mb-4">{error}</p>
         <Button variant="primary" size="sm" onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
@@ -73,47 +73,61 @@ export default function VerificationSettingsPage() {
   const needsReverify = kyc.status === "expired" || kyc.status === "rejected" || isExpired;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Verification</h2>
-        <p className="text-gray-500 text-sm">Your KYC/AML verification status.</p>
+        <h2 className="text-lg font-semibold text-text mb-0.5">Verification</h2>
+        <p className="text-sm text-black/60">Your identity verification status.</p>
       </div>
 
       {/* Status Overview */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-            kyc.status === "approved" ? "bg-emerald-50" : kyc.status === "pending" ? "bg-amber-50" : "bg-gray-100"
+      <div className="bg-white rounded-2xl border border-black/10 p-6">
+        <div className="flex items-center gap-4 mb-5">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+            kyc.status === "approved"
+              ? "bg-darkAqua/10"
+              : kyc.status === "pending"
+              ? "bg-box"
+              : "bg-box"
           }`}>
-            <Shield className={`w-7 h-7 ${
-              kyc.status === "approved" ? "text-emerald-600" : kyc.status === "pending" ? "text-amber-600" : "text-gray-400"
+            <Shield className={`w-6 h-6 ${
+              kyc.status === "approved"
+                ? "text-darkAqua"
+                : kyc.status === "pending"
+                ? "text-darkAqua"
+                : "text-black/40"
             }`} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-gray-900 font-semibold text-lg">
+              <h3 className="text-text font-semibold text-base">
                 {kyc.status === "approved" ? "Verified" : kyc.status === "pending" ? "Verification Pending" : "Not Verified"}
               </h3>
               <Badge variant={STATUS_VARIANTS[kyc.status] ?? "outline"} size="sm">
                 {kyc.status}
               </Badge>
             </div>
-            <p className="text-gray-400 text-sm mt-0.5">{kyc.status === "approved" ? "Identity verified via Sumsub" : kyc.status === "pending" ? "Under review" : "Complete verification to buy"}</p>
+            <p className="text-black/50 text-sm mt-0.5">
+              {kyc.status === "approved"
+                ? "Identity verified"
+                : kyc.status === "pending"
+                ? "Under review"
+                : "Complete verification to buy"}
+            </p>
           </div>
         </div>
 
         <div className="space-y-0">
-          <div className="flex justify-between py-3 border-b border-gray-100">
-            <span className="text-gray-500 text-sm">Buyer Type</span>
-            <span className="text-gray-900 text-sm font-medium capitalize">{kyc.investor_type || "\u2014"}</span>
+          <div className="flex justify-between py-3 border-b border-black/5">
+            <span className="text-black/50 text-sm">Buyer Type</span>
+            <span className="text-text text-sm font-medium capitalize">{kyc.investor_type || "—"}</span>
           </div>
-          <div className="flex justify-between py-3 border-b border-gray-100">
-            <span className="text-gray-500 text-sm">Country</span>
-            <span className="text-gray-900 text-sm font-medium">{kyc.country_code || "\u2014"}</span>
+          <div className="flex justify-between py-3 border-b border-black/5">
+            <span className="text-black/50 text-sm">Country</span>
+            <span className="text-text text-sm font-medium">{kyc.country_code || "—"}</span>
           </div>
           <div className="flex justify-between py-3">
-            <span className="text-gray-500 text-sm">Expiry Date</span>
-            <span className={`text-sm font-medium ${isExpired ? "text-red-600" : "text-gray-900"}`}>
+            <span className="text-black/50 text-sm">Expiry Date</span>
+            <span className={`text-sm font-medium ${isExpired ? "text-text font-semibold" : "text-text"}`}>
               {kyc.expiry_date ? new Date(kyc.expiry_date).toLocaleDateString() : "No expiry"}
             </span>
           </div>
@@ -122,11 +136,11 @@ export default function VerificationSettingsPage() {
 
       {/* Expiry Warning */}
       {isExpired && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+        <div className="p-4 rounded-xl bg-box border border-black/10 flex gap-3">
+          <AlertCircle className="w-5 h-5 text-text shrink-0" />
           <div>
-            <p className="text-red-700 text-sm font-medium">Verification Expired</p>
-            <p className="text-red-600/70 text-xs mt-0.5">Your KYC verification has expired. Please re-verify to continue investing.</p>
+            <p className="text-text text-sm font-semibold">Verification Expired</p>
+            <p className="text-black/60 text-xs mt-0.5">Your verification has expired. Please re-verify to continue investing.</p>
           </div>
         </div>
       )}
@@ -145,7 +159,7 @@ export default function VerificationSettingsPage() {
           </Button>
         </Link>
       ) : kyc.status === "pending" ? (
-        <div className="text-gray-600 text-sm">
+        <div className="text-sm text-black/60">
           <p>Your verification is being reviewed. This usually takes a few minutes but can take up to 24 hours.</p>
           <p className="mt-1">In case of delay, contact <a href="https://cireta.com" target="_blank" rel="noopener noreferrer" className="text-darkAqua underline hover:text-darkAqua/80">compliance@cireta.com</a>.</p>
         </div>

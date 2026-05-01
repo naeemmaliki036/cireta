@@ -6,3 +6,4 @@ export { KYCBadge, type KYCBadgeProps, type KYCStatus } from "./KYCBadge";
 export { TxRow, type TxRowProps, type TxStatus, type TxType } from "./TxRow";
 export { PhaseTimeline, type PhaseTimelineProps } from "./PhaseTimeline";
 export { VestingMiniCard, type VestingMiniCardProps } from "./VestingMiniCard";
+export { InfoSidebar, type InfoSidebarProps, type InfoSidebarItem } from "./InfoSidebar";

@@ -70,14 +70,16 @@ export default function NotificationsPage() {
   if (loading) return <div className="flex justify-center py-12"><Spinner /></div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Notifications</h2>
-        <p className="text-gray-500 text-sm">Choose how you want to be notified.</p>
+        <h2 className="text-lg font-semibold text-text mb-0.5">Notifications</h2>
+        <p className="text-sm text-black/60">Choose how you want to be notified.</p>
       </div>
-      {error && <p className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200">{error}</p>}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="grid grid-cols-3 gap-4 mb-4 text-xs text-gray-400 font-medium uppercase tracking-wider">
+      {error && (
+        <p className="text-sm text-text p-3 bg-box rounded-xl border border-black/10">{error}</p>
+      )}
+      <div className="bg-white rounded-2xl border border-black/10 p-6">
+        <div className="grid grid-cols-3 gap-4 mb-3 text-[11px] text-black/40 font-medium uppercase tracking-wider">
           <div>Category</div>
           <div className="text-center">Email</div>
           <div className="text-center">In-App</div>
@@ -86,12 +88,14 @@ export default function NotificationsPage() {
           const emailOn = prefs[`email_${key}` as keyof Prefs];
           const inappOn = prefs[`inapp_${key}` as keyof Prefs];
           return (
-            <div key={key} className="grid grid-cols-3 gap-4 py-3.5 border-b border-gray-100 last:border-0 items-center">
-              <span className="text-sm text-gray-700">{label}</span>
+            <div key={key} className="grid grid-cols-3 gap-4 py-3.5 border-b border-black/5 last:border-0 items-center">
+              <span className="text-sm text-text">{label}</span>
               <div className="flex justify-center">
                 <button
                   onClick={() => toggle(`email_${key}` as keyof Prefs)}
-                  className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${emailOn ? "bg-emerald-500" : "bg-gray-300"}`}
+                  className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${
+                    emailOn ? "bg-darkAqua" : "bg-black/15"
+                  }`}
                   role="switch"
                   aria-checked={emailOn}
                   aria-label={`Email ${label}`}
@@ -102,7 +106,9 @@ export default function NotificationsPage() {
               <div className="flex justify-center">
                 <button
                   onClick={() => toggle(`inapp_${key}` as keyof Prefs)}
-                  className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${inappOn ? "bg-emerald-500" : "bg-gray-300"}`}
+                  className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${
+                    inappOn ? "bg-darkAqua" : "bg-black/15"
+                  }`}
                   role="switch"
                   aria-checked={inappOn}
                   aria-label={`In-app ${label}`}
@@ -113,10 +119,10 @@ export default function NotificationsPage() {
             </div>
           );
         })}
-        <p className="text-xs text-gray-400 mt-4">Security alerts are always enabled and cannot be disabled.</p>
+        <p className="text-xs text-black/40 mt-4">Security alerts are always enabled and cannot be disabled.</p>
       </div>
       <Button onClick={handleSave} disabled={saving} variant="primary" size="sm">
-        {saving ? "Saving..." : saved ? "Saved \u2713" : "Save Preferences"}
+        {saving ? "Saving..." : saved ? "Saved ✓" : "Save Preferences"}
       </Button>
     </div>
   );

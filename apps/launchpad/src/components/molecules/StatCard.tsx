@@ -36,7 +36,7 @@ export function StatCard({
   };
 
   const labelColors = {
-    default: "text-gray-500",
+    default: "text-black/50",
     dark: "text-white/60",
     teal: "text-white/70",
   };
@@ -96,7 +96,7 @@ export function StatCard({
           <div
             className={cn(
               "flex items-center gap-1 text-sm font-medium",
-              trend >= 0 ? "text-green-600" : "text-red-600"
+              trend >= 0 ? "text-darkAqua" : "text-text"
             )}
           >
             {trend >= 0 ? (

@@ -1,11 +1,43 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Coins, RefreshCw, Lock, Unlock } from "lucide-react";
+import { Coins, RefreshCw, Lock, Unlock, Send, ShieldCheck, ArrowUpFromLine } from "lucide-react";
 import { Button, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { PortfolioTable, type HoldingItem } from "@/components/organisms";
+import { InfoSidebar, type InfoSidebarItem } from "@/components/molecules";
 import { getPortfolio, type Holding } from "@/lib/api/repositories/portfolio.repository";
+
+const HOLDINGS_TIPS: InfoSidebarItem[] = [
+  {
+    icon: Unlock,
+    title: "Available vs Locked",
+    body:
+      "Available holdings are project tokens you can transfer. Locked holdings are fraction tokens received during a vesting period — they convert to project tokens when you claim.",
+  },
+  {
+    icon: ArrowUpFromLine,
+    title: "Claiming",
+    body:
+      "Once a vesting cliff is reached, the Claim button appears in the row. Claiming swaps fraction tokens for the underlying project tokens at a 1:1 ratio.",
+    href: "/portfolio/vesting",
+    hrefLabel: "View vesting schedules",
+  },
+  {
+    icon: Send,
+    title: "Transferring",
+    body:
+      "Use the Transfer page for project tokens, Fraction Transfer for fractions during vesting. Both require the recipient to be KYC-verified on the identity registry.",
+    href: "/portfolio/transfer",
+    hrefLabel: "Transfer a token",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Need a refund?",
+    body:
+      "If a sale didn't reach its soft cap, a Refund banner appears on your /portfolio page. Refunds return your USDC.",
+  },
+];
 
 export default function PortfolioHoldingsPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -38,7 +70,7 @@ export default function PortfolioHoldingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl py-2">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-bold text-text tracking-tight">Holdings</h1>
@@ -74,33 +106,37 @@ export default function PortfolioHoldingsPage() {
             <p className="text-sm text-black/60">Buy in a token sale to see your holdings here.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {unlockedHoldings.length > 0 && (
-              <section>
-                <div className="flex items-center gap-2 mb-3">
-                  <Unlock className="w-3.5 h-3.5 text-darkAqua" />
-                  <h2 className="text-sm font-semibold text-text">Available (Transferable)</h2>
-                </div>
-                <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
-                  <PortfolioTable holdings={unlockedHoldings} />
-                </div>
-              </section>
-            )}
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-5">
+            <div className="min-w-0 space-y-6">
+              {unlockedHoldings.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Unlock className="w-3.5 h-3.5 text-darkAqua" />
+                    <h2 className="text-sm font-semibold text-text">Available (Transferable)</h2>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                    <PortfolioTable holdings={unlockedHoldings} />
+                  </div>
+                </section>
+              )}
 
-            {lockedHoldings.length > 0 && (
-              <section>
-                <div className="flex items-center gap-2 mb-3">
-                  <Lock className="w-3.5 h-3.5 text-text" />
-                  <h2 className="text-sm font-semibold text-text">Locked / Vesting</h2>
-                  <span className="text-xs text-black/50">
-                    Soul-bound fraction tokens — claim after the vesting cliff to unlock.
-                  </span>
-                </div>
-                <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
-                  <PortfolioTable holdings={lockedHoldings} />
-                </div>
-              </section>
-            )}
+              {lockedHoldings.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <Lock className="w-3.5 h-3.5 text-text" />
+                    <h2 className="text-sm font-semibold text-text">Locked / Vesting</h2>
+                    <span className="text-xs text-black/50">
+                      Fraction tokens — claim after the vesting cliff to unlock.
+                    </span>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                    <PortfolioTable holdings={lockedHoldings} />
+                  </div>
+                </section>
+              )}
+            </div>
+
+            <InfoSidebar items={HOLDINGS_TIPS} />
           </div>
         )}
       </div>

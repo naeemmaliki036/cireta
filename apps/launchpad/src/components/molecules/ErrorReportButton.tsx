@@ -68,7 +68,7 @@ export function ErrorReportButton({ context, className }: Props) {
 
   return (
     <div className={className}>
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+      <div className="rounded-xl border border-black/10 bg-box p-4 text-sm text-text">
         <div className="flex items-start gap-2">
           <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -82,7 +82,7 @@ export function ErrorReportButton({ context, className }: Props) {
                   href={txUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-900 underline"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-text/70 hover:text-text underline"
                 >
                   View transaction <ExternalLink className="h-3 w-3" />
                 </a>
@@ -104,13 +104,13 @@ export function ErrorReportButton({ context, className }: Props) {
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-base text-text">Report this issue</h3>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setOpen(false)} className="text-black/40 hover:text-text">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {done ? (
-              <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <div className="text-sm text-darkAqua bg-darkAqua/10 border border-darkAqua/20 rounded-xl p-3">
                 Thanks — your report has been sent. We&apos;ll look into it.
                 <div className="mt-3 text-right">
                   <Button variant="secondary" size="sm" onClick={() => { setOpen(false); setDone(false); setDetails(""); }}>
@@ -120,24 +120,24 @@ export function ErrorReportButton({ context, className }: Props) {
               </div>
             ) : (
               <>
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-black/50 mb-3">
                   We&apos;ll capture the page, the transaction (if any), and the
                   error details automatically. Add anything else you think would
                   help us fix it.
                 </p>
-                <div className="rounded-lg bg-gray-50 px-3 py-2 mb-3 text-[11px] text-gray-600 space-y-0.5">
-                  {context.functionName && <div><span className="text-gray-400">Function:</span> {context.functionName}</div>}
-                  {context.code && <div><span className="text-gray-400">Code:</span> {context.code}</div>}
-                  {context.txHash && <div className="font-mono break-all"><span className="text-gray-400 not-italic">Tx:</span> {context.txHash}</div>}
+                <div className="rounded-xl bg-box px-3 py-2 mb-3 text-[11px] text-black/60 space-y-0.5">
+                  {context.functionName && <div><span className="text-black/40">Function:</span> {context.functionName}</div>}
+                  {context.code && <div><span className="text-black/40">Code:</span> {context.code}</div>}
+                  {context.txHash && <div className="font-mono break-all"><span className="text-black/40 not-italic">Tx:</span> {context.txHash}</div>}
                 </div>
                 <textarea
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
                   placeholder="What were you trying to do? Anything that might help us reproduce…"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-darkAqua min-h-[100px]"
+                  className="w-full px-3 py-2 rounded-xl border border-black/10 text-sm focus:outline-none focus:border-darkAqua min-h-[100px]"
                   maxLength={4000}
                 />
-                {submitError && <p className="text-xs text-red-600 mt-2">{submitError}</p>}
+                {submitError && <p className="text-xs text-text mt-2">{submitError}</p>}
                 <div className="mt-3 flex justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={submitting}>
                     Cancel

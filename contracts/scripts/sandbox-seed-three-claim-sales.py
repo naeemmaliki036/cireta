@@ -6,7 +6,7 @@ rows needed for portfolio-claim UI testing:
   - tokens
   - token_sales (status=finalized_success, sale_mode=vested)
   - sale_phases
-  - contributions (one row per buy tx hash, status=pending_claim)
+  - contributions (one row per buy tx hash, status=confirmed (vested holdings — user has not yet claimed via vault))
   - vesting_schedules (claimed_amount=0 — user has NOT claimed yet)
 
 Idempotent on contract_address — safe to re-run.
@@ -254,7 +254,7 @@ def seed_sale(conn, sale_entry: dict, investor_user_id: str, issuer_id: str):
         )
         print(f"  + Created sale_phase 0 ({phase_m['name']})")
 
-    # ── Contributions (pending_claim — user has NOT claimed yet) ───────────
+    # ── Contributions (confirmed (vested holdings — user has not yet claimed via vault) — user has NOT claimed yet) ───────────
     price_per_token = Decimal(phase_m["pricePerToken"]) / Decimal(10 ** 6)
     tokens_held = Decimal(inv_m["tokensHeld"])  # human-readable already
 
@@ -281,7 +281,7 @@ def seed_sale(conn, sale_entry: dict, investor_user_id: str, issuer_id: str):
             ) VALUES (
                 %s, %s, %s, %s,
                 %s, %s, 0, %s,
-                %s, 'pending_claim', NULL, NULL,
+                %s, 'confirmed', NULL, NULL,
                 FALSE, %s, 0,
                 NOW(), NOW()
             )
@@ -294,7 +294,7 @@ def seed_sale(conn, sale_entry: dict, investor_user_id: str, issuer_id: str):
             ),
         )
         inserted_contribs += 1
-    print(f"  + {inserted_contribs} contribution row(s) (status=pending_claim)")
+    print(f"  + {inserted_contribs} contribution row(s) (status=confirmed (vested holdings — user has not yet claimed via vault))")
 
     # ── Vesting schedule (unclaimed — for UI to show claim button) ─────────
     existing_vs = fetchone(

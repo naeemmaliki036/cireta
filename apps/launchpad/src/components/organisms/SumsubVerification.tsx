@@ -205,8 +205,8 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
   if (state === "approved") {
     return (
       <div className={`text-center py-16 ${className}`}>
-        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 className="w-10 h-10 text-green-600" />
+        <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
+          <CheckCircle2 className="w-10 h-10 text-darkAqua" />
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Identity Verified</h2>
         <p className="text-black/50 mb-8">Your KYC verification has been approved</p>
@@ -238,8 +238,8 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
   if (state === "error" || !accessToken) {
     return (
       <div className={`text-center py-16 ${className}`}>
-        <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-          <AlertCircle className="w-10 h-10 text-red-500" />
+        <div className="w-20 h-20 rounded-full bg-box flex items-center justify-center mx-auto mb-6">
+          <AlertCircle className="w-10 h-10 text-text" />
         </div>
         <h2 className="text-2xl font-semibold text-text mb-2">Something Went Wrong</h2>
         <p className="text-black/50 mb-8">{error ?? "Unable to load verification"}</p>

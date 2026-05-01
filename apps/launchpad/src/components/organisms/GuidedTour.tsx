@@ -428,7 +428,7 @@ export function GuidedTour({ isOpen, onClose }: GuidedTourProps) {
                               animate={{ opacity: 1, scale: 1, x: 0 }}
                               exit={{ opacity: 0, scale: 0.6 }}
                               transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                              className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-600"
+                              className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-darkAqua"
                             >
                               <Check className="h-3 w-3" strokeWidth={3} />
                               Complete

@@ -63,19 +63,19 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
   }
 
   if (!holding) {
-    return <DashboardLayout title="Redeem"><p className="text-center text-gray-400 py-24">Token not found in portfolio</p></DashboardLayout>;
+    return <DashboardLayout title="Redeem"><p className="text-center text-black/50 py-24">Token not found in portfolio</p></DashboardLayout>;
   }
 
   if (showSuccess) {
     return (
       <DashboardLayout title="Redeem">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md mx-auto text-center py-20">
-          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10 text-green-600" />
+          className="max-w-md mx-auto text-center py-16">
+          <div className="w-16 h-16 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-8 h-8 text-darkAqua" />
           </div>
-          <h1 className="text-2xl font-semibold text-text mb-4">Redemption Submitted</h1>
-          <p className="text-gray-500 mb-8">Your redemption request for {amount} {holding.token_symbol} has been submitted.</p>
+          <h1 className="text-xl font-semibold text-text mb-3">Redemption Submitted</h1>
+          <p className="text-sm text-black/60 mb-6">Your redemption request for {amount} {holding.token_symbol} has been submitted.</p>
           <Link href="/portfolio"><Button variant="primary" className="w-full">Back to Portfolio</Button></Link>
         </motion.div>
       </DashboardLayout>
@@ -84,30 +84,32 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
 
   return (
     <DashboardLayout title={`Redeem ${holding.token_name}`}>
-      <Link href="/portfolio" className="inline-flex items-center gap-2 text-gray-500 hover:text-text transition-colors mb-6">
-        <ArrowLeft className="h-4 w-4" /> Back to Portfolio
-      </Link>
+      <div className="max-w-lg py-2">
+        <Link href="/portfolio" className="inline-flex items-center gap-1.5 text-black/50 hover:text-text transition-colors mb-5 text-sm">
+          <ArrowLeft className="h-4 w-4" /> Back to Portfolio
+        </Link>
 
-      <div className="max-w-lg mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl p-8 border border-black/10">
-          <h2 className="text-xl font-semibold text-text mb-2">Redeem {holding.token_name}</h2>
-          <p className="text-sm text-black/50 mb-6">{holding.token_symbol} · Balance: {balance.toLocaleString()}</p>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl border border-black/10 p-6">
+          <h2 className="text-base font-semibold text-text mb-1">Redeem {holding.token_name}</h2>
+          <p className="text-xs text-black/50 mb-5">{holding.token_symbol} · Balance: {balance.toLocaleString()}</p>
 
           <Input label="Amount to Redeem" type="number" value={amount}
-            onChange={(e) => setAmount(e.target.value)} placeholder="0" className="mb-2" />
+            onChange={(e) => setAmount(e.target.value)} placeholder="0" className="mb-1.5" />
           <button onClick={() => setAmount(balance.toString())}
-            className="text-sm font-medium text-darkAqua hover:underline mb-6 block">
+            className="text-xs font-medium text-darkAqua hover:underline mb-5 block">
             Redeem Max
           </button>
 
-          <div className="mb-6">
-            <label className="text-sm font-medium text-text mb-2 block">Fulfillment Method</label>
+          <div className="mb-5">
+            <label className="block text-xs font-semibold text-text mb-2 uppercase tracking-wider">Fulfillment Method</label>
             <div className="flex gap-3">
               {(["cash", "physical"] as const).map((m) => (
                 <button key={m} onClick={() => setMethod(m)}
-                  className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-medium transition-colors ${
-                    method === m ? "border-darkAqua bg-darkAqua/10 text-darkAqua" : "border-black/10 text-black/50"
+                  className={`flex-1 py-2.5 px-4 rounded-xl border text-xs font-medium transition-colors ${
+                    method === m
+                      ? "border-darkAqua bg-darkAqua/10 text-darkAqua"
+                      : "border-black/10 text-black/50 hover:border-black/20"
                   }`}>
                   {m === "cash" ? "Cash Settlement" : "Physical Delivery"}
                 </button>
@@ -116,25 +118,25 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
           </div>
 
           {numericAmount > 0 && (
-            <div className="bg-box rounded-xl p-4 mb-6">
-              <div className="flex justify-between text-sm mb-2">
+            <div className="bg-box rounded-xl p-4 mb-5 space-y-2">
+              <div className="flex justify-between text-xs">
                 <span className="text-black/50">Tokens to Burn</span>
-                <span className="font-medium text-text">{numericAmount.toLocaleString()} {holding.token_symbol}</span>
+                <span className="font-semibold tabular-nums">{numericAmount.toLocaleString()} {holding.token_symbol}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-black/50">Method</span>
-                <span className="font-medium text-text">{method === "cash" ? "Cash" : "Physical"}</span>
+                <span className="font-semibold">{method === "cash" ? "Cash" : "Physical"}</span>
               </div>
             </div>
           )}
 
           {submitError && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mb-4 rounded-xl border border-black/10 bg-box px-4 py-3 text-sm text-text">
               {submitError}
             </div>
           )}
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <Link href="/portfolio" className="flex-1">
               <Button variant="outline" className="w-full">Cancel</Button>
             </Link>
@@ -146,10 +148,10 @@ export default function RedeemTokenPage({ params: paramsPromise }: { params: Pro
         </motion.div>
 
         {existingRedemptions.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="mt-6 bg-white rounded-3xl p-8 border border-black/10">
-            <h3 className="text-lg font-semibold text-text mb-4">Your Redemption Requests</h3>
-            <div className="space-y-4">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="mt-5 bg-white rounded-2xl border border-black/10 p-6">
+            <h3 className="text-sm font-semibold text-text mb-4">Your Redemption Requests</h3>
+            <div className="space-y-3">
               {existingRedemptions.map((r) => (
                 <RedemptionStatusCard
                   key={r.id}
@@ -191,28 +193,38 @@ function RedemptionStatusCard({ redemption: r, onCancelled }: { redemption: Rede
     }
   };
 
+  const statusLabel: Record<string, string> = {
+    fulfilled: "Fulfilled",
+    shipped: "Shipped",
+    processing: "Processing",
+    cancelled: "Cancelled",
+    pending: "Pending",
+  };
+
+  const statusClass: Record<string, string> = {
+    fulfilled: "bg-darkAqua/10 text-darkAqua",
+    shipped: "bg-darkAqua/10 text-darkAqua",
+    processing: "bg-box text-black/60",
+    cancelled: "bg-box text-black/40 line-through",
+    pending: "bg-box text-black/60",
+  };
+
   return (
     <div className="border border-black/5 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-text">
-          {Number(r.amount).toLocaleString()} tokens
+        <span className="text-sm font-medium text-text tabular-nums">
+          {Number(r.amount).toLocaleString()} project tokens
         </span>
         <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            r.status === "fulfilled" ? "bg-green-100 text-green-700" :
-            r.status === "shipped" ? "bg-blue-100 text-blue-700" :
-            r.status === "processing" ? "bg-yellow-100 text-yellow-700" :
-            r.status === "cancelled" ? "bg-zinc-100 text-zinc-500 line-through" :
-            "bg-gray-100 text-gray-500"
-          }`}>
-            {r.status}
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusClass[r.status] ?? "bg-box text-black/60"}`}>
+            {statusLabel[r.status] ?? r.status}
           </span>
           {r.status === "pending" && (
             <button
               type="button"
               onClick={handleCancel}
               disabled={cancelling}
-              className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-xs text-text/70 hover:text-text disabled:opacity-50"
               title="Cancel this pending redemption"
             >
               <X className="h-3 w-3" /> {cancelling ? "Cancelling..." : "Cancel"}
@@ -238,10 +250,10 @@ function RedemptionStatusCard({ redemption: r, onCancelled }: { redemption: Rede
           ) : (
             <><Clock className="inline h-3 w-3 mr-1" />Cash Settlement</>
           )}
-          {" \u00b7 "}{new Date(r.created_at).toLocaleDateString()}
+          {" · "}{new Date(r.created_at).toLocaleDateString()}
         </p>
         {r.status === "shipped" && r.tracking_number && (
-          <p className="text-blue-600 font-medium">
+          <p className="text-darkAqua font-medium">
             <Truck className="inline h-3 w-3 mr-1" />Tracking: {r.tracking_number}
           </p>
         )}
@@ -249,9 +261,9 @@ function RedemptionStatusCard({ redemption: r, onCancelled }: { redemption: Rede
           <p>Shipped: {new Date(r.shipped_at).toLocaleDateString()}</p>
         )}
         {r.fulfilled_at && (
-          <p className="text-green-600">Delivered: {new Date(r.fulfilled_at).toLocaleDateString()}</p>
+          <p className="text-darkAqua">Delivered: {new Date(r.fulfilled_at).toLocaleDateString()}</p>
         )}
-        {cancelError && <p className="text-red-500 mt-1">{cancelError}</p>}
+        {cancelError && <p className="text-text mt-1">{cancelError}</p>}
       </div>
     </div>
   );

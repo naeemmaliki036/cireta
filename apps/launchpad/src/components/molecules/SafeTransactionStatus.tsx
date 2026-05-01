@@ -51,18 +51,18 @@ export function SafeTransactionStatus({
   return (
     <div className="space-y-2 mt-3">
       {state === "proposing" && (
-        <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-black/60 bg-box border border-black/10 rounded-xl px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0 text-darkAqua" />
           <span>Preparing Safe transaction proposal...</span>
         </div>
       )}
 
       {state === "proposed" && (
-        <div className="flex items-start gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-          <Shield className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 text-sm text-text bg-box border border-black/10 rounded-xl px-4 py-3">
+          <Shield className="h-4 w-4 flex-shrink-0 mt-0.5 text-darkAqua" />
           <div className="flex-1">
             <p className="font-medium">Transaction proposed to Safe</p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-xs text-black/50 mt-1">
               Waiting for other signers to confirm in the Safe app.
             </p>
             {safeTxHash && safeTxUrl && (
@@ -70,7 +70,7 @@ export function SafeTransactionStatus({
                 href={safeTxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-2"
+                className="inline-flex items-center gap-1 text-xs text-darkAqua hover:text-darkAqua/80 mt-2"
               >
                 Open in Safe app <ExternalLink className="h-3 w-3" />
               </a>
@@ -80,22 +80,22 @@ export function SafeTransactionStatus({
       )}
 
       {state === "awaitingSignatures" && (
-        <div className="flex items-start gap-2 text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
-          <Users className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 text-sm text-text bg-box border border-black/10 rounded-xl px-4 py-3">
+          <Users className="h-4 w-4 flex-shrink-0 mt-0.5 text-darkAqua" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <p className="font-medium">Awaiting signatures</p>
-              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md font-mono">
+              <span className="text-xs bg-darkAqua/10 text-darkAqua px-2 py-0.5 rounded-md font-mono">
                 {confirmations}/{threshold}
               </span>
             </div>
-            <p className="text-xs text-indigo-600 mt-1">
+            <p className="text-xs text-black/50 mt-1">
               {threshold - confirmations} more signature{threshold - confirmations !== 1 ? "s" : ""} needed to execute.
             </p>
             {/* Progress bar */}
-            <div className="h-1.5 bg-indigo-100 rounded mt-2 overflow-hidden">
+            <div className="h-1.5 bg-black/10 rounded mt-2 overflow-hidden">
               <div
-                className="h-full bg-indigo-500 rounded transition-all duration-500"
+                className="h-full bg-darkAqua rounded transition-all duration-500"
                 style={{ width: `${(confirmations / threshold) * 100}%` }}
               />
             </div>
@@ -105,7 +105,7 @@ export function SafeTransactionStatus({
                   href={safeTxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700"
+                  className="inline-flex items-center gap-1 text-xs text-darkAqua hover:text-darkAqua/80"
                 >
                   Open in Safe app <ExternalLink className="h-3 w-3" />
                 </a>
@@ -114,7 +114,7 @@ export function SafeTransactionStatus({
                 <button
                   type="button"
                   onClick={onRefresh}
-                  className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700"
+                  className="inline-flex items-center gap-1 text-xs text-darkAqua hover:text-darkAqua/80"
                 >
                   <Clock className="h-3 w-3" /> Refresh status
                 </button>
@@ -125,8 +125,8 @@ export function SafeTransactionStatus({
       )}
 
       {state === "executing" && (
-        <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-black/60 bg-box border border-black/10 rounded-xl px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0 text-darkAqua" />
           <div className="flex-1">
             <span>All signatures collected. Executing on-chain...</span>
             {onChainTxHash && onChainTxUrl && (
@@ -134,7 +134,7 @@ export function SafeTransactionStatus({
                 href={onChainTxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-1"
+                className="flex items-center gap-1 text-xs text-darkAqua hover:text-darkAqua/80 mt-1"
               >
                 <span className="font-mono">{onChainTxHash.slice(0, 10)}...{onChainTxHash.slice(-8)}</span>
                 <ExternalLink className="h-3 w-3" />
@@ -145,7 +145,7 @@ export function SafeTransactionStatus({
       )}
 
       {state === "confirmed" && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+        <div className="flex items-center gap-2 text-sm text-darkAqua bg-darkAqua/10 border border-darkAqua/20 rounded-xl px-4 py-3">
           <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
           <div className="flex-1">
             <span>{successMessage}</span>
@@ -154,7 +154,7 @@ export function SafeTransactionStatus({
                 href={onChainTxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-green-500 hover:text-green-700 mt-1"
+                className="flex items-center gap-1 text-xs text-darkAqua/70 hover:text-darkAqua mt-1"
               >
                 <span className="font-mono">{onChainTxHash.slice(0, 10)}...{onChainTxHash.slice(-8)}</span>
                 <ExternalLink className="h-3 w-3" />
@@ -165,7 +165,7 @@ export function SafeTransactionStatus({
       )}
 
       {state === "error" && error && (
-        <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+        <div className="flex items-start gap-2 text-sm text-text bg-box border border-black/15 rounded-xl px-4 py-3">
           <XCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>

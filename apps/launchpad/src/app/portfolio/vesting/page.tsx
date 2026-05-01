@@ -21,6 +21,9 @@ function formatDuration(days: number): string {
   return `${days} day${days !== 1 ? "s" : ""}`;
 }
 
+// formatDuration is used for display context on schedule cards
+void formatDuration;
+
 /** Build a claim schedule from cliff and vesting dates */
 function buildClaimSchedule(
   cliffEnd: Date,
@@ -30,17 +33,14 @@ function buildClaimSchedule(
   const vestMs = vestingEnd.getTime();
   const totalVestingMs = vestMs - cliffMs;
 
-  // If cliff == vesting end, it's 100% at cliff
   if (totalVestingMs <= 0) {
     return [{ label: "Cliff (100%)", date: cliffEnd, pct: 100 }];
   }
 
-  // Linear vesting: show monthly milestones
   const totalDays = Math.round(totalVestingMs / (1000 * 60 * 60 * 24));
   const interval = totalDays <= 90 ? 30 : totalDays <= 365 ? 30 : 90;
   const milestones: { label: string; date: Date; pct: number }[] = [];
 
-  // Add cliff milestone
   milestones.push({ label: "Cliff", date: cliffEnd, pct: 0 });
 
   for (let d = interval; d < totalDays; d += interval) {
@@ -61,11 +61,9 @@ export default function PortfolioVestingPage() {
   const { isConnected } = useAccount();
   const chainId = useChainId();
 
-  // Unified contract action for vesting claims
   const claimAction = useContractAction();
   const { showError, showSuccess, toasts, removeToast } = useToast();
 
-  // Derived states for compatibility
   const isPending = claimAction.isPending;
   const isConfirming = claimAction.isConfirming;
   const isSuccess = claimAction.isConfirmed;
@@ -108,7 +106,6 @@ export default function PortfolioVestingPage() {
         address: schedule.vault_address as `0x${string}`,
         abi: VAULT_CLAIM_ABI,
         functionName: "claim",
-        // gas automatically handled by useContractAction (500k for claims)
       });
       showSuccess("Tokens Claimed", `${schedule.claimable_amount} ${schedule.token_symbol} tokens have been claimed to your wallet.`);
     } catch (err) {
@@ -121,12 +118,15 @@ export default function PortfolioVestingPage() {
   const isClaimLoading = isPending || isConfirming;
 
   return (
-    <DashboardLayout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-text">Vesting Schedules</h1>
-          <Button variant="secondary" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
+    <DashboardLayout title="Vesting Schedules" description="Track unlocking timelines and claim available project tokens">
+      <div className="max-w-4xl py-2">
+        {/* Header strip */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-black/60">
+            {schedules.length > 0 && `${schedules.length} schedule${schedules.length !== 1 ? "s" : ""}`}
+          </p>
+          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>
@@ -134,15 +134,17 @@ export default function PortfolioVestingPage() {
         {loading ? (
           <div className="flex justify-center py-16"><Spinner size="lg" /></div>
         ) : error ? (
-          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
-            <p className="text-red-500 mb-4">{error}</p>
+          <div className="bg-white rounded-2xl border border-black/10 p-10 text-center">
+            <p className="text-sm text-text mb-4">{error}</p>
             <Button variant="primary" size="sm" onClick={fetchData}>Retry</Button>
           </div>
         ) : schedules.length === 0 ? (
-          <div className="bg-white rounded-xl border border-black/10 p-12 text-center">
-            <Clock className="w-10 h-10 text-black/20 mx-auto mb-3" />
-            <p className="text-black/40 font-medium">No vesting schedules</p>
-            <p className="text-black/20 text-sm mt-1">Vested purchases will appear here after purchase.</p>
+          <div className="bg-white rounded-2xl border border-black/10 p-10 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-box flex items-center justify-center mx-auto mb-3">
+              <Clock className="w-5 h-5 text-darkAqua" />
+            </div>
+            <p className="text-sm font-semibold text-text">No vesting schedules</p>
+            <p className="text-xs text-black/40 mt-1">Vested purchases will appear here after purchase.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -162,67 +164,65 @@ export default function PortfolioVestingPage() {
                   : 0;
               const progress = total > 0 ? ((claimed / total) * 100) : 0;
 
-              // Cliff countdown
               const cliffDiffMs = cliffEnd.getTime() - now.getTime();
               const cliffDays = Math.floor(cliffDiffMs / (1000 * 60 * 60 * 24));
               const cliffHours = Math.floor((cliffDiffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
-              // Claim schedule
               const schedule = buildClaimSchedule(cliffEnd, vestingEnd);
 
               return (
-                <div key={s.id} className="bg-white rounded-xl border border-black/10 p-6">
+                <div key={s.id} className="bg-white rounded-2xl border border-black/10 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-text font-semibold text-base">{s.token_name}</p>
-                      <p className="text-black/40 text-sm">{s.token_symbol} — {s.sale_mode}</p>
+                      <p className="text-text font-semibold text-sm">{s.token_name}</p>
+                      <p className="text-black/40 text-xs mt-0.5">{s.token_symbol} · {s.sale_mode}</p>
                     </div>
                     {!cliffPassed ? (
                       <Badge variant="pending" size="sm">
                         Cliff ends in {cliffDays}d {cliffHours}h
                       </Badge>
                     ) : vestingComplete ? (
-                      <Badge variant="success" size="sm">Fully vested</Badge>
+                      <Badge variant="active" size="sm">Fully vested</Badge>
                     ) : (
-                      <Badge variant="success" size="sm">
-                        {vestedPct}% vested — {claimable.toLocaleString()} claimable
+                      <Badge variant="active" size="sm">
+                        {vestedPct}% vested
                       </Badge>
                     )}
                   </div>
 
                   <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
+                    <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-black/50">Claimed</span>
-                      <span className="font-semibold">{claimed.toLocaleString()} / {total.toLocaleString()}</span>
+                      <span className="font-semibold tabular-nums">{claimed.toLocaleString()} / {total.toLocaleString()}</span>
                     </div>
                     <ProgressBar value={progress} size="sm" />
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs mb-4">
                     <div>
-                      <p className="text-black/40">Total</p>
-                      <p className="font-semibold">{total.toLocaleString()}</p>
+                      <p className="text-black/40 mb-0.5">Total</p>
+                      <p className="font-semibold tabular-nums">{total.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-black/40">Claimed</p>
-                      <p className="font-semibold">{claimed.toLocaleString()}</p>
+                      <p className="text-black/40 mb-0.5">Claimed</p>
+                      <p className="font-semibold tabular-nums">{claimed.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-black/40">Claimable Now</p>
-                      <p className="font-semibold text-green-600">{claimable.toLocaleString()}</p>
+                      <p className="text-black/40 mb-0.5">Available now</p>
+                      <p className="font-semibold tabular-nums text-darkAqua">{claimable.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-black/40">Vesting End</p>
+                      <p className="text-black/40 mb-0.5">Vesting End</p>
                       <p className="font-semibold">{vestingEnd.toLocaleDateString()}</p>
                     </div>
                   </div>
 
                   {/* Claim Schedule */}
                   <div className="mb-4">
-                    <p className="text-sm font-semibold text-text mb-2">Claim Schedule</p>
+                    <p className="text-xs font-semibold text-text mb-2 uppercase tracking-wider">Claim Schedule</p>
                     {schedule.length === 1 ? (
-                      <p className="text-sm text-black/60">
-                        100% claimable after cliff ({cliffEnd.toLocaleDateString()})
+                      <p className="text-xs text-black/60">
+                        100% available after cliff ({cliffEnd.toLocaleDateString()})
                       </p>
                     ) : (
                       <div className="overflow-x-auto">

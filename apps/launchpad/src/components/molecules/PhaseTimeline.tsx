@@ -78,7 +78,7 @@ function PhaseNode({ phase, status }: { phase: ProjectPhase; status: PhaseStatus
         className={cn(
           "w-10 h-10 rounded-full flex items-center justify-center mb-3",
           status === "active" && "bg-darkAqua text-white shadow-lg shadow-darkAqua/30",
-          status === "completed" && "bg-green-500 text-white",
+          status === "completed" && "bg-darkAqua/80 text-white",
           status === "upcoming" && "bg-black/10 text-black/40"
         )}
       >
@@ -100,7 +100,7 @@ function PhaseNode({ phase, status }: { phase: ProjectPhase; status: PhaseStatus
           <h4 className="font-semibold text-sm text-text">{phase.name}</h4>
           {status === "active" && <Badge variant="active" size="sm">Live</Badge>}
           {status === "upcoming" && <Badge variant="pending" size="sm">Upcoming</Badge>}
-          {status === "completed" && <Badge variant="success" size="sm">Sold</Badge>}
+          {status === "completed" && <Badge variant="active" size="sm">Sold</Badge>}
         </div>
         <p className="text-lg font-bold text-darkAqua mb-1">
           {formatCurrency(parseFloat(phase.price_per_token))}
@@ -133,7 +133,7 @@ function PhaseStackItem({
           className={cn(
             "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
             status === "active" && "bg-darkAqua text-white",
-            status === "completed" && "bg-green-500 text-white",
+            status === "completed" && "bg-darkAqua/80 text-white",
             status === "upcoming" && "bg-black/10 text-black/40"
           )}
         >
@@ -157,7 +157,7 @@ function PhaseStackItem({
           <h4 className="font-semibold text-sm text-text">{phase.name}</h4>
           {status === "active" && <Badge variant="active" size="sm">Live</Badge>}
           {status === "upcoming" && <Badge variant="pending" size="sm">Upcoming</Badge>}
-          {status === "completed" && <Badge variant="success" size="sm">Sold</Badge>}
+          {status === "completed" && <Badge variant="active" size="sm">Sold</Badge>}
         </div>
         <p className="text-darkAqua font-bold">{formatCurrency(parseFloat(phase.price_per_token))}<span className="text-xs text-black/40 font-normal ml-1">per token</span></p>
         <div className="flex gap-4 mt-2 text-xs text-black/50">

@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Button, Spinner, Select } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
+import { InfoSidebar, type InfoSidebarItem } from "@/components/molecules";
+import { ArrowDownLeft as ArrowDownLeftIcon, ArrowUpFromLine as ArrowUpFromLineIcon, ShieldCheck } from "lucide-react";
 import {
   getTransactions,
   getPortfolio,
@@ -135,6 +137,27 @@ export default function TransactionsPage() {
     });
   };
 
+  const TRANSACTIONS_TIPS: InfoSidebarItem[] = [
+    {
+      icon: ArrowDownLeftIcon,
+      title: "Buy events",
+      body:
+        "Recorded the moment you submit the buy. For Direct sales, tokens land in your wallet immediately. For Vested sales, you receive fraction tokens that convert to project tokens at claim.",
+    },
+    {
+      icon: ArrowUpFromLineIcon,
+      title: "Claim events",
+      body:
+        "A separate row from the matching Buy — you'll see one Buy + one Claim per vested-mode purchase once you've claimed.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "On-chain vs OTC",
+      body:
+        "Tx hash links to BaseScan when the trade happened on-chain. OTC trades are settled off-chain by the issuer and show 'Off-chain' instead.",
+    },
+  ];
+
   return (
     <DashboardLayout
       title="Transactions"
@@ -165,6 +188,8 @@ export default function TransactionsPage() {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-5">
+          <div className="min-w-0">
         {/* Content */}
         {loading ? (
           <div className="flex justify-center py-16">
@@ -326,6 +351,9 @@ export default function TransactionsPage() {
             )}
           </>
         )}
+          </div>
+          <InfoSidebar items={TRANSACTIONS_TIPS} />
+        </div>
       </div>
     </DashboardLayout>
   );

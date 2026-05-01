@@ -150,13 +150,13 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
     if (!user) return null;
     switch (user.kycStatus) {
       case "approved":
-        return { icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-50", label: "Verified", tooltip: "Identity verified" };
+        return { icon: ShieldCheck, color: "text-darkAqua", bg: "bg-darkAqua/10", label: "Verified", tooltip: "Identity verified" };
       case "pending":
-        return { icon: Clock, color: "text-amber-500", bg: "bg-amber-50", label: "Pending Review", tooltip: "Verification in progress" };
+        return { icon: Clock, color: "text-darkAqua", bg: "bg-box", label: "Pending Review", tooltip: "Verification in progress" };
       case "rejected":
-        return { icon: ShieldAlert, color: "text-red-500", bg: "bg-red-50", label: "Rejected", tooltip: "Verification rejected" };
+        return { icon: ShieldAlert, color: "text-text", bg: "bg-box", label: "Rejected", tooltip: "Verification rejected" };
       case "expired":
-        return { icon: ShieldAlert, color: "text-orange-500", bg: "bg-orange-50", label: "Expired", tooltip: "Verification expired" };
+        return { icon: ShieldAlert, color: "text-text", bg: "bg-box", label: "Expired", tooltip: "Verification expired" };
       default:
         return null;
     }
@@ -437,7 +437,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                         return (
                           <button
                             onClick={openChainModal}
-                            className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-xsm font-semibold bg-red-500 text-white hover:opacity-90"
+                            className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-xsm font-semibold bg-text text-white hover:opacity-90"
                           >
                             Wrong Network
                           </button>
@@ -507,7 +507,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
               <Link
                 href={user.investor_type === "corporate" ? "/verify/corporate" : "/verify"}
                 className={cn(
-                  "hidden sm:inline-flex items-center gap-1.5 rounded-full font-semibold transition-all duration-300 border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                  "hidden sm:inline-flex items-center gap-1.5 rounded-full font-semibold transition-all duration-300 border border-black/10 bg-box text-darkAqua hover:bg-black/5",
                   effectiveScrolled ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-[13px]"
                 )}
               >
@@ -558,7 +558,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     )}
                   </div>
                   <span className="max-w-[120px] truncate">{user.display_name || user.email.split("@")[0]}</span>
-                  {kycBadge?.label === "Verified" && <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
+                  {kycBadge?.label === "Verified" && <ShieldCheck className="h-3.5 w-3.5 text-darkAqua shrink-0" />}
                   <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isUserMenuOpen && "rotate-180")} />
                 </button>
                 <AnimatePresence>
@@ -609,7 +609,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                       <div className="border-t border-black/5 mt-1 pt-1">
                         <button
                           onClick={() => { setIsUserMenuOpen(false); logout(); }}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors w-full"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-text/70 hover:bg-box transition-colors w-full"
                         >
                           <LogOut className="h-4 w-4" /> Sign Out
                         </button>
@@ -962,7 +962,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                     <Link
                       href={user.investor_type === "corporate" ? "/verify/corporate" : "/verify"}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 py-2.5 text-[13px] font-semibold text-amber-700"
+                      className="flex items-center gap-3 py-2.5 text-[13px] font-semibold text-darkAqua"
                     >
                       <Clock className="h-4 w-4" /> {user.investor_type === "corporate" ? "KYB In Review" : "KYC In Review"}
                     </Link>
@@ -1039,7 +1039,7 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                           }
                           if (chain.unsupported) {
                             return (
-                              <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-red-500 text-white">
+                              <button onClick={openChainModal} className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold bg-text text-white">
                                 Wrong Network
                               </button>
                             );

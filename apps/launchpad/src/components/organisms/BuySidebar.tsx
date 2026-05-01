@@ -109,15 +109,15 @@ export function InvestSidebar({
       {/* Progress */}
       <div className="mb-6">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-gray-500">Funding Progress</span>
+          <span className="text-black/50">Funding Progress</span>
           <span className="font-semibold">{progress.toFixed(1)}%</span>
         </div>
         <ProgressBar value={progress} size="md" />
         <div className="flex justify-between text-sm mt-2">
-          <span className="text-gray-500">
+          <span className="text-black/50">
             Raised: <span className="font-semibold text-text">{formatCurrency(currentRaised)}</span>
           </span>
-          <span className="text-gray-500">
+          <span className="text-black/50">
             Target: <span className="font-semibold text-text">{formatCurrency(targetAmount)}</span>
           </span>
         </div>
@@ -130,7 +130,7 @@ export function InvestSidebar({
             <AlertCircle className="h-5 w-5 text-darkAqua" />
             <span className="font-medium">Connect Wallet</span>
           </div>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-black/50 mb-3">
             Connect your wallet to start buying in this project.
           </p>
           <Button variant="primary" className="w-full" onClick={onConnectWallet}>
@@ -143,7 +143,7 @@ export function InvestSidebar({
             <Shield className="h-5 w-5 text-darkAqua" />
             <span className="font-medium">KYC Required</span>
           </div>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-black/50 mb-3">
             Complete KYC verification (Level {requiredKYCLevel}) to buy in this project.
           </p>
           <Button variant="primary" className="w-full" onClick={onStartKYC}>
@@ -151,10 +151,10 @@ export function InvestSidebar({
           </Button>
         </div>
       ) : (
-        <div className="bg-green-50 rounded-xl p-4 mb-6 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-          <span className="text-green-700 font-medium">
-            Verified - Ready to Buy
+        <div className="bg-darkAqua/10 rounded-xl p-4 mb-6 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-darkAqua" />
+          <span className="text-darkAqua font-medium">
+            Verified — Ready to Buy
           </span>
         </div>
       )}
@@ -188,11 +188,11 @@ export function InvestSidebar({
           {numericAmount > 0 && (
             <div className="bg-box rounded-xl p-4 mb-6 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">You Pay</span>
+                <span className="text-black/50">You Pay</span>
                 <span className="font-semibold">{formatCurrency(numericAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">You Receive</span>
+                <span className="text-black/50">You Receive</span>
                 <span className="font-semibold">
                   {tokensToReceive.toLocaleString(undefined, {
                     maximumFractionDigits: 4,
@@ -201,14 +201,14 @@ export function InvestSidebar({
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Price per Token</span>
+                <span className="text-black/50">Price per Token</span>
                 <span>{formatCurrency(pricePerToken)}</span>
               </div>
             </div>
           )}
 
           {/* Limits */}
-          <div className="text-xs text-gray-500 mb-4 space-y-1">
+          <div className="text-xs text-black/50 mb-4 space-y-1">
             <p>Min: {formatCurrency(minContribution)}</p>
             <p>Max: {formatCurrency(maxContribution)}</p>
           </div>
@@ -226,7 +226,7 @@ export function InvestSidebar({
       )}
 
       {/* Security Note */}
-      <p className="text-xs text-gray-400 text-center mt-4 flex items-center justify-center gap-1">
+      <p className="text-xs text-black/40 text-center mt-4 flex items-center justify-center gap-1">
         <Shield className="h-3 w-3" />
         Secured by compliant smart contracts
       </p>

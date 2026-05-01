@@ -25,7 +25,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           type={type}
           className={cn(
             "input-field",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-500",
+            error && "border-text/30 focus:border-text/40 focus:ring-text/10",
             className
           )}
           ref={ref}
@@ -33,7 +33,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         />
         {error && <p className="input-error">{error}</p>}
         {helperText && !error && (
-          <p className="text-gray-500 text-xs mt-1">{helperText}</p>
+          <p className="text-black/50 text-xs mt-1">{helperText}</p>
         )}
       </div>
     );

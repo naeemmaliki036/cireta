@@ -60,7 +60,7 @@ export function WalletBadge({
         </span>
       )}
 
-      <span className="text-xs text-gray-400">
+      <span className="text-xs text-black/40">
         {CHAIN_NAMES[chainId] || "Unknown"}
       </span>
 
@@ -70,9 +70,9 @@ export function WalletBadge({
           className="p-1 hover:bg-black/5 rounded transition-colors"
         >
           {copied ? (
-            <Check className="h-3.5 w-3.5 text-green-600" />
+            <Check className="h-3.5 w-3.5 text-darkAqua" />
           ) : (
-            <Copy className="h-3.5 w-3.5 text-gray-400" />
+            <Copy className="h-3.5 w-3.5 text-black/40" />
           )}
         </button>
       )}
@@ -82,7 +82,7 @@ export function WalletBadge({
           onClick={openExplorer}
           className="p-1 hover:bg-black/5 rounded transition-colors"
         >
-          <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
+          <ExternalLink className="h-3.5 w-3.5 text-black/40" />
         </button>
       )}
     </div>

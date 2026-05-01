@@ -81,10 +81,10 @@ export function VestingCard({
       <div className="flex items-start justify-between mb-6">
         <div>
           <h3 className="text-xl font-semibold text-text">{tokenName}</h3>
-          <p className="text-gray-500">{tokenSymbol}</p>
+          <p className="text-black/50">{tokenSymbol}</p>
         </div>
         {isVestingComplete ? (
-          <Badge variant="success">
+          <Badge variant="active">
             <Unlock className="h-3 w-3 mr-1" />
             Fully Vested
           </Badge>
@@ -103,7 +103,7 @@ export function VestingCard({
 
       {/* Total Allocation */}
       <div className="mb-6">
-        <p className="text-sm text-gray-500 mb-1">Total Allocation</p>
+        <p className="text-sm text-black/50 mb-1">Total Allocation</p>
         <p className="text-3xl font-bold text-darkAqua">
           {totalAmount.toLocaleString()} <span className="text-lg">{tokenSymbol}</span>
         </p>
@@ -112,7 +112,7 @@ export function VestingCard({
       {/* Vesting Progress */}
       <div className="mb-6">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-gray-500">Vested Progress</span>
+          <span className="text-black/50">Vested Progress</span>
           <span className="font-semibold">{vestedPercent.toFixed(1)}%</span>
         </div>
         <ProgressBar value={vestedPercent} size="md" />
@@ -121,14 +121,14 @@ export function VestingCard({
       {/* Claimed Progress */}
       <div className="mb-6">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-gray-500">Claimed</span>
+          <span className="text-black/50">Claimed</span>
           <span className="font-semibold">
             {claimedAmount.toLocaleString()} / {totalAmount.toLocaleString()}
           </span>
         </div>
         <div className="bg-[#b2b7b81a] rounded-[100px] overflow-hidden h-[8px]">
           <div
-            className="h-[8px] bg-green-500 rounded-[100px]"
+            className="h-[8px] bg-darkAqua rounded-[100px]"
             style={{ width: `${claimedPercent}%` }}
           />
         </div>
@@ -137,7 +137,7 @@ export function VestingCard({
       {/* Dates */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 text-gray-500 mb-1">
+          <div className="flex items-center gap-2 text-black/50 mb-1">
             <Calendar className="h-4 w-4" />
             <span className="text-xs">Cliff End</span>
           </div>
@@ -147,7 +147,7 @@ export function VestingCard({
           )}
         </div>
         <div className="bg-white rounded-xl p-4">
-          <div className="flex items-center gap-2 text-gray-500 mb-1">
+          <div className="flex items-center gap-2 text-black/50 mb-1">
             <Calendar className="h-4 w-4" />
             <span className="text-xs">Vesting End</span>
           </div>
@@ -183,7 +183,7 @@ export function VestingCard({
 
       {/* Last Claim */}
       {lastClaimDate && (
-        <p className="text-sm text-gray-400 text-center">
+        <p className="text-sm text-black/40 text-center">
           Last claimed on {formatDate(lastClaimDate)}
         </p>
       )}

@@ -15,9 +15,10 @@ import { useChainId } from "wagmi";
 import { Spinner } from "@/components/atoms";
 import { Navbar, Footer } from "@/components/organisms";
 import { PortfolioTable, type HoldingItem } from "@/components/organisms";
-import { VestingMiniCard } from "@/components/molecules";
+import { VestingMiniCard, InfoSidebar, type InfoSidebarItem } from "@/components/molecules";
+import { Coins as CoinsIcon, ShieldCheck, Send as SendIcon } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { getVestingState } from "@/lib/vesting";
+import { getVestingState, formatNextUnlock } from "@/lib/vesting";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getPortfolio,
@@ -160,6 +161,39 @@ export default function PortfolioPage() {
   const totalInvested = parseFloat(portfolio?.total_invested_usd ?? "0");
   const positionCount = holdings.length;
 
+  // Top 3 upcoming unlocks for the sidebar — soonest first, locked or vesting only.
+  const nextUnlocks = vestedHoldings
+    .filter((h) => h.next_unlock_at && getVestingState(h) !== "fully-vested")
+    .sort((a, b) =>
+      new Date(a.next_unlock_at as string).getTime() - new Date(b.next_unlock_at as string).getTime()
+    )
+    .slice(0, 3);
+
+  const portfolioTips: InfoSidebarItem[] = [
+    {
+      icon: CoinsIcon,
+      title: "Vesting & claiming",
+      body:
+        "Vested sales issue fraction tokens at buy. After the cliff, claim to receive the underlying project tokens — those are what you transfer.",
+      href: "/portfolio/vesting",
+      hrefLabel: "View schedules",
+    },
+    {
+      icon: SendIcon,
+      title: "Transfers need KYC",
+      body:
+        "Project tokens and fractions can move only between wallets that are KYC-verified on the identity registry. Transfers to unverified wallets revert.",
+      href: "/portfolio/transfer",
+      hrefLabel: "Transfer tokens",
+    },
+    {
+      icon: ShieldCheck,
+      title: "On-chain & immutable",
+      body:
+        "Every buy and claim is recorded on Base. Compare anything you see here against BaseScan — links are on every transaction row.",
+    },
+  ];
+
   const showHero = !isLoading && isAuthenticated && positionCount === 0;
 
   return (
@@ -269,119 +303,138 @@ export default function PortfolioPage() {
               </div>
             )}
 
-            {/* Holdings */}
+            {/* Main content + info sidebar — stacks on <lg */}
             {!isLoading && !error && positionCount > 0 && (
-              <section className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold text-text">Holdings</h2>
-                  {positionCount > 0 && (
-                    <Link
-                      href="/portfolio/holdings"
-                      className="text-xs font-medium text-darkAqua hover:underline"
-                    >
-                      View all
-                    </Link>
-                  )}
-                </div>
-                <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
-                  <PortfolioTable holdings={holdings} />
-                </div>
-              </section>
-            )}
-
-            {/* Vesting milestones */}
-            {!isLoading && vestedHoldings.length > 0 && (
-              <section className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold text-text">Vesting & Lockups</h2>
-                  <Link
-                    href="/portfolio/vesting"
-                    className="text-xs font-medium text-darkAqua hover:underline"
-                  >
-                    View all
-                  </Link>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {vestedHoldings.map((h) => (
-                    <VestingMiniCard
-                      key={`${h.token_id}-mini`}
-                      holding={h}
-                    />
-                  ))}
-                </div>
-                {/* Quick legend — helps an investor map the table to these cards */}
-                <p className="text-[11px] text-black/40 mt-2.5">
-                  {vestedHoldings.filter((h) => getVestingState(h) === "fully-vested").length > 0
-                    ? `${vestedHoldings.filter((h) => getVestingState(h) === "fully-vested").length} fully unlocked · `
-                    : ""}
-                  {vestedHoldings.filter((h) => getVestingState(h) === "vesting").length} vesting ·{" "}
-                  {vestedHoldings.filter((h) => getVestingState(h) === "locked").length} locked
-                </p>
-              </section>
-            )}
-
-            {/* Refunds available */}
-            {!isLoading && refundEligible.length > 0 && (
-              <section className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold text-text">Refunds Available</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {refundEligible.map((item) => (
-                    <div
-                      key={item.tokenId}
-                      className="bg-white rounded-2xl border border-black/15 p-4 flex items-center gap-3"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-box flex items-center justify-center shrink-0">
-                        <AlertTriangle className="h-4 w-4 text-text" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-text truncate">
-                          {item.tokenName} ({item.tokenSymbol})
-                        </p>
-                        <p className="text-xs text-black/60">Sale did not reach soft cap</p>
-                      </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-5">
+                <div className="min-w-0 space-y-6">
+                  {/* Holdings */}
+                  <section>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-text">Holdings</h2>
                       <Link
-                        href={`/portfolio/claim/${item.tokenId}`}
-                        className="inline-flex items-center gap-1.5 btn-cta text-xs px-4 py-2 rounded-full whitespace-nowrap"
+                        href="/portfolio/holdings"
+                        className="text-xs font-medium text-darkAqua hover:underline"
                       >
-                        Claim Refund
+                        View all
                       </Link>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                    <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                      <PortfolioTable holdings={holdings} />
+                    </div>
+                  </section>
 
-            {/* Recent transactions */}
-            {!isLoading && positionCount > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold text-text">Recent Transactions</h2>
-                  {transactions.length > 0 && (
-                    <Link
-                      href="/portfolio/transactions"
-                      className="text-xs font-medium text-darkAqua hover:underline"
-                    >
-                      View all
-                    </Link>
+                  {/* Vesting milestones */}
+                  {vestedHoldings.length > 0 && (
+                    <section>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-base font-semibold text-text">Vesting & Lockups</h2>
+                        <Link
+                          href="/portfolio/vesting"
+                          className="text-xs font-medium text-darkAqua hover:underline"
+                        >
+                          View all
+                        </Link>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {vestedHoldings.map((h) => (
+                          <VestingMiniCard
+                            key={`${h.token_id}-mini`}
+                            holding={h}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-black/40 mt-2.5">
+                        {vestedHoldings.filter((h) => getVestingState(h) === "fully-vested").length > 0
+                          ? `${vestedHoldings.filter((h) => getVestingState(h) === "fully-vested").length} fully unlocked · `
+                          : ""}
+                        {vestedHoldings.filter((h) => getVestingState(h) === "vesting").length} vesting ·{" "}
+                        {vestedHoldings.filter((h) => getVestingState(h) === "locked").length} locked
+                      </p>
+                    </section>
                   )}
-                </div>
-                <div className="bg-white rounded-2xl border border-black/10">
-                  {transactions.length > 0 ? (
-                    <div className="px-4 py-1">
-                      {transactions.map((tx) => (
-                        <TransactionRow key={tx.id} tx={tx} chainId={chainId} />
-                      ))}
+
+                  {/* Refunds available */}
+                  {refundEligible.length > 0 && (
+                    <section>
+                      <h2 className="text-base font-semibold text-text mb-3">Refunds Available</h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {refundEligible.map((item) => (
+                          <div
+                            key={item.tokenId}
+                            className="bg-white rounded-2xl border border-black/15 p-4 flex items-center gap-3"
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-box flex items-center justify-center shrink-0">
+                              <AlertTriangle className="h-4 w-4 text-text" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-text truncate">
+                                {item.tokenName} ({item.tokenSymbol})
+                              </p>
+                              <p className="text-xs text-black/60">Sale did not reach soft cap</p>
+                            </div>
+                            <Link
+                              href={`/portfolio/claim/${item.tokenId}`}
+                              className="inline-flex items-center gap-1.5 btn-cta text-xs px-4 py-2 rounded-full whitespace-nowrap"
+                            >
+                              Claim Refund
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Recent transactions */}
+                  <section>
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-text">Recent Transactions</h2>
+                      {transactions.length > 0 && (
+                        <Link
+                          href="/portfolio/transactions"
+                          className="text-xs font-medium text-darkAqua hover:underline"
+                        >
+                          View all
+                        </Link>
+                      )}
                     </div>
-                  ) : (
-                    <div className="py-10 text-center">
-                      <p className="text-sm text-black/50">No transactions yet</p>
-                      <p className="text-xs text-black/40 mt-1">Your purchase activity will appear here</p>
+                    <div className="bg-white rounded-2xl border border-black/10">
+                      {transactions.length > 0 ? (
+                        <div className="px-4 py-1">
+                          {transactions.map((tx) => (
+                            <TransactionRow key={tx.id} tx={tx} chainId={chainId} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-10 text-center">
+                          <p className="text-sm text-black/50">No transactions yet</p>
+                          <p className="text-xs text-black/40 mt-1">Your purchase activity will appear here</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+
+                {/* Right info sidebar */}
+                <InfoSidebar items={portfolioTips}>
+                  {nextUnlocks.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-black/10 p-4">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-black/60 mb-2.5">
+                        Upcoming Unlocks
+                      </p>
+                      <ul className="space-y-2">
+                        {nextUnlocks.map((u) => (
+                          <li key={u.token_id} className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-text truncate">{u.token_symbol}</p>
+                              <p className="text-xs text-black/60">{formatNextUnlock(u)}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
-                </div>
-              </section>
+                </InfoSidebar>
+              </div>
             )}
           </main>
         </div>

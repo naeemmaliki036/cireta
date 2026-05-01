@@ -32,8 +32,8 @@ export function CopyableAddress({ address, truncate = false, className = "" }: C
         className="shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors cursor-pointer"
       >
         {copied
-          ? <Check className="h-3 w-3 text-green-500" />
-          : <Copy className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+          ? <Check className="h-3 w-3 text-darkAqua" />
+          : <Copy className="h-3 w-3 text-black/40 hover:text-black/60" />
         }
       </button>
       {copied && (

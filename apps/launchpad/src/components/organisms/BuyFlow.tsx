@@ -56,11 +56,11 @@ export function LowGasWarning({
 }) {
   if (balanceEth == null || balanceEth >= threshold) return null;
   return (
-    <div className="mb-4 p-3 rounded-xl bg-yellow-50 border border-yellow-200 flex gap-3 items-start">
-      <Fuel className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+    <div className="mb-4 p-3 rounded-xl bg-box border border-black/10 flex gap-3 items-start">
+      <Fuel className="w-4 h-4 text-text flex-shrink-0 mt-0.5" />
       <div className="text-sm">
-        <p className="font-medium text-yellow-900">Low ETH for gas</p>
-        <p className="text-yellow-800/80">
+        <p className="font-medium text-text">Low ETH for gas</p>
+        <p className="text-black/60">
           You have {balanceEth.toFixed(5)} ETH. You need at least
           {" "}{threshold.toFixed(4)} ETH to cover transaction fees.
         </p>
@@ -279,9 +279,9 @@ export function InvestAmountStep({
         </div>
       </div>
       {validationError && (
-        <div className="p-3 rounded-lg bg-red-50 border border-red-200 mb-4 flex gap-2 items-center">
-          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <p className="text-sm text-red-600">{validationError}</p>
+        <div className="p-3 rounded-xl bg-box border border-black/10 mb-4 flex gap-2 items-center">
+          <AlertCircle className="w-4 h-4 text-text flex-shrink-0" />
+          <p className="text-sm text-text">{validationError}</p>
         </div>
       )}
       {tokenQty > 0 && !validationError && (
@@ -375,13 +375,13 @@ export function InvestApproveStep({
       {currentAllowance > 0 && (
         <div className={`rounded-xl p-4 mb-4 flex items-center gap-3 ${
           hasEnoughAllowance
-            ? "bg-green-50 border border-green-200"
-            : "bg-blue-50 border border-blue-200"
+            ? "bg-darkAqua/10 border border-darkAqua/20"
+            : "bg-box border border-black/10"
         }`}>
           {hasEnoughAllowance ? (
-            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-darkAqua flex-shrink-0" />
           ) : (
-            <Shield className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <Shield className="w-5 h-5 text-darkAqua flex-shrink-0" />
           )}
           <div className="flex-1">
             <p className="text-sm font-medium text-text">
@@ -404,7 +404,7 @@ export function InvestApproveStep({
       {hasEnoughAllowance && onSkip && (
         <div className="mb-6">
           <ComplianceAcknowledgment checked={complianceMet} onChange={setComplianceMet} />
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+          {error && <p className="text-sm text-text mb-4">{error}</p>}
           <div className="flex gap-3">
             {onBack && (
               <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
@@ -436,7 +436,7 @@ export function InvestApproveStep({
             <AlertCircle className="w-5 h-5 text-darkAqua flex-shrink-0" />
             <p className="text-sm text-black/60">You will need to confirm this transaction in your wallet</p>
           </div>
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+          {error && <p className="text-sm text-text mb-4">{error}</p>}
           <div className="flex gap-3">
             {onBack && (
               <Button variant="outline" className="flex-1" size="lg" onClick={onBack} disabled={isLoading}>
@@ -520,9 +520,9 @@ export function InvestConfirmStep({
             }}
           />
         ) : (
-          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
-            <p className="text-sm font-medium text-red-700 mb-1">Transaction Failed</p>
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="mb-4 p-4 rounded-xl bg-box border border-black/10">
+            <p className="text-sm font-semibold text-text mb-1">Transaction Failed</p>
+            <p className="text-sm text-black/60">{error}</p>
           </div>
         )
       )}
@@ -551,8 +551,8 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
   const chainId = useChainId();
   return (
     <div className="text-center py-8">
-      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-        <CheckCircle2 className="w-10 h-10 text-green-600" />
+      <div className="w-20 h-20 rounded-full bg-darkAqua/10 flex items-center justify-center mx-auto mb-6">
+        <CheckCircle2 className="w-10 h-10 text-darkAqua" />
       </div>
       <h1 className="text-2xl font-semibold text-text mb-2">Purchase Complete</h1>
       <p className="text-black/50 mb-8">
