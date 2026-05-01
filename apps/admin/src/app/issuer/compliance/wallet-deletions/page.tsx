@@ -2,10 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { parseApiDate } from "@/lib/utils";
-import { Trash2, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react";
+import { Trash2, CheckCircle2, XCircle, Clock, RefreshCw, AlertTriangle } from "lucide-react";
+import { isAddress, type Abi } from "viem";
+import { useAccount, useReadContracts } from "wagmi";
 import { Button, Spinner, Badge } from "@/components/atoms";
+import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { useConfirmation } from "@/components/molecules/ConfirmationModal";
+import { useContractAction } from "@/hooks/useContractAction";
+import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 import {
   listWalletDeletionRequests,
   approveWalletDeletionRequest,
@@ -13,6 +18,16 @@ import {
   type WalletDeletionRequest,
   type WalletDeletionStatus,
 } from "@/lib/api/repositories/wallet-deletions";
+
+const IR_ADDRESS = (
+  process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS ?? ""
+) as `0x${string}`;
+
+// keccak256 role hashes for pre-flight check
+const COMPLIANCE_ROLE =
+  "0x2427b1dcc74a5fd2e00a7cd1c578789d9a68f8a42a40e83b7c543bd98e4fc73a" as const;
+const AGENT_ROLE =
+  "0xcdbf1d1c64faad6046b5b53d6a6821b434c73ab58fcfa37f7fc6c8d3b8e7d68f" as const;
 
 const STATUS_TABS: { value: WalletDeletionStatus; label: string }[] = [
   { value: "pending", label: "Pending" },
@@ -29,6 +44,62 @@ export default function WalletDeletionsPage() {
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const { showConfirmation, ConfirmationModal } = useConfirmation();
+
+  // On-chain removal state
+  const { address: connectedAddress } = useAccount();
+  const onChainAction = useContractAction();
+  // Track which wallet is awaiting the on-chain removal (after DB approved, before tx confirmed)
+  const [pendingOnChain, setPendingOnChain] = useState<string | null>(null);
+  // Wallets that were DB-approved but on-chain removal failed (retry targets)
+  const [retryQueue, setRetryQueue] = useState<string[]>([]);
+
+  // Check connected wallet has COMPLIANCE_ROLE or AGENT_ROLE
+  const { data: roleCheckData } = useReadContracts({
+    contracts:
+      connectedAddress && IR_ADDRESS
+        ? [
+            {
+              address: IR_ADDRESS,
+              abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
+              functionName: "hasRole",
+              args: [COMPLIANCE_ROLE, connectedAddress],
+            },
+            {
+              address: IR_ADDRESS,
+              abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
+              functionName: "hasRole",
+              args: [AGENT_ROLE, connectedAddress],
+            },
+          ]
+        : [],
+    query: { enabled: !!connectedAddress && !!IR_ADDRESS },
+  });
+  const hasRemoveRole =
+    roleCheckData?.[0]?.result === true || roleCheckData?.[1]?.result === true;
+
+  const executeOnChainRemoval = useCallback(
+    async (walletAddress: string) => {
+      if (!IR_ADDRESS) return;
+      if (!isAddress(walletAddress)) return;
+      setPendingOnChain(walletAddress);
+      onChainAction.reset();
+      const receipt = await onChainAction.execute({
+        address: IR_ADDRESS,
+        abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
+        functionName: "removeFromWhitelist",
+        args: [walletAddress as `0x${string}`],
+      });
+      if (receipt) {
+        setPendingOnChain(null);
+        setRetryQueue((q) => q.filter((a) => a !== walletAddress));
+      } else {
+        // Keep wallet in retry queue so the amber banner shows
+        setPendingOnChain(null);
+        setRetryQueue((q) => (q.includes(walletAddress) ? q : [...q, walletAddress]));
+      }
+    },
+    [onChainAction],
+  );
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -50,13 +121,15 @@ export default function WalletDeletionsPage() {
   const handleApprove = async (req: WalletDeletionRequest) => {
     showConfirmation(
       "Approve Wallet Removal",
-      `Are you sure you want to approve removal of ${req.wallet_address}? This will UNLINK the wallet from the buyer's profile and enqueue an on-chain revoke from the identity registry. The buyer will be notified.`,
+      `Are you sure you want to approve removal of ${req.wallet_address}? This will UNLINK the wallet from the buyer's profile and call removeFromWhitelist on-chain. The buyer will be notified.`,
       async () => {
         try {
           await approveWalletDeletionRequest(req.id, reviewNotes || undefined);
           setReviewNotes("");
           setReviewing(null);
           await fetchRequests();
+          // Immediately attempt on-chain removal
+          await executeOnChainRemoval(req.wallet_address);
         } catch (e) {
           setError(e instanceof Error ? e.message : "Approve failed");
         }
@@ -115,6 +188,59 @@ export default function WalletDeletionsPage() {
             </button>
           ))}
         </div>
+
+        {/* Role check warning */}
+        {connectedAddress && !hasRemoveRole && IR_ADDRESS && (
+          <div className="flex items-center gap-2 p-3 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            Your connected wallet does not hold COMPLIANCE_ROLE or AGENT_ROLE on
+            the identity registry. On-chain removal calls will revert. Grant the
+            role first via Platform &rarr; Identity Registry.
+          </div>
+        )}
+
+        {/* On-chain status for the current action */}
+        {(onChainAction.isPending || onChainAction.isConfirming || onChainAction.isConfirmed || onChainAction.error) && (
+          <div className="mb-4">
+            <TransactionStatus
+              isPending={onChainAction.isPending}
+              isConfirming={onChainAction.isConfirming}
+              isConfirmed={onChainAction.isConfirmed}
+              txHash={onChainAction.txHash}
+              txUrl={onChainAction.txUrl}
+              error={onChainAction.error}
+              successMessage="Wallet removed from identity registry on-chain."
+            />
+          </div>
+        )}
+
+        {/* Retry queue: DB recorded but on-chain pending */}
+        {retryQueue.map((addr) => (
+          <div
+            key={addr}
+            className="flex items-center justify-between gap-4 p-3 mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span>
+                DB recorded, on-chain removal pending for{" "}
+                <code className="font-mono">{addr}</code> — retry?
+              </span>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => executeOnChainRemoval(addr)}
+              disabled={
+                onChainAction.isPending ||
+                onChainAction.isConfirming ||
+                pendingOnChain === addr
+              }
+            >
+              Retry
+            </Button>
+          </div>
+        ))}
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-sm mb-4">

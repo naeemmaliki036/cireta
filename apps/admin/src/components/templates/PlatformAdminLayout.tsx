@@ -40,6 +40,7 @@ const PLATFORM_LINKS = [
   { href: "/platform/subscribers", label: "Subscribers", icon: Bell },
   { href: "/platform/redemptions", label: "Redemptions", icon: Package },
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
+  { href: "/platform/identity-registry", label: "Identity Registry", icon: Users },
   { href: "/platform/audit-logs", label: "Audit Logs", icon: FileText },
   { href: "/platform/fees", label: "Fees", icon: DollarSign },
   { href: "/platform/analytics", label: "Analytics", icon: TrendingUp },

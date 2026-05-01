@@ -1,15 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, Users, Shield, Trash2 } from "lucide-react";
+import { Globe, Users, Lock, CheckSquare, ArrowLeftRight, Link2, Shield, Trash2, Scale, Clock, Timer } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi } from "viem";
 import { Button, Input } from "@/components/atoms";
+import {
+  MaxBalanceConfig,
+  MaxOwnershipConfig,
+  TimeModuleConfig,
+  TIME_LOCKED_TRANSFER_MODULE_ABI,
+  TIME_TRANSFERS_LIMIT_MODULE_ABI,
+} from "./NumericTimeModuleConfig";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { useContractAction } from "@/hooks/useContractAction";
 import { CountrySelector, COUNTRIES } from "@/components/molecules/CountrySelector";
 import type { ComplianceModule } from "@/lib/api/repositories/token-compliance";
+import {
+  LockConfig,
+  WhitelistConfig,
+  TransferRestrictConfig,
+  ConditionalTransferConfig,
+} from "./AddressModuleConfig";
 
 const COUNTRY_ALLOW_ABI = [
   { name: "batchAllowCountries", type: "function", stateMutability: "nonpayable", inputs: [{ name: "compliance", type: "address" }, { name: "countries", type: "uint16[]" }], outputs: [] },
@@ -171,18 +184,59 @@ function MaxHolderConfig({
   );
 }
 
+const MODULE_ICONS: Record<string, React.ReactElement> = {
+  CountryAllowModule: <Globe className="h-5 w-5 text-darkAqua" />,
+  MaxHolderCountModule: <Users className="h-5 w-5 text-darkAqua" />,
+  LockModule: <Lock className="h-5 w-5 text-darkAqua" />,
+  WhitelistModule: <CheckSquare className="h-5 w-5 text-darkAqua" />,
+  TransferRestrictModule: <ArrowLeftRight className="h-5 w-5 text-darkAqua" />,
+  ConditionalTransferModule: <Link2 className="h-5 w-5 text-darkAqua" />,
+  MaxBalanceModule: <Scale className="h-5 w-5 text-darkAqua" />,
+  MaxOwnershipModule: <Lock className="h-5 w-5 text-darkAqua" />,
+  TimeLockedTransferModule: <Clock className="h-5 w-5 text-darkAqua" />,
+  TimeTransfersLimitModule: <Timer className="h-5 w-5 text-darkAqua" />,
+};
+
+function ModuleConfigPanel({
+  module, complianceAddress, tokenDecimals, onRefresh,
+}: { module: ComplianceModule; complianceAddress: string; tokenDecimals: number; onRefresh: () => void }) {
+  switch (module.name) {
+    case "CountryAllowModule":
+      return <CountryAllowConfig module={module} complianceAddress={complianceAddress} onRefresh={onRefresh} />;
+    case "MaxHolderCountModule":
+      return <MaxHolderConfig module={module} complianceAddress={complianceAddress} onRefresh={onRefresh} />;
+    case "LockModule":
+      return <LockConfig module={module} complianceAddress={complianceAddress} onRefresh={onRefresh} />;
+    case "WhitelistModule":
+      return <WhitelistConfig module={module} complianceAddress={complianceAddress} onRefresh={onRefresh} />;
+    case "TransferRestrictModule":
+      return <TransferRestrictConfig module={module} complianceAddress={complianceAddress} onRefresh={onRefresh} />;
+    case "ConditionalTransferModule":
+      return <ConditionalTransferConfig module={module} complianceAddress={complianceAddress} onRefresh={onRefresh} />;
+    case "MaxBalanceModule":
+      return <MaxBalanceConfig module={module} complianceAddress={complianceAddress} tokenDecimals={tokenDecimals} onRefresh={onRefresh} />;
+    case "MaxOwnershipModule":
+      return <MaxOwnershipConfig module={module} complianceAddress={complianceAddress} tokenDecimals={tokenDecimals} onRefresh={onRefresh} />;
+    case "TimeLockedTransferModule":
+      return <TimeModuleConfig module={module} complianceAddress={complianceAddress}
+        abiFragment={TIME_LOCKED_TRANSFER_MODULE_ABI as unknown as Abi}
+        successMessage="Transfer lock time updated." onRefresh={onRefresh} />;
+    case "TimeTransfersLimitModule":
+      return <TimeModuleConfig module={module} complianceAddress={complianceAddress}
+        abiFragment={TIME_TRANSFERS_LIMIT_MODULE_ABI as unknown as Abi}
+        successMessage="Transfer limit time updated." onRefresh={onRefresh} />;
+    default:
+      return <p className="text-xs text-zinc-400">No configuration UI available for this module type.</p>;
+  }
+}
+
 export function ModuleCard({
-  module, tokenId: _tokenId, complianceAddress, onRemove, onRefresh, removing,
+  module, tokenId: _tokenId, tokenDecimals = 18, complianceAddress, onRemove, onRefresh, removing,
 }: {
-  module: ComplianceModule; tokenId: string; complianceAddress?: string;
+  module: ComplianceModule; tokenId: string; tokenDecimals?: number; complianceAddress?: string;
   onRemove: (addr: string) => void; onRefresh: () => void; removing: boolean;
 }) {
-  const icon = module.name === "CountryAllowModule"
-    ? <Globe className="h-5 w-5 text-darkAqua" />
-    : module.name === "MaxHolderCountModule"
-    ? <Users className="h-5 w-5 text-darkAqua" />
-    : <Shield className="h-5 w-5 text-darkAqua" />;
-
+  const icon = MODULE_ICONS[module.name] ?? <Shield className="h-5 w-5 text-darkAqua" />;
   const compAddr = complianceAddress || "";
 
   return (
@@ -201,11 +255,7 @@ export function ModuleCard({
         </Button>
       </div>
       <div className="border-t border-zinc-100 pt-4">
-        {module.name === "CountryAllowModule" && <CountryAllowConfig module={module} complianceAddress={compAddr} onRefresh={onRefresh} />}
-        {module.name === "MaxHolderCountModule" && <MaxHolderConfig module={module} complianceAddress={compAddr} onRefresh={onRefresh} />}
-        {module.name !== "CountryAllowModule" && module.name !== "MaxHolderCountModule" && (
-          <p className="text-xs text-zinc-400">No configuration UI available for this module type.</p>
-        )}
+        <ModuleConfigPanel module={module} complianceAddress={compAddr} tokenDecimals={tokenDecimals} onRefresh={onRefresh} />
       </div>
     </div>
   );

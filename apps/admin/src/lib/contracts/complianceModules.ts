@@ -95,7 +95,7 @@ export const ALL_COMPLIANCE_MODULES: ComplianceModuleInfo[] = [
     tag: "Access",
     tagColor: "bg-purple-100 text-purple-700",
     address: process.env.NEXT_PUBLIC_LOCK_MODULE_ADDRESS || "",
-    hasConfig: false,
+    hasConfig: true,
   },
   {
     id: "whitelist",
@@ -107,7 +107,7 @@ export const ALL_COMPLIANCE_MODULES: ComplianceModuleInfo[] = [
     tag: "Access",
     tagColor: "bg-purple-100 text-purple-700",
     address: process.env.NEXT_PUBLIC_WHITELIST_MODULE_ADDRESS || "",
-    hasConfig: false,
+    hasConfig: true,
   },
   {
     id: "transfer_restrict",
@@ -119,7 +119,7 @@ export const ALL_COMPLIANCE_MODULES: ComplianceModuleInfo[] = [
     tag: "Access",
     tagColor: "bg-purple-100 text-purple-700",
     address: process.env.NEXT_PUBLIC_TRANSFER_RESTRICT_MODULE_ADDRESS || "",
-    hasConfig: false,
+    hasConfig: true,
   },
   {
     id: "conditional_transfer",
@@ -132,7 +132,7 @@ export const ALL_COMPLIANCE_MODULES: ComplianceModuleInfo[] = [
     tagColor: "bg-purple-100 text-purple-700",
     address:
       process.env.NEXT_PUBLIC_CONDITIONAL_TRANSFER_MODULE_ADDRESS || "",
-    hasConfig: false,
+    hasConfig: true,
   },
   {
     id: "time_locked",

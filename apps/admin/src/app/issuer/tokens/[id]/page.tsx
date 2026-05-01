@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Shield, Pause, Play, Rocket, Coins } from "lucide-react";
+import { ArrowLeft, Shield, Pause, Play, Rocket, Coins, Lock } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
@@ -166,6 +166,12 @@ export default function TokenDetailPage({ params: paramsPromise }: { params: Pro
             <Button variant="outline" size="sm" leftIcon={<Coins className="h-4 w-4" />}
               disabled={!token.contract_address}>
               Mint Tokens
+            </Button>
+          </Link>
+          <Link href={`/issuer/tokens/${resolvedId}/freeze`}>
+            <Button variant="outline" size="sm" leftIcon={<Lock className="h-4 w-4" />}
+              disabled={!token?.contract_address}>
+              Freeze
             </Button>
           </Link>
           <Link href={`/issuer/tokens/${resolvedId}/compliance`}>

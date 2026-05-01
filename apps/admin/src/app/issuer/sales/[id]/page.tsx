@@ -1421,6 +1421,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             <SaleContractActions
               contractAddress={sale.contract_address}
               saleStatus={sale.status}
+              isOpenEnded={sale.is_open_ended}
               onSuccess={reload}
             />
           )}

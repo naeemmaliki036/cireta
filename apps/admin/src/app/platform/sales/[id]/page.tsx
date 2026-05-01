@@ -103,6 +103,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
   });
   const chainPhases = Number(onChainPhaseCount ?? 0);
   const tokensDeposited = Number(tokenDepositBalance ?? 0) > 0;
+  const unapproveOnChainAction = useContractAction();
   const pauseAction = useContractAction();
   const unpauseAction = useContractAction();
   const finalizeAction = useContractAction();
@@ -188,6 +189,32 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "On-chain approve failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Unapprove: reverts Sale.approveSale() on-chain (admin wallet).
+  // Only callable when the sale is on-chain, approved on-chain, and
+  // status is still in the approveable window (Draft / Approved, not yet Active).
+  const handleUnapproveSale = async () => {
+    if (!sale?.contract_address || !requireWallet()) return;
+    if (!isConnectedAsAdmin) return;
+    setActionLoading("unapprove"); setActionError(null);
+    try {
+      const receipt = await unapproveOnChainAction.execute({
+        address: sale.contract_address as `0x${string}`,
+        abi: SALE_ABI as unknown as Abi,
+        functionName: "unapproveSale",
+        gas: 1_000_000n,
+      });
+      if (receipt) {
+        await refetchApprovedOnChain();
+        setActionSuccess("unapprove");
+        await reload();
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Unapprove failed");
     } finally {
       setActionLoading(null);
     }
@@ -404,6 +431,33 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
                 txUrl={approveOnChainAction.txUrl} error={approveOnChainAction.error}
                 successMessage="On-chain approveSale() confirmed."
               />
+              {/* Unapprove — visible once on-chain approved=true and sale is not yet Active */}
+              {approvedOnChain && !isActive && (
+                <div className="ml-8 mt-3 pt-3 border-t border-zinc-100">
+                  <p className="text-xs text-black/50 mb-2">Need to pull back the approval before the issuer activates?</p>
+                  {isConnected && !isConnectedAsAdmin && adminWalletAddr && (
+                    <p className="mb-2 text-xs text-red-700">
+                      Connected wallet is not the admin. Switch MetaMask to <code className="font-mono">{adminWalletAddr}</code> first.
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUnapproveSale}
+                    disabled={(isConnected && !isConnectedAsAdmin) || unapproveOnChainAction.isPending || unapproveOnChainAction.isConfirming}
+                    isLoading={actionLoading === "unapprove" || unapproveOnChainAction.isPending || unapproveOnChainAction.isConfirming}
+                    className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" /> Unapprove (revoke on-chain)
+                  </Button>
+                  <TransactionStatus
+                    isPending={unapproveOnChainAction.isPending} isConfirming={unapproveOnChainAction.isConfirming}
+                    isConfirmed={unapproveOnChainAction.isConfirmed} txHash={unapproveOnChainAction.txHash}
+                    txUrl={unapproveOnChainAction.txUrl} error={unapproveOnChainAction.error}
+                    successMessage="Sale unapproved on-chain — issuer can no longer activate until re-approved."
+                  />
+                </div>
+              )}
             </div>
 
             {/* Step 2 — issuer-side action; admin just waits + monitors. */}

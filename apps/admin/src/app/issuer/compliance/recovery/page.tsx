@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ShieldCheck, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { isAddress, type Abi } from "viem";
-import { useReadContract } from "wagmi";
+import { useReadContract, useReadContracts, useAccount } from "wagmi";
 import {
   recoverTokens,
   recoverFractions,
@@ -13,8 +13,14 @@ import {
 } from "@/lib/api/repositories/compliance";
 import { getTokens, type Token } from "@/lib/api/repositories/tokens";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
+import { CIRETA_TOKEN_ABI } from "@/lib/contracts/abis/ciretaToken";
+import { BatchForcedTransferPanel } from "@/components/molecules/BatchForcedTransferPanel";
 
-type TokenType = "erc3643_recovery" | "erc3643_force" | "fraction_1155";
+// keccak256("AGENT_ROLE") — same constant used across the codebase
+const AGENT_ROLE =
+  "0xcdbf1d1c64faad6046b5b53d6a6821b434c73ab58fcfa37f7fc6c8d3b8e7d68f" as const;
+
+type TokenType = "erc3643_recovery" | "erc3643_force" | "fraction_1155" | "batch_force";
 
 const truncateAddr = (a: string): string =>
   a && a.length > 10 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -36,9 +42,29 @@ export default function TokenRecoveryPage() {
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<RecoveryResponse | null>(null);
 
+  const isBatchForce = tokenType === "batch_force";
   const isFraction = tokenType === "fraction_1155";
   const isForceTransfer = tokenType === "erc3643_force";
   const isRecovery = tokenType === "erc3643_recovery";
+
+  // Batch force transfer: separate token address picker
+  const [batchTokenAddress, setBatchTokenAddress] = useState("");
+  const { address: connectedAddress } = useAccount();
+  const batchTokenValid = isAddress(batchTokenAddress);
+  const { data: agentRoleData } = useReadContracts({
+    contracts: batchTokenValid && connectedAddress
+      ? [
+          {
+            address: batchTokenAddress as `0x${string}`,
+            abi: CIRETA_TOKEN_ABI as unknown as Abi,
+            functionName: "hasRole",
+            args: [AGENT_ROLE, connectedAddress],
+          },
+        ]
+      : [],
+    query: { enabled: batchTokenValid && !!connectedAddress },
+  });
+  const hasAgentRole = agentRoleData?.[0]?.result === true;
 
   // Token picker state: dropdown of issuer tokens with a "Custom address" fallback
   // for tokens not yet in the portfolio. Only the UUID is sent to the backend
@@ -184,11 +210,12 @@ export default function TokenRecoveryPage() {
       </div>
 
       {/* Token type selector */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {[
           { value: "erc3643_recovery" as const, label: "ERC-3643 Wallet Recovery" },
           { value: "erc3643_force" as const, label: "ERC-3643 Force Transfer" },
           { value: "fraction_1155" as const, label: "Fraction (ERC-1155)" },
+          { value: "batch_force" as const, label: "Batch Force Transfer" },
         ].map(({ value, label }) => (
           <button
             key={value}
@@ -209,6 +236,38 @@ export default function TokenRecoveryPage() {
           </button>
         ))}
       </div>
+
+      {/* Batch Force Transfer mode */}
+      {isBatchForce && (
+        <div className="bg-white rounded-xl border border-black/10 p-6 space-y-4">
+          <div>
+            <label className="block text-sm text-black/60 mb-1">Token Contract Address</label>
+            <input
+              value={batchTokenAddress}
+              onChange={(e) => setBatchTokenAddress(e.target.value.trim())}
+              placeholder="0x… ERC-3643 token address"
+              maxLength={42}
+              className={`w-full bg-box border rounded-lg px-3 py-2 text-text text-sm font-mono ${
+                batchTokenAddress && !batchTokenValid
+                  ? "border-red-300"
+                  : "border-black/10"
+              }`}
+            />
+            {batchTokenAddress && !batchTokenValid && (
+              <p className="text-xs text-red-600 mt-1">Not a valid EVM address.</p>
+            )}
+          </div>
+          {batchTokenValid && (
+            <BatchForcedTransferPanel
+              tokenAddress={batchTokenAddress}
+              hasAgentRole={hasAgentRole}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Single-row modes only */}
+      {!isBatchForce && <>
 
       {/* Warning banner */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
@@ -484,6 +543,8 @@ export default function TokenRecoveryPage() {
                   : "Execute Wallet Recovery"}
         </button>
       </form>
+
+      </> /* end !isBatchForce */}
     </div>
   );
 }
