@@ -264,7 +264,7 @@ export default function TransferPage() {
 
   return (
     <DashboardLayout title="Transfer Tokens" description="Send tokens to another KYC-verified wallet">
-      <div className="max-w-4xl py-2">
+      <div className="py-2">
         <Link
           href="/portfolio"
           className="inline-flex items-center gap-1.5 text-black/50 hover:text-text transition-colors mb-5 text-sm"

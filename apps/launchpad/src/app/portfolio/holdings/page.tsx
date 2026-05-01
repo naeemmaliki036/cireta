@@ -70,7 +70,7 @@ export default function PortfolioHoldingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl py-2">
+      <div className="py-2">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-bold text-text tracking-tight">Holdings</h1>

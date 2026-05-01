@@ -174,7 +174,7 @@ export default function FractionTransferPage() {
       title="Fraction Transfer"
       description="Send vesting-period fraction receipts to another KYC-verified wallet"
     >
-      <div className="max-w-4xl py-2">
+      <div className="py-2">
         <Link
           href="/portfolio"
           className="inline-flex items-center gap-1.5 text-black/50 hover:text-text transition-colors mb-5 text-sm"

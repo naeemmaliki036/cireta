@@ -127,11 +127,20 @@ class PortfolioService:
 
         for schedule in schedules:
             token_id = str(schedule.token_id)
-            # Vesting schedules tracked under the unlocked bucket — they
-            # represent post-claim ERC-3643 balances.
-            bucket_key = f"{token_id}:unlocked"
-
-            if bucket_key not in holdings:
+            # Vesting timeline belongs on whichever bucket the buyer actually
+            # has a position in. Prefer the locked bucket (still-vesting fraction
+            # holdings) over the unlocked one (post-claim project tokens).
+            # Fallback: create a stand-alone unlocked bucket only if neither
+            # exists — that's the rare case where a vesting schedule outlives
+            # both contributions.
+            locked_key = f"{token_id}:locked"
+            unlocked_key = f"{token_id}:unlocked"
+            if locked_key in holdings:
+                bucket_key = locked_key
+            elif unlocked_key in holdings:
+                bucket_key = unlocked_key
+            else:
+                bucket_key = unlocked_key
                 holdings[bucket_key] = {
                     "token_id": token_id,
                     "token_symbol": schedule.token.symbol,
@@ -141,6 +150,7 @@ class PortfolioService:
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
                     "locked": False,
+                    "sale_mode": "vested",
                     "contract_address": getattr(schedule.token, "contract_address", None),
                     "vesting_progress": 0.0,
                     "cliff_end": None,

@@ -98,7 +98,7 @@ export default function AccountPage() {
 
   return (
     <DashboardLayout title="Account" description="Your profile and preferences">
-      <div className="max-w-5xl py-2">
+      <div className="py-2">
         {/* Slim hero — about half the previous height, brand colors */}
         <div className="bg-darkAqua rounded-2xl px-5 py-4 mb-5 text-white flex items-center gap-4">
           <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center text-base font-bold shrink-0">

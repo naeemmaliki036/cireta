@@ -65,13 +65,16 @@ export function PortfolioTable({ holdings, className }: PortfolioTableProps) {
 
 function HoldingRow({ h }: { h: HoldingItem }) {
   const state = getVestingState(h);
-  const isVested = h.sale_mode === "vested";
   const pct = vestingPercent(h);
   const claimable = parseFloat(h.claimable_amount ?? h.claimable ?? "0");
   const balance = parseFloat(h.balance);
   const value = parseFloat(h.value_usd);
   const symbol = h.token_symbol;
-  const balLabel = isVested ? `fr${symbol}` : symbol;
+  // Buyer holds *fraction* tokens only while their position is still locked
+  // (status=confirmed). Once claimed (status=claimed), they hold the underlying
+  // project token — show the bare symbol then.
+  const isLocked = !!h.locked;
+  const balLabel = isLocked ? `fr${symbol}` : symbol;
 
   return (
     <tr className="border-t border-black/5 hover:bg-box/50 transition-colors">

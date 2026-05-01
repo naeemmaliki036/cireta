@@ -119,7 +119,7 @@ export default function PortfolioVestingPage() {
 
   return (
     <DashboardLayout title="Vesting Schedules" description="Track unlocking timelines and claim available project tokens">
-      <div className="max-w-4xl py-2">
+      <div className="py-2">
         {/* Header strip */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-black/60">

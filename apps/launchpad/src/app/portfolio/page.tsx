@@ -230,7 +230,7 @@ export default function PortfolioPage() {
 
         {/* Main */}
         <div className="flex-1 min-w-0">
-          <main className="p-6 lg:p-8 max-w-6xl">
+          <main className="p-6 lg:p-8">
             {/* Header strip */}
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-text tracking-tight">Portfolio</h1>

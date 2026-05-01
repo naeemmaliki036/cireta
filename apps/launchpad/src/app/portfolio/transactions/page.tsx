@@ -163,7 +163,7 @@ export default function TransactionsPage() {
       title="Transactions"
       description="Newly purchased tokens may take a few minutes to appear here"
     >
-      <div className="max-w-5xl py-2">
+      <div className="py-2">
         {/* Header strip with inline filters */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="w-44">
