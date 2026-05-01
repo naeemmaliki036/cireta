@@ -81,11 +81,26 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     } catch { /* ignore */ }
   };
 
+  // Pre-select the on-chain whitelisting country to whatever we know about
+  // where the user is based — verified beats self-reported. For Individuals
+  // that's country_of_residence; for Corporate it's the company jurisdiction.
+  // Stored values may be alpha-2, alpha-3, or already-numeric; resolveCountry
+  // handles all three.
+  const applyResidenceDefault = (u: InvestorDetail) => {
+    const isCorporate = u.investor_type === "corporate";
+    const value = isCorporate
+      ? (u.verified_company_jurisdiction || u.company_jurisdiction)
+      : (u.verified_country_of_residence || u.country_of_residence);
+    const c = resolveCountry(value);
+    if (c) setWhitelistCountryCode(String(c.numeric));
+  };
+
   useEffect(() => {
     (async () => {
       try {
         const data = await getInvestor(id);
         setUser(data);
+        applyResidenceDefault(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load user");
       } finally {
