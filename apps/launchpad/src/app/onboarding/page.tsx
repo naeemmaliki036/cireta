@@ -15,7 +15,6 @@ import {
   getOnboardingStatus,
   setOnboardingType,
   saveOnboardingDetails,
-  completeOnboarding,
   type OnboardingStatus,
 } from "@/lib/api/repositories/auth.repository";
 import { CountrySelect } from "@/components/molecules/CountrySelect";
@@ -184,20 +183,6 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleDevKycApprove = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await apiFetch("/api/v1/kyc/dev-approve", { method: "POST" });
-      await completeOnboarding();
-      setStep("complete");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -268,32 +253,36 @@ export default function OnboardingPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-6 py-12">
-        {/* Progress */}
+        {/* Progress — icon-only stepper. Numeric step values were noisy and
+            duplicated the labels below; checkmark for done, hollow circle for
+            upcoming, filled brand circle for active. */}
         {step !== "complete" && (
           <div className="flex items-center justify-between mb-10">
-            {STEPS.map((s, i) => (
-              <div key={s.id} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-colors text-white ${
-                    i < currentStepIndex ? "bg-darkAqua"
-                    : i === currentStepIndex ? "bg-darkAqua"
-                    : "bg-gray-200 text-gray-400"
-                  }`}>
-                    {i < currentStepIndex ? <CheckCircle2 className="h-5 w-5" /> : i + 1}
+            {STEPS.map((s, i) => {
+              const isDone = i < currentStepIndex;
+              const isActive = i === currentStepIndex;
+              return (
+                <div key={s.id} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                      isDone ? "bg-darkAqua text-white"
+                      : isActive ? "bg-darkAqua text-white ring-4 ring-darkAqua/15"
+                      : "bg-box border border-black/10 text-black/30"
+                    }`}>
+                      {isDone ? <CheckCircle2 className="h-4 w-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
+                    </div>
+                    <span className={`text-xs font-medium mt-1.5 whitespace-nowrap ${
+                      isDone || isActive ? "text-darkAqua" : "text-black/40"
+                    }`}>
+                      {s.label}
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium mt-1.5 whitespace-nowrap ${
-                    i < currentStepIndex ? "text-darkAqua"
-                    : i === currentStepIndex ? "text-darkAqua"
-                    : "text-gray-400"
-                  }`}>
-                    {s.label}
-                  </span>
+                  {i < STEPS.length - 1 && (
+                    <div className={`w-12 sm:w-20 h-0.5 mx-1 mb-5 ${isDone ? "bg-darkAqua" : "bg-black/10"}`} />
+                  )}
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`w-12 sm:w-20 h-0.5 mx-1 mb-5 ${i < currentStepIndex ? "bg-darkAqua" : "bg-gray-200"}`} />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -674,13 +663,6 @@ export default function OnboardingPage() {
                 </Button>
               </Link>
             </div>
-            {/* Dev bypass */}
-            {kycStatus.status !== "pending" && (
-              <button onClick={handleDevKycApprove}
-                className="text-xs text-gray-400 hover:text-gray-600 underline mt-3">
-                Skip Verification (Dev Only)
-              </button>
-            )}
             <ExitLink />
           </div>
         )}

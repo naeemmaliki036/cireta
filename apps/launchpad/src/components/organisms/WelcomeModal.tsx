@@ -201,7 +201,14 @@ export function WelcomeModal() {
               <div className="px-5 sm:px-8 pb-5 sm:pb-6">
                 <Link
                   href="/onboarding"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    // Session-dismiss when the user actively starts onboarding.
+                    // Without this, navigating back to /portfolio while still
+                    // mid-onboarding (e.g. after KYC submit, before backend
+                    // refresh) would re-show the modal on the next render.
+                    if (user) sessionStorage.setItem(`cireta_welcome_later_${user.id}`, "1");
+                    setIsOpen(false);
+                  }}
                   className="flex items-center justify-center gap-2 w-full btn-cta py-3.5 rounded-xl transition-colors text-sm"
                 >
                   {completedCount > 0 ? "Continue" : "Get Started"} <ArrowRight className="h-4 w-4" />

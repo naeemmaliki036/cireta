@@ -103,7 +103,17 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
   const handleMessage = useCallback(
     (type: string) => {
       // First message from the SDK = iframe successfully mounted; clear the watchdog.
+      const wasUnmounted = !sdkMounted;
       setSdkMounted(true);
+      // Sumsub focuses its first input at iframe mount, which makes the
+      // browser scroll the iframe into view — past our navbar. Restore the
+      // user to the top of the page on first mount only so they keep their
+      // bearings.
+      if (wasUnmounted && typeof window !== "undefined") {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: "auto" });
+        });
+      }
       if (
         type !== "idCheck.applicantReviewComplete" &&
         type !== "idCheck.onApplicantStatusChanged" &&
@@ -252,7 +262,10 @@ export function SumsubVerification({ className }: SumsubVerificationProps) {
 
   return (
     <div className={className}>
-      <div className="relative rounded-2xl overflow-hidden border border-black/10 min-h-[624px]">
+      {/* scroll-mt-20 leaves the navbar visible if the browser scrolls this
+          container into view (Sumsub's iframe likes to call focus() on its
+          first input, which would otherwise yank the page up). */}
+      <div className="relative rounded-2xl overflow-hidden border border-black/10 bg-white min-h-[624px] scroll-mt-20">
         {!sdkMounted && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm pointer-events-none z-10">
             <Spinner size="lg" />

@@ -319,6 +319,17 @@ async def get_onboarding_status(
     has_wallet = wallet_result.scalar_one_or_none() is not None
     has_kyc = user.kyc_status == "approved" if hasattr(user.kyc_status, "__eq__") else str(user.kyc_status) == "approved"
 
+    # Self-heal the onboarding_completed flag. The original flow only flipped
+    # this flag when the dev-bypass /onboarding/complete endpoint was called;
+    # users who finished real Sumsub KYC + Profile + Type kept the flag at
+    # False and got the welcome modal nag forever. The wallet step is
+    # explicitly optional, so the three required steps (type + details + kyc)
+    # are sufficient.
+    all_required_done = has_type and has_details and has_kyc
+    if all_required_done and not user.onboarding_completed:
+        user.onboarding_completed = True
+        await db.commit()
+
     return {
         "investor_type": user.investor_type,
         "steps": {
