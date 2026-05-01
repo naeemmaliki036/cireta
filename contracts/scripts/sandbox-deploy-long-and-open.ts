@@ -394,10 +394,14 @@ async function deploySale(
   }
 
   // ── 4. Transfer tokens to sale/vault ──────────────────────────────────
+  // Check issuer balance first: if 0, all tokens were already transferred (possibly some were bought).
   const transferTarget = spec.saleMode === "Vested" ? vaultAddr : saleAddr;
+  const issuerBal = await token.balanceOf(issuer.address);
   const targetBal = await token.balanceOf(transferTarget);
-  if (targetBal < spec.initialMintRaw) {
-    const toTransfer = spec.initialMintRaw - targetBal;
+  if (issuerBal === 0n) {
+    pass(`${spec.tokenSymbol} issuer balance=0 — tokens already transferred (target has ${ethers.formatUnits(targetBal, 6)})`);
+  } else if (targetBal < spec.initialMintRaw && issuerBal > 0n) {
+    const toTransfer = issuerBal < (spec.initialMintRaw - targetBal) ? issuerBal : (spec.initialMintRaw - targetBal);
     const r4 = await gasOf(await token.connect(issuer).transfer(transferTarget, toTransfer));
     pass(`${spec.tokenSymbol}.transfer(${spec.saleMode === "Vested" ? "vault" : "sale"}, ${ethers.formatUnits(toTransfer, 6)} tokens)`, r4.txHash);
   } else {

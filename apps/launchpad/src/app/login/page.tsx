@@ -23,7 +23,6 @@ function LoginForm() {
     googleError ? "Google sign-in failed. Please try again or use email." : null
   );
   const [loading, setLoading] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [resendCountdown, setResendCountdown] = useState(0);
   const [resendCount, setResendCount] = useState(0);
   const [resendLocked, setResendLocked] = useState(false);
@@ -44,7 +43,6 @@ function LoginForm() {
     }
     setLoading(true);
     setError(null);
-    setDevOtp(null);
     try {
       const res = await fetch("/api/auth/otp-request", {
         method: "POST",
@@ -53,7 +51,6 @@ function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to send code");
-      if (data.dev_otp) setDevOtp(data.dev_otp);
       setStep("otp");
       setResendCountdown(300); // 5 minutes to match API rate limiting
     } catch (err) {
@@ -73,7 +70,6 @@ function LoginForm() {
     }
     setLoading(true);
     setError(null);
-    setDevOtp(null);
     try {
       const res = await fetch("/api/auth/otp-request", {
         method: "POST",
@@ -82,7 +78,6 @@ function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail?.message ?? "Failed to resend code");
-      if (data.dev_otp) setDevOtp(data.dev_otp);
       setResendCount((c) => c + 1);
       setResendCountdown(300); // 5 minutes to match API rate limiting
       setOtp("");
@@ -120,14 +115,6 @@ function LoginForm() {
       title={step === "email" ? "Welcome Back" : "Enter Verification Code"}
       subtitle={step === "email" ? "Sign in to access your portfolio and purchases" : `We sent a 6-digit code to ${email}`}
     >
-      {/* Dev OTP Toast */}
-      {devOtp && (
-        <div className="fixed top-4 right-4 z-50 bg-amber-500 text-black px-4 py-3 rounded-xl shadow-lg">
-          <p className="text-xs font-medium opacity-70">DEV MODE — OTP Code</p>
-          <p className="text-2xl font-bold tracking-[0.3em]">{devOtp}</p>
-        </div>
-      )}
-
       {error && (
         <div className="mb-6 rounded-2xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
           {error}
@@ -165,7 +152,7 @@ function LoginForm() {
             <label htmlFor="otp" className="mb-2 block text-sm font-semibold text-text">Verification Code</label>
             <button
               type="button"
-              onClick={() => { setOtp(""); setError(null); setDevOtp(null); setStep("email"); }}
+              onClick={() => { setOtp(""); setError(null); setStep("email"); }}
               className="text-xs text-darkAqua hover:underline"
             >
               ← Change email
