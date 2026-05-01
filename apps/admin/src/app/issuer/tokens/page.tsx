@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Abi } from "viem";
-import { Plus, ArrowUpRight, Coins, Pause, Play, Shield, Copy, Rocket, LayoutGrid, List } from "lucide-react";
+import { Plus, ArrowUpRight, Coins, Pause, Shield, Copy, Rocket, LayoutGrid, List } from "lucide-react";
 import { Button, Input, Badge, Spinner } from "@/components/atoms";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
@@ -75,7 +75,7 @@ function TokenCard({ token }: { token: Token }) {
             {token.is_paused ? (
               <Badge variant="pending" size="sm"><Pause className="h-3 w-3 mr-1" />Paused</Badge>
             ) : deployed ? (
-              <Badge variant="active" size="sm"><Play className="h-3 w-3 mr-1" />Active</Badge>
+              <Badge variant="active" size="sm">Active</Badge>
             ) : (
               <Badge variant="pending" size="sm">Not Deployed</Badge>
             )}
@@ -363,7 +363,7 @@ function TokenRow({ token }: { token: Token }) {
         {token.is_paused ? (
           <Badge variant="pending" size="sm"><Pause className="h-3 w-3 mr-1" />Paused</Badge>
         ) : deployed ? (
-          <Badge variant="active" size="sm"><Play className="h-3 w-3 mr-1" />Active</Badge>
+          <Badge variant="active" size="sm">Active</Badge>
         ) : (
           <Badge variant="pending" size="sm">Not Deployed</Badge>
         )}

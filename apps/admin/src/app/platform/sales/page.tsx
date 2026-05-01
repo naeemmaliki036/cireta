@@ -192,6 +192,7 @@ export default function PlatformSalesPage() {
                 <th className="px-5 py-3">Sale</th>
                 <th className="px-5 py-3">Issuer</th>
                 <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Live</th>
                 <th className="px-5 py-3">Raised</th>
                 <th className="px-5 py-3">Hard Cap</th>
                 <th className="px-5 py-3">Progress</th>
@@ -229,7 +230,13 @@ export default function PlatformSalesPage() {
                       >
                         {(STATUS_LABELS[sale.status] || sale.status)}
                       </Badge>
-                      {sale.is_visible && <span className="ml-1.5 inline-flex items-center text-[10px] text-green-600" title="Visible on launchpad"><Eye className="h-3 w-3" /></span>}
+                    </td>
+                    <td className="px-5 py-3">
+                      {sale.is_visible ? (
+                        <Badge variant="success" size="sm">Yes</Badge>
+                      ) : (
+                        <Badge variant="default" size="sm">No</Badge>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-sm font-medium">${raised.toLocaleString()}</td>
                     <td className="px-5 py-3 text-sm text-zinc-500">${hardCap.toLocaleString()}</td>

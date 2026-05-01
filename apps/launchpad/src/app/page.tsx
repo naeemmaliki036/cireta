@@ -265,6 +265,21 @@ function LiveProjectCard({ project: p }: { project: Project }) {
                 </div>
               </div>
             );
+
+            // Gate the "Get notified" CTA — only meaningful when there's
+            // actually a future event to wait for. Hide on completed / failed
+            // / rejected / fully-raised sales, or when every phase's end_time
+            // is in the past.
+            const isTerminal = ["completed", "finalized_success", "finalized_failed", "finalized", "failed", "rejected"].includes(p.status);
+            const targetReached = effectiveTarget > 0 && effectiveRaised >= effectiveTarget;
+            const allPhasesEnded = p.phases.length > 0 && p.phases.every((ph) => {
+              const e = new Date(ph.end_time || 0).getTime();
+              return e > 0 && now >= e;
+            });
+            const hasFuturePhase = p.phases.some((ph) => new Date(ph.start_time || 0).getTime() > now);
+            const canShowNotifyCTA = !isTerminal && !targetReached && !allPhasesEnded
+              && (p.isComingSoon || hasFuturePhase);
+            if (!canShowNotifyCTA) return null;
             if (subscribed) {
               if (justSubscribed) return (
                 <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-green-50 border border-green-200">

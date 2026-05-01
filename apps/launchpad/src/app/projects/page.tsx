@@ -230,7 +230,18 @@ function ActiveProjectCard({ project, isFirst }: { project: Project; isFirst?: b
             </div>
           )}
           {/* Subscribe for upcoming (no active phase) */}
-          {!hasActivePhase && (
+          {(() => {
+            // Gate: don't promise notifications on terminal/ended/full sales.
+            const isTerminal = ["completed","finalized_success","finalized_failed","finalized","failed","rejected"].includes(project.status as string);
+            const targetReached = hardCap > 0 && raised >= hardCap;
+            const allPhasesEnded = project.phases.length > 0 && project.phases.every((ph) => {
+              const e = new Date(ph.end_time || 0).getTime();
+              return e > 0 && now >= e;
+            });
+            const hasFuturePhase = project.phases.some((ph) => new Date(ph.start_time || 0).getTime() > now);
+            return !hasActivePhase && !isTerminal && !targetReached && !allPhasesEnded
+              && (project.isComingSoon || hasFuturePhase);
+          })() && (
             subscribed ? (
               justSubscribed ? (
                 <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-green-50 border border-green-200">
@@ -364,9 +375,19 @@ function ComingSoonCard({ project, isFirst }: { project: Project; isFirst?: bool
           </div>
         )}
 
-        {/* Subscribe */}
+        {/* Subscribe — gated: hide on terminal/finalized states even though
+             this is the Coming-Soon variant, in case bad data slips through. */}
         <div className="mt-auto">
-          {subscribed ? (
+          {((): boolean => {
+            const isTerminal = ["completed","finalized_success","finalized_failed","finalized","failed","rejected"].includes(project.status as string);
+            const now = Date.now();
+            const allPhasesEnded = project.phases.length > 0 && project.phases.every((ph) => {
+              const e = new Date(ph.end_time || 0).getTime();
+              return e > 0 && now >= e;
+            });
+            return !isTerminal && !allPhasesEnded;
+          })() && (
+          subscribed ? (
             justSubscribed ? (
               <div className="flex items-center justify-between w-full rounded-lg px-3 py-2.5 bg-green-50 border border-green-200">
                 <div className="flex items-center gap-2">
@@ -404,7 +425,8 @@ function ComingSoonCard({ project, isFirst }: { project: Project; isFirst?: bool
               <Bell className="h-3.5 w-3.5 text-darkAqua shrink-0" />
               <span className="text-[11px] text-black/50">{project.isComingSoon ? "Subscribe for launch updates" : "Get notified when funding opens"}</span>
             </button>
-          )}
+          )
+        )}
         </div>
 
         {/* Target + View Details */}

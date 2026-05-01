@@ -1169,7 +1169,39 @@ export default function ProjectDetailPage() {
                   );
                 }
 
-                return (
+                {(() => {
+                  // Same calendar-time enrichment as the lock-up branch — when
+                  // the sale is finalized, surface the actual datetime when
+                  // each milestone is reached so investors don't have to do
+                  // mental math from durations.
+                  const isFinalizedNonLockup =
+                    saleRaw?.status === "finalized_success" || saleRaw?.status === "finalized";
+                  const finalizedAt = saleRaw?.finalized_at ? new Date(saleRaw.finalized_at) : null;
+                  const startTime = finalizedAt
+                    ?? (saleRaw?.sale_end_time ? new Date(saleRaw.sale_end_time) : null);
+                  const cliffEnd = startTime && cliffDays > 0
+                    ? new Date(startTime.getTime() + cliffDays * 86400 * 1000)
+                    : startTime;
+                  const fullUnlock = startTime
+                    ? new Date(startTime.getTime() + vestingDays * 86400 * 1000)
+                    : null;
+                  const elapsedSec = startTime
+                    ? Math.max(0, (Date.now() - startTime.getTime()) / 1000)
+                    : 0;
+                  const totalSec = vestingDays * 86400;
+                  const cliffSec = cliffDays * 86400;
+                  // Cumulative unlocked %: 0 until cliff, then linear to 100%
+                  let elapsedPct = 0;
+                  if (totalSec > 0) {
+                    if (elapsedSec >= totalSec) elapsedPct = 100;
+                    else if (elapsedSec <= cliffSec) elapsedPct = 0;
+                    else elapsedPct = ((elapsedSec - cliffSec) / (totalSec - cliffSec)) * 100;
+                  }
+                  const fmtDate = (d: Date) => d.toLocaleString(undefined, {
+                    month: "short", day: "numeric", year: "numeric",
+                    hour: "numeric", minute: "2-digit",
+                  });
+                  return (
                   <div className="space-y-10">
                     <div className="bg-gray-50 rounded-xl p-5">
                       <h3 className="font-bold text-text mb-4 text-base">Vesting Schedule</h3>
@@ -1179,6 +1211,9 @@ export default function ProjectDetailPage() {
                           ["Total Duration", vestingDays > 0 ? fmtDur(vestingDays) : "None"],
                           ...(linearDays > 0 ? [["Linear Unlock", `${fmtDur(linearDays)} (after cliff)`]] : []),
                           ["Unlock Type", isCliffOnly ? "100% at cliff" : "Linear after cliff"],
+                          ...(isFinalizedNonLockup && fullUnlock
+                            ? [["Full Unlock At", fmtDate(fullUnlock)]]
+                            : []),
                         ].map(([k, v]) => (
                           <div key={k}>
                             <p className="text-xs text-gray-400 mb-0.5">{k}</p>
@@ -1208,6 +1243,11 @@ export default function ProjectDetailPage() {
                           )}
                           <div style={{ width: `${(linearDays / vestingDays) * 100}%` }} className="text-center">
                             {linearDays > 0 ? `Linear unlock · ${fmtDur(linearDays)}` : "Fully unlocked"}
+                            {isFinalizedNonLockup && (
+                              <span className="ml-1 text-[#13636F] normal-case">
+                                · {elapsedPct >= 100 ? "100% unlocked" : `${elapsedPct.toFixed(1)}% unlocked`}
+                              </span>
+                            )}
                           </div>
                         </div>
                         {/* Track */}
@@ -1223,19 +1263,30 @@ export default function ProjectDetailPage() {
                             style={{
                               left: `${(cliffDays / vestingDays) * 100}%`,
                               width: `${(linearDays / vestingDays) * 100}%`,
-                              backgroundColor: "#13636F",
+                              backgroundColor: isFinalizedNonLockup ? "#ECF3F4" : "#13636F",
                             }}
                           />
+                          {isFinalizedNonLockup && elapsedPct > 0 && (
+                            <div
+                              className="h-full absolute rounded-r-full"
+                              style={{
+                                left: `${(cliffDays / vestingDays) * 100}%`,
+                                width: `${(linearDays / vestingDays) * (elapsedPct / 100) * 100}%`,
+                                backgroundColor: "#13636F",
+                                transition: "width 1s linear",
+                              }}
+                            />
+                          )}
                         </div>
                         {/* Markers below */}
-                        <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
-                          <span>Start</span>
+                        <div className="flex justify-between text-[10px] text-gray-400 mt-1.5 relative">
+                          <span>{isFinalizedNonLockup && startTime ? fmtDate(startTime) : "Sale finalize"}</span>
                           {cliffDays > 0 && cliffDays < vestingDays && (
                             <span style={{ position: "absolute", left: `${(cliffDays / vestingDays) * 100}%`, transform: "translateX(-50%)" }}>
-                              {fmtDur(cliffDays)}
+                              {isFinalizedNonLockup && cliffEnd ? fmtDate(cliffEnd) : fmtDur(cliffDays)}
                             </span>
                           )}
-                          <span>{fmtDur(vestingDays)}</span>
+                          <span>{isFinalizedNonLockup && fullUnlock ? fmtDate(fullUnlock) : `+${fmtDur(vestingDays)}`}</span>
                         </div>
                       </div>
                     </div>
@@ -1277,6 +1328,7 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
                 );
+                })()}
               })()}
 
               {activeTab === "OTC & Bank" && saleRaw?.otc_enabled && (
