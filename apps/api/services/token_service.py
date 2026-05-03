@@ -246,3 +246,56 @@ class TokenService:
             )
 
         return token
+
+    async def update_redemption(
+        self,
+        user_id: UUID,
+        token_id: UUID,
+        updates: dict,
+    ) -> Token:
+        """Update redemption attributes on a token.
+
+        Args:
+            user_id: Authenticated user (must be the token's issuer or admin).
+            token_id: Token UUID.
+            updates: Mapping of field names to new values (exclude_unset).
+
+        Returns:
+            Updated token.
+
+        Raises:
+            HTTPException: 404 if not found, 403 if not the owner.
+        """
+        result = await self.db.execute(
+            select(Token).options(selectinload(Token.issuer)).where(Token.id == token_id)
+        )
+        token = result.scalar_one_or_none()
+
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "TOKEN_NOT_FOUND", "message": "Token not found"},
+            )
+
+        if token.issuer.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "NOT_AUTHORIZED", "message": "Not authorized to update this token"},
+            )
+
+        allowed_fields = {
+            "redemption_type",
+            "redemption_url",
+            "redemption_description",
+            "redemption_manager_address",
+        }
+        for field, value in updates.items():
+            if field in allowed_fields:
+                # Store enum value as string for String(20) column
+                if hasattr(value, "value"):
+                    value = value.value
+                setattr(token, field, value)
+
+        await self.db.commit()
+        await self.db.refresh(token)
+        return token

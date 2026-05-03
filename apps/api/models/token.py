@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -131,6 +131,22 @@ class Token(BaseModel):
     )
     redemption_manager_address: Mapped[str | None] = mapped_column(
         String(42),
+        nullable=True,
+    )
+
+    redemption_type: Mapped[str] = mapped_column(
+        String(20),
+        server_default="none",
+        nullable=False,
+    )
+
+    redemption_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    redemption_description: Mapped[str | None] = mapped_column(
+        Text,
         nullable=True,
     )
 

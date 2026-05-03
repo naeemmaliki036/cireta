@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.schemas.token import (
     TokenCreateRequest,
     TokenListResponse,
+    TokenRedemptionUpdate,
     TokenResponse,
 )
 from apps.api.services.token_service import TokenService
@@ -60,6 +61,10 @@ def _token_to_response(token) -> TokenResponse:
         max_supply=str(token.max_supply) if token.max_supply is not None else None,
         mintable=token.mintable if token.mintable is not None else True,
         current_supply=str(token.current_supply) if token.current_supply is not None else None,
+        redemption_type=getattr(token, "redemption_type", None) or "none",
+        redemption_url=getattr(token, "redemption_url", None),
+        redemption_description=getattr(token, "redemption_description", None),
+        redemption_manager_address=getattr(token, "redemption_manager_address", None),
     )
 
 
@@ -184,6 +189,27 @@ async def deploy_token(
     Requires: issuer role (must be token owner).
     """
     token = await token_service.deploy_contract(user_id, token_id)
+    return _token_to_response(token)
+
+
+@router.patch("/{token_id}/redemption", response_model=TokenResponse)
+async def update_token_redemption(
+    token_id: UUID,
+    request: TokenRedemptionUpdate,
+    user_id: CurrentUserId,
+    token_service: Annotated[TokenService, Depends(get_token_service)],
+) -> TokenResponse:
+    """Update redemption configuration for a token.
+
+    Requires: issuer role (must own the token).
+    Accepts partial updates — only fields present in the request body are written.
+    """
+    updates = request.model_dump(exclude_unset=True)
+    token = await token_service.update_redemption(
+        user_id=user_id,
+        token_id=token_id,
+        updates=updates,
+    )
     return _token_to_response(token)
 
 

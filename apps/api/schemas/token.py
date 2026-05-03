@@ -3,9 +3,9 @@
 import re
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from apps.api.models.enums import AssetType
+from apps.api.models.enums import AssetType, RedemptionType
 
 # Max supply: 10 billion tokens with 18 decimals
 _MAX_SUPPLY = Decimal("10000000000")
@@ -27,6 +27,9 @@ class TokenCreateRequest(BaseModel):
     image_url: str | None = None
     max_supply: Decimal | None = Field(default=None, gt=0, le=_MAX_SUPPLY)
     mintable: bool = True
+    redemption_type: RedemptionType | None = None
+    redemption_url: str | None = Field(default=None, max_length=500)
+    redemption_description: str | None = Field(default=None, max_length=2000)
 
     @field_validator("symbol")
     @classmethod
@@ -55,6 +58,8 @@ class TokenCreateRequest(BaseModel):
 class TokenResponse(BaseModel):
     """Token response."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     issuer_id: str
     name: str
@@ -80,9 +85,19 @@ class TokenResponse(BaseModel):
     max_supply: str | None = None
     mintable: bool = True
     current_supply: str | None = None
+    redemption_type: str = "none"
+    redemption_url: str | None = None
+    redemption_description: str | None = None
+    redemption_manager_address: str | None = None
 
-    class Config:
-        from_attributes = True
+
+class TokenRedemptionUpdate(BaseModel):
+    """Partial update for token redemption settings (PATCH endpoint)."""
+
+    redemption_type: RedemptionType | None = None
+    redemption_url: str | None = Field(default=None, max_length=500)
+    redemption_description: str | None = Field(default=None, max_length=2000)
+    redemption_manager_address: str | None = Field(default=None, max_length=42)
 
 
 class TokenListResponse(BaseModel):

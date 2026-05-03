@@ -136,3 +136,11 @@ class IdentitySyncJobAction(str, Enum):
     PROVISION = "provision"  # Re-sync the buyer's full wallet set after KYC approval
     ADD = "add"  # Whitelist a single newly-linked wallet
     REMOVE = "remove"  # Revoke a single wallet (admin-approved deletion)
+
+
+class RedemptionType(str, Enum):
+    """How token holders can redeem their tokens for the underlying asset."""
+
+    NONE = "none"
+    MANUAL_OFF_CHAIN = "manual_off_chain"
+    ON_CHAIN = "on_chain"
