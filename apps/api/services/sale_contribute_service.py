@@ -50,7 +50,14 @@ class SaleContributeService:
         Raises:
             HTTPException: If not eligible or sale not active.
         """
-        # Get user and check KYC
+        # Get user. KYC eligibility is NOT re-checked here — the on-chain
+        # Sale.buy() function calls identityRegistry.isVerified(msg.sender)
+        # and reverts before mining if the buyer isn't whitelisted. If the
+        # tx_hash we're recording confirmed, the contract has already
+        # enforced KYC. Backend re-checks via user.can_invest / kyc_level
+        # were redundant and brittle (desync between Sumsub webhook and the
+        # polling reconcile path produced false KYC_REQUIRED rejections).
+        # The on-chain identity registry is the single source of truth.
         user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
 
@@ -59,33 +66,6 @@ class SaleContributeService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "USER_NOT_FOUND", "message": "User not found"},
             )
-
-        if not user.can_invest:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "code": "KYC_REQUIRED",
-                    "message": "KYC level 2 required to invest",
-                },
-            )
-
-        # KYC expiry check
-        if user.kyc_expires_at:
-            from datetime import UTC
-            from datetime import datetime as dt_cls
-
-            now = dt_cls.now(UTC)
-            expires = user.kyc_expires_at
-            if hasattr(expires, "tzinfo") and expires.tzinfo is None:
-                expires = expires.replace(tzinfo=UTC)
-            if now > expires:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail={
-                        "code": "KYC_EXPIRED",
-                        "message": "Your KYC verification has expired. Please re-verify.",
-                    },
-                )
 
         # Wallet screening before contribution
         if wallet_address:
