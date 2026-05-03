@@ -5,7 +5,7 @@
   "tokenImplementation": "0x2d91AE2ce5679EfC15A6B08C2AF5cE4a2d1c7BE5",
   "simpleIdentityRegistryImplementation": "0x1d3A1B8416f124f0B85576fAD11F31F289DE3d76",
   "complianceImplementation": "0x48a4758e0e60dd3B8Fc020786e9ebfA14340d26f",
-  "saleImplementation": "0xEC918f0f0BDdEDfb2932b022Ea1C1c94aae5473A",
+  "saleImplementation": "0x080cB251eA922eA64b842C105bF4501AfC8401f6",
   "fractionTokenImplementation": "0xB1F4F47e79B93F912882309f4e7373968A7e9D6C",
   "vaultImplementation": "0x77793306592687f19685DF6358A0905AB222aA07",
   "tokenFactory": "0x6992BcD24847d062515Ba91E1c7af3D736688263",
@@ -15,5 +15,7 @@
   "maxHolderCountModule": "0xB142b8DBce99a1D1851b270A153B92D0eA6B08a2",
   "otcTokenImplementation": "0x112Ab0a6F3C90ee9232b2EA9c4451188697DFc9e",
   "otcTokenFactory": "0x19EbBfba479Ded9ac4190Cca7D9c4AE86aE926e3",
-  "ciretaUSDC": "0x3Bfb6B62C015EE815e5Eb0A7e212F580446D9898"
+  "ciretaUSDC": "0x3Bfb6B62C015EE815e5Eb0A7e212F580446D9898",
+  "saleImplementationVersion": "6.0.0",
+  "saleImplementationDeployedAt": "2026-05-03T15:55:28.215Z"
 }

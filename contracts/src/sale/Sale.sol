@@ -175,6 +175,12 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     /// @notice OTC token address set or updated. Worker needs this so it
     /// monitors the right OTC token for mints and approval syncs.
     event OTCTokenSet(address indexed previousToken, address indexed newToken);
+    /// @notice Round-6: emitted when the issuer adjusts the price of a direct-mode
+    /// sale via setPrice(). The previous active phase is shortened to `block.timestamp`
+    /// and a new phase is appended starting at the same timestamp with the new price.
+    /// Subgraph reconstructs the price-history timeline from these events plus
+    /// PhaseAdded/PhaseShortened.
+    event PriceUpdated(uint256 indexed previousPhaseId, uint256 indexed newPhaseId, uint256 oldPrice, uint256 newPrice);
     /// @notice Emitted on every UUPS upgrade. ERC1967 also emits `Upgraded(impl)`
     /// from the proxy; this is a parallel marker that includes the nonce when
     /// available, so off-chain monitors can sequence upgrade-related events.
@@ -241,6 +247,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     error AmountTooSmall();
     error InsufficientOTCBalance();
     error OTCNotApproved();
+    // Round-6
+    error RefundsNotApplicable();
+    error OnlyDirectMode();
+    error NoActivePhase();
 
     // ── Access Control ──────────────────────────────────────────────────────
 
@@ -358,7 +368,7 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     /// @notice Contract version — used to verify which impl is live on-chain.
-    function version() external pure returns (string memory) { return "5.0.0"; }
+    function version() external pure returns (string memory) { return "6.0.0"; }
 
     // ── Admin-Only Functions ────────────────────────────────────────────────
 
@@ -584,6 +594,101 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
         p.startTime = newStartTime;
         emit PhaseAdvanced(phaseId, newStartTime);
+    }
+
+    /// @notice Round-6: Issuer updates the price of a direct-mode sale at any
+    /// time. Closes the currently-active phase to `block.timestamp` and appends
+    /// a new phase starting at the same instant with the new price, inheriting
+    /// per-buyer caps and allocation mode from the prior phase.
+    ///
+    /// @dev Restricted to direct mode because vested rounds explicitly commit
+    /// to a price tier per phase and changing it mid-flight would be a
+    /// bait-and-switch on contributors. Direct sales are commodity-pricing
+    /// where the price tracks an external market, so atomic updates are the
+    /// expected operating model.
+    ///
+    /// The new phase inherits remaining allocation (current.allocation - sold),
+    /// caps, and topUpMin from the prior phase, and runs to `saleEndTime`. For
+    /// open-ended sales it runs to `saleStartTime + MAX_SALE_DURATION`.
+    ///
+    /// @param newPrice New payment-token price for one whole project token.
+    function setPrice(uint256 newPrice) external onlyIssuer {
+        if (saleMode != SaleMode.Direct) revert OnlyDirectMode();
+        if (status != SaleStatus.Active) revert InvalidStatus();
+        if (newPrice == 0) revert ZeroPricePerToken();
+
+        // Find the currently active phase (block.timestamp inside [start, end])
+        uint256 currentPhaseId = type(uint256).max;
+        for (uint256 i = 0; i < phases.length; i++) {
+            Phase storage p = phases[i];
+            if (block.timestamp >= p.startTime && block.timestamp <= p.endTime) {
+                currentPhaseId = i;
+                break;
+            }
+        }
+        if (currentPhaseId == type(uint256).max) revert NoActivePhase();
+
+        Phase storage current = phases[currentPhaseId];
+        uint256 oldPrice = current.pricePerToken;
+
+        // Compute the new phase's window
+        uint256 newEndTime;
+        if (openEnded) {
+            newEndTime = saleStartTime + MAX_SALE_DURATION;
+        } else {
+            newEndTime = saleEndTime;
+        }
+        // If the current phase already runs until the sale end, there's
+        // technically no room — but since we're shortening the current to
+        // block.timestamp, the new phase has [block.timestamp, saleEnd] which
+        // is always > 0 because the sale isn't over yet (status==Active check).
+        if (newEndTime <= block.timestamp) revert PhaseInPast();
+
+        // Compute remaining allocation on the prior phase to carry forward.
+        // Subtract sold from allocation (Fixed mode) — for Remaining mode the
+        // allocation field is informational, so just carry it as-is.
+        uint256 carriedAllocation = current.allocation > current.sold
+            ? current.allocation - current.sold
+            : 0;
+
+        // Shorten the current phase to now (closes it for new buys).
+        // Note: shortenPhase() requires newEnd > startTime; the active phase
+        // was already started so block.timestamp > startTime is guaranteed.
+        if (block.timestamp < current.startTime) revert InvalidPhaseTimeRange();
+        current.endTime = block.timestamp;
+        emit PhaseShortened(currentPhaseId, block.timestamp);
+
+        // Append the new phase. We bypass addPhase()'s overlap scan because
+        // (a) the prior phase is closed at block.timestamp, (b) any later
+        // future phase would have startTime > block.timestamp; the new phase
+        // runs to saleEndTime, so it WOULD overlap any pre-scheduled later
+        // phase. Reject in that case to keep behavior predictable.
+        for (uint256 i = 0; i < phases.length; i++) {
+            if (i == currentPhaseId) continue;
+            Phase storage other = phases[i];
+            if (other.startTime >= block.timestamp && other.startTime < newEndTime) {
+                revert PhaseOverlap();
+            }
+        }
+
+        phases.push(Phase({
+            name: current.name,
+            pricePerToken: newPrice,
+            allocation: carriedAllocation,
+            sold: 0,
+            minTokens: current.minTokens,
+            maxTokens: current.maxTokens,
+            topUpMinTokens: current.topUpMinTokens,
+            startTime: block.timestamp,
+            endTime: newEndTime,
+            whitelistOnly: current.whitelistOnly,
+            allocationMode: current.allocationMode
+        }));
+
+        uint256 newPhaseId = phases.length - 1;
+        lastPhaseAddedAt = block.timestamp;
+        emit PhaseAdded(newPhaseId, current.name, newPrice);
+        emit PriceUpdated(currentPhaseId, newPhaseId, oldPrice, newPrice);
     }
 
     /// @notice Remaining tokens available for sale across all phases.
@@ -920,8 +1025,15 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @dev Round-5: parameterized so closeSale can force the failed branch
     /// even when soft cap is met.
+    /// @dev Round-6: direct-mode sales structurally cannot fail. The soft-cap
+    /// concept doesn't apply to ready-to-sell commodity tokens — whatever
+    /// sold during the window stays sold, the rest is unsold. The `success`
+    /// parameter is forced to true for direct mode.
     function _finalize(bool success) internal {
         finalizationPending = false;
+        if (saleMode == SaleMode.Direct) {
+            success = true;
+        }
         if (success) {
             status = SaleStatus.FinalizedSuccess;
             finalizedAt = block.timestamp;
@@ -979,7 +1091,11 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     /// @notice Round-5: admin/issuer activates the refund window after a failed sale.
     /// One-way switch — once activated, refunds are open forever.
+    /// @dev Round-6: direct-mode sales cannot enter the refund flow. _finalize()
+    /// forces them to FinalizedSuccess, so this status check naturally rejects
+    /// them, but we add an explicit guard for clarity and defense-in-depth.
     function activateRefunds() external onlyIssuerOrAdmin {
+        if (saleMode == SaleMode.Direct) revert RefundsNotApplicable();
         if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
         if (refundsActive) revert AlreadyApproved();
         refundsActive = true;
@@ -992,6 +1108,10 @@ contract Sale is Initializable, UUPSUpgradeable, ReentrancyGuard {
     function claimRefund() external nonReentrant {
         if (status != SaleStatus.FinalizedFailed) revert InvalidStatus();
         if (!refundsActive) revert RefundsNotActive();
+        // Round-6: defense-in-depth. activateRefunds() rejects direct mode,
+        // so refundsActive can never be true here, but we assert anyway in
+        // case a future change accidentally re-enables the path.
+        if (saleMode == SaleMode.Direct) revert RefundsNotApplicable();
         Contribution storage contrib = contributions[msg.sender];
         if (contrib.refunded) revert AlreadyClaimed();
 
