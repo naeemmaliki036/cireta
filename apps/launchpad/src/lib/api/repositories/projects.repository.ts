@@ -137,6 +137,11 @@ export interface SaleRaw {
   finalized_at?: string | null;
   finalization_pending?: boolean;
   sale_mode?: string;
+  // Round-6 redemption fields (from token, forwarded by sale endpoint)
+  redemption_type?: "none" | "manual_off_chain" | "on_chain";
+  redemption_url?: string | null;
+  redemption_description?: string | null;
+  redemption_manager_address?: string | null;
 }
 
 interface SaleListRaw {

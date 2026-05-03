@@ -35,7 +35,7 @@ const HOLDINGS_TIPS: InfoSidebarItem[] = [
     icon: ShieldCheck,
     title: "Need a refund?",
     body:
-      "If a sale didn't reach its soft cap, a Refund banner appears on your /portfolio page. Refunds return your USDC.",
+      "If a sale didn't reach its soft cap, a Refund banner appears on your /portfolio page. Refunds return your USDC (vested sales only).",
   },
 ];
 

@@ -56,6 +56,7 @@ export default function InvestPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
   const [saleOtcEnabled, setSaleOtcEnabled] = useState(false);
+  const [saleMode, setSaleMode] = useState<string | null>(null);
   const [paymentTokenAddress, setPaymentTokenAddress] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"crypto" | "otc" | "otc_token" | null>(null);
   const [loading, setLoading] = useState(true);
@@ -326,6 +327,7 @@ export default function InvestPage() {
         setProject(proj);
         setSaleId(raw.id);
         setSaleOtcEnabled(raw.otc_enabled ?? false);
+        setSaleMode(raw.sale_mode ?? null);
         if (raw.payment_token) setPaymentTokenAddress(raw.payment_token);
         // If OTC is not enabled, auto-select crypto
         if (!raw.otc_enabled) setPaymentMethod("crypto");
@@ -1272,6 +1274,7 @@ export default function InvestPage() {
                   tokensToReceive={tokensToReceive} isLoading={confirmLoading || isRecording}
                   error={error} onConfirm={handleConfirm}
                   onBack={() => setStep("amount")}
+                  saleMode={saleMode}
                   errorContext={{
                     txHash: saleContributeAction.txHash ?? null,
                     contractAddress: saleContractAddress ?? null,
@@ -1285,6 +1288,7 @@ export default function InvestPage() {
               <InvestSuccessStep
                 project={project} amount={numericAmount}
                 tokensToReceive={tokensToReceive} txHash={txHash}
+                saleMode={saleMode}
               />
             )}
           </motion.div>

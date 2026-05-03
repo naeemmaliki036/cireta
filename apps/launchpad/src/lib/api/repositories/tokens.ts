@@ -17,6 +17,11 @@ export interface Token {
     name: string;
     slug: string;
   };
+  // Redemption fields (Round-6)
+  redemption_type?: "none" | "manual_off_chain" | "on_chain";
+  redemption_url?: string | null;
+  redemption_description?: string | null;
+  redemption_manager_address?: string | null;
 }
 
 export interface TokenListResponse {

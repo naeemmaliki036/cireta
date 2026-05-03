@@ -460,6 +460,8 @@ interface InvestConfirmStepProps {
   isLoading: boolean;
   error: string | null;
   isSafe?: boolean;
+  /** Sale mode — controls buyer-facing delivery copy. */
+  saleMode?: "direct" | "vested" | string | null;
   onConfirm: () => void;
   onBack?: () => void;
   /**
@@ -489,6 +491,7 @@ export function InvestConfirmStep({
   isLoading,
   error,
   isSafe = false,
+  saleMode,
   onConfirm,
   onBack,
   isRecording: _isRecording = false,
@@ -503,6 +506,16 @@ export function InvestConfirmStep({
         <SummaryRow label="Amount" value={`${amount.toLocaleString()} USDC`} />
         <SummaryRow label="Tokens" value={`${tokensToReceive.toLocaleString()} ${project.tokenSymbol}`} />
       </div>
+      {saleMode === "direct" && (
+        <p className="text-xs text-black/60 mb-3 text-center">
+          This is a direct purchase. Tokens will arrive in your wallet immediately.
+        </p>
+      )}
+      {saleMode === "vested" && (
+        <p className="text-xs text-black/60 mb-3 text-center">
+          Your contribution will be locked until the sale finalizes.
+        </p>
+      )}
       <p className="text-xs text-black/40 mb-4 text-center">
         Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
       </p>
@@ -545,9 +558,11 @@ interface InvestSuccessStepProps {
   amount: number;
   tokensToReceive: number;
   txHash: string | null;
+  /** Sale mode — controls post-purchase refund copy. */
+  saleMode?: "direct" | "vested" | string | null;
 }
 
-export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: InvestSuccessStepProps) {
+export function InvestSuccessStep({ project, amount, tokensToReceive, txHash, saleMode }: InvestSuccessStepProps) {
   const chainId = useChainId();
   return (
     <div className="text-center py-8">
@@ -579,6 +594,11 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash }: 
         )}
         <SummaryRow label="Status" value={<Badge variant="success">Confirmed</Badge>} />
       </div>
+      {saleMode === "vested" && (
+        <p className="text-xs text-black/50 text-center">
+          If the sale ends below soft cap, you can refund from your portfolio.
+        </p>
+      )}
     </div>
   );
 }

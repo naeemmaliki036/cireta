@@ -269,6 +269,9 @@ export default function ClaimTokenPage({
                 </div>
                 <h2 className="text-base font-semibold text-text">Sale Did Not Reach Soft Cap</h2>
               </div>
+              <p className="text-xs text-black/50 mb-3">
+                This applies to vested sales that ended below their soft cap. Direct sales don&apos;t offer refunds — see the redemption section on the project page instead.
+              </p>
               <p className="text-sm text-black/60 mb-5">
                 This sale was completed without reaching its soft cap. You can claim your USDC refund directly from the smart contract.
               </p>

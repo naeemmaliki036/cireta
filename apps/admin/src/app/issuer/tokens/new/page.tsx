@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Coins, Shield, Rocket,
-  Globe, Zap, AlertCircle, Wallet, XCircle,
+  Globe, Zap, AlertCircle, Wallet, XCircle, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useDisconnect } from "wagmi";
@@ -16,7 +16,8 @@ import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { IssuerDashboardLayout } from "@/components/templates";
 import {
   StepTokenDetails, StepIdentityRegistry, StepCompliance, StepDeploy,
-  type TokenFormData, type ComplianceConfig,
+  StepRedemption, DEFAULT_REDEMPTION,
+  type TokenFormData, type ComplianceConfig, type RedemptionFormData,
 } from "@/lib/tokenFormSteps";
 import { useTokenDeploy, DEPLOY_STAGE_LABEL } from "@/hooks/useTokenDeploy";
 import { ISSUER_REGISTRY_ABI } from "@/lib/contracts/abis/issuerRegistry";
@@ -26,7 +27,8 @@ const STEPS = [
   { id: 1, title: "Token Details", icon: Coins },
   { id: 2, title: "Identity Registry", icon: Globe },
   { id: 3, title: "Compliance", icon: Shield },
-  { id: 4, title: "Review & Deploy", icon: Rocket },
+  { id: 4, title: "Redemption", icon: RefreshCw },
+  { id: 5, title: "Review & Deploy", icon: Rocket },
 ];
 
 const PLATFORM_IR = process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS ?? "";
@@ -48,6 +50,7 @@ export default function CreateTokenPage() {
   const [selectedModules, setSelectedModules] = useState<string[]>(["country_allow", "max_ownership"]);
   const [formData, setFormData] = useState<TokenFormData>(DEFAULT_FORM);
   const [complianceConfig, setComplianceConfig] = useState<ComplianceConfig>(DEFAULT_COMPLIANCE);
+  const [redemptionData, setRedemptionData] = useState<RedemptionFormData>(DEFAULT_REDEMPTION);
 
   const { isConnected, address: walletAddress } = useAccount();
   const { openConnectModal } = useConnectModal();
@@ -105,7 +108,7 @@ export default function CreateTokenPage() {
 
   const handleDeploy = async (): Promise<void> => {
     if (!isConnected || !walletAddress) { openConnectModal?.(); return; }
-    await deploy(walletAddress as `0x${string}`, formData);
+    await deploy(walletAddress as `0x${string}`, formData, redemptionData);
   };
 
   const isDeploying = deployStage !== "idle" && deployStage !== "done";
@@ -278,6 +281,9 @@ export default function CreateTokenPage() {
               complianceConfig={complianceConfig} setComplianceConfig={setComplianceConfig} />
           )}
           {currentStep === 4 && (
+            <StepRedemption data={redemptionData} onChange={setRedemptionData} />
+          )}
+          {currentStep === 5 && (
             <StepDeploy formData={formData} selectedModules={selectedModules} complianceConfig={complianceConfig} />
           )}
         </div>

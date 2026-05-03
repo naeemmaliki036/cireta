@@ -761,7 +761,9 @@ export default function ProjectDetailPage() {
                         ["Total Supply", token ? `${(Number(token.total_supply) / Math.pow(10, token.decimals ?? 6)).toLocaleString()} ${project.tokenSymbol}` : project.isComingSoon ? "TBD" : `${totalSupply.toLocaleString()} ${project.tokenSymbol}`],
                         ["Currency", "USDC"],
                         ["Current Round", ap ? ap.name : "—"],
-                        ["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`],
+                        ...(saleRaw?.sale_mode === "vested"
+                          ? [["Soft Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(softCap)} USDC`] as [string, string]]
+                          : []),
                         ["Hard Cap", project.isComingSoon ? "TBD" : `${fmtUsdc(hardCap)} USDC`],
                         ["Per-buyer Cap", project.isComingSoon ? "TBD" : maxTokensInvestor > 0 ? `${maxTokensInvestor.toLocaleString()} ${project.tokenSymbol}` : "No per-buyer limit"],
                       ].map(([k, v]) => (
@@ -798,7 +800,7 @@ export default function ProjectDetailPage() {
                         </div>
                         <div className="relative h-4 bg-gray-100 rounded-full mb-2 group">
                           <div className="h-full bg-darkAqua rounded-full transition-all" style={{ width: `${raisedPct}%` }} />
-                          {softCap > 0 && softCapPct > 0 && softCapPct < 100 && (
+                          {saleRaw?.sale_mode === "vested" && softCap > 0 && softCapPct > 0 && softCapPct < 100 && (
                             <div className="absolute top-0 bottom-0 w-0.5 bg-white cursor-pointer" style={{ left: `${softCapPct}%` }}>
                               <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] font-medium px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                 Soft Cap: {fmtUsdc(softCap)} USDC
@@ -810,7 +812,7 @@ export default function ProjectDetailPage() {
                           <span className="text-text font-medium">{fmtUsdc(raised)} raised</span>
                           <span className="text-gray-400">{fmtUsdc(hardCap)} target</span>
                         </div>
-                        {softCap > 0 && softCapMet && (
+                        {saleRaw?.sale_mode === "vested" && softCap > 0 && softCapMet && (
                           <p className="text-[11px] text-emerald-600 font-medium mt-1.5 flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" /> Soft cap reached ({fmtUsdc(softCap)} USDC)
                           </p>
@@ -1017,6 +1019,66 @@ export default function ProjectDetailPage() {
                             );
                           })}
                         </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* What happens after you buy — mode-aware */}
+                  {(() => {
+                    const isDirect = saleRaw?.sale_mode === "direct";
+                    const isVested = saleRaw?.sale_mode === "vested";
+                    if (!isDirect && !isVested) return null;
+                    const rType = token?.redemption_type ?? saleRaw?.redemption_type;
+                    const rUrl = token?.redemption_url ?? saleRaw?.redemption_url;
+                    const rDesc = token?.redemption_description ?? saleRaw?.redemption_description;
+                    const rAddr = token?.redemption_manager_address ?? saleRaw?.redemption_manager_address;
+                    const assetLabel = (project.assetType ?? "asset").toLowerCase();
+
+                    const redemptionBlock = (
+                      <div className="mt-3 space-y-1">
+                        {rType === "manual_off_chain" && (
+                          <p className="text-sm text-black/70">
+                            To redeem these tokens for the underlying {assetLabel}, follow the issuer&apos;s redemption process
+                            {rUrl ? (
+                              <> — <a href={rUrl} target="_blank" rel="noopener noreferrer" className="underline text-darkAqua">redemption instructions</a>.</>
+                            ) : "."}
+                            {rDesc && <span className="block mt-1 text-black/60">{rDesc}</span>}
+                          </p>
+                        )}
+                        {rType === "on_chain" && (
+                          <p className="text-sm text-black/70">
+                            To redeem these tokens for the underlying {assetLabel}, use the on-chain redemption portal at contract{" "}
+                            <span className="font-mono text-xs break-all text-text">{rAddr ?? "—"}</span>.
+                            {rDesc && <span className="block mt-1 text-black/60">{rDesc}</span>}
+                          </p>
+                        )}
+                        {(rType === "none" || !rType) && (
+                          <p className="text-sm text-black/60">
+                            These tokens are not currently set up for redemption — you can hold or transfer them.
+                          </p>
+                        )}
+                      </div>
+                    );
+
+                    return (
+                      <div className="bg-gray-50 rounded-xl p-5">
+                        <h3 className="font-bold text-text text-base mb-3">What happens after you buy</h3>
+                        {isDirect ? (
+                          <div className="space-y-2 text-sm text-black/70 leading-relaxed">
+                            <p>Tokens are delivered to your wallet immediately upon purchase confirmation.</p>
+                            <p>You can transfer them to any other verified investor on the platform.</p>
+                            {redemptionBlock}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-sm text-black/70 leading-relaxed">
+                            <p>
+                              Your contribution is locked until the sale finalizes and the soft cap is reached.
+                              Once claimed, tokens are delivered to your wallet.
+                            </p>
+                            <p className="font-medium text-text">Once claimed, the same redemption options apply:</p>
+                            {redemptionBlock}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -1342,6 +1404,41 @@ export default function ProjectDetailPage() {
                       your tokens {isCliffOnly ? "become fully claimable" : "begin unlocking linearly"}.
                       You can claim vested tokens at any time from your portfolio.
                     </div>
+
+                    {/* Redemption options — apply post-claim for vested sales */}
+                    {(() => {
+                      const rType = token?.redemption_type ?? saleRaw?.redemption_type;
+                      const rUrl = token?.redemption_url ?? saleRaw?.redemption_url;
+                      const rDesc = token?.redemption_description ?? saleRaw?.redemption_description;
+                      const rAddr = token?.redemption_manager_address ?? saleRaw?.redemption_manager_address;
+                      const assetLabel = (project.assetType ?? "asset").toLowerCase();
+                      return (
+                        <div className="bg-gray-50 rounded-xl p-5">
+                          <p className="font-medium text-text text-sm mb-2">Once claimed, the same redemption options apply:</p>
+                          {rType === "manual_off_chain" && (
+                            <p className="text-sm text-black/70">
+                              To redeem these tokens for the underlying {assetLabel}, follow the issuer&apos;s redemption process
+                              {rUrl ? (
+                                <> — <a href={rUrl} target="_blank" rel="noopener noreferrer" className="underline text-darkAqua">redemption instructions</a>.</>
+                              ) : "."}
+                              {rDesc && <span className="block mt-1 text-black/60">{rDesc}</span>}
+                            </p>
+                          )}
+                          {rType === "on_chain" && (
+                            <p className="text-sm text-black/70">
+                              To redeem these tokens for the underlying {assetLabel}, use the on-chain redemption portal at contract{" "}
+                              <span className="font-mono text-xs break-all text-text">{rAddr ?? "—"}</span>.
+                              {rDesc && <span className="block mt-1 text-black/60">{rDesc}</span>}
+                            </p>
+                          )}
+                          {(rType === "none" || !rType) && (
+                            <p className="text-sm text-black/60">
+                              These tokens are not currently set up for redemption — you can hold or transfer them.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
                 })()}

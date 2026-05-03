@@ -6,6 +6,8 @@ import React, { useState } from "react";
 export { StepIdentityRegistry } from "@/lib/tokenFormStepIdentityRegistry";
 export { StepCompliance, StepDeploy } from "@/lib/tokenFormStepCompliance";
 export type { ComplianceConfig } from "@/lib/tokenFormStepCompliance";
+export { StepRedemption, DEFAULT_REDEMPTION } from "@/lib/tokenFormStepRedemption";
+export type { RedemptionFormData } from "@/lib/tokenFormStepRedemption";
 import { Input, Select, Textarea } from "@/components/atoms";
 
 export interface TokenFormData {

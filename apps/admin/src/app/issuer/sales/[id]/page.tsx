@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   Clock, ArrowLeft, AlertCircle, Coins, Bell,
   Pencil, X, Check, CheckCircle2, Upload, ImageIcon, Globe, Star, Rocket,
-  BarChart3, Users, Blocks, Calendar, Timer,
+  BarChart3, Users, Blocks, Calendar, Timer, DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -38,6 +38,7 @@ import { PLATFORM_FEE_MANAGER_ABI } from "@/lib/contracts/abis/platformFeeManage
 import { readContract } from "wagmi/actions";
 import { OTCTokenManager } from "@/components/organisms/OTCTokenManager";
 import { VaultExcessPolicyPanel } from "@/components/molecules/VaultExcessPolicyPanel";
+import { UpdatePriceModal } from "@/components/molecules/UpdatePriceModal";
 
 /** Read fee from PlatformFeeManager on-chain (fallback when useReadContract hook didn't fire) */
 async function readFeeFromChain(
@@ -157,6 +158,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
 
   // Tab management
   const [activeTab, setActiveTab] = useState<"overview" | "phases" | "onchain" | "investors">("overview");
+  const [showUpdatePrice, setShowUpdatePrice] = useState(false);
 
   // On-chain deployment
   const { isConnected, address: walletAddress } = useAccount();
@@ -192,6 +194,18 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       });
     }
   }, [sale?.contract_address, onChainPhaseCount, chainPhases, phaseCountError, phaseCountLoading, sale?.phases.length]);
+
+  // Read on-chain issuer address for Update Price gate
+  const { data: onChainIssuer } = useReadContract({
+    address: (sale?.contract_address as `0x${string}`) || undefined,
+    abi: SALE_ABI as unknown as Abi,
+    functionName: "issuer",
+    query: { enabled: !!sale?.contract_address },
+  });
+  const walletIsIssuer =
+    !!walletAddress &&
+    !!onChainIssuer &&
+    walletAddress.toLowerCase() === (onChainIssuer as string).toLowerCase();
 
   // Read issuer fee from PlatformFeeManager
   const feeManagerAddr = (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || undefined;
@@ -785,6 +799,11 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
           {isApprovedComingSoon && <Button variant="primary" onClick={handleConvertToLive} isLoading={actionLoading === "convert"}>
             Convert to Live Sale
           </Button>}
+          {isActive && sale.sale_mode === "direct" && sale.contract_address && walletIsIssuer && (
+            <Button variant="secondary" size="sm" onClick={() => setShowUpdatePrice(true)}>
+              <DollarSign className="h-4 w-4 mr-1.5" /> Update Price
+            </Button>
+          )}
           {isApproved && sale.contract_address && (
             <Button variant="primary" onClick={handleActivateOnChainIssuer}
               isLoading={activateAction.isPending || activateAction.isConfirming}>
@@ -1456,6 +1475,20 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
             />
           )}
         </div>
+      )}
+
+      {showUpdatePrice && sale.contract_address && (
+        <UpdatePriceModal
+          contractAddress={sale.contract_address as `0x${string}`}
+          currentPhase={
+            sale.phases.find((p) => {
+              const now = Date.now();
+              return now >= new Date(p.start_time).getTime() && now < new Date(p.end_time).getTime();
+            }) ?? sale.phases[sale.phases.length - 1] ?? null
+          }
+          onClose={() => setShowUpdatePrice(false)}
+          onSuccess={() => { setShowUpdatePrice(false); reload(); }}
+        />
       )}
 
     </IssuerDashboardLayout>

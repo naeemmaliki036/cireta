@@ -342,7 +342,7 @@ export default function CreateSalePage() {
     && phaseWindowIssues.length === 0;
 
   const tokenCapsValid = selectedTokenId !== ""
-    && softCap !== ""
+    && (saleMode === "direct" || softCap !== "")
     && hardCap !== ""
     && totalTokenSupply !== ""
     && saleStartDate !== ""
@@ -367,7 +367,7 @@ export default function CreateSalePage() {
       case 7: {
         const issues: string[] = [];
         if (selectedTokenId === "") issues.push("Select the token being sold.");
-        if (softCap === "") issues.push("Soft cap (USDC) is required.");
+        if (saleMode !== "direct" && softCap === "") issues.push("Soft cap (USDC) is required.");
         if (hardCap === "") issues.push("Hard cap (USDC) is required.");
         if (totalTokenSupply === "") issues.push("Total token supply is required.");
         if (saleStartDate === "") issues.push("Sale start date is required.");
@@ -515,7 +515,10 @@ export default function CreateSalePage() {
           vesting_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365) * 86400),
           token_id: selectedTokenId || undefined,
           payment_token: paymentToken || undefined,
-          soft_cap: softCap || undefined,
+          // Direct-mode sales cannot fail (Round-6 contract forces _finalize to succeed),
+          // so soft cap is meaningless. The contract still requires softCap > 0 && softCap <= hardCap,
+          // so we send softCap = hardCap for direct mode — the value is ignored by _finalize.
+          soft_cap: saleMode === "direct" ? (hardCap || undefined) : (softCap || undefined),
           hard_cap: hardCap || undefined,
           total_token_supply: totalTokenSupply || undefined,
           sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
@@ -568,7 +571,11 @@ export default function CreateSalePage() {
         cliff_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(cliffDays) || 0) * 86400),
         vesting_duration_seconds: Math.round((vestingPreset === "lockup" ? parseFloat(lockupDays) || 365 : parseFloat(vestingDays) || 365) * 86400),
         token_id: selectedTokenId || undefined, payment_token: paymentToken,
-        soft_cap: softCap || undefined, hard_cap: hardCap || undefined,
+        // Direct-mode sales cannot fail (Round-6 contract forces _finalize to succeed),
+        // so soft cap is meaningless. The contract still requires softCap > 0 && softCap <= hardCap,
+        // so we send softCap = hardCap for direct mode — the value is ignored by _finalize.
+        soft_cap: saleMode === "direct" ? (hardCap || undefined) : (softCap || undefined),
+        hard_cap: hardCap || undefined,
         total_token_supply: totalTokenSupply || undefined,
         sale_start_time: saleStartDate ? new Date(saleStartDate).toISOString() : undefined,
         sale_end_time: isOpenEnded || !saleEndDate ? undefined : new Date(saleEndDate).toISOString(),
@@ -1075,10 +1082,20 @@ export default function CreateSalePage() {
                 helperText="Paste any ERC-20 stablecoin address. Must be a valid checksummed address."
               />
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <Input label="Soft Cap (USDC)" type="number" placeholder="e.g., 50000" value={softCap} onChange={(e) => setSoftCap(e.target.value)} />
-              <Input label="Hard Cap (USDC)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />
-            </div>
+            {saleMode === "vested" ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Input label="Soft Cap (USDC)" type="number" placeholder="e.g., 50000" value={softCap} onChange={(e) => setSoftCap(e.target.value)} />
+                  <p className="text-xs text-zinc-400 mt-1">If the sale ends below soft cap, investors can refund their USDC.</p>
+                </div>
+                <Input label="Hard Cap (USDC)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />
+              </div>
+            ) : (
+              <div>
+                <Input label="Total Token Allocation (USDC value)" type="number" placeholder="e.g., 500000" value={hardCap} onChange={(e) => setHardCap(e.target.value)} />
+                <p className="text-xs text-zinc-400 mt-1">Direct sales deliver tokens immediately on purchase. There is no soft cap — whatever sells, sells.</p>
+              </div>
+            )}
             {/* Round-5: total token supply */}
             <Input
               label="Total Token Supply (tokens)"
@@ -1466,8 +1483,10 @@ export default function CreateSalePage() {
                   <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Token & Funding</h3>
                   <SectionRow label="Token" value={selectedToken ? `${selectedToken.name} (${selectedToken.symbol})` : "Not selected"} muted={!selectedToken} />
                   <SectionRow label="Payment" value={paymentToken ? (paymentTokens.find(t => t.address.toLowerCase() === paymentToken.toLowerCase())?.symbol || `Custom (${paymentToken.slice(0, 6)}...${paymentToken.slice(-4)})`) : "Not set"} muted={!paymentToken} />
-                  <SectionRow label="Soft Cap" value={softCap ? `$${Number(softCap).toLocaleString()}` : "Not set"} muted={!softCap} />
-                  <SectionRow label="Hard Cap" value={hardCap ? `$${Number(hardCap).toLocaleString()}` : "Not set"} muted={!hardCap} />
+                  {saleMode === "vested" && (
+                    <SectionRow label="Soft Cap" value={softCap ? `$${Number(softCap).toLocaleString()}` : "Not set"} muted={!softCap} />
+                  )}
+                  <SectionRow label={saleMode === "direct" ? "Total Allocation (USDC value)" : "Hard Cap"} value={hardCap ? `$${Number(hardCap).toLocaleString()}` : "Not set"} muted={!hardCap} />
                   <SectionRow label="Phases" value={`${phaseCount} configured`} />
                   {saleMode === "vested" && (
                     <SectionRow label="Vesting" value={`${cliffDays}d cliff + ${vestingDays}d linear`} />

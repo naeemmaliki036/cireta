@@ -1,5 +1,7 @@
 import { apiFetch } from "../client";
 
+export type RedemptionType = "none" | "manual_off_chain" | "on_chain";
+
 export interface Token {
   id: string;
   name: string;
@@ -22,6 +24,18 @@ export interface Token {
   description: string | null;
   image_url: string | null;
   created_at: string;
+  // Round-6: redemption metadata
+  redemption_type: RedemptionType | null;
+  redemption_url: string | null;
+  redemption_description: string | null;
+  redemption_manager_address: string | null;
+}
+
+export interface TokenRedemptionRequest {
+  redemption_type?: RedemptionType;
+  redemption_url?: string | null;
+  redemption_description?: string | null;
+  redemption_manager_address?: string | null;
 }
 
 export interface TokenListResponse {
@@ -57,6 +71,11 @@ export interface TokenCreateRequest {
   mintable?: boolean;
   decimals?: string;
   description?: string;
+  // Round-6: redemption metadata
+  redemption_type?: RedemptionType;
+  redemption_url?: string | null;
+  redemption_description?: string | null;
+  redemption_manager_address?: string | null;
 }
 
 export async function createToken(
@@ -103,6 +122,20 @@ export async function recordTokenDeployment(
 ): Promise<Token> {
   return apiFetch<Token>(`/api/v1/tokens/${tokenId}/record-deployment`, {
     method: "POST",
+    body: data,
+  });
+}
+
+/**
+ * PATCH /v1/tokens/{token_id}/redemption
+ * Updates the redemption metadata fields for a token.
+ */
+export async function updateTokenRedemption(
+  tokenId: string,
+  data: TokenRedemptionRequest,
+): Promise<Token> {
+  return apiFetch<Token>(`/api/v1/tokens/${tokenId}/redemption`, {
+    method: "PATCH",
     body: data,
   });
 }

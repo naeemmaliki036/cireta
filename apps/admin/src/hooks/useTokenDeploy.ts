@@ -6,7 +6,7 @@ import { createToken, recordTokenDeployment } from "@/lib/api/repositories/token
 import { useContractAction } from "@/hooks/useContractAction";
 import { TOKEN_FACTORY_ABI } from "@/lib/contracts/abis/tokenFactory";
 import { requireAddress } from "@/lib/contracts/addresses";
-import type { TokenFormData } from "@/lib/tokenFormSteps";
+import type { TokenFormData, RedemptionFormData } from "@/lib/tokenFormSteps";
 import type { TransactionReceipt } from "viem";
 
 export type DeployStage =
@@ -30,7 +30,7 @@ export interface UseTokenDeployReturn {
   deployStage: DeployStage;
   saveError: string | null;
   createdTokenId: string | null;
-  deploy: (walletAddress: `0x${string}`, formData: TokenFormData) => Promise<void>;
+  deploy: (walletAddress: `0x${string}`, formData: TokenFormData, redemptionData?: RedemptionFormData) => Promise<void>;
   retrySync: () => Promise<void>;
   contractAction: ReturnType<typeof useContractAction>;
 }
@@ -88,6 +88,7 @@ export function useTokenDeploy(): UseTokenDeployReturn {
   const deploy = useCallback(async (
     walletAddress: `0x${string}`,
     formData: TokenFormData,
+    redemptionData?: RedemptionFormData,
   ): Promise<void> => {
     if (!formData.identityRegistry) {
       setSaveError("Select an identity registry before deploying.");
@@ -107,6 +108,12 @@ export function useTokenDeploy(): UseTokenDeployReturn {
           asset_type: formData.assetType, total_supply: formData.maxSupply,
           max_supply: formData.maxSupply, mintable: formData.tokenType === "mintable",
           decimals: formData.decimals, description: formData.description,
+          ...(redemptionData && redemptionData.redemptionType !== "none" ? {
+            redemption_type: redemptionData.redemptionType,
+            redemption_url: redemptionData.redemptionUrl || null,
+            redemption_description: redemptionData.redemptionDescription || null,
+            redemption_manager_address: redemptionData.redemptionManagerAddress || null,
+          } : { redemption_type: "none" }),
         });
         tokenId = created.id;
         setCreatedTokenId(tokenId);

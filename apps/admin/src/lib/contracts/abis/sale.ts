@@ -248,6 +248,14 @@ export const SALE_ABI = [
     ],
   },
   // Events
+  // Round-6: issuer-callable price update on active direct-mode sales
+  {
+    type: "function",
+    name: "setPrice",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "newPrice", type: "uint256" }],
+    outputs: [],
+  },
   { name: "SaleStatusChanged", type: "event", inputs: [{ name: "newStatus", type: "uint8", indexed: false }] },
   { name: "SaleApproved", type: "event", inputs: [] },
   { name: "SaleUnapproved", type: "event", inputs: [] },

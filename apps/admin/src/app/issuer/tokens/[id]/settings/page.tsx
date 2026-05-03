@@ -8,6 +8,7 @@ import { ArrowLeft, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { Button, Spinner } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { RedemptionPanel } from "@/components/molecules/RedemptionPanel";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { useContractAction } from "@/hooks/useContractAction";
 import { CIRETA_TOKEN_ABI } from "@/lib/contracts/abis/ciretaToken";
@@ -282,6 +283,11 @@ export default function TokenSettingsPage({
             />
           </div>
         </div>
+
+        <RedemptionPanel
+          token={token}
+          onUpdated={(updated) => setToken(updated)}
+        />
       </div>
     </IssuerDashboardLayout>
   );
