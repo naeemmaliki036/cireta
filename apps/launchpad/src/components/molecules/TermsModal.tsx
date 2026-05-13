@@ -74,16 +74,17 @@ export function TermsModal({ isOpen, onClose, onAccept, title = "Terms & Conditi
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-2">
           <Button
             variant="outline"
-            className="flex-1 rounded-full"
+            size="sm"
             onClick={onClose}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1 btn-cta rounded-full"
+            size="sm"
+            className="btn-cta"
             onClick={handleAccept}
             disabled={!agreed}
           >
