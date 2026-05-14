@@ -24,7 +24,9 @@ import { apiPost, apiFetch } from "@/lib/api/client";
 import { truncateAddress } from "@/lib/utils";
 import { richDescriptionToHtml } from "@/lib/richText";
 import { getTxUrl } from "@/lib/contracts/addresses";
-import { useChainId } from "wagmi";
+import { useChainId, useAccount, useReadContract } from "wagmi";
+import type { Abi } from "viem";
+import { RedemptionRequestModal } from "@/components/molecules/RedemptionRequestModal";
 
 /* ---------- types for sale content endpoints ---------- */
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: "image" | "video"; video_url?: string }
@@ -169,6 +171,8 @@ export default function ProjectDetailPage() {
   const [txsError, setTxsError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
   const chainId = useChainId();
+  const { address: walletAddress, isConnected: walletConnected } = useAccount();
+  const [showRedemptionModal, setShowRedemptionModal] = useState(false);
   // Read sale + per-phase totals directly from the contract. Called BEFORE
   // any early returns so the hook count stays stable across renders.
   // Hook is safe with null inputs — it disables every read until the sale
@@ -177,6 +181,35 @@ export default function ProjectDetailPage() {
     (saleRaw?.contract_address as `0x${string}` | undefined) ?? null,
     project?.phases?.length ?? 0,
   );
+
+  // Read investor's project-token balance — used to gate the "Request Redemption" button.
+  // Called unconditionally (hooks must not be called conditionally).
+  const projectTokenAddress = (token?.contract_address ?? null) as `0x${string}` | null;
+  const isOnChainRedemption =
+    (token?.redemption_type ?? (saleRaw as unknown as { redemption_type?: string } | null)?.redemption_type) === "on_chain";
+
+  const PROJECT_TOKEN_BALANCE_ABI = [
+    {
+      name: "balanceOf",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "account", type: "address" }],
+      outputs: [{ name: "", type: "uint256" }],
+    },
+  ] as const;
+
+  const { data: investorTokenBalance } = useReadContract({
+    address: projectTokenAddress ?? ("0x0000000000000000000000000000000000000000" as `0x${string}`),
+    abi: PROJECT_TOKEN_BALANCE_ABI as Abi,
+    functionName: "balanceOf",
+    args: walletAddress ? [walletAddress] : undefined,
+    query: {
+      enabled: !!projectTokenAddress && !!walletAddress && isOnChainRedemption,
+    },
+  });
+
+  const investorHasBalance =
+    typeof investorTokenBalance === "bigint" && investorTokenBalance > 0n;
 
   useEffect(() => {
     async function load() {
@@ -1045,11 +1078,23 @@ export default function ProjectDetailPage() {
                           </p>
                         )}
                         {rType === "on_chain" && (
-                          <p className="text-sm text-black/70">
-                            To redeem these tokens for the underlying {assetLabel}, use the on-chain redemption portal at contract{" "}
-                            <span className="font-mono text-xs break-all text-text">{rAddr ?? "—"}</span>.
-                            {rDesc && <span className="block mt-1 text-black/60">{rDesc}</span>}
-                          </p>
+                          <div className="space-y-3">
+                            <p className="text-sm text-black/70">
+                              To redeem these tokens for the underlying {assetLabel}, use the on-chain redemption portal at contract{" "}
+                              <span className="font-mono text-xs break-all text-text">{rAddr ?? "—"}</span>.
+                              {rDesc && <span className="block mt-1 text-black/60">{rDesc}</span>}
+                            </p>
+                            {walletConnected && investorHasBalance && rAddr && token?.contract_address ? (
+                              <button
+                                onClick={() => setShowRedemptionModal(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity"
+                              >
+                                Request Redemption
+                              </button>
+                            ) : !walletConnected ? (
+                              <p className="text-xs text-black/50">Connect your wallet to redeem tokens.</p>
+                            ) : null}
+                          </div>
                         )}
                         {(rType === "none" || !rType) && (
                           <p className="text-sm text-black/60">
@@ -1726,6 +1771,19 @@ export default function ProjectDetailPage() {
       {/* Spacer for mobile sticky bottom bar */}
       <div className="lg:hidden h-20" />
       <Footer />
+
+      {/* On-chain Redemption Modal */}
+      {showRedemptionModal &&
+        token?.contract_address &&
+        token?.redemption_manager_address && (
+          <RedemptionRequestModal
+            isOpen={showRedemptionModal}
+            onClose={() => setShowRedemptionModal(false)}
+            tokenAddress={token.contract_address as `0x${string}`}
+            tokenSymbol={token.symbol}
+            redemptionManagerAddress={token.redemption_manager_address as `0x${string}`}
+          />
+        )}
 
       {/* Login/Register Dialog */}
       {showLoginDialog && (

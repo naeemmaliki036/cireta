@@ -8,6 +8,7 @@ export { ISSUER_REGISTRY_ABI } from "./abis/issuerRegistry";
 export { SIMPLE_IDENTITY_REGISTRY_ABI } from "./abis/simpleIdentityRegistry";
 export { PLATFORM_FEE_MANAGER_ABI } from "./abis/platformFeeManager";
 export { OTC_TOKEN_ABI } from "./abis/otcToken";
+export { REDEMPTION_FACTORY_ABI } from "./abis/redemptionFactory";
 export {
   getAddresses,
   requireAddress,

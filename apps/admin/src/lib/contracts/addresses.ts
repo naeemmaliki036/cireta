@@ -12,6 +12,7 @@ export interface ContractAddresses {
   otcTokenFactory: `0x${string}` | null;
   issuerRegistry: `0x${string}` | null;
   platformFeeManager: `0x${string}` | null;
+  redemptionFactory: `0x${string}` | null;
 }
 
 const addresses: ContractAddresses = {
@@ -27,6 +28,8 @@ const addresses: ContractAddresses = {
     (process.env.NEXT_PUBLIC_ISSUER_REGISTRY_ADDRESS as `0x${string}`) || null,
   platformFeeManager:
     (process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS as `0x${string}`) || null,
+  redemptionFactory:
+    (process.env.NEXT_PUBLIC_REDEMPTION_FACTORY_ADDRESS as `0x${string}`) || null,
 };
 
 /**
