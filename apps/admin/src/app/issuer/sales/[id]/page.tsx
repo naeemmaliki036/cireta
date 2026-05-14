@@ -948,8 +948,10 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       {/* Edit Form */}
       {editing && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg p-6 border border-darkAqua/30 mb-6 space-y-5">
-          <div className="flex items-center justify-between">
+          className="bg-white rounded-lg border border-darkAqua/30 mb-6 overflow-visible">
+          {/* Sticky toolbar — stays visible under the layout header while scrolling
+              through the form body. top offset matches the layout header height. */}
+          <div className="sticky top-[57px] z-10 flex items-center justify-between bg-white/95 backdrop-blur px-6 py-4 border-b border-zinc-100 rounded-t-lg">
             <h2 className="text-lg font-semibold text-text">Edit Sale Details</h2>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={() => setEditing(false)} disabled={saving}>
@@ -960,6 +962,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
               </Button>
             </div>
           </div>
+          <div className="p-6 space-y-5">
 
           <div className="grid grid-cols-1 gap-4">
             <div>
@@ -1047,6 +1050,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                 </div>
               ))}
             </div>
+          </div>
           </div>
         </motion.div>
       )}
