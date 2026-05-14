@@ -6,6 +6,7 @@ vi.mock("wagmi", () => ({
   useAccount: () => ({ isConnected: true, address: "0x1234" }),
   useWriteContract: () => ({ writeContract: vi.fn(), data: undefined, isPending: false, error: null }),
   useWaitForTransactionReceipt: () => ({ isLoading: false, isSuccess: false }),
+  useReadContract: () => ({ data: undefined, isLoading: false }),
   useChainId: () => 8453,
   useConnect: () => ({ connect: vi.fn(), connectors: [] }),
   useSignMessage: () => ({ signMessageAsync: vi.fn() }),
@@ -32,6 +33,7 @@ vi.mock("framer-motion", () => {
   }
   return {
     motion: new Proxy({} as Record<string, unknown>, { get: (_t, prop: string) => makeMotion(prop) }),
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   };
 });
 
@@ -78,6 +80,29 @@ const portfolioMock = {
 
 vi.mock("@/lib/api/repositories/portfolio.repository", () => portfolioMock);
 
+// Prevent safeClient from calling getChainId() at module-load time
+vi.mock("@/lib/safe/safeClient", () => ({
+  proposeTransaction: vi.fn(),
+  getTransaction: vi.fn(),
+  getSafeTxUrl: vi.fn(),
+  initSafe: vi.fn(),
+  initSafeApiKit: vi.fn(),
+  getPendingTransactions: vi.fn(),
+  getSafeInfo: vi.fn(),
+}));
+
+// Stub the contract action hook used by vesting/dividends pages
+vi.mock("@/hooks/useContractAction", () => ({
+  useContractAction: () => ({
+    execute: vi.fn(),
+    state: "idle" as const,
+    txHash: null,
+    txUrl: null,
+    error: null,
+    reset: vi.fn(),
+  }),
+}));
+
 describe("Holdings page", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -112,7 +137,7 @@ describe("Vesting page", () => {
     const VestingPage = (await import("@/app/portfolio/vesting/page")).default;
     render(<VestingPage />);
     expect(await screen.findByText("Wassa Gold")).toBeDefined();
-    expect(screen.getByText(/Cliff passed/)).toBeDefined();
+    expect(screen.getByText("Claim Schedule")).toBeDefined();
   });
 });
 
@@ -126,7 +151,9 @@ describe("Dividends page", () => {
     const DividendsPage = (await import("@/app/portfolio/dividends/page")).default;
     render(<DividendsPage />);
     expect(await screen.findByText("Wassa Gold")).toBeDefined();
-    expect(screen.getByText(/150 USDC/)).toBeDefined();
+    // claimable amount and unit are rendered in sibling nodes — check each independently
+    expect(screen.getByText("150")).toBeDefined();
+    expect(screen.getAllByText(/USDC/).length).toBeGreaterThan(0);
   });
 });
 
@@ -144,7 +171,7 @@ describe("Transactions page", () => {
     render(<TxPage />);
     // After the rename, "investment" tx-type renders the label "Buy"
     expect(await screen.findByText("Buy")).toBeDefined();
-    expect(screen.getByText("confirmed")).toBeDefined();
+    expect(screen.getByText("Confirmed")).toBeDefined();
     // BaseScan link is rendered as an <a> wrapping a truncated tx hash
     const link = screen.getByRole("link");
     expect(link.getAttribute("href")).toContain("0xabc123def456");

@@ -98,7 +98,7 @@ describe("Project Detail Tabs", () => {
     expect(screen.getByRole("button", { name: "Overview" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Token & Sale" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Documents" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "Team" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Project Team" })).toBeDefined();
     expect(screen.getByRole("button", { name: "FAQ" })).toBeDefined();
     expect(screen.getByRole("button", { name: "My Position" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Transactions" })).toBeDefined();

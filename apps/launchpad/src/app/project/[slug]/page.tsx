@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft, ArrowRight, ShoppingBag, FolderOpen, Coins, Bell, Play,
-  FileText, ChevronDown, ChevronUp, Download, Clock, Copy, Check, CheckCircle2,
+  FileText, ChevronDown, ChevronUp, Download, Clock, CheckCircle2,
   User,
 } from "lucide-react";
 import { Badge, Spinner, ProgressBar } from "@/components/atoms";
@@ -315,7 +315,6 @@ export default function ProjectDetailPage() {
   const hardCapTokens = currentPrice > 0 && remainingUsdc < Infinity
     ? Math.floor(remainingUsdc / currentPrice) : Infinity;
   const availableTokens = Math.min(remainingTokens, hardCapTokens === Infinity ? remainingTokens : hardCapTokens);
-  const startTime = ap?.start_time ? new Date(ap.start_time) : null;
   const endTime = ap?.end_time ? new Date(ap.end_time) : null;
   const hardCap = onChain.ready
     ? onChain.hardCap

@@ -85,7 +85,6 @@ export default function CreateTokenPage() {
         if (Date.now() - timestamp < 3_600_000) retrySync();
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdTokenId]);
 
   const walletIsVerifiedIssuer = isActiveIssuer === true;

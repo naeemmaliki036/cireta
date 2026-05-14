@@ -190,7 +190,6 @@ export function useTokenDeploy(): UseTokenDeployReturn {
     // 5. Record
     await doRecord(tokenId, receipt.transactionHash, tokenAddress, irAddress, complianceAddress,
       formData.maxSupply, isMintable, formData.initialMintAmount);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createdTokenId, contractAction, doRecord]);
 
   const retrySync = useCallback(async (): Promise<void> => {

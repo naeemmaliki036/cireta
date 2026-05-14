@@ -5,9 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, Integer, String
+from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+# Use JSONB on Postgres, fall back to plain JSON on SQLite (tests)
+_JSON = JSONB().with_variant(JSON(), "sqlite")
 
 from apps.api.models.enums import KYCStatus, UserRole
 from packages.common.models.base import BaseModel
@@ -79,7 +82,7 @@ class User(BaseModel):
     verified_company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     verified_company_registration_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     verified_company_jurisdiction: Mapped[str | None] = mapped_column(String(3), nullable=True)
-    verified_beneficial_owners: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    verified_beneficial_owners: Mapped[list | None] = mapped_column(_JSON, nullable=True)
     kyc_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # On-chain identity

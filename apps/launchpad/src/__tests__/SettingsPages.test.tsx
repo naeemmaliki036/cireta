@@ -92,7 +92,7 @@ describe("Profile page", () => {
     const input = screen.getByPlaceholderText("Your name") as HTMLInputElement;
     await user.clear(input);
     await user.type(input, "Updated Name");
-    await user.click(screen.getByText("Save Changes"));
+    await user.click(screen.getByText("Save changes"));
 
     const { updateProfile } = await import("@/lib/api/repositories/auth.repository");
     expect(updateProfile).toHaveBeenCalledWith({ display_name: "Updated Name" });
@@ -114,7 +114,7 @@ describe("Verification page", () => {
     render(<VerificationPage />);
     await screen.findByText("Verified");
     expect(screen.getByText("individual")).toBeDefined();
-    expect(screen.getByText("US")).toBeDefined();
+    expect(screen.getByText("United States")).toBeDefined();
   });
 });
 
@@ -149,8 +149,8 @@ describe("Notifications page", () => {
     const user = userEvent.setup();
     const NotificationsPage = (await import("@/app/settings/notifications/page")).default;
     render(<NotificationsPage />);
-    await screen.findByText("Save Preferences");
-    await user.click(screen.getByText("Save Preferences"));
+    await screen.findByText("Save preferences");
+    await user.click(screen.getByText("Save preferences"));
 
     const { apiFetch } = await import("@/lib/api/client");
     expect(apiFetch).toHaveBeenCalledWith(
