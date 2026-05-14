@@ -33,6 +33,7 @@ import {
   type InvestorDetail,
   type SumsubCheckResponse,
 } from "@/lib/api/repositories/buyers";
+import { markWalletRegistered } from "@/lib/api/repositories/admin-wallets";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 
@@ -167,19 +168,27 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     });
   });
 
-  const handleWhitelistOnChain = async (walletAddr: string) => {
+  const handleWhitelistOnChain = async (w: { id: string; address: string }) => {
     if (!isConnected) { openConnectModal?.(); return; }
     if (!whitelistRegistryAddress) {
       setActionMessage({ type: "error", text: "Identity registry address not configured." });
       return;
     }
     const countryCode = parseInt(whitelistCountryCode, 10) || 840;
-    await whitelistAction.execute({
+    const receipt = await whitelistAction.execute({
       address: whitelistRegistryAddress as `0x${string}`,
       abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
       functionName: "addToWhitelist",
-      args: [walletAddr as `0x${string}`, countryCode],
+      args: [w.address as `0x${string}`, countryCode],
     });
+    if (receipt) {
+      try {
+        await markWalletRegistered(w.id, receipt.transactionHash);
+        await reload();
+      } catch {
+        // non-blocking — admin can still click Refresh on the Wallet Registry page
+      }
+    }
   };
 
   // Sequential per-wallet updateCountry — the contract has no batch version,
@@ -204,12 +213,21 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     const failures: string[] = [];
     for (const w of targets) {
       try {
-        await updateCountryAction.execute({
+        const receipt = await updateCountryAction.execute({
           address: whitelistRegistryAddress as `0x${string}`,
           abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
           functionName: "updateCountry",
           args: [w.address as `0x${string}`, code],
         });
+        // updateCountry only succeeds on already-whitelisted wallets, so a
+        // successful receipt is proof the wallet is on-chain. Sync the DB.
+        if (receipt) {
+          try {
+            await markWalletRegistered(w.id, receipt.transactionHash);
+          } catch {
+            // non-blocking — admin can refresh manually
+          }
+        }
       } catch (e) {
         failures.push(`${w.address.slice(0, 6)}…${w.address.slice(-4)}: ${e instanceof Error ? e.message : "failed"}`);
       }
@@ -220,6 +238,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       ? { type: "success", text: `Updated country on ${targets.length} wallet(s).` }
       : { type: "error", text: `${targets.length - failures.length} succeeded, ${failures.length} failed.` }
     );
+    await reload();
   };
 
   if (loading) {
@@ -516,7 +535,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleWhitelistOnChain(w.address)}
+                        onClick={() => handleWhitelistOnChain({ id: w.id, address: w.address })}
                         disabled={
                           whitelistAction.isPending ||
                           whitelistAction.isConfirming ||

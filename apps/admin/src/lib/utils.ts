@@ -37,6 +37,27 @@ export function formatCurrency(
 }
 
 /**
+ * Pretty-print a decimal-typed value that comes from the backend already
+ * humanised (e.g. "3600.000000000000000000"). Strips trailing zeros after
+ * the decimal point and adds thousands separators. Returns "—" for nullish.
+ */
+export function prettyDecimal(
+  value: string | number | null | undefined,
+  opts?: { maxFractionDigits?: number },
+): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const raw = typeof value === "number" ? value.toString() : value;
+  const parts = raw.split(".");
+  const intRaw = parts[0] ?? "0";
+  const fracRaw = parts[1] ?? "";
+  const maxFrac = opts?.maxFractionDigits ?? 4;
+  const frac = fracRaw.slice(0, maxFrac).replace(/0+$/, "");
+  const intNum = Number(intRaw);
+  const intStr = Number.isFinite(intNum) ? intNum.toLocaleString() : intRaw;
+  return frac ? `${intStr}.${frac}` : intStr;
+}
+
+/**
  * Format token amount with proper decimals
  */
 export function formatTokenAmount(

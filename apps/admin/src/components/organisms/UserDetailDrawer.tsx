@@ -6,6 +6,7 @@ import { AlertTriangle, Check, Copy, ExternalLink, X } from "lucide-react";
 import { Badge } from "@/components/atoms";
 import type { Investor, Holding, BeneficialOwner } from "@/lib/api/repositories/buyers";
 import { resolveCountry } from "@/lib/countries";
+import { prettyDecimal } from "@/lib/utils";
 
 interface UserDetailDrawerProps {
   investor: Investor | null;
@@ -211,7 +212,7 @@ export function UserDetailDrawer({ investor, open, onClose }: UserDetailDrawerPr
               <HoldingsTable holdings={u.top_holdings} />
             )}
             <p className="text-[11px] text-zinc-400 mt-1">
-              Total contributed: <span className="font-mono tabular-nums">{u.total_contributed_usdc} USDC</span>
+              Total contributed: <span className="font-mono tabular-nums">{prettyDecimal(u.total_contributed_usdc)} USDC</span>
             </p>
           </section>
 
@@ -246,8 +247,8 @@ function HoldingsTable({ holdings }: { holdings: Holding[] }) {
               <span className="font-medium">{h.token_symbol ?? "—"}</span>
               <span className="text-zinc-400 ml-2">{h.sale_name}</span>
             </div>
-            <div className="col-span-3 text-right font-mono tabular-nums text-zinc-700">{h.tokens_held}</div>
-            <div className="col-span-2 text-right font-mono tabular-nums text-zinc-700">{h.contributed_usdc}</div>
+            <div className="col-span-3 text-right font-mono tabular-nums text-zinc-700">{prettyDecimal(h.tokens_held)}</div>
+            <div className="col-span-2 text-right font-mono tabular-nums text-zinc-700">{prettyDecimal(h.contributed_usdc)}</div>
             <div className="col-span-2 text-right">
               <Badge
                 variant={h.claim_status === "claimed" ? "success" : h.claim_status === "refunded" ? "error" : "pending"}

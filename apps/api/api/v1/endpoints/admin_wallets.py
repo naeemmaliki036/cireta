@@ -116,6 +116,30 @@ async def _check_onchain_verified(address_checksum: str) -> bool:
         ) from exc
 
 
+def _derive_user_country(u: User) -> str | None:
+    """Mirror the user-detail page logic — verified beats self-reported,
+    Individual uses country_of_residence, Corporate uses jurisdiction.
+    Falls back to the bare country_code column if nothing else is set.
+    Values may be alpha-2, alpha-3, or numeric; resolveCountry on the FE
+    handles all three.
+    """
+    investor_type = getattr(u, "investor_type", None)
+    is_corporate = (
+        investor_type.value if hasattr(investor_type, "value") else str(investor_type or "")
+    ).lower() == "corporate"
+    if is_corporate:
+        return (
+            getattr(u, "verified_company_jurisdiction", None)
+            or getattr(u, "company_jurisdiction", None)
+            or getattr(u, "country_code", None)
+        )
+    return (
+        getattr(u, "verified_country_of_residence", None)
+        or getattr(u, "country_of_residence", None)
+        or getattr(u, "country_code", None)
+    )
+
+
 def _wallet_to_item(w: Wallet, u: User) -> AdminWalletItem:
     kyc_status = (
         u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status)
@@ -134,7 +158,7 @@ def _wallet_to_item(w: Wallet, u: User) -> AdminWalletItem:
         user_id=u.id,
         user_email=u.email,
         user_display_name=u.display_name,
-        user_country_code=getattr(u, "country_code", None),
+        user_country_code=_derive_user_country(u),
         user_kyc_status=kyc_status,
     )
 
@@ -167,6 +191,8 @@ async def list_admin_wallets(
                 Wallet.address_checksum.ilike(pattern),
                 User.email.ilike(pattern),
                 User.country_code.ilike(pattern),
+                User.country_of_residence.ilike(pattern),
+                User.verified_country_of_residence.ilike(pattern),
             )
         )
 
