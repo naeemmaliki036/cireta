@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useChainId } from "wagmi";
-import { Shield, AlertCircle, CheckCircle2, Wallet, Fuel } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle2, Wallet, Fuel, ExternalLink } from "lucide-react";
 import { Button, Badge } from "@/components/atoms";
 import { ErrorReportButton } from "@/components/molecules/ErrorReportButton";
 import { formatCurrency } from "@/lib/utils";
@@ -124,22 +124,50 @@ interface InvestAmountStepProps {
 }
 
 /**
- * Build quick-buy suggestions starting at the effective minimum.
- * - First-time buyer: starts at minTokens → 2x, 5x, 10x
- * - Repeat buyer: starts at topUpMinTokens → 2x, 5x, 10x
- * Clamps to available supply.
+ * Build quick-buy suggestions tailored to the buyer's state.
+ * - Repeat buyer (already bought ≥ 1 token): [top-up-min, 5× top-up-min, min-buy,
+ *   5× min-buy]. Never the full max-remaining — repeat buyers know their position.
+ * - First-time buyer: [min-buy, 5× min-buy, 25× min-buy, max-remaining-available].
+ *   Last slot shows the full available count so newcomers see the ceiling.
+ * Dedupes + clamps to available supply.
  */
-function buildQuickQuantities(effectiveMin: number, availableTokens: number): number[] {
-  if (effectiveMin <= 0) return [1, 5, 10, 100];
-  // Last-chunk: if available < min, only suggest the remaining amount
-  if (availableTokens > 0 && availableTokens < effectiveMin) {
+function buildQuickQuantities(
+  minTokens: number,
+  topUpMinTokens: number,
+  isRepeatBuyer: boolean,
+  availableTokens: number,
+): number[] {
+  // Last-chunk: if available < the relevant min, only suggest the remaining amount
+  const relevantMin = isRepeatBuyer ? topUpMinTokens : minTokens;
+  if (availableTokens > 0 && availableTokens < relevantMin) {
     return [availableTokens];
   }
-  const base = effectiveMin;
-  const raw = [base, base * 2, base * 5, base * 10];
+
+  let raw: number[];
+  if (isRepeatBuyer) {
+    raw = [
+      topUpMinTokens,
+      topUpMinTokens * 5,
+      minTokens,
+      minTokens * 5,
+    ];
+  } else {
+    raw = [
+      minTokens,
+      minTokens * 5,
+      minTokens * 25,
+      availableTokens > 0 ? availableTokens : minTokens * 100,
+    ];
+  }
+
   const cap = availableTokens > 0 ? availableTokens : Infinity;
-  const filtered = raw.filter((q, i, arr) => q <= cap && arr.indexOf(q) === i);
-  return filtered.length > 0 ? filtered : [effectiveMin];
+  const seen = new Set<number>();
+  const filtered = raw.filter((q) => {
+    if (q <= 0 || q > cap || seen.has(q)) return false;
+    seen.add(q);
+    return true;
+  });
+  return filtered.length > 0 ? filtered : [relevantMin];
 }
 
 export function InvestAmountStep({
@@ -267,15 +295,26 @@ export function InvestAmountStep({
           </span>
         </div>
         <div className="flex gap-2 mt-3">
-          {buildQuickQuantities(effectiveMin, remainingMax < Infinity ? remainingMax : availableTokens).map((v) => (
-            <button
-              key={v}
-              onClick={() => onAmountChange(v.toString())}
-              className="flex-1 py-2 text-sm font-medium text-darkAqua bg-darkAqua/10 rounded-lg hover:bg-darkAqua/20 transition-colors"
-            >
-              {v.toLocaleString()} {project.tokenSymbol}
-            </button>
-          ))}
+          {buildQuickQuantities(
+            minTokens,
+            topUpMinTokens,
+            isRepeatBuyer,
+            remainingMax < Infinity ? remainingMax : availableTokens,
+          ).map((v, i, arr) => {
+            const isLastForFirstTimer = !isRepeatBuyer && i === arr.length - 1 && arr.length > 1;
+            return (
+              <button
+                key={v}
+                onClick={() => onAmountChange(v.toString())}
+                className="flex-1 py-2 text-sm font-medium text-darkAqua bg-darkAqua/10 rounded-lg hover:bg-darkAqua/20 transition-colors"
+              >
+                {v.toLocaleString()} {project.tokenSymbol}
+                {isLastForFirstTimer && (
+                  <span className="block text-[10px] font-normal opacity-70 mt-0.5">max available</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
       {validationError && (
@@ -511,11 +550,6 @@ export function InvestConfirmStep({
           This is a direct purchase. Tokens will arrive in your wallet immediately.
         </p>
       )}
-      {saleMode === "vested" && (
-        <p className="text-xs text-black/60 mb-3 text-center">
-          Your contribution will be locked until the sale finalizes.
-        </p>
-      )}
       <p className="text-xs text-black/40 mb-4 text-center">
         Network fee paid in ETH from your wallet. Estimated by your wallet at signing time.
       </p>
@@ -585,20 +619,17 @@ export function InvestSuccessStep({ project, amount, tokensToReceive, txHash, sa
                 href={getTxUrl(chainId, txHash) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-darkAqua underline font-mono text-xs"
+                className="inline-flex items-center gap-1.5 text-darkAqua hover:underline font-mono text-xs"
+                title={txHash}
               >
-                {txHash.slice(0, 10)}…
+                <span>{txHash.slice(0, 8)}…{txHash.slice(-6)}</span>
+                <ExternalLink className="w-3 h-3" />
               </a>
             }
           />
         )}
         <SummaryRow label="Status" value={<Badge variant="success">Confirmed</Badge>} />
       </div>
-      {saleMode === "vested" && (
-        <p className="text-xs text-black/50 text-center">
-          If the sale ends below soft cap, you can refund from your portfolio.
-        </p>
-      )}
     </div>
   );
 }

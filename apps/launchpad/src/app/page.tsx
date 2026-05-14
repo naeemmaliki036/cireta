@@ -277,7 +277,10 @@ function LiveProjectCard({ project: p }: { project: Project }) {
               return e > 0 && now >= e;
             });
             const hasFuturePhase = p.phases.some((ph) => new Date(ph.start_time || 0).getTime() > now);
-            const canShowNotifyCTA = !isTerminal && !targetReached && !allPhasesEnded
+            // Don't show "Get notified" when a phase is currently active — funding
+            // is already open. Only fire the notify CTA when the buyer is genuinely
+            // waiting for a future event.
+            const canShowNotifyCTA = !isOngoing && !isTerminal && !targetReached && !allPhasesEnded
               && (p.isComingSoon || hasFuturePhase);
             if (!canShowNotifyCTA) return null;
             if (subscribed) {
