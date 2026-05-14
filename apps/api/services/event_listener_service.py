@@ -731,8 +731,60 @@ class EventListenerService:
             block_number,
         )
 
-        # Persist to audit_logs table
+        # Persist to audit_logs table — but skip the construction event.
+        # Every ERC1967Proxy emits Upgraded(impl) on deployment; that is NOT
+        # a real impl change and must not generate a security alert.
+        #
+        # Detection strategy: if there is already at least one "proxy_upgraded"
+        # row for this proxy address we know this is a genuine upgrade (the
+        # construction event was either already skipped or this is the second+
+        # event).  If there are NO prior rows we treat this as the birth event
+        # and skip it.
+        #
+        # Edge-case — proxy deployed before the listener started indexing:
+        # In that case the construction event was never seen, so the first
+        # genuine upgrade would also be skipped.  To prevent that we also
+        # accept the event when there is any other audit row with
+        # target_type="proxy_contract" for this address (e.g. a prior
+        # "proxy_deployed" row written at deploy time).  This keeps the skip
+        # logic conservative: only truly-unseen proxies are filtered.
         async with AsyncSessionLocal() as db:
+            from sqlalchemy import select as _select
+
+            prior_upgrade = await db.execute(
+                _select(AuditLog.id)
+                .where(
+                    AuditLog.target_id == proxy_address,
+                    AuditLog.action == "proxy_upgraded",
+                )
+                .limit(1)
+            )
+            is_construction = prior_upgrade.scalar_one_or_none() is None
+
+            if is_construction:
+                # Also check for any other proxy_contract row — if one exists
+                # the proxy was known before the listener started; allow logging.
+                any_proxy_row = await db.execute(
+                    _select(AuditLog.id)
+                    .where(
+                        AuditLog.target_id == proxy_address,
+                        AuditLog.target_type == "proxy_contract",
+                    )
+                    .limit(1)
+                )
+                if any_proxy_row.scalar_one_or_none() is not None:
+                    # Proxy was indexed before; this IS a real upgrade.
+                    is_construction = False
+
+            if is_construction:
+                logger.info(
+                    "Skipping construction Upgraded event for new proxy %s (tx=%s) — "
+                    "not a real impl change",
+                    proxy_address,
+                    tx_hash,
+                )
+                return
+
             audit = AuditLog(
                 actor_id=None,  # on-chain event — no known actor
                 action="proxy_upgraded",

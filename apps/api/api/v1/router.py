@@ -4,7 +4,6 @@ from fastapi import APIRouter
 
 from apps.api.api.v1.endpoints.admin_compliance import router as admin_compliance_router
 from apps.api.api.v1.endpoints.admin_email_templates import router as admin_email_templates_router
-from apps.api.api.v1.endpoints.error_reports import router as error_reports_router
 from apps.api.api.v1.endpoints.admin_identity_registry import (
     router as admin_identity_registry_router,
 )
@@ -16,7 +15,9 @@ from apps.api.api.v1.endpoints.admin_sales import router as admin_sales_router
 from apps.api.api.v1.endpoints.admin_wallet_deletions import (
     router as admin_wallet_deletions_router,
 )
+from apps.api.api.v1.endpoints.admin_wallets import router as admin_wallets_router
 from apps.api.api.v1.endpoints.auth import router as auth_router
+from apps.api.api.v1.endpoints.error_reports import router as error_reports_router
 from apps.api.api.v1.endpoints.health import router as health_router
 from apps.api.api.v1.endpoints.issuer_onboarding import router as issuer_onboarding_router
 from apps.api.api.v1.endpoints.issuer_withdrawals import router as issuer_withdrawals_router
@@ -28,6 +29,8 @@ from apps.api.api.v1.endpoints.portfolio import router as portfolio_router
 from apps.api.api.v1.endpoints.sale_content import router as sale_content_router
 from apps.api.api.v1.endpoints.sale_subscriptions import (
     all_subs_router as all_subscriptions_router,
+)
+from apps.api.api.v1.endpoints.sale_subscriptions import (
     router as sale_subscriptions_router,
 )
 from apps.api.api.v1.endpoints.sales import router as sales_router
@@ -59,6 +62,7 @@ router.include_router(admin_operations_router, prefix="/admin")
 router.include_router(admin_reports_router, prefix="/admin")
 router.include_router(admin_email_templates_router, prefix="/admin")
 router.include_router(admin_wallet_deletions_router, prefix="/admin")
+router.include_router(admin_wallets_router, prefix="/admin")
 router.include_router(admin_identity_registry_router, prefix="/admin")
 router.include_router(admin_sales_router)
 router.include_router(uploads_router)

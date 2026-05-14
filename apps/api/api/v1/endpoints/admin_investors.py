@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.models.enums import UserRole
 from apps.api.models.user import User
 from packages.common.core.auth_deps import RequireAdmin, RequireIssuerOrAdmin
+from packages.common.core.config import settings
 from packages.common.db.session import get_db
 
 log = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ class InvestorDetailResponse(InvestorResponse):
     is_accredited: bool = False
     wallets: list[dict] = []
     holdings: list[HoldingResponse] = []   # full list, no cap
+    identity_mode: str = "simple"          # "simple" | "erc3643" — mirrors IDENTITY_MODE env var
 
 
 class InvestorListResponse(BaseModel):
@@ -125,17 +127,39 @@ def _build_investor_response(
             if isinstance(b, dict)
         ] or None
 
+    # Recompute onboarding_completed based on identity mode.
+    # In "simple" mode onchain_id is not required; the gate is:
+    #   email verified + KYC approved + at least one wallet linked that is
+    #   registered on-chain.
+    # In "erc3643" mode the stored boolean (which requires onchain_id) is used
+    # directly so we don't alter the existing gate logic.
+    from apps.api.models.enums import KYCStatus
+
+    kyc_status_val = u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status)
+    if settings.identity_mode == "simple":
+        has_registered_wallet = any(
+            getattr(w, "registered_on_chain", False) for w in (u.wallets or [])
+        )
+        computed_onboarding = bool(
+            u.email_verified
+            and kyc_status_val == KYCStatus.APPROVED.value
+            and bool(u.wallets)
+            and has_registered_wallet
+        )
+    else:
+        computed_onboarding = u.onboarding_completed
+
     return InvestorResponse(
         id=str(u.id),
         email=u.email,
         display_name=u.display_name,
         investor_type=u.investor_type,
-        kyc_status=u.kyc_status.value if hasattr(u.kyc_status, "value") else str(u.kyc_status),
+        kyc_status=kyc_status_val,
         kyc_level=u.kyc_level,
         onchain_id=u.onchain_id,
         wallet_address=primary_addr,
         wallet_count=len(u.wallets) if u.wallets else 0,
-        onboarding_completed=u.onboarding_completed,
+        onboarding_completed=computed_onboarding,
         email_verified=u.email_verified,
         created_at=u.created_at,
 
@@ -266,21 +290,38 @@ async def list_investors(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     kyc_status: str | None = Query(None),
+    search: str | None = Query(None),
 ) -> InvestorListResponse:
     """List all investor accounts with KYC + activity aggregates."""
+    from sqlalchemy import or_
     from sqlalchemy.orm import selectinload
 
     from apps.api.models.enums import UserRole
+    from apps.api.models.wallet import Wallet
 
     offset = (page - 1) * size
+
+    # Base query — outer-join wallets so we can search by address_checksum
+    # without losing users who have no wallets.
     q = (
         select(User)
+        .join(Wallet, Wallet.user_id == User.id, isouter=True)
         .where(User.role == UserRole.INVESTOR)
         .options(selectinload(User.wallets))
+        .distinct()
         .order_by(User.created_at.desc())
     )
     if kyc_status:
         q = q.where(User.kyc_status == kyc_status)
+    if search:
+        pattern = f"%{search}%"
+        q = q.where(
+            or_(
+                User.email.ilike(pattern),
+                User.display_name.ilike(pattern),
+                Wallet.address_checksum.ilike(pattern),
+            )
+        )
 
     total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
     rows = (await db.execute(q.offset(offset).limit(size))).scalars().all()
@@ -351,6 +392,7 @@ async def get_investor_detail(
         is_accredited=user.is_accredited,
         wallets=wallet_list,
         holdings=user_holdings,
+        identity_mode=settings.identity_mode,
     )
 
 

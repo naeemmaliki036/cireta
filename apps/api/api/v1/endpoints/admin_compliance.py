@@ -216,6 +216,26 @@ async def unpause_token(
     )
 
 
+@router.get("/compliance/audit-logs/actions", response_model=list[str])
+async def list_audit_log_actions(
+    _user_id: RequireIssuerOrAdmin,  # noqa: ARG001
+    db: AsyncSession = Depends(get_db),
+) -> list[str]:
+    """Return the distinct action values present in audit_logs, sorted alphabetically.
+
+    Intended for the frontend to populate an action-filter dropdown without
+    hard-coding action strings in the UI.
+    """
+    from sqlalchemy import distinct
+
+    rows = (
+        await db.execute(
+            select(distinct(AuditLog.action)).order_by(AuditLog.action)
+        )
+    ).scalars().all()
+    return list(rows)
+
+
 @router.get("/compliance/audit-logs", response_model=AuditLogListResponse)
 async def list_audit_logs(
     user_id: RequireIssuerOrAdmin,  # noqa: ARG001
