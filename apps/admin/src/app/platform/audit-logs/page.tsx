@@ -4,17 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { Search, ChevronLeft, ChevronRight, ChevronDown, Download, FileText } from "lucide-react";
 import { Badge, Spinner } from "@/components/atoms";
 import { PlatformAdminLayout } from "@/components/templates";
-import { getAuditLogs, type AuditLogEntry } from "@/lib/api/repositories/compliance";
+import { getAuditLogs, getAuditLogActions, type AuditLogEntry } from "@/lib/api/repositories/compliance";
 import { getAccessToken } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
-
-const KNOWN_ACTIONS = [
-  "freeze", "unfreeze", "recover_tokens", "pause", "unpause",
-  "forced_transfer", "proxy_upgraded", "recover", "recover_fractions",
-  "force_transfer_erc3643",
-];
 
 type ActionColor = "error" | "success" | "default";
 
@@ -40,6 +34,7 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState("");
   const [searchTarget, setSearchTarget] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [availableActions, setAvailableActions] = useState<string[]>([]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -61,6 +56,14 @@ export default function AuditLogsPage() {
 
   // Reset to page 1 when filter changes
   useEffect(() => { setPage(1); }, [actionFilter]);
+
+  // Populate action filter dropdown from backend
+  useEffect(() => {
+    const token = getAccessToken() ?? undefined;
+    getAuditLogActions(token)
+      .then((actions) => setAvailableActions(actions))
+      .catch(() => { /* fall back to empty — select stays usable */ });
+  }, []);
 
   const filteredLogs = searchTarget
     ? logs.filter((l) => l.target_id.toLowerCase().includes(searchTarget.toLowerCase()))
@@ -97,7 +100,7 @@ export default function AuditLogsPage() {
             className="appearance-none border border-zinc-200 rounded-lg pl-3 pr-8 py-1.5 text-xs bg-white focus:outline-none focus:border-zinc-400"
           >
             <option value="">All actions</option>
-            {KNOWN_ACTIONS.map((a) => (
+            {availableActions.map((a) => (
               <option key={a} value={a}>{a.replace(/_/g, " ")}</option>
             ))}
           </select>
@@ -201,6 +204,7 @@ export default function AuditLogsPage() {
 function LogRow({ log, isExpanded, onToggle }: { log: AuditLogEntry; isExpanded: boolean; onToggle: () => void }) {
   const color = actionColor(log.action);
   const badgeVariant = color === "error" ? "error" : color === "success" ? "success" : "outline";
+  const isSystemEvent = log.actor_id === null;
 
   return (
     <>
@@ -209,6 +213,7 @@ function LogRow({ log, isExpanded, onToggle }: { log: AuditLogEntry; isExpanded:
         className={cn(
           "border-b border-zinc-50 cursor-pointer hover:bg-zinc-50/50 transition-colors text-sm",
           isExpanded && "bg-zinc-50/50",
+          isSystemEvent && "border-l-2 border-l-[#13636F]/20",
         )}
       >
         <td className="px-5 py-3 text-xs text-zinc-500 whitespace-nowrap">{formatDate(log.created_at)}</td>
@@ -224,9 +229,13 @@ function LogRow({ log, isExpanded, onToggle }: { log: AuditLogEntry; isExpanded:
           </div>
         </td>
         <td className="px-5 py-3">
-          <code className="text-xs text-zinc-500 font-mono">
-            {log.actor_id ? `${log.actor_id.slice(0, 8)}...` : "--"}
-          </code>
+          {isSystemEvent ? (
+            <Badge variant="outline" size="sm">System</Badge>
+          ) : (
+            <code className="text-xs text-zinc-500 font-mono">
+              {log.actor_id!.slice(0, 8)}...
+            </code>
+          )}
         </td>
         <td className="px-5 py-3 text-xs text-zinc-500 max-w-[200px] truncate">{log.reason ?? "--"}</td>
         <td className="px-5 py-3 text-xs text-zinc-400 font-mono">{log.ip_address ?? "--"}</td>

@@ -297,14 +297,14 @@ export default function PlatformUsersPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative w-72">
+        <div className="relative w-[36rem] max-w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
           <input
             type="text"
-            placeholder="Search name, email, wallet…"
+            placeholder="Search name, email, or wallet address (0x…)"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-            className="w-full border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm bg-white focus:outline-none focus:border-[#13636F]"
+            className="w-full border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-sm font-mono bg-white focus:outline-none focus:border-[#13636F]"
           />
         </div>
         <select

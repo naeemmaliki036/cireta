@@ -14,6 +14,7 @@ import {
   addSaleDocument, removeSaleDocument,
   type TeamMemberData, type FAQData, type DocumentData,
 } from "@/lib/api/repositories/sales";
+import { richDescriptionToHtml } from "@/lib/richText";
 
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: string; video_url?: string }
 interface TeamMember { id: string; name: string; title?: string; bio?: string; photo_url?: string }
@@ -180,7 +181,7 @@ export function SaleContentReview({ saleId, description, fullDescription, editab
               <div className="space-y-4">
                 {description && <p className="text-sm text-zinc-600">{description}</p>}
                 {fullDescription && (
-                  <div className="prose prose-sm max-w-none text-zinc-600" dangerouslySetInnerHTML={{ __html: fullDescription }} />
+                  <div className="prose prose-sm max-w-none text-zinc-600" dangerouslySetInnerHTML={{ __html: richDescriptionToHtml(fullDescription) }} />
                 )}
               </div>
             ) : (

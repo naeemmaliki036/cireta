@@ -21,9 +21,13 @@ const frozenCols: Column<FrozenAddress>[] = [
 
 export default function PlatformCompliancePage() {
   const [frozen, setFrozen] = useState<FrozenAddress[]>([]);
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [rawLogs, setRawLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  // Actions that are not compliance events — filter them from the feed.
+  const EXCLUDED_ACTIONS = new Set(["proxy_upgraded"]);
+  const logs = rawLogs.filter((l) => !EXCLUDED_ACTIONS.has(l.action));
 
   useEffect(() => {
     (async () => {
@@ -33,7 +37,7 @@ export default function PlatformCompliancePage() {
           getAuditLogs(1, 50, undefined, getToken()),
         ]);
         setFrozen(f.items);
-        setLogs(l.items);
+        setRawLogs(l.items);
       } catch (err) { console.error("Failed to load compliance data:", err); }
       finally { setLoading(false); }
     })();
@@ -49,7 +53,7 @@ export default function PlatformCompliancePage() {
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {[
           { label: "Frozen Addresses", value: frozen.length, icon: Lock, color: "text-zinc-600" },
-          { label: "Compliance Actions", value: logs.length, icon: Shield, color: "text-purple-600" },
+          { label: "Compliance Actions", value: logs.length, icon: Shield, color: "text-[#13636F]" },
           { label: "Active Rules", value: 0, icon: Globe, color: "text-teal-600" },
         ].map((stat) => (
           <div
@@ -92,7 +96,7 @@ export default function PlatformCompliancePage() {
         {loading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : logs.length === 0 ? (
-          <p className="text-center text-zinc-400 py-8 text-sm">No compliance actions yet</p>
+          <p className="text-center text-zinc-400 py-8 text-sm">No recent compliance actions</p>
         ) : (
           <div className="space-y-2">
             {logs.slice(0, 10).map((log) => (

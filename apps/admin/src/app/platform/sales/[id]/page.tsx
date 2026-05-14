@@ -13,6 +13,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { type Abi, isAddress } from "viem";
 import { Badge, Spinner, Button } from "@/components/atoms";
 import { CopyableAddress } from "@/components/atoms/CopyableAddress";
+import { ExplorerLinkIcon } from "@/components/atoms/ExplorerLinkIcon";
 import { StatCard } from "@/components/molecules";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
 import { SaleContentReview } from "@/components/molecules/SaleContentReview";
@@ -25,6 +26,29 @@ import { useContractAction } from "@/hooks/useContractAction";
 import { SALE_ABI } from "@/lib/contracts/abis/sale";
 
 function getToken() { return getAccessToken() ?? undefined; }
+
+const PAYMENT_TOKEN_NAMES: Record<string, string> = {
+  "0x3Bfb6B62C015EE815e5Eb0A7e212F580446D9898": "USDC",
+  // add future tokens here (e.g. mainnet USDC, USDT)
+};
+
+function maskAddress(addr: string): string {
+  const a = addr.toLowerCase();
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
+function PaymentTokenCell({ address }: { address: string | null | undefined }): React.ReactElement {
+  if (!address) return <span className="text-black/40">—</span>;
+  const symbol = PAYMENT_TOKEN_NAMES[address] ?? "Unknown";
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="font-medium">{symbol}</span>
+      <span className="font-mono text-xs text-black/50">{maskAddress(address)}</span>
+      <CopyableAddress address={address} truncate className="text-xs" />
+      <ExplorerLinkIcon address={address} />
+    </span>
+  );
+}
 
 export default function AdminSaleDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const [sale, setSale] = useState<Sale | null>(null);
@@ -744,10 +768,10 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
           {([
             ["Token", sale.token_name ? `${sale.token_name} (${sale.token_symbol})` : "Not assigned"],
             ["Issuer", sale.issuer_name ?? "—"],
-            ["Payment Token", sale.payment_token],
+            ["Payment Token", <PaymentTokenCell key="pt" address={sale.payment_token} />],
             ["Sale Mode", sale.sale_mode ?? "vested"],
             ["Sale Type", isOpenEnded ? "Open-Ended" : "Fixed Window"],
-            ["Contract", sale.contract_address ? <CopyableAddress address={sale.contract_address} truncate className="text-xs" /> : "Not deployed"],
+            ["Contract Address", sale.contract_address ? <CopyableAddress address={sale.contract_address} truncate className="text-xs" /> : "Not deployed"],
             ["Phases", `${sale.phases.length} configured`],
           ] as Array<[string, React.ReactNode]>).map(([label, value]) => (
             <div key={label} className="flex justify-between py-2 border-b border-black/5">

@@ -130,6 +130,10 @@ export async function getFrozenAddresses(token?: string): Promise<FrozenAddressL
   return apiFetch<FrozenAddressListResponse>("/api/v1/admin/compliance/frozen", { token });
 }
 
+export async function getAuditLogActions(token?: string): Promise<string[]> {
+  return apiFetch<string[]>("/api/v1/admin/audit-logs/actions", { token });
+}
+
 export interface RecoveryResponse {
   recovery_log_id: string;
   tx_hash: string;

@@ -7,6 +7,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ShieldAlert, Users } from "lucide-react";
 import { Button, Badge } from "@/components/atoms";
 import { TransactionStatus } from "@/components/molecules/TransactionStatus";
+import { CheckRolesPanel } from "@/components/molecules/CheckRolesPanel";
 import { PlatformAdminLayout } from "@/components/templates/PlatformAdminLayout";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
@@ -38,17 +39,13 @@ export default function IdentityRegistryRolesPage() {
   const { address: connectedAddress, isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
 
-  // Role management forms
   const [grantRole, setGrantRole] = useState<`0x${string}`>(DEFAULT_ADMIN_ROLE);
   const [grantAddress, setGrantAddress] = useState("");
   const [revokeRole, setRevokeRole] = useState<`0x${string}`>(DEFAULT_ADMIN_ROLE);
   const [revokeAddress, setRevokeAddress] = useState("");
-  const [agentAddress, setAgentAddress] = useState("");
 
   const grantAction = useContractAction();
   const revokeAction = useContractAction();
-  const addAgentAction = useContractAction();
-  const removeAgentAction = useContractAction();
 
   // Pre-flight: check if connected wallet has DEFAULT_ADMIN_ROLE
   const { data: adminCheckData } = useReadContracts({
@@ -67,7 +64,7 @@ export default function IdentityRegistryRolesPage() {
   });
   const isAdmin = adminCheckData?.[0]?.result === true;
 
-  const handleGrant = async () => {
+  const handleGrant = async (): Promise<void> => {
     if (!isConnected) { openConnectModal?.(); return; }
     grantAction.reset();
     await grantAction.execute({
@@ -78,7 +75,7 @@ export default function IdentityRegistryRolesPage() {
     });
   };
 
-  const handleRevoke = async () => {
+  const handleRevoke = async (): Promise<void> => {
     if (!isConnected) { openConnectModal?.(); return; }
     revokeAction.reset();
     await revokeAction.execute({
@@ -89,29 +86,7 @@ export default function IdentityRegistryRolesPage() {
     });
   };
 
-  const handleAddAgent = async () => {
-    if (!isConnected) { openConnectModal?.(); return; }
-    addAgentAction.reset();
-    await addAgentAction.execute({
-      address: IR_ADDRESS,
-      abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
-      functionName: "addAgent",
-      args: [agentAddress as `0x${string}`],
-    });
-  };
-
-  const handleRemoveAgent = async () => {
-    if (!isConnected) { openConnectModal?.(); return; }
-    removeAgentAction.reset();
-    await removeAgentAction.execute({
-      address: IR_ADDRESS,
-      abi: SIMPLE_IDENTITY_REGISTRY_ABI as unknown as Abi,
-      functionName: "removeAgent",
-      args: [agentAddress as `0x${string}`],
-    });
-  };
-
-  const addressInputClass = (val: string) =>
+  const addressInputClass = (val: string): string =>
     `w-full bg-box border rounded-lg px-3 py-2 text-text text-sm font-mono ${
       val && !isAddress(val) ? "border-red-300" : "border-black/10"
     }`;
@@ -207,11 +182,7 @@ export default function IdentityRegistryRolesPage() {
             variant="primary"
             size="sm"
             onClick={handleGrant}
-            disabled={
-              !isAddress(grantAddress) ||
-              grantAction.isPending ||
-              grantAction.isConfirming
-            }
+            disabled={!isAddress(grantAddress) || grantAction.isPending || grantAction.isConfirming}
             isLoading={grantAction.isPending || grantAction.isConfirming}
           >
             Grant Role
@@ -256,11 +227,7 @@ export default function IdentityRegistryRolesPage() {
             variant="dangerOutline"
             size="sm"
             onClick={handleRevoke}
-            disabled={
-              !isAddress(revokeAddress) ||
-              revokeAction.isPending ||
-              revokeAction.isConfirming
-            }
+            disabled={!isAddress(revokeAddress) || revokeAction.isPending || revokeAction.isConfirming}
             isLoading={revokeAction.isPending || revokeAction.isConfirming}
           >
             Revoke Role
@@ -276,80 +243,8 @@ export default function IdentityRegistryRolesPage() {
           />
         </div>
 
-        {/* Legacy addAgent / removeAgent */}
-        <div className="bg-white rounded-lg border border-zinc-100 p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-900">
-            Legacy Agent Management
-          </h2>
-          <p className="text-xs text-zinc-400">
-            Backward-compatible{" "}
-            <code className="font-mono">addAgent</code> /{" "}
-            <code className="font-mono">removeAgent</code> — retained for
-            contracts that have not yet migrated to{" "}
-            <code className="font-mono">AGENT_ROLE</code>. Prefer the Grant /
-            Revoke panels above on migrated registries.
-          </p>
-          <div>
-            <label className="block text-xs text-zinc-600 mb-1">Agent Address</label>
-            <input
-              value={agentAddress}
-              onChange={(e) => {
-                setAgentAddress(e.target.value.trim());
-                addAgentAction.reset();
-                removeAgentAction.reset();
-              }}
-              placeholder="0x..."
-              maxLength={42}
-              className={addressInputClass(agentAddress)}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleAddAgent}
-              disabled={
-                !isAddress(agentAddress) ||
-                addAgentAction.isPending ||
-                addAgentAction.isConfirming
-              }
-              isLoading={addAgentAction.isPending || addAgentAction.isConfirming}
-            >
-              Add Agent
-            </Button>
-            <Button
-              variant="dangerOutline"
-              size="sm"
-              onClick={handleRemoveAgent}
-              disabled={
-                !isAddress(agentAddress) ||
-                removeAgentAction.isPending ||
-                removeAgentAction.isConfirming
-              }
-              isLoading={removeAgentAction.isPending || removeAgentAction.isConfirming}
-            >
-              Remove Agent
-            </Button>
-          </div>
-          <TransactionStatus
-            isPending={addAgentAction.isPending}
-            isConfirming={addAgentAction.isConfirming}
-            isConfirmed={addAgentAction.isConfirmed}
-            txHash={addAgentAction.txHash}
-            txUrl={addAgentAction.txUrl}
-            error={addAgentAction.error}
-            successMessage="Agent added on-chain."
-          />
-          <TransactionStatus
-            isPending={removeAgentAction.isPending}
-            isConfirming={removeAgentAction.isConfirming}
-            isConfirmed={removeAgentAction.isConfirmed}
-            txHash={removeAgentAction.txHash}
-            txUrl={removeAgentAction.txUrl}
-            error={removeAgentAction.error}
-            successMessage="Agent removed on-chain."
-          />
-        </div>
+        {/* Check Roles */}
+        <CheckRolesPanel registryAddress={IR_ADDRESS} />
       </div>
     </PlatformAdminLayout>
   );

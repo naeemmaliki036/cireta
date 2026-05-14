@@ -22,7 +22,6 @@ import {
   FileText,
   Package,
   Bell,
-  TrendingUp,
   ListChecks,
   FileCode2,
   AlertOctagon,
@@ -42,9 +41,13 @@ const PLATFORM_LINKS = [
   { href: "/platform/redemptions", label: "Redemptions", icon: Package },
   { href: "/platform/compliance", label: "Compliance", icon: Shield },
   { href: "/platform/identity-registry", label: "Identity Registry", icon: Users },
+  { href: "/platform/wallets", label: "Wallet Registry", icon: Wallet },
   { href: "/platform/audit-logs", label: "Audit Logs", icon: FileText },
   { href: "/platform/fees", label: "Fees", icon: DollarSign },
-  { href: "/platform/analytics", label: "Analytics", icon: TrendingUp },
+  // Analytics page is hidden — KPIs are real but charts use hardcoded dummy
+  // data (analyticsCharts.tsx TVL_DATA / FEE_DATA / KYC_FUNNEL constants).
+  // Re-enable once charts are wired to /admin/platform/{tvl,fee-revenue,kyc-funnel}/timeseries.
+  // { href: "/platform/analytics", label: "Analytics", icon: TrendingUp },
 ];
 
 const MANAGE_LINKS = [

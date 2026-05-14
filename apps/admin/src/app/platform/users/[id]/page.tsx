@@ -245,9 +245,17 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     );
   }
 
+  const identityMode = (process.env.NEXT_PUBLIC_IDENTITY_MODE ?? "simple") as "simple" | "erc3643";
   const isIndividual = user.investor_type === "individual" || !user.investor_type;
   const isApproved = user.kyc_status === "approved";
   const hasWallets = user.wallets.length > 0;
+
+  // Onboarding completion gate depends on identity mode.
+  // In simple mode: email verified + KYC approved + at least one wallet linked.
+  // In erc3643 mode: additionally requires an on-chain ONCHAINID.
+  const isOnboardingComplete = identityMode === "simple"
+    ? (user.email_verified && isApproved && hasWallets)
+    : (user.email_verified && isApproved && hasWallets && !!user.onchain_id);
 
   // Compute whitelist country mismatch once for the whole render — the
   // banner needs it AND the per-wallet shield buttons need to be gated by
@@ -332,10 +340,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             <p className="text-zinc-400 text-xs">Verified at</p>
             <p className="font-bold">{user.kyc_verified_at ? user.kyc_verified_at.slice(0, 10) : "—"}</p>
           </div>
-          <div className="bg-zinc-50 rounded-lg p-3">
-            <p className="text-zinc-400 text-xs">On-chain ID</p>
-            {user.onchain_id ? <CopyableAddress address={user.onchain_id} truncate className="text-xs font-bold" /> : <p className="text-xs font-bold">—</p>}
-          </div>
+          {identityMode !== "simple" && (
+            <div className="bg-zinc-50 rounded-lg p-3">
+              <p className="text-zinc-400 text-xs">On-chain ID</p>
+              {user.onchain_id ? <CopyableAddress address={user.onchain_id} truncate className="text-xs font-bold" /> : <p className="text-xs font-bold">—</p>}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -475,14 +485,16 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-400">Onboarding</span>
-              <Badge variant={user.onboarding_completed ? "success" : "default"} size="sm">
-                {user.onboarding_completed ? "Complete" : "Incomplete"}
+              <Badge variant={isOnboardingComplete ? "success" : "default"} size="sm">
+                {isOnboardingComplete ? "Complete" : "Incomplete"}
               </Badge>
             </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-400">On-chain ID</span>
-              <span className="font-mono text-xs">{user.onchain_id ? `${user.onchain_id.slice(0, 8)}...` : "—"}</span>
-            </div>
+            {identityMode !== "simple" && (
+              <div className="flex justify-between">
+                <span className="text-zinc-400">On-chain ID</span>
+                <span className="font-mono text-xs">{user.onchain_id ? `${user.onchain_id.slice(0, 8)}...` : "—"}</span>
+              </div>
+            )}
           </div>
         </div>
 
