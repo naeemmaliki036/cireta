@@ -17,5 +17,10 @@
   "otcTokenFactory": "0x19EbBfba479Ded9ac4190Cca7D9c4AE86aE926e3",
   "ciretaUSDC": "0x3Bfb6B62C015EE815e5Eb0A7e212F580446D9898",
   "saleImplementationVersion": "6.0.0",
-  "saleImplementationDeployedAt": "2026-05-03T15:55:28.215Z"
+  "saleImplementationDeployedAt": "2026-05-03T15:55:28.215Z",
+  "redemptionManagerImplementation": "0x0162526D24aA5f824FBdF7aE5b8522A3E42bF2dB",
+  "redemptionFactoryImplementation": "0x1b1Acdaf92e9de4CC268888415b03041Ba3aabf8",
+  "redemptionFactory": "0x2C87c774728EE581b3e39B4562B65676b203E6B4",
+  "redemptionFactoryVersion": "1.0.0",
+  "redemptionFactoryDeployedAt": "2026-05-14T01:29:38.174Z"
 }
