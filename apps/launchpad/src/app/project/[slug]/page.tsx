@@ -335,8 +335,15 @@ export default function ProjectDetailPage() {
   const hasActivePhase = !!activePhase;
   const ap = activePhase ?? project.phases?.[0] ?? null;
   const pricePerToken = ap ? parseFloat(ap.price_per_token) : 0;
-  const minTokens = ap ? parseInt(ap.min_tokens || "1", 10) : 1;
-  const maxTokensInvestor = ap ? parseInt(ap.max_tokens || "0", 10) : 0;
+  // Parse via Number() so scientific-notation strings (e.g. "6E+4" from Pydantic
+  // Decimal serialisation of numeric(78,0) columns) aren't truncated at the "E".
+  const parseTokenCount = (v: string | null | undefined, fallback: number): number => {
+    if (v == null || v === "") return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.floor(n) : fallback;
+  };
+  const minTokens = parseTokenCount(ap?.min_tokens, 1);
+  const maxTokensInvestor = parseTokenCount(ap?.max_tokens, 0);
   // Sale-level totals: prefer the on-chain reads; fall back to DB values until
   // wagmi has hydrated them (or for sales without a deployed contract).
   const totalSupply = onChain.ready ? onChain.totalTokenSupply : (project.totalTokenSupply ?? 0);
@@ -991,11 +998,11 @@ export default function ProjectDetailPage() {
                                       )}
                                       <div className="bg-gray-50 rounded-xl p-3">
                                         <p className="text-gray-400 text-xs mb-1">Min Buy</p>
-                                        <p className="font-bold text-base">{parseInt(phase.min_tokens || "1", 10)} {project.tokenSymbol}</p>
+                                        <p className="font-bold text-base">{parseTokenCount(phase.min_tokens, 1)} {project.tokenSymbol}</p>
                                       </div>
                                       <div className="bg-gray-50 rounded-xl p-3">
                                         <p className="text-gray-400 text-xs mb-1">Top-Up Min</p>
-                                        <p className="font-bold text-base">{parseInt(phase.top_up_min_tokens || "1", 10)} {project.tokenSymbol}</p>
+                                        <p className="font-bold text-base">{parseTokenCount(phase.top_up_min_tokens, 1)} {project.tokenSymbol}</p>
                                       </div>
                                     </div>
 

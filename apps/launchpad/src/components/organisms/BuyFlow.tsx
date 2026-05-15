@@ -167,6 +167,29 @@ function buildQuickQuantities(
     seen.add(q);
     return true;
   });
+
+  // When the buyer is near their cap, every preset gets clamped to the same
+  // small remaining number and dedup leaves a single chip. Fall back to
+  // proportion-based chips so the UI still surfaces 3-4 sensible options.
+  if (filtered.length < 3 && availableTokens > 0) {
+    const fallback = [
+      1,
+      Math.max(1, Math.ceil(availableTokens / 4)),
+      Math.max(1, Math.ceil(availableTokens / 2)),
+      availableTokens,
+    ];
+    const proportional: number[] = [];
+    const seenFb = new Set<number>(filtered);
+    for (const v of fallback) {
+      if (v > 0 && v <= availableTokens && !seenFb.has(v)) {
+        proportional.push(v);
+        seenFb.add(v);
+      }
+    }
+    const combined = [...filtered, ...proportional].sort((a, b) => a - b);
+    return combined.length > 0 ? combined : [relevantMin];
+  }
+
   return filtered.length > 0 ? filtered : [relevantMin];
 }
 
@@ -188,11 +211,19 @@ export function InvestAmountStep({
   const tokenQty = parseInt(amount || "0", 10) || 0;
   const pricePerToken = activePhase ? parseFloat(activePhase.price_per_token) : 0;
 
-  // Phase-level minimums are in whole tokens (new schema) — fall back to 1 if missing
+  // Phase-level minimums are in whole tokens (new schema) — fall back to 1 if missing.
+  // Use Number() not parseInt() so scientific-notation strings like "6E+4" (which
+  // Pydantic emits for numeric(78,0) DB columns) get parsed correctly rather than
+  // truncated to 6 at the "E".
   const phaseRaw = activePhase as unknown as { min_tokens?: string; max_tokens?: string; top_up_min_tokens?: string };
-  const minTokens = phaseRaw?.min_tokens ? parseInt(phaseRaw.min_tokens, 10) : 1;
-  const maxTokens = phaseRaw?.max_tokens ? parseInt(phaseRaw.max_tokens, 10) : 0; // 0 = unlimited
-  const topUpMinTokens = phaseRaw?.top_up_min_tokens ? parseInt(phaseRaw.top_up_min_tokens, 10) : 1;
+  const parseTokenCount = (v: string | undefined, fallback: number): number => {
+    if (v == null || v === "") return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.floor(n) : fallback;
+  };
+  const minTokens = parseTokenCount(phaseRaw?.min_tokens, 1);
+  const maxTokens = parseTokenCount(phaseRaw?.max_tokens, 0); // 0 = unlimited
+  const topUpMinTokens = parseTokenCount(phaseRaw?.top_up_min_tokens, 1);
 
   const usdcRequired = tokenQty * pricePerToken; // exact, zero rounding
   const tokensToReceive = tokenQty;

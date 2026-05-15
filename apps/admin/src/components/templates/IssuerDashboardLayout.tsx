@@ -29,20 +29,28 @@ import { NotificationBell } from "@/components/molecules/NotificationBell";
 import { cn } from "@/lib/utils";
 import { getOnboardingStatus } from "@/lib/api/repositories/issuer-onboarding";
 
+// Links visible to every issuer.
 const SIDEBAR_LINKS = [
   { href: "/issuer/overview", label: "Overview", icon: LayoutDashboard, requiresOnboarding: false },
   { href: "/issuer/tokens", label: "Tokens", icon: Coins, requiresOnboarding: true },
   { href: "/issuer/sales", label: "Token Sales", icon: ShoppingCart, requiresOnboarding: true },
   { href: "/issuer/buyers", label: "Buyers", icon: Users, requiresOnboarding: true },
   { href: "/issuer/subscribers", label: "Subscribers", icon: Bell, requiresOnboarding: true },
-  { href: "/issuer/compliance", label: "Compliance", icon: Shield, requiresOnboarding: true },
-  { href: "/issuer/compliance/recovery", label: "Recovery", icon: RefreshCcw, requiresOnboarding: true },
-  { href: "/issuer/compliance/wallet-deletions", label: "Wallet Removals", icon: Trash2, requiresOnboarding: true },
-  { href: "/issuer/compliance/identity-registry", label: "Identity Registry", icon: ShieldAlert, requiresOnboarding: true },
   { href: "/issuer/withdrawals", label: "Withdrawals", icon: Wallet, requiresOnboarding: true },
   { href: "/issuer/dividends", label: "Dividends", icon: Banknote, requiresOnboarding: true },
   { href: "/issuer/redemptions", label: "Redemptions", icon: RefreshCcw, requiresOnboarding: true },
   { href: "/issuer/reports", label: "Reports", icon: FileText, requiresOnboarding: true },
+];
+
+// Links surfaced only to platform admins viewing the issuer dashboard. The
+// underlying endpoints all require RequireAdmin server-side, so showing them
+// to plain issuers used to dump them on a "Platform admin role required"
+// error page.
+const ADMIN_ONLY_LINKS = [
+  { href: "/issuer/compliance", label: "Compliance", icon: Shield, requiresOnboarding: true },
+  { href: "/issuer/compliance/recovery", label: "Recovery", icon: RefreshCcw, requiresOnboarding: true },
+  { href: "/issuer/compliance/wallet-deletions", label: "Wallet Removals", icon: Trash2, requiresOnboarding: true },
+  { href: "/issuer/compliance/identity-registry", label: "Identity Registry", icon: ShieldAlert, requiresOnboarding: true },
 ];
 
 export interface IssuerDashboardLayoutProps {
@@ -147,6 +155,25 @@ export function IssuerDashboardLayout({
               />
             ))}
           </nav>
+
+          {isAdmin && (
+            <>
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-3 mt-4 mb-2">
+                Admin tools
+              </p>
+              <nav className="space-y-0.5">
+                {ADMIN_ONLY_LINKS.map((link) => (
+                  <NavLink
+                    key={link.href}
+                    href={link.href}
+                    label={link.label}
+                    icon={link.icon}
+                    disabled={link.requiresOnboarding && isLocked}
+                  />
+                ))}
+              </nav>
+            </>
+          )}
 
           {/* Locked notice */}
           {isLocked && (
