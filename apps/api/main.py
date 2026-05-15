@@ -7,8 +7,11 @@ Middleware stack (applied bottom to top, meaning first added = outermost):
   - LoggingMiddleware: Request logging with correlation IDs
 """
 
+import asyncio
+import logging
+import os
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,13 +26,49 @@ from packages.common.middleware import (
     SecurityHeadersMiddleware,
 )
 
+logger = logging.getLogger(__name__)
+
+
+async def _chain_sync_loop() -> None:
+    """In-process chain-event poller. Replaces the dedicated arq worker for
+    environments where one isn't running (sandbox today).
+
+    Polls every 12 seconds for Sale/Token/Fraction/Redemption events and
+    syncs DB state. Per-cycle exceptions are logged but never crash the loop.
+    """
+    from apps.api.services.event_listener_service import EventListenerService
+
+    svc = EventListenerService()
+    logger.info("In-process chain-sync loop started")
+    while True:
+        try:
+            count = await svc.poll_events()
+            if count:
+                logger.info("Chain sync: %d events processed", count)
+        except Exception as e:
+            logger.error("Chain sync cycle failed: %s", e, exc_info=True)
+        await asyncio.sleep(12)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler for startup/shutdown events."""
-    # Startup
+    # Startup — kick off background tasks unless explicitly disabled.
+    # In production with a dedicated worker service, set DISABLE_INPROCESS_WORKER=1.
+    chain_sync_task = None
+    if os.getenv("DISABLE_INPROCESS_WORKER") != "1":
+        chain_sync_task = asyncio.create_task(_chain_sync_loop())
+        logger.info("In-process chain sync enabled (set DISABLE_INPROCESS_WORKER=1 to disable)")
+    else:
+        logger.info("In-process chain sync DISABLED via env")
+
     yield
-    # Shutdown
+
+    # Shutdown — cancel background tasks cleanly.
+    if chain_sync_task is not None:
+        chain_sync_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await chain_sync_task
 
 
 def create_app() -> FastAPI:
