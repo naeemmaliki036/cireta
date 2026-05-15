@@ -554,16 +554,73 @@ class EventListenerService:
                 await db.commit()
 
             elif event_name == "SaleFinalized":
+                from sqlalchemy.orm import selectinload
+
+
                 success = args.get("success", False)
                 new_status = SaleStatus.FINALIZED if success else SaleStatus.FAILED
                 sale_result = await db.execute(
-                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                    select(TokenSale)
+                    .options(
+                        selectinload(TokenSale.issuer),
+                        selectinload(TokenSale.token),
+                    )
+                    .where(TokenSale.contract_address == sale_address)
                 )
                 sale = sale_result.scalar_one_or_none()
                 if sale:
                     sale.status = new_status
                     logger.info("SaleFinalized: sale=%s success=%s", sale.id, success)
                     await db.commit()
+                    # Fan out notifications: issuer + every distinct contributor.
+                    # Wrapped in try/except so a notify failure doesn't poison the
+                    # status flip — sale being finalized is the source of truth.
+                    try:
+                        from apps.api.services.notification_service import (
+                            NotificationService,
+                        )
+
+                        notif = NotificationService(db)
+                        token_name = (
+                            sale.token.name if sale.token else (sale.title or "your sale")
+                        )
+                        # Issuer
+                        if sale.issuer and sale.issuer.user_id:
+                            from apps.api.models.user import User
+
+                            issuer_user_row = await db.execute(
+                                select(User).where(User.id == sale.issuer.user_id)
+                            )
+                            issuer_user = issuer_user_row.scalar_one_or_none()
+                            if issuer_user:
+                                await notif.notify_sale_finalized(
+                                    user_id=issuer_user.id,
+                                    user_email=issuer_user.email,
+                                    token_name=token_name,
+                                    success=bool(success),
+                                    display_name=issuer_user.display_name or issuer_user.email,
+                                )
+                        # Distinct contributors
+                        from apps.api.models.user import User as _User
+
+                        contrib_users = await db.execute(
+                            select(_User)
+                            .distinct()
+                            .join(Contribution, Contribution.user_id == _User.id)
+                            .where(Contribution.sale_id == sale.id)
+                        )
+                        for u in contrib_users.scalars().all():
+                            await notif.notify_sale_finalized(
+                                user_id=u.id,
+                                user_email=u.email,
+                                token_name=token_name,
+                                success=bool(success),
+                                display_name=u.display_name or u.email,
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "notify on SaleFinalized failed: %s", e
+                        )
 
             elif event_name in ("PhaseExtended", "PhaseShortened", "PhaseAdvanced"):
                 from datetime import UTC, datetime
@@ -1463,6 +1520,26 @@ class EventListenerService:
                     "RedemptionFulfilled: token=%s id=%d tx=%s",
                     token.id, onchain_id, tx_hash,
                 )
+                # Notify the redeeming user that their redemption is fulfilled.
+                try:
+                    from apps.api.services.notification_service import (
+                        NotificationService,
+                    )
+
+                    user_row = await db.execute(
+                        select(User).where(User.id == req.user_id)
+                    )
+                    redeem_user = user_row.scalar_one_or_none()
+                    if redeem_user:
+                        notif = NotificationService(db)
+                        await notif.notify_redemption_fulfilled(
+                            user_id=redeem_user.id,
+                            user_email=redeem_user.email,
+                            token_symbol=token.symbol,
+                            display_name=redeem_user.display_name or redeem_user.email,
+                        )
+                except Exception as e:
+                    logger.warning("notify user on redemption-fulfilled failed: %s", e)
 
             elif event_name == "RedemptionCancelled":
                 if not req:

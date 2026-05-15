@@ -104,6 +104,25 @@ async def link_wallet(
         is_safe=request.is_safe,
         label=request.label,
     )
+    # Fire-and-forget notification — failures must not break wallet linking.
+    try:
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        user_row = await db.execute(select(User).where(User.id == user_id))
+        user = user_row.scalar_one_or_none()
+        if user:
+            notif = NotificationService(db)
+            short = f"{wallet.address_checksum[:6]}…{wallet.address_checksum[-4:]}"
+            await notif.notify_wallet_linked(
+                user_id=user.id,
+                user_email=user.email,
+                wallet_short=short,
+                display_name=user.display_name or user.email,
+            )
+    except Exception as e:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("notify wallet linked failed: %s", e)
     return await _wallet_to_response(wallet, db)
 
 
