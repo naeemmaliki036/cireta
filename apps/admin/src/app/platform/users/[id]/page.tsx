@@ -34,6 +34,7 @@ import {
   type SumsubCheckResponse,
 } from "@/lib/api/repositories/buyers";
 import { markWalletRegistered } from "@/lib/api/repositories/admin-wallets";
+import { apiFetch } from "@/lib/api/client";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
 
@@ -133,9 +134,13 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   const handleApprove = () => handleKYCAction("approve", async () => {
     const result = await updateInvestorKYC(id, "approved");
+    const onchain = result.onchain_registration ?? "";
+    const onchainFailed = onchain.startsWith("failed");
     setActionMessage({
-      type: "success",
-      text: `KYC approved. On-chain: ${result.onchain_registration ?? "n/a"}`,
+      type: onchainFailed ? "error" : "success",
+      text: onchainFailed
+        ? `KYC approved BUT on-chain registration failed — use 'Resync IR' below to retry. Detail: ${onchain.replace(/^failed:\s*/, "").slice(0, 200)}`
+        : "KYC approved. Wallets registered on-chain.",
     });
   });
 
@@ -565,11 +570,15 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       {/* On-Chain Whitelisting */}
       {isApproved && hasWallets && (
         <div className="bg-white rounded-lg border border-zinc-100 p-6 mb-6">
-          <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2 mb-4">
-            <Shield className="h-4 w-4 text-zinc-400" /> On-Chain Whitelisting
-          </h3>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-zinc-400" /> On-Chain Whitelisting
+            </h3>
+            <ResyncIRButton userId={user.id} onDone={reload} />
+          </div>
           <p className="text-xs text-zinc-500 mb-3">
-            Whitelist this buyer&apos;s wallet(s) on the platform&apos;s SimpleIdentityRegistry. Click the shield icon next to a wallet to whitelist it.
+            Whitelist this buyer&apos;s wallet(s) on the platform&apos;s SimpleIdentityRegistry. Click the shield icon next to a wallet to whitelist it, or use{" "}
+            <strong>Resync IR</strong> to re-fire <code>addToWhitelist</code> via the platform signer for any unregistered wallet.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-4">
             <div className="flex-1 w-full">
@@ -795,6 +804,63 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         )}
       </div>
     </PlatformAdminLayout>
+  );
+}
+
+interface ResyncResultItem {
+  email: string;
+  wallet_address: string;
+  outcome: "already_on_chain" | "registered" | "failed";
+  tx_hash?: string | null;
+  error?: string | null;
+}
+interface ResyncResponse {
+  scanned: number;
+  already_on_chain: number;
+  registered: number;
+  failed: number;
+  items: ResyncResultItem[];
+}
+
+function ResyncIRButton({ userId, onDone }: { userId: string; onDone: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<ResyncResponse | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const run = async () => {
+    setRunning(true);
+    setErr(null);
+    setResult(null);
+    try {
+      const res = await apiFetch<ResyncResponse>(
+        `/api/v1/admin/identity-registry/backfill?user_id=${userId}`,
+        { method: "POST" },
+      );
+      setResult(res);
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Resync failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button variant="outline" size="sm" onClick={run} isLoading={running} disabled={running}>
+        Resync IR
+      </Button>
+      {err && <p className="text-[11px] text-red-600">{err}</p>}
+      {result && (
+        <p className="text-[11px] text-zinc-500">
+          {result.registered > 0 && <span className="text-darkAqua font-medium">{result.registered} registered</span>}
+          {result.registered > 0 && result.already_on_chain > 0 && " · "}
+          {result.already_on_chain > 0 && <span className="text-green-700">{result.already_on_chain} already on-chain</span>}
+          {result.failed > 0 && <span className="text-red-600"> · {result.failed} failed</span>}
+          {result.scanned === 0 && <span>No wallets to sync</span>}
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -259,6 +259,10 @@ class BackfillResponse(BaseModel):
 async def backfill_ir_whitelist(
     _admin_id: RequireAdmin,
     db: Annotated[AsyncSession, Depends(get_db)],
+    user_id: UUID | None = Query(
+        None,
+        description="Restrict the backfill to a single user. Omit for platform-wide.",
+    ),
 ) -> BackfillResponse:
     """Find every KYC-approved user with `wallet.registered_on_chain = false`
     and re-fire the IR whitelist for them. Idempotent — wallets that are
@@ -275,12 +279,17 @@ async def backfill_ir_whitelist(
         SimpleIdentityBridgeService,
     )
 
-    # Pull candidates: kyc=approved + at least one wallet not registered
-    result = await db.execute(
+    # Pull candidates: kyc=approved + at least one wallet not registered.
+    # When user_id is supplied, scope to that single user (per-user
+    # "Resync IR" button on the user detail page).
+    base_query = (
         select(User)
         .options(selectinload(User.wallets))
         .where(User.kyc_status == "approved")
     )
+    if user_id is not None:
+        base_query = base_query.where(User.id == user_id)
+    result = await db.execute(base_query)
     users = list(result.scalars().all())
 
     candidates: list[tuple[User, Wallet]] = []
