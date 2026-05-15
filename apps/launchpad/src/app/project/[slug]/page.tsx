@@ -90,7 +90,7 @@ const SIDEBAR_LINKS = [
 const BASE_TABS = ["Overview", "Token & Sale", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
 const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
 const VESTED_INSERT = "Vesting" as const;
-const CLAIM_INSERT = "Claim" as const;
+const CLAIM_INSERT = "Redeem" as const;
 type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT | typeof CLAIM_INSERT;
 
 function PdfThumbnail({ url }: { url: string }) {
@@ -1505,7 +1505,7 @@ export default function ProjectDetailPage() {
                 })()}
               })()}
 
-              {activeTab === "Claim" && (() => {
+              {activeTab === "Redeem" && (() => {
                 const rType = token?.redemption_type ?? (saleRaw as unknown as { redemption_type?: string } | null)?.redemption_type;
                 const rUrl = token?.redemption_url ?? (saleRaw as unknown as { redemption_url?: string } | null)?.redemption_url;
                 const rDesc = token?.redemption_description ?? (saleRaw as unknown as { redemption_description?: string } | null)?.redemption_description;
@@ -1514,92 +1514,138 @@ export default function ProjectDetailPage() {
                 const balanceDisplay = investorTokenBalance != null
                   ? Number(investorTokenBalance as bigint) / 10 ** (token?.decimals ?? 6)
                   : 0;
+                const hasBalance = walletConnected && investorHasBalance;
+
+                // Step-by-step copy depends on path
+                const isOnChain = rType === "on_chain";
+                const isManual = rType === "manual_off_chain";
+                const steps = isOnChain
+                  ? [
+                      { title: "Buy & hold tokens", body: `Acquire ${project.tokenSymbol} from this sale. The tokens land in your connected wallet.` },
+                      { title: "Submit a redemption request", body: `Decide how many ${project.tokenSymbol} you want to redeem and sign two transactions: an approval, then the request itself.` },
+                      { title: "Issuer reviews", body: "The issuer verifies your request and confirms delivery details. You can cancel before they fulfil." },
+                      { title: "Receive your " + assetLabel, body: `On fulfilment, your tokens are burned on-chain and the issuer arranges delivery of the underlying ${assetLabel}.` },
+                    ]
+                  : isManual
+                  ? [
+                      { title: "Buy & hold tokens", body: `Acquire ${project.tokenSymbol} from this sale.` },
+                      { title: "Contact the issuer", body: rUrl ? "Use the link below to open the issuer's redemption portal." : "Reach out to the issuer through the channel they've published below." },
+                      { title: "Hand over tokens off-platform", body: "Follow the issuer's instructions to transfer / surrender your tokens." },
+                      { title: "Receive your " + assetLabel, body: `The issuer ships or transfers the ${assetLabel} per their stated process.` },
+                    ]
+                  : [];
+
                 return (
                   <div className="space-y-5">
+                    {/* Hero */}
                     <div className="bg-gray-50 rounded-xl p-5">
-                      <h3 className="text-lg font-semibold text-text mb-1">Claim the underlying {assetLabel}</h3>
+                      <h3 className="text-lg font-semibold text-text mb-1">Redeem the underlying {assetLabel}</h3>
                       <p className="text-sm text-black/60">
-                        Burn or hand over your {project.tokenSymbol} tokens to receive the underlying
-                        {" "}{assetLabel} this sale represents.
+                        Follow the steps below to redeem the underlying {assetLabel} this sale represents.
+                        {" "}Your {project.tokenSymbol} tokens will be burned (on-chain redemption) or
+                        locked / surrendered (off-platform redemption) once the issuer fulfils your request.
                       </p>
                     </div>
 
-                    {/* Holding summary */}
-                    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-black/40 uppercase tracking-wide">Your balance</p>
-                        <p className="text-2xl font-semibold text-text mt-1">
-                          {walletConnected
-                            ? `${balanceDisplay.toLocaleString()} ${project.tokenSymbol}`
-                            : "—"}
-                        </p>
-                        {!walletConnected && (
-                          <p className="text-xs text-black/40 mt-1">Connect your wallet to see your balance.</p>
-                        )}
-                      </div>
-                      {rType === "on_chain" && rAddr && (
-                        <a
-                          href={`https://sepolia.basescan.org/address/${rAddr}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-darkAqua hover:underline font-mono"
-                        >
-                          RM: {rAddr.slice(0, 6)}…{rAddr.slice(-4)}
-                        </a>
-                      )}
-                    </div>
-
-                    {/* On-chain path */}
-                    {rType === "on_chain" && (
-                      <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
-                        <div>
-                          <h4 className="font-semibold text-text">On-chain redemption</h4>
-                          <p className="text-sm text-black/60 mt-1">
-                            Submit a redemption request. The issuer reviews it and fulfils — the contract burns
-                            your tokens and the issuer arranges delivery of the underlying {assetLabel}.
-                          </p>
-                          {rDesc && <p className="text-sm text-black/50 mt-2">{rDesc}</p>}
-                        </div>
-                        {walletConnected && investorHasBalance && rAddr && token?.contract_address ? (
-                          <button
-                            onClick={() => setShowRedemptionModal(true)}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity"
-                          >
-                            Request Redemption
-                          </button>
-                        ) : !walletConnected ? (
-                          <p className="text-xs text-black/50">Connect your wallet to start a redemption.</p>
-                        ) : !investorHasBalance ? (
-                          <p className="text-xs text-black/50">
-                            You don&apos;t hold any {project.tokenSymbol} yet — buy first, then redeem.
-                          </p>
-                        ) : null}
+                    {/* Steps */}
+                    {steps.length > 0 && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-5">
+                        <h4 className="text-sm font-semibold text-text/80 uppercase tracking-wide mb-4">How it works</h4>
+                        <ol className="space-y-4">
+                          {steps.map((s, i) => (
+                            <li key={i} className="flex gap-3">
+                              <span className="shrink-0 w-7 h-7 rounded-full bg-darkAqua/10 text-darkAqua text-sm font-semibold flex items-center justify-center">
+                                {i + 1}
+                              </span>
+                              <div>
+                                <p className="font-medium text-text">{s.title}</p>
+                                <p className="text-sm text-black/60 mt-0.5">{s.body}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
                       </div>
                     )}
 
-                    {/* Manual / off-platform path */}
-                    {rType === "manual_off_chain" && (
-                      <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
-                        <h4 className="font-semibold text-text">Off-platform redemption</h4>
-                        <p className="text-sm text-black/60">
-                          This issuer handles redemptions off the platform. Follow their process below to
-                          convert your {project.tokenSymbol} tokens into the underlying {assetLabel}.
-                        </p>
-                        {rDesc && (
-                          <div className="text-sm text-black/70 whitespace-pre-wrap bg-gray-50 rounded-md p-3">
-                            {rDesc}
+                    {/* Balance card */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <p className="text-xs text-black/40 uppercase tracking-wide">Your balance</p>
+                      <p className="text-2xl font-semibold text-text mt-1">
+                        {walletConnected
+                          ? `${balanceDisplay.toLocaleString()} ${project.tokenSymbol}`
+                          : "—"}
+                      </p>
+                      {!walletConnected && (
+                        <p className="text-xs text-black/40 mt-1">Connect your wallet to see your balance.</p>
+                      )}
+                    </div>
+
+                    {/* Action card — what to do next, based on state */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
+                      {!walletConnected ? (
+                        <div>
+                          <h4 className="font-semibold text-text">Connect your wallet to get started</h4>
+                          <p className="text-sm text-black/60 mt-1">
+                            We need to check your {project.tokenSymbol} balance before you can claim.
+                          </p>
+                        </div>
+                      ) : !hasBalance ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div>
+                            <h4 className="font-semibold text-text">Buy {project.tokenSymbol} first</h4>
+                            <p className="text-sm text-black/60 mt-1">
+                              You don&apos;t hold any {project.tokenSymbol} yet. Purchase from this sale, then come back to redeem.
+                            </p>
                           </div>
-                        )}
-                        {rUrl && (
-                          <a
-                            href={rUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity"
+                          <Link
+                            href={`/buy/${project.slug}`}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity shrink-0"
                           >
-                            Open redemption instructions
-                          </a>
-                        )}
+                            Buy Now
+                          </Link>
+                        </div>
+                      ) : isOnChain && rAddr && token?.contract_address ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div>
+                            <h4 className="font-semibold text-text">Ready to redeem</h4>
+                            <p className="text-sm text-black/60 mt-1">
+                              You hold {balanceDisplay.toLocaleString()} {project.tokenSymbol}. Submit a redemption request below.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setShowRedemptionModal(true)}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity shrink-0"
+                          >
+                            Request Redemption
+                          </button>
+                        </div>
+                      ) : isManual ? (
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-text">Follow the issuer&apos;s redemption process</h4>
+                          {rDesc && (
+                            <div className="text-sm text-black/70 whitespace-pre-wrap bg-gray-50 rounded-md p-3">
+                              {rDesc}
+                            </div>
+                          )}
+                          {rUrl && (
+                            <a
+                              href={rUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity"
+                            >
+                              Open redemption instructions
+                            </a>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Issuer notes for on-chain (only if author wrote them) */}
+                    {isOnChain && rDesc && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-5">
+                        <p className="text-xs text-black/40 uppercase tracking-wide mb-2">Notes from the issuer</p>
+                        <p className="text-sm text-black/70 whitespace-pre-wrap">{rDesc}</p>
                       </div>
                     )}
                   </div>

@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,9 @@ class RedemptionRequest(BaseModel):
     delivery_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     tracking_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # On-chain id emitted by RedemptionManager.RedemptionRequested(id, ...).
+    # Joined back to the row by the indexer.
+    onchain_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     token: Mapped[Token] = relationship(back_populates="redemption_requests")
