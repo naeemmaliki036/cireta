@@ -907,7 +907,7 @@ export default function CreateSalePage() {
                         <Input label="Name" value={d.name} onChange={(e) => updDoc(i, "name", e.target.value)} />
                         <Select label="Type" options={DOC_TYPES} value={d.type} onChange={(e) => updDoc(i, "type", e.target.value)} />
                       </div>
-                      <FileUpload label="Document File" accept=".pdf" prefix="documents" value={d.url || null} previewType="document"
+                      <FileUpload label="Document File" accept=".pdf" prefix="documents" maxSizeMB={25} value={d.url || null} previewType="document"
                         visibility={["whitepaper", "legal"].includes(d.type) ? "public" : "private"}
                         onUpload={(r) => updDoc(i, "url", r.url)} onRemove={() => updDoc(i, "url", "")} />
                     </div>

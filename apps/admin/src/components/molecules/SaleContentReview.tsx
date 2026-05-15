@@ -433,6 +433,7 @@ export function SaleContentReview({ saleId, description, fullDescription, editab
                   label="Document File"
                   accept=".pdf"
                   prefix="documents"
+                  maxSizeMB={25}
                   value={newDoc.url || null}
                   previewType="document"
                   visibility={["whitepaper", "legal"].includes(newDoc.type) ? "public" : "private"}
