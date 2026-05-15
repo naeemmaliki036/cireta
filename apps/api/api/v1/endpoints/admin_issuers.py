@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models.enums import IssuerStatus
@@ -280,6 +281,25 @@ async def activate_issuer(
         db.add(log)
         await db.commit()
 
+    # Notify the issuer that they're now active.
+    try:
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        user_row = await db.execute(select(User).where(User.id == issuer.user_id))
+        user = user_row.scalar_one_or_none()
+        if user:
+            ns = NotificationService(db)
+            await ns.notify_issuer_approved(
+                user_id=user.id,
+                user_email=user.email,
+                issuer_name=issuer.name or "Your issuer account",
+                display_name=user.display_name or user.email,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("notify issuer-approved failed: %s", e)
+
     return _issuer_to_response(issuer)
 
 
@@ -378,9 +398,27 @@ async def approve_issuer_wallet(
     issuer_id: UUID,
     _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+    db: AsyncSession = Depends(get_db),
 ) -> IssuerResponse:
     """Approve an issuer's wallet address."""
     issuer = await issuer_service.approve_wallet(issuer_id)
+    try:
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        user_row = await db.execute(select(User).where(User.id == issuer.user_id))
+        user = user_row.scalar_one_or_none()
+        if user and issuer.wallet_address:
+            ns = NotificationService(db)
+            await ns.notify_issuer_wallet_approved(
+                user_id=user.id,
+                user_email=user.email,
+                wallet_address=issuer.wallet_address,
+                display_name=user.display_name or user.email,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("notify issuer-wallet-approved failed: %s", e)
     return _issuer_to_response(issuer)
 
 
@@ -389,9 +427,27 @@ async def reject_issuer_wallet(
     issuer_id: UUID,
     _user_id: RequireAdmin,
     issuer_service: Annotated[IssuerService, Depends(get_issuer_service)],
+    db: AsyncSession = Depends(get_db),
 ) -> IssuerResponse:
     """Reject an issuer's wallet address."""
     issuer = await issuer_service.reject_wallet(issuer_id)
+    try:
+        from apps.api.models.user import User
+        from apps.api.services.notification_service import NotificationService
+
+        user_row = await db.execute(select(User).where(User.id == issuer.user_id))
+        user = user_row.scalar_one_or_none()
+        if user and issuer.wallet_address:
+            ns = NotificationService(db)
+            await ns.notify_issuer_wallet_rejected(
+                user_id=user.id,
+                user_email=user.email,
+                wallet_address=issuer.wallet_address,
+                display_name=user.display_name or user.email,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("notify issuer-wallet-rejected failed: %s", e)
     return _issuer_to_response(issuer)
 
 

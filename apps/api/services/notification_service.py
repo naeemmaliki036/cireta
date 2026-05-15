@@ -30,6 +30,9 @@ SALE_APPROVED = "sale_approved"
 SALE_REJECTED = "sale_rejected"
 SALE_ACTIVATED = "sale_activated"
 REDEMPTION_REQUESTED = "redemption_requested"
+ISSUER_APPROVED = "issuer_approved"
+ISSUER_WALLET_APPROVED = "issuer_wallet_approved"
+ISSUER_WALLET_REJECTED = "issuer_wallet_rejected"
 
 
 # Block-explorer URLs by chain id. Used to build a "View Transaction" link
@@ -363,6 +366,73 @@ class NotificationService:
             email_template_key="redemption_fulfilled",
             email_to=user_email,
             email_variables={"display_name": display_name, "token_symbol": token_symbol},
+        )
+
+    async def notify_issuer_approved(
+        self,
+        user_id: UUID,
+        user_email: str,
+        issuer_name: str,
+        display_name: str = "",
+    ) -> None:
+        """Tell an issuer their account was approved and they can now deploy tokens."""
+        await self.create(
+            user_id=user_id,
+            notif_type=ISSUER_APPROVED,
+            title="Issuer account approved",
+            message=f"{issuer_name} is now an active issuer. You can deploy tokens and create sales.",
+            data={"issuer_name": issuer_name},
+            send_email=True,
+            email_template_key="issuer_approved",
+            email_to=user_email,
+            email_variables={"display_name": display_name, "issuer_name": issuer_name},
+        )
+
+    async def notify_issuer_wallet_approved(
+        self,
+        user_id: UUID,
+        user_email: str,
+        wallet_address: str,
+        display_name: str = "",
+    ) -> None:
+        """Tell an issuer their wallet was approved by the admin."""
+        short = f"{wallet_address[:6]}…{wallet_address[-4:]}"
+        await self.create(
+            user_id=user_id,
+            notif_type=ISSUER_WALLET_APPROVED,
+            title="Issuer wallet approved",
+            message=f"Your wallet {short} has been approved. You can now sign on-chain operations.",
+            data={"wallet_address": wallet_address},
+            send_email=True,
+            email_template_key="issuer_wallet_approved",
+            email_to=user_email,
+            email_variables={"display_name": display_name, "wallet_address": wallet_address},
+        )
+
+    async def notify_issuer_wallet_rejected(
+        self,
+        user_id: UUID,
+        user_email: str,
+        wallet_address: str,
+        display_name: str = "",
+        reason: str = "",
+    ) -> None:
+        """Tell an issuer their wallet was rejected."""
+        short = f"{wallet_address[:6]}…{wallet_address[-4:]}"
+        await self.create(
+            user_id=user_id,
+            notif_type=ISSUER_WALLET_REJECTED,
+            title="Issuer wallet rejected",
+            message=f"Your wallet {short} was not approved. Contact support or submit a different wallet.",
+            data={"wallet_address": wallet_address, "reason": reason},
+            send_email=True,
+            email_template_key="issuer_wallet_rejected",
+            email_to=user_email,
+            email_variables={
+                "display_name": display_name,
+                "wallet_address": wallet_address,
+                "reason": reason,
+            },
         )
 
     async def notify_wallet_linked(
