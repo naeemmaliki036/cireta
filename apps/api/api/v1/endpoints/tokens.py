@@ -65,6 +65,12 @@ def _token_to_response(token) -> TokenResponse:
         redemption_url=getattr(token, "redemption_url", None),
         redemption_description=getattr(token, "redemption_description", None),
         redemption_manager_address=getattr(token, "redemption_manager_address", None),
+        redemption_allowed_methods=getattr(token, "redemption_allowed_methods", None) or "cash,physical",
+        redemption_min_amount=(
+            str(token.redemption_min_amount)
+            if getattr(token, "redemption_min_amount", None) is not None
+            else None
+        ),
     )
 
 

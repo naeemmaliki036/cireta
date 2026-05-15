@@ -29,6 +29,10 @@ export interface Token {
   redemption_url: string | null;
   redemption_description: string | null;
   redemption_manager_address: string | null;
+  /** Comma-separated subset of "cash,physical" — defaults to both. */
+  redemption_allowed_methods?: string | null;
+  /** Minimum token amount per redemption — null = no minimum. */
+  redemption_min_amount?: string | null;
 }
 
 export interface TokenRedemptionRequest {
@@ -36,6 +40,8 @@ export interface TokenRedemptionRequest {
   redemption_url?: string | null;
   redemption_description?: string | null;
   redemption_manager_address?: string | null;
+  redemption_allowed_methods?: string | null;
+  redemption_min_amount?: number | null;
 }
 
 export interface TokenListResponse {

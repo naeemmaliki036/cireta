@@ -140,8 +140,8 @@ export default function PlatformTokensPage() {
       </div>
 
       {/* Search + View Toggle */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="max-w-xs">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex-1 w-[36rem] max-w-full">
           <Input placeholder="Search by name, symbol, or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex items-center bg-zinc-100 rounded-md p-0.5">

@@ -30,6 +30,8 @@ class TokenCreateRequest(BaseModel):
     redemption_type: RedemptionType | None = None
     redemption_url: str | None = Field(default=None, max_length=500)
     redemption_description: str | None = Field(default=None, max_length=2000)
+    redemption_allowed_methods: str | None = Field(default=None, max_length=50)
+    redemption_min_amount: Decimal | None = Field(default=None, ge=0)
 
     @field_validator("symbol")
     @classmethod
@@ -89,6 +91,8 @@ class TokenResponse(BaseModel):
     redemption_url: str | None = None
     redemption_description: str | None = None
     redemption_manager_address: str | None = None
+    redemption_allowed_methods: str = "cash,physical"
+    redemption_min_amount: str | None = None
 
 
 class TokenRedemptionUpdate(BaseModel):
@@ -98,6 +102,8 @@ class TokenRedemptionUpdate(BaseModel):
     redemption_url: str | None = Field(default=None, max_length=500)
     redemption_description: str | None = Field(default=None, max_length=2000)
     redemption_manager_address: str | None = Field(default=None, max_length=42)
+    redemption_allowed_methods: str | None = Field(default=None, max_length=50)
+    redemption_min_amount: Decimal | None = Field(default=None, ge=0)
 
 
 class TokenListResponse(BaseModel):

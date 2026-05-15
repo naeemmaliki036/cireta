@@ -288,6 +288,8 @@ class TokenService:
             "redemption_url",
             "redemption_description",
             "redemption_manager_address",
+            "redemption_allowed_methods",
+            "redemption_min_amount",
         }
         for field, value in updates.items():
             if field in allowed_fields:

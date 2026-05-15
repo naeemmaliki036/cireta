@@ -66,17 +66,43 @@ async def list_redemptions(
     status_filter: str | None = None,
 ) -> dict:
     """List all redemption requests (issuer view)."""
-    q = select(RedemptionRequest).order_by(RedemptionRequest.created_at.desc())
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.models.token import Token
+    from apps.api.models.user import User
+    from apps.api.models.wallet import Wallet
+
+    q = (
+        select(RedemptionRequest)
+        .options(
+            selectinload(RedemptionRequest.token),
+            selectinload(RedemptionRequest.user).selectinload(User.wallets),
+        )
+        .order_by(RedemptionRequest.created_at.desc())
+    )
     if status_filter:
         q = q.where(RedemptionRequest.status == status_filter)
     result = await db.execute(q)
     items = result.scalars().all()
+
+    def _user_wallet(user: User | None) -> str | None:
+        if not user or not user.wallets:
+            return None
+        # Prefer primary, else any wallet.
+        primary = next((w for w in user.wallets if w.is_primary), None)
+        return (primary or user.wallets[0]).address_checksum
+
     return {
         "redemptions": [
             {
                 "id": str(r.id),
                 "user_id": str(r.user_id),
+                "user_email": r.user.email if r.user else None,
+                "user_wallet_address": _user_wallet(r.user),
                 "token_id": str(r.token_id),
+                "token_symbol": r.token.symbol if r.token else None,
+                "token_name": r.token.name if r.token else None,
+                "token_contract_address": r.token.contract_address if r.token else None,
                 "amount": str(r.amount),
                 "status": r.status if isinstance(r.status, str) else r.status.value,
                 "delivery_name": r.delivery_name,
@@ -87,6 +113,7 @@ async def list_redemptions(
                 "shipped_at": r.shipped_at.isoformat() if r.shipped_at else None,
                 "fulfilled_at": r.fulfilled_at.isoformat() if r.fulfilled_at else None,
                 "tx_hash": r.tx_hash,
+                "onchain_id": r.onchain_id,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in items

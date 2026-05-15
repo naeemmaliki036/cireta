@@ -32,6 +32,17 @@ export function RedemptionPanel({ token, onUpdated }: RedemptionPanelProps) {
   const [type, setType] = useState<RedemptionType>(token.redemption_type ?? "none");
   const [url, setUrl] = useState(token.redemption_url ?? "");
   const [description, setDescription] = useState(token.redemption_description ?? "");
+  // Allowed methods + min-amount config. Stored as comma-separated string on the
+  // server ("cash" / "physical" / "cash,physical"). Default to both enabled.
+  const initialMethods = (token.redemption_allowed_methods ?? "cash,physical")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const [allowCash, setAllowCash] = useState(initialMethods.includes("cash"));
+  const [allowPhysical, setAllowPhysical] = useState(initialMethods.includes("physical"));
+  const [minAmount, setMinAmount] = useState(
+    token.redemption_min_amount != null ? String(token.redemption_min_amount) : "",
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -51,14 +62,26 @@ export function RedemptionPanel({ token, onUpdated }: RedemptionPanelProps) {
   const handleSave = async (): Promise<void> => {
     setError(null);
     setSuccess(false);
+    if (type !== "none" && !allowCash && !allowPhysical) {
+      setError("Pick at least one fulfilment method (Cash or Physical).");
+      return;
+    }
     setSaving(true);
     try {
+      const methods = type === "none"
+        ? "cash,physical"
+        : [allowCash && "cash", allowPhysical && "physical"].filter(Boolean).join(",");
+      const minVal = type !== "none" && minAmount.trim() !== ""
+        ? Number(minAmount)
+        : null;
       const updated = await updateTokenRedemption(token.id, {
         redemption_type: type,
         redemption_url: type === "manual_off_chain" ? (url || null) : null,
         redemption_description: type !== "none" ? (description || null) : null,
         // on_chain manager address is managed separately via the deploy flow
         redemption_manager_address: type === "on_chain" ? (managerAddress || null) : null,
+        redemption_allowed_methods: methods,
+        redemption_min_amount: minVal != null && Number.isFinite(minVal) ? minVal : null,
       });
       onUpdated(updated);
       setSuccess(true);
@@ -211,6 +234,49 @@ export function RedemptionPanel({ token, onUpdated }: RedemptionPanelProps) {
               </div>
             );
           })}
+
+          {/* Methods + min-amount config — applies to both on-chain and
+              manual paths. Hidden when redemption is disabled. */}
+          {type !== "none" && (
+            <div className="rounded-lg border border-zinc-200 px-4 py-3 space-y-3 bg-white">
+              <div>
+                <p className="text-xs font-semibold text-zinc-700 mb-1.5">Allowed fulfilment methods</p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm text-zinc-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowCash}
+                      onChange={(e) => setAllowCash(e.target.checked)}
+                      className="rounded"
+                    />
+                    Cash
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-zinc-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowPhysical}
+                      onChange={(e) => setAllowPhysical(e.target.checked)}
+                      className="rounded"
+                    />
+                    Physical
+                  </label>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-1">
+                  Buyers can only pick from the methods you enable here.
+                </p>
+              </div>
+              <div>
+                <Input
+                  label="Minimum redemption amount (tokens)"
+                  type="number"
+                  placeholder="e.g. 100 — leave blank for no minimum"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  helperText={`Lowest quantity a buyer can submit in a single redemption. In ${token.symbol} units.`}
+                />
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-xs text-red-600 px-1">{error}</p>}
           {success && (

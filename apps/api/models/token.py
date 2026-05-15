@@ -150,6 +150,17 @@ class Token(BaseModel):
         nullable=True,
     )
 
+    redemption_allowed_methods: Mapped[str] = mapped_column(
+        String(50),
+        server_default="cash,physical",
+        nullable=False,
+    )
+
+    redemption_min_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=78, scale=18),
+        nullable=True,
+    )
+
     max_supply: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=78, scale=18),
         nullable=True,
