@@ -280,12 +280,38 @@ class WalletService:
                 "Auto-registered wallet %s on-chain for user %s (mode=%s)",
                 wallet.address_checksum, user_id, settings.identity_mode,
             )
-        except Exception:
+        except Exception as exc:
             logger.exception(
                 "Failed inline auto-register for wallet %s on-chain (user %s) — "
                 "queued job will retry",
                 wallet.address_checksum, user_id,
             )
+            # Write an audit row so the admin can see this in
+            # /platform/audit-logs without having to scrape Railway logs.
+            # The Backfill button on /platform/identity-registry is the
+            # recovery path. Wrapped in try/except so audit write errors
+            # never poison the wallet linking transaction.
+            try:
+                from apps.api.models.audit_log import AuditLog
+
+                audit = AuditLog()
+                audit.actor_id = None
+                audit.action = "wallet_auto_register_inline_failed"
+                audit.target_type = "wallet"
+                audit.target_id = str(wallet.id)
+                audit.payload = {
+                    "user_id": str(user_id),
+                    "wallet_address": wallet.address_checksum,
+                    "error": str(exc)[:500],
+                }
+                audit.reason = (
+                    "Inline addToWhitelist on wallet link raised; recoverable "
+                    "via /platform/identity-registry → Run Backfill"
+                )
+                self.db.add(audit)
+                await self.db.commit()
+            except Exception:
+                logger.exception("Audit log write also failed")
 
     async def _wallet_has_contributions(self, address_checksum: str) -> bool:
         """True if any Contribution row references this wallet address.
