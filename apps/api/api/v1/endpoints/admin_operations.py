@@ -49,11 +49,15 @@ async def update_redemption_status(
     if request.tracking_number is not None:
         req.tracking_number = request.tracking_number
 
-    # Delegate status + notes + on-chain fulfilment to the service
+    # Delegate status + notes + on-chain fulfilment to the service.
+    # tx_hash is supplied when the issuer signed fulfil(id) on-chain from
+    # the UI — the service stores it so the row reflects the burn tx
+    # immediately, instead of waiting for the chain-sync indexer.
     await svc.update_fulfillment(
         request_id=redemption_id,
         status=request.status,
         notes=request.notes,
+        tx_hash=request.tx_hash,
     )
 
     return {"message": "Redemption status updated", "status": request.status}
@@ -68,9 +72,7 @@ async def list_redemptions(
     """List all redemption requests (issuer view)."""
     from sqlalchemy.orm import selectinload
 
-    from apps.api.models.token import Token
     from apps.api.models.user import User
-    from apps.api.models.wallet import Wallet
 
     q = (
         select(RedemptionRequest)
@@ -103,6 +105,9 @@ async def list_redemptions(
                 "token_symbol": r.token.symbol if r.token else None,
                 "token_name": r.token.name if r.token else None,
                 "token_contract_address": r.token.contract_address if r.token else None,
+                "redemption_manager_address": (
+                    r.token.redemption_manager_address if r.token else None
+                ),
                 "amount": str(r.amount),
                 "status": r.status if isinstance(r.status, str) else r.status.value,
                 "delivery_name": r.delivery_name,

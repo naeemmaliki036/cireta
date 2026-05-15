@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { isAddress, type Abi } from "viem";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseApiDate } from "@/lib/utils";
+import { Button } from "@/components/atoms";
+import { useContractAction } from "@/hooks/useContractAction";
+import { REDEMPTION_MANAGER_ABI } from "@/lib/contracts/abis/redemptionManager";
 import {
   listRedemptions,
   updateRedemptionStatus,
@@ -98,33 +104,107 @@ function ShippingInfo({ r }: { r: Redemption }) {
   );
 }
 
-function RedemptionCard({
-  r,
-  onUpdate,
-  updating,
-}: {
+interface RedemptionCardProps {
   r: Redemption;
-  onUpdate: (id: string, status: string, extra?: { tracking_number?: string }) => void;
+  onUpdate: (
+    id: string,
+    status: string,
+    extra?: { tracking_number?: string; tx_hash?: string },
+  ) => void;
   updating: boolean;
-}) {
+}
+
+function RedemptionCard({ r, onUpdate, updating }: RedemptionCardProps) {
   const [trackingInput, setTrackingInput] = useState("");
+  const { isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const action = useContractAction();
+  const [chainError, setChainError] = useState<string | null>(null);
+
   const next = nextStatus(r.status);
   const isPhysical = r.fulfillment_method === "physical";
+  const isFulfilStep = next === "fulfilled";
+  const hasOnChain =
+    r.onchain_id !== null &&
+    r.onchain_id !== undefined &&
+    !!r.redemption_manager_address &&
+    isAddress(r.redemption_manager_address);
+
+  const handleClickNext = async () => {
+    if (!next) return;
+    setChainError(null);
+
+    // Non-fulfil transitions (processing, shipped) stay DB-only.
+    if (!isFulfilStep) {
+      onUpdate(
+        r.id,
+        next,
+        next === "shipped" && trackingInput ? { tracking_number: trackingInput } : undefined,
+      );
+      return;
+    }
+
+    // Fulfilment for an off-chain redemption — DB-only.
+    if (!hasOnChain) {
+      onUpdate(r.id, "fulfilled");
+      return;
+    }
+
+    // Fulfilment for an on-chain redemption — wallet signs fulfil(onchain_id).
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+
+    action.reset();
+    const receipt = await action.execute({
+      address: r.redemption_manager_address as `0x${string}`,
+      abi: REDEMPTION_MANAGER_ABI as unknown as Abi,
+      functionName: "fulfil",
+      args: [BigInt(r.onchain_id as number)],
+    });
+
+    if (!receipt) {
+      // useContractAction already surfaced .error — also stash a local copy
+      // so the card shows it inline next to the button.
+      setChainError(action.error ?? "Transaction failed or was rejected.");
+      return;
+    }
+
+    onUpdate(r.id, "fulfilled", { tx_hash: receipt.transactionHash });
+  };
+
+  const buttonLabel = (() => {
+    if (action.isPending) return "Sign in wallet…";
+    if (action.isConfirming) return "Confirming on-chain…";
+    if (updating) return "Updating…";
+    if (next === "shipped") return "Mark Shipped";
+    if (next === "fulfilled") return hasOnChain ? "Sign Fulfil Tx" : "Mark Fulfilled";
+    return `Mark as ${next}`;
+  })();
+
+  const buttonDisabled = updating || action.isPending || action.isConfirming;
 
   return (
     <div className="bg-white/5 rounded-xl p-6">
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="text-white font-medium">
-            {Number(r.amount).toLocaleString()} tokens
+            {Number(r.amount).toLocaleString()} {r.token_symbol ?? "tokens"}
           </p>
           <p className="text-white/40 text-xs mt-0.5">
-            {r.created_at ? parseApiDate(r.created_at).toLocaleDateString() : "\u2014"}
+            {r.created_at ? parseApiDate(r.created_at).toLocaleDateString() : "—"}
             {isPhysical && (
               <span className="ml-2 text-blue-400">Physical Delivery</span>
             )}
             {!isPhysical && r.fulfillment_method && (
               <span className="ml-2 text-green-400">Cash Settlement</span>
+            )}
+            {r.user_email && (
+              <span className="ml-2 text-white/40">· {r.user_email}</span>
+            )}
+            {r.onchain_id !== null && r.onchain_id !== undefined && (
+              <span className="ml-2 text-white/30">· on-chain #{r.onchain_id}</span>
             )}
           </p>
         </div>
@@ -150,6 +230,17 @@ function RedemptionCard({
       {isPhysical && <DeliveryCard r={r} />}
       {isPhysical && <ShippingInfo r={r} />}
 
+      {/* Inline tx hash for the just-signed fulfil call */}
+      {action.txUrl && (
+        <p className="text-[11px] text-blue-400 mb-2">
+          On-chain tx:{" "}
+          <a href={action.txUrl} target="_blank" rel="noreferrer" className="underline">
+            {action.txHash?.slice(0, 10)}…
+          </a>
+        </p>
+      )}
+      {chainError && <p className="text-[11px] text-red-400 mb-2">{chainError}</p>}
+
       {next && r.status !== "cancelled" && (
         <div className="flex items-end gap-3 mt-4">
           {next === "shipped" && isPhysical && (
@@ -164,28 +255,22 @@ function RedemptionCard({
               />
             </div>
           )}
-          <button
-            onClick={() =>
-              onUpdate(
-                r.id,
-                next,
-                next === "shipped" && trackingInput
-                  ? { tracking_number: trackingInput }
-                  : undefined,
-              )
-            }
-            disabled={updating}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-4 py-1.5 whitespace-nowrap"
+          <Button
+            onClick={handleClickNext}
+            disabled={buttonDisabled}
+            isLoading={action.isPending || action.isConfirming || updating}
+            variant="primary"
+            size="sm"
           >
-            {updating
-              ? "Updating..."
-              : next === "shipped"
-                ? "Mark Shipped"
-                : next === "fulfilled"
-                  ? "Mark Fulfilled"
-                  : `Mark as ${next}`}
-          </button>
+            {buttonLabel}
+          </Button>
         </div>
+      )}
+
+      {isFulfilStep && hasOnChain && !isConnected && (
+        <p className="text-[11px] text-white/40 mt-2">
+          Connect your issuer wallet to sign the on-chain burn.
+        </p>
       )}
     </div>
   );
@@ -218,7 +303,7 @@ export default function RedemptionsPage() {
   const handleUpdate = async (
     id: string,
     status: string,
-    extra?: { tracking_number?: string },
+    extra?: { tracking_number?: string; tx_hash?: string },
   ) => {
     setUpdating(id);
     try {

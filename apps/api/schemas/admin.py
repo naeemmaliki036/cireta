@@ -201,6 +201,7 @@ class RedemptionUpdateRequest(BaseModel):
     status: str  # processing, shipped, fulfilled, cancelled
     notes: str | None = None
     tracking_number: str | None = None
+    tx_hash: str | None = None
 
 
 class DividendDepositRequest(BaseModel):
