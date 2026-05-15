@@ -90,7 +90,8 @@ const SIDEBAR_LINKS = [
 const BASE_TABS = ["Overview", "Token & Sale", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
 const ALL_TABS = ["Overview", "Token & Sale", "OTC & Bank", "Team", "FAQ", "Documents", "My Position", "Transactions"] as const;
 const VESTED_INSERT = "Vesting" as const;
-type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT;
+const CLAIM_INSERT = "Claim" as const;
+type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT | typeof CLAIM_INSERT;
 
 function PdfThumbnail({ url }: { url: string }) {
   const [loaded, setLoaded] = useState(false);
@@ -747,6 +748,15 @@ export default function ProjectDetailPage() {
                   if (saleRaw?.sale_mode === "vested") {
                     const idx = baseTabs.indexOf("Token & Sale");
                     if (idx !== -1) baseTabs.splice(idx + 1, 0, VESTED_INSERT);
+                  }
+                  // Insert Claim tab after Vesting (or after Token & Sale) if
+                  // the token has any redemption flow configured.
+                  const rType = token?.redemption_type ?? (saleRaw as unknown as { redemption_type?: string } | null)?.redemption_type;
+                  if (rType && rType !== "none") {
+                    const anchor = baseTabs.indexOf(VESTED_INSERT) !== -1
+                      ? baseTabs.indexOf(VESTED_INSERT)
+                      : baseTabs.indexOf("Token & Sale");
+                    if (anchor !== -1) baseTabs.splice(anchor + 1, 0, CLAIM_INSERT);
                   }
                   return baseTabs;
                 })().map((tab) => (
@@ -1493,6 +1503,107 @@ export default function ProjectDetailPage() {
                   </div>
                 );
                 })()}
+              })()}
+
+              {activeTab === "Claim" && (() => {
+                const rType = token?.redemption_type ?? (saleRaw as unknown as { redemption_type?: string } | null)?.redemption_type;
+                const rUrl = token?.redemption_url ?? (saleRaw as unknown as { redemption_url?: string } | null)?.redemption_url;
+                const rDesc = token?.redemption_description ?? (saleRaw as unknown as { redemption_description?: string } | null)?.redemption_description;
+                const rAddr = token?.redemption_manager_address ?? (saleRaw as unknown as { redemption_manager_address?: string } | null)?.redemption_manager_address;
+                const assetLabel = (project.assetType ?? "asset").toLowerCase();
+                const balanceDisplay = investorTokenBalance != null
+                  ? Number(investorTokenBalance as bigint) / 10 ** (token?.decimals ?? 6)
+                  : 0;
+                return (
+                  <div className="space-y-5">
+                    <div className="bg-gray-50 rounded-xl p-5">
+                      <h3 className="text-lg font-semibold text-text mb-1">Claim the underlying {assetLabel}</h3>
+                      <p className="text-sm text-black/60">
+                        Burn or hand over your {project.tokenSymbol} tokens to receive the underlying
+                        {" "}{assetLabel} this sale represents.
+                      </p>
+                    </div>
+
+                    {/* Holding summary */}
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-black/40 uppercase tracking-wide">Your balance</p>
+                        <p className="text-2xl font-semibold text-text mt-1">
+                          {walletConnected
+                            ? `${balanceDisplay.toLocaleString()} ${project.tokenSymbol}`
+                            : "—"}
+                        </p>
+                        {!walletConnected && (
+                          <p className="text-xs text-black/40 mt-1">Connect your wallet to see your balance.</p>
+                        )}
+                      </div>
+                      {rType === "on_chain" && rAddr && (
+                        <a
+                          href={`https://sepolia.basescan.org/address/${rAddr}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-darkAqua hover:underline font-mono"
+                        >
+                          RM: {rAddr.slice(0, 6)}…{rAddr.slice(-4)}
+                        </a>
+                      )}
+                    </div>
+
+                    {/* On-chain path */}
+                    {rType === "on_chain" && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
+                        <div>
+                          <h4 className="font-semibold text-text">On-chain redemption</h4>
+                          <p className="text-sm text-black/60 mt-1">
+                            Submit a redemption request. The issuer reviews it and fulfils — the contract burns
+                            your tokens and the issuer arranges delivery of the underlying {assetLabel}.
+                          </p>
+                          {rDesc && <p className="text-sm text-black/50 mt-2">{rDesc}</p>}
+                        </div>
+                        {walletConnected && investorHasBalance && rAddr && token?.contract_address ? (
+                          <button
+                            onClick={() => setShowRedemptionModal(true)}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity"
+                          >
+                            Request Redemption
+                          </button>
+                        ) : !walletConnected ? (
+                          <p className="text-xs text-black/50">Connect your wallet to start a redemption.</p>
+                        ) : !investorHasBalance ? (
+                          <p className="text-xs text-black/50">
+                            You don&apos;t hold any {project.tokenSymbol} yet — buy first, then redeem.
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {/* Manual / off-platform path */}
+                    {rType === "manual_off_chain" && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">
+                        <h4 className="font-semibold text-text">Off-platform redemption</h4>
+                        <p className="text-sm text-black/60">
+                          This issuer handles redemptions off the platform. Follow their process below to
+                          convert your {project.tokenSymbol} tokens into the underlying {assetLabel}.
+                        </p>
+                        {rDesc && (
+                          <div className="text-sm text-black/70 whitespace-pre-wrap bg-gray-50 rounded-md p-3">
+                            {rDesc}
+                          </div>
+                        )}
+                        {rUrl && (
+                          <a
+                            href={rUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#13636F] text-white text-sm font-medium hover:opacity-80 transition-opacity"
+                          >
+                            Open redemption instructions
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
               })()}
 
               {activeTab === "OTC & Bank" && saleRaw?.otc_enabled && (
