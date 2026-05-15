@@ -19,7 +19,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useOnChainSaleStats } from "@/lib/hooks/useOnChainSaleStats";
 import { getProject, getSaleRawBySlug, type Project, type SaleRaw } from "@/lib/api/repositories/projects.repository";
 import { getToken, type Token } from "@/lib/api/repositories/tokens";
-import { getTransactions, type Transaction } from "@/lib/api/repositories/portfolio.repository";
+import { getTransactions, getRedemptions, cancelRedemption, type Transaction, type RedemptionRequest } from "@/lib/api/repositories/portfolio.repository";
 import { apiPost, apiFetch } from "@/lib/api/client";
 import { truncateAddress } from "@/lib/utils";
 import { richDescriptionToHtml } from "@/lib/richText";
@@ -174,6 +174,43 @@ export default function ProjectDetailPage() {
   const chainId = useChainId();
   const { address: walletAddress, isConnected: walletConnected } = useAccount();
   const [showRedemptionModal, setShowRedemptionModal] = useState(false);
+  const [redemptions, setRedemptions] = useState<RedemptionRequest[]>([]);
+  const [redemptionsLoading, setRedemptionsLoading] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Fetch the user's redemption requests when they open the Redeem tab.
+  // Filtered client-side to the current project's token_id.
+  useEffect(() => {
+    if (activeTab !== "Redeem" || !isAuthenticated || !token?.id) return;
+    setRedemptionsLoading(true);
+    getRedemptions()
+      .then((rows) => {
+        setRedemptions((rows ?? []).filter((r) => r.token_id === token.id));
+      })
+      .catch(() => setRedemptions([]))
+      .finally(() => setRedemptionsLoading(false));
+  }, [activeTab, isAuthenticated, token?.id]);
+
+  const reloadRedemptions = async () => {
+    if (!token?.id) return;
+    try {
+      const rows = await getRedemptions();
+      setRedemptions((rows ?? []).filter((r) => r.token_id === token.id));
+    } catch { /* ignore */ }
+  };
+
+  const handleCancelRedemption = async (id: string) => {
+    if (!window.confirm("Cancel this redemption request? Your tokens will be returned to your wallet.")) return;
+    setCancellingId(id);
+    try {
+      await cancelRedemption(id);
+      await reloadRedemptions();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Cancel failed");
+    } finally {
+      setCancellingId(null);
+    }
+  };
   // Read sale + per-phase totals directly from the contract. Called BEFORE
   // any early returns so the hook count stays stable across renders.
   // Hook is safe with null inputs — it disables every read until the sale
@@ -1646,6 +1683,80 @@ export default function ProjectDetailPage() {
                       <div className="bg-white border border-gray-100 rounded-xl p-5">
                         <p className="text-xs text-black/40 uppercase tracking-wide mb-2">Notes from the issuer</p>
                         <p className="text-sm text-black/70 whitespace-pre-wrap">{rDesc}</p>
+                      </div>
+                    )}
+
+                    {/* User's redemption history for this token */}
+                    {isAuthenticated && (
+                      <div className="bg-white border border-gray-100 rounded-xl p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-text">Your redemption requests</h4>
+                          <button
+                            type="button"
+                            onClick={reloadRedemptions}
+                            className="text-xs text-darkAqua hover:underline"
+                          >
+                            Refresh
+                          </button>
+                        </div>
+                        {redemptionsLoading ? (
+                          <p className="text-sm text-black/40">Loading…</p>
+                        ) : redemptions.length === 0 ? (
+                          <p className="text-sm text-black/50">No redemption requests yet.</p>
+                        ) : (
+                          <ul className="divide-y divide-gray-100">
+                            {redemptions.map((r) => {
+                              const statusColor =
+                                r.status === "fulfilled" ? "text-green-600" :
+                                r.status === "cancelled" ? "text-gray-400" :
+                                r.status === "shipped" || r.status === "processing" ? "text-amber-600" :
+                                "text-darkAqua";
+                              return (
+                                <li key={r.id} className="py-3 flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-text">
+                                      {Number(r.amount).toLocaleString()} {project.tokenSymbol}
+                                      <span className="text-xs font-normal text-black/40 ml-2">
+                                        · {r.fulfillment_method}
+                                      </span>
+                                    </p>
+                                    <p className="text-xs text-black/40 mt-0.5">
+                                      Requested {new Date(r.created_at).toLocaleString()}
+                                      {r.tx_hash && (
+                                        <>
+                                          {" · "}
+                                          <a
+                                            href={getTxUrl(chainId, r.tx_hash) ?? "#"}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-darkAqua hover:underline font-mono"
+                                          >
+                                            {r.tx_hash.slice(0, 8)}…{r.tx_hash.slice(-6)}
+                                          </a>
+                                        </>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className={`text-xs font-semibold uppercase tracking-wide ${statusColor}`}>
+                                      {r.status}
+                                    </span>
+                                    {r.status === "pending" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCancelRedemption(r.id)}
+                                        disabled={cancellingId === r.id}
+                                        className="text-xs text-red-600 hover:underline disabled:opacity-40"
+                                      >
+                                        {cancellingId === r.id ? "Cancelling…" : "Cancel"}
+                                      </button>
+                                    )}
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                       </div>
                     )}
                   </div>
