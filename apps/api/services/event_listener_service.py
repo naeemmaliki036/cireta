@@ -121,7 +121,25 @@ SALE_EVENTS_ABI = [
     {"anonymous": False, "inputs": [], "name": "SaleApproved", "type": "event"},
     {"anonymous": False, "inputs": [], "name": "SaleUnapproved", "type": "event"},
     {"anonymous": False, "inputs": [], "name": "RefundsActivated", "type": "event"},
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": False, "name": "newStatus", "type": "uint8"},
+        ],
+        "name": "SaleStatusChanged",
+        "type": "event",
+    },
 ]
+
+# Sale.sol enum SaleStatus { Draft, Active, Paused, FinalizedSuccess, FinalizedFailed, Rejected }
+_CHAIN_TO_DB_SALE_STATUS = {
+    0: "draft",
+    1: "active",
+    2: "paused",
+    3: "finalized_success",
+    4: "finalized_failed",
+    5: "rejected",
+}
 
 REDEMPTION_EVENTS_ABI = [
     {
@@ -421,6 +439,7 @@ class EventListenerService:
             "SaleApproved",
             "SaleUnapproved",
             "RefundsActivated",
+            "SaleStatusChanged",
         ):
             try:
                 event_filter = getattr(contract.events, event_name)
@@ -688,6 +707,38 @@ class EventListenerService:
                     sale.refunds_activated_at = datetime.now(UTC)
                     await db.commit()
                 logger.info("RefundsActivated: sale=%s tx=%s", sale.id if sale else "?", tx_hash)
+
+            elif event_name == "SaleStatusChanged":
+                from datetime import UTC, datetime
+
+                new_chain_status = int(args.get("newStatus", -1))
+                new_db_status = _CHAIN_TO_DB_SALE_STATUS.get(new_chain_status)
+                if not new_db_status:
+                    logger.warning(
+                        "SaleStatusChanged: unknown on-chain status %d for %s",
+                        new_chain_status, sale_address,
+                    )
+                    return
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if not sale:
+                    logger.warning("SaleStatusChanged for unknown sale %s", sale_address)
+                    return
+                # Only overwrite the DB status when it differs from chain. Some DB
+                # statuses (approved, pending_approval) are platform-only and the
+                # chain has no corresponding state; we keep those rather than
+                # downgrade to 'draft'.
+                if sale.status != new_db_status:
+                    sale.status = new_db_status
+                    if new_db_status == "active" and not sale.activated_at:
+                        sale.activated_at = datetime.now(UTC)
+                    await db.commit()
+                logger.info(
+                    "SaleStatusChanged: sale=%s chain=%d → db=%s tx=%s",
+                    sale.id, new_chain_status, new_db_status, tx_hash,
+                )
 
     async def _handle_transfer_event(
         self, args: dict[str, Any], token_address: str, log: Any  # noqa: ARG002
