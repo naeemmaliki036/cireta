@@ -70,6 +70,33 @@ SALE_EVENTS_ABI = [
         "name": "SaleFinalized",
         "type": "event",
     },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "phaseId", "type": "uint256"},
+            {"indexed": False, "name": "newEndTime", "type": "uint256"},
+        ],
+        "name": "PhaseExtended",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "phaseId", "type": "uint256"},
+            {"indexed": False, "name": "newEndTime", "type": "uint256"},
+        ],
+        "name": "PhaseShortened",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "phaseId", "type": "uint256"},
+            {"indexed": False, "name": "newStartTime", "type": "uint256"},
+        ],
+        "name": "PhaseAdvanced",
+        "type": "event",
+    },
 ]
 
 ERC20_TRANSFER_ABI = [
@@ -313,13 +340,22 @@ class EventListenerService:
         return sale_addresses, token_addresses, fraction_addresses
 
     async def _poll_sale_events(self, address: str, from_block: int, to_block: int) -> int:
-        """Poll Purchase, TokensClaimed, RefundClaimed, SaleFinalized."""
+        """Poll Purchase, TokensClaimed, RefundClaimed, SaleFinalized,
+        PhaseExtended, PhaseShortened, PhaseAdvanced."""
         contract = self.w3.eth.contract(
             address=Web3.to_checksum_address(address), abi=SALE_EVENTS_ABI
         )
         count = 0
 
-        for event_name in ("Purchase", "TokensClaimed", "RefundClaimed", "SaleFinalized"):
+        for event_name in (
+            "Purchase",
+            "TokensClaimed",
+            "RefundClaimed",
+            "SaleFinalized",
+            "PhaseExtended",
+            "PhaseShortened",
+            "PhaseAdvanced",
+        ):
             try:
                 event_filter = getattr(contract.events, event_name)
                 logs = await asyncio.to_thread(
@@ -443,6 +479,60 @@ class EventListenerService:
                     sale.status = new_status
                     logger.info("SaleFinalized: sale=%s success=%s", sale.id, success)
                     await db.commit()
+
+            elif event_name in ("PhaseExtended", "PhaseShortened", "PhaseAdvanced"):
+                from datetime import UTC, datetime
+
+                from apps.api.models.sale_phase import SalePhase
+
+                phase_id = int(args.get("phaseId", 0))
+                new_ts_field = "newStartTime" if event_name == "PhaseAdvanced" else "newEndTime"
+                new_ts = int(args.get(new_ts_field, 0))
+                if new_ts <= 0:
+                    logger.warning("%s missing %s on %s", event_name, new_ts_field, sale_address)
+                    return
+
+                # Find the sale row, then the phase by on_chain_phase_id with a
+                # fallback to phase_number (older rows seeded before
+                # on_chain_phase_id was populated).
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if not sale:
+                    logger.warning("%s for unknown sale %s", event_name, sale_address)
+                    return
+
+                phase_result = await db.execute(
+                    select(SalePhase)
+                    .where(SalePhase.sale_id == sale.id)
+                    .where(SalePhase.on_chain_phase_id == phase_id)
+                )
+                phase = phase_result.scalar_one_or_none()
+                if not phase:
+                    phase_result = await db.execute(
+                        select(SalePhase)
+                        .where(SalePhase.sale_id == sale.id)
+                        .where(SalePhase.phase_number == phase_id)
+                    )
+                    phase = phase_result.scalar_one_or_none()
+                if not phase:
+                    logger.warning(
+                        "%s for sale=%s phaseId=%s — no matching DB row",
+                        event_name, sale.id, phase_id,
+                    )
+                    return
+
+                new_dt = datetime.fromtimestamp(new_ts, tz=UTC)
+                if event_name == "PhaseAdvanced":
+                    phase.start_time = new_dt
+                else:
+                    phase.end_time = new_dt
+                await db.commit()
+                logger.info(
+                    "%s: sale=%s phase=%s new=%s tx=%s",
+                    event_name, sale.id, phase_id, new_dt.isoformat(), tx_hash,
+                )
 
     async def _handle_transfer_event(
         self, args: dict[str, Any], token_address: str, log: Any  # noqa: ARG002
