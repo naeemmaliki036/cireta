@@ -237,3 +237,110 @@ async def emergency_manual_sync(
         "tx_hash": body.tx_hash,
         "wallet_row_updated": wallet is not None,
     }
+
+
+class BackfillResultItem(BaseModel):
+    email: str
+    wallet_address: str
+    outcome: Literal["already_on_chain", "registered", "failed"]
+    tx_hash: str | None = None
+    error: str | None = None
+
+
+class BackfillResponse(BaseModel):
+    scanned: int
+    already_on_chain: int
+    registered: int
+    failed: int
+    items: list[BackfillResultItem]
+
+
+@router.post("/backfill", response_model=BackfillResponse)
+async def backfill_ir_whitelist(
+    _admin_id: RequireAdmin,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> BackfillResponse:
+    """Find every KYC-approved user with `wallet.registered_on_chain = false`
+    and re-fire the IR whitelist for them. Idempotent — wallets that are
+    already on-chain just get the DB synced; others get an `addToWhitelist`
+    tx via the platform's signer.
+
+    This is the manual recovery path for when the inline auto-register
+    fast-path silently failed (e.g. transient RPC error, missing worker,
+    Redis down).
+    """
+    from sqlalchemy.orm import selectinload
+
+    from apps.api.services.simple_identity_bridge_service import (
+        SimpleIdentityBridgeService,
+    )
+
+    # Pull candidates: kyc=approved + at least one wallet not registered
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.wallets))
+        .where(User.kyc_status == "approved")
+    )
+    users = list(result.scalars().all())
+
+    candidates: list[tuple[User, Wallet]] = []
+    for user in users:
+        for w in (user.wallets or []):
+            if not w.registered_on_chain:
+                candidates.append((user, w))
+
+    if not candidates:
+        return BackfillResponse(
+            scanned=0, already_on_chain=0, registered=0, failed=0, items=[],
+        )
+
+    bridge = SimpleIdentityBridgeService(db)
+
+    already, registered, failed = 0, 0, 0
+    items: list[BackfillResultItem] = []
+
+    for user, wallet in candidates:
+        addr = wallet.address_checksum
+        try:
+            # The bridge's register_wallet is idempotent — it reads
+            # isVerified first and skips the tx if already whitelisted,
+            # then flips the DB flag. We just need to map its outcome.
+            outcome = await bridge.register_wallet(user, addr)
+            tx_hash = outcome.get("tx_hash") if isinstance(outcome, dict) else None
+            already_whitelisted = (
+                outcome.get("already_whitelisted") if isinstance(outcome, dict) else False
+            )
+            if already_whitelisted:
+                already += 1
+                items.append(BackfillResultItem(
+                    email=user.email, wallet_address=addr,
+                    outcome="already_on_chain",
+                ))
+            else:
+                registered += 1
+                items.append(BackfillResultItem(
+                    email=user.email, wallet_address=addr,
+                    outcome="registered", tx_hash=tx_hash,
+                ))
+        except Exception as e:
+            failed += 1
+            msg = str(e)[:200]
+            logger.warning(
+                "IR backfill failed for %s (%s): %s", user.email, addr, msg,
+            )
+            items.append(BackfillResultItem(
+                email=user.email, wallet_address=addr,
+                outcome="failed", error=msg,
+            ))
+
+    logger.info(
+        "IR backfill done: scanned=%d already=%d registered=%d failed=%d",
+        len(candidates), already, registered, failed,
+    )
+    return BackfillResponse(
+        scanned=len(candidates),
+        already_on_chain=already,
+        registered=registered,
+        failed=failed,
+        items=items,
+    )

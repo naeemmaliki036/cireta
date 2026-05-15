@@ -11,6 +11,22 @@ import { CheckRolesPanel } from "@/components/molecules/CheckRolesPanel";
 import { PlatformAdminLayout } from "@/components/templates/PlatformAdminLayout";
 import { useContractAction } from "@/hooks/useContractAction";
 import { SIMPLE_IDENTITY_REGISTRY_ABI } from "@/lib/contracts/abis/simpleIdentityRegistry";
+import { apiFetch } from "@/lib/api/client";
+
+interface BackfillResultItem {
+  email: string;
+  wallet_address: string;
+  outcome: "already_on_chain" | "registered" | "failed";
+  tx_hash?: string | null;
+  error?: string | null;
+}
+interface BackfillResponse {
+  scanned: number;
+  already_on_chain: number;
+  registered: number;
+  failed: number;
+  items: BackfillResultItem[];
+}
 
 const IR_ADDRESS = (
   process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS ?? ""
@@ -245,7 +261,108 @@ export default function IdentityRegistryRolesPage() {
 
         {/* Check Roles */}
         <CheckRolesPanel registryAddress={IR_ADDRESS} />
+
+        {/* Backfill — recover stuck wallets after KYC auto-register fails */}
+        <BackfillPanel />
       </div>
     </PlatformAdminLayout>
+  );
+}
+
+function BackfillPanel() {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<BackfillResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleRun = async () => {
+    if (!window.confirm("Re-fire IR whitelist for every KYC-approved user with an unregistered wallet?")) return;
+    setRunning(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await apiFetch<BackfillResponse>("/api/v1/admin/identity-registry/backfill", {
+        method: "POST",
+      });
+      setResult(res);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Backfill failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-zinc-100 p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900">Backfill IR whitelist</h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Finds users with <code>kyc_status=approved</code> but{" "}
+            <code>wallet.registered_on_chain=false</code>, then re-fires{" "}
+            <code>addToWhitelist</code> via the platform signer. Idempotent —
+            wallets already on-chain just get the DB synced.
+          </p>
+        </div>
+        <Button variant="primary" size="sm" onClick={handleRun} isLoading={running}>
+          Run Backfill
+        </Button>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          {error}
+        </p>
+      )}
+
+      {result && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-4 gap-2 text-center text-xs">
+            <div className="bg-zinc-50 rounded-md p-2">
+              <p className="text-zinc-500">Scanned</p>
+              <p className="text-lg font-semibold text-zinc-900">{result.scanned}</p>
+            </div>
+            <div className="bg-green-50 rounded-md p-2">
+              <p className="text-green-700">Already on-chain</p>
+              <p className="text-lg font-semibold text-green-800">{result.already_on_chain}</p>
+            </div>
+            <div className="bg-darkAqua/10 rounded-md p-2">
+              <p className="text-darkAqua">Registered</p>
+              <p className="text-lg font-semibold text-darkAqua">{result.registered}</p>
+            </div>
+            <div className="bg-red-50 rounded-md p-2">
+              <p className="text-red-700">Failed</p>
+              <p className="text-lg font-semibold text-red-800">{result.failed}</p>
+            </div>
+          </div>
+          {result.items.length > 0 && (
+            <ul className="divide-y divide-zinc-100 text-xs border border-zinc-100 rounded-md">
+              {result.items.map((it, i) => (
+                <li key={i} className="px-3 py-2 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-zinc-700">{it.email}</p>
+                    <p className="font-mono text-zinc-400 text-[10px] truncate">{it.wallet_address}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`font-medium ${
+                      it.outcome === "registered" ? "text-darkAqua" :
+                      it.outcome === "already_on_chain" ? "text-green-700" :
+                      "text-red-700"
+                    }`}>
+                      {it.outcome.replace(/_/g, " ")}
+                    </span>
+                    {it.tx_hash && (
+                      <p className="font-mono text-[10px] text-zinc-400 truncate">{it.tx_hash.slice(0, 14)}…</p>
+                    )}
+                    {it.error && (
+                      <p className="text-[10px] text-red-600 max-w-[200px] truncate" title={it.error}>{it.error}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
