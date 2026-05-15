@@ -197,6 +197,7 @@ export default function PlatformSalesPage() {
   };
 
   const activeSales = sales.filter((s) => s.status === "active");
+  const pendingSales = sales.filter((s) => s.status === "pending_approval");
   const totalRaised = sales.reduce((sum, s) => sum + parseFloat(s.total_raised || "0"), 0);
 
   return (
@@ -216,6 +217,24 @@ export default function PlatformSalesPage() {
           <span className="text-zinc-500">Active</span>
           <span className="font-semibold text-zinc-900">{activeSales.length}</span>
         </div>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("pending_approval")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+            pendingSales.length > 0
+              ? "bg-amber-50 border-amber-300 hover:bg-amber-100 cursor-pointer"
+              : "bg-white border-zinc-200 cursor-default"
+          }`}
+          title={pendingSales.length > 0 ? "Click to filter to pending sales" : "No pending sales"}
+        >
+          <Clock className={`h-3.5 w-3.5 ${pendingSales.length > 0 ? "text-amber-700" : "text-zinc-400"}`} />
+          <span className={pendingSales.length > 0 ? "text-amber-800" : "text-zinc-500"}>
+            Pending Approval
+          </span>
+          <span className={`font-semibold ${pendingSales.length > 0 ? "text-amber-900" : "text-zinc-900"}`}>
+            {pendingSales.length}
+          </span>
+        </button>
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs">
           <ShoppingCart className="h-3.5 w-3.5 text-[#13636F]" />
           <span className="text-zinc-500">Total Raised</span>

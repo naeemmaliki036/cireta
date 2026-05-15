@@ -735,7 +735,7 @@ export default function AdminSaleDetailPage({ params: paramsPromise }: { params:
             onClick={handleToggleVisibility}
             isLoading={actionLoading === "visibility"}
           >
-            {sale.is_visible ? "Hide from Launchpad" : "Make Visible"}
+            {sale.is_visible ? "Hide from Launchpad" : "Publish on Launchpad"}
           </Button>
         </div>
       )}
