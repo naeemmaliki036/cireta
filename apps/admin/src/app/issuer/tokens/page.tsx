@@ -375,7 +375,10 @@ function TokenRow({ token }: { token: Token }) {
   );
 }
 
+type TokenTab = "project" | "otc";
+
 export default function TokensPage() {
+  const [activeTab, setActiveTab] = useState<TokenTab>("project");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -404,102 +407,134 @@ export default function TokensPage() {
   return (
     <IssuerDashboardLayout title="Tokens" description="Deploy and manage your ERC-3643 security tokens"
       actions={
-        <Link href="/issuer/tokens/new">
-          <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create Token</Button>
-        </Link>
+        activeTab === "project" ? (
+          <Link href="/issuer/tokens/new">
+            <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create Token</Button>
+          </Link>
+        ) : undefined
       }
     >
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        {[
-          { label: "Security Tokens", value: tokens.length, color: "text-darkAqua", bg: "bg-darkAqua/10" },
-          { label: "Deployed On-Chain", value: deployed.length, color: "text-green-600", bg: "bg-green-50" },
-        ].map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-md px-4 py-3.5 border border-zinc-100">
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>
-                <Coins className="h-4 w-4" />
-              </div>
-              <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide">{s.label}</p>
-            </div>
-            <p className="text-xl font-bold text-text">{s.value}</p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Search + View Toggle */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex-1 max-w-xs">
-          <Input placeholder="Search by name, symbol, or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
-          <button onClick={() => setViewMode("list")}
-            className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
-            <List className="h-4 w-4" />
-          </button>
-          <button onClick={() => setViewMode("grid")}
-            className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
-            <LayoutGrid className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Security Tokens Grid */}
-      {loading ? (
-        <div className="flex justify-center py-16"><Spinner /></div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-lg border border-zinc-100">
-          <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
-            <Coins className="h-7 w-7 text-zinc-300" />
-          </div>
-          <p className="text-black/40 text-sm mb-1">{tokens.length === 0 ? "No tokens yet" : "No matching tokens"}</p>
-          <p className="text-black/25 text-xs mb-4">
-            {tokens.length === 0 ? "Create your first ERC-3643 security token" : "Try adjusting your search"}
-          </p>
-          {tokens.length === 0 && (
-            <Link href="/issuer/tokens/new">
-              <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create Token</Button>
-            </Link>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-6 border-b border-zinc-200">
+        <button
+          onClick={() => setActiveTab("project")}
+          className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "project"
+              ? "text-darkAqua"
+              : "text-black/50 hover:text-text"
+          }`}
+        >
+          Project Tokens
+          {activeTab === "project" && (
+            <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-darkAqua" />
           )}
-        </div>
-      ) : (
-        viewMode === "list" ? (
-          <div className="overflow-x-auto bg-white rounded-lg border border-zinc-100">
-            <table className="w-full">
-              <thead className="bg-zinc-50 border-b border-zinc-100">
-                <tr className="text-left text-[11px] font-semibold text-black/50 uppercase tracking-wider">
-                  <th className="px-4 py-2.5">Name</th>
-                  <th className="px-4 py-2.5">Supply</th>
-                  <th className="px-4 py-2.5">Type</th>
-                  <th className="px-4 py-2.5">Contract Address</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5 text-right" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((token) => (
-                  <TokenRow key={token.id} token={token} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((token, i) => (
-              <motion.div key={token.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                <TokenCard token={token} />
+        </button>
+        <button
+          onClick={() => setActiveTab("otc")}
+          className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "otc"
+              ? "text-darkAqua"
+              : "text-black/50 hover:text-text"
+          }`}
+        >
+          OTC Tokens
+          {activeTab === "otc" && (
+            <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-darkAqua" />
+          )}
+        </button>
+      </div>
+
+      {activeTab === "project" && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {[
+              { label: "Security Tokens", value: tokens.length, color: "text-darkAqua", bg: "bg-darkAqua/10" },
+              { label: "Deployed On-Chain", value: deployed.length, color: "text-green-600", bg: "bg-green-50" },
+            ].map((s, i) => (
+              <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                className="bg-white rounded-md px-4 py-3.5 border border-zinc-100">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className={`w-7 h-7 rounded-md ${s.bg} flex items-center justify-center ${s.color}`}>
+                    <Coins className="h-4 w-4" />
+                  </div>
+                  <p className="text-[11px] font-medium text-black/40 uppercase tracking-wide">{s.label}</p>
+                </div>
+                <p className="text-xl font-bold text-text">{s.value}</p>
               </motion.div>
             ))}
           </div>
-        )
+
+          {/* Search + View Toggle */}
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex-1 max-w-2xl">
+              <Input placeholder="Search by name, symbol, or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div className="flex items-center bg-zinc-100 rounded-md p-0.5">
+              <button onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
+                <List className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode("grid")}
+                className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white text-text shadow-sm" : "text-black/40 hover:text-text"}`}>
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Security Tokens Grid */}
+          {loading ? (
+            <div className="flex justify-center py-16"><Spinner /></div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-lg border border-zinc-100">
+              <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+                <Coins className="h-7 w-7 text-zinc-300" />
+              </div>
+              <p className="text-black/40 text-sm mb-1">{tokens.length === 0 ? "No tokens yet" : "No matching tokens"}</p>
+              <p className="text-black/25 text-xs mb-4">
+                {tokens.length === 0 ? "Create your first ERC-3643 security token" : "Try adjusting your search"}
+              </p>
+              {tokens.length === 0 && (
+                <Link href="/issuer/tokens/new">
+                  <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />}>Create Token</Button>
+                </Link>
+              )}
+            </div>
+          ) : (
+            viewMode === "list" ? (
+              <div className="overflow-x-auto bg-white rounded-lg border border-zinc-100">
+                <table className="w-full">
+                  <thead className="bg-zinc-50 border-b border-zinc-100">
+                    <tr className="text-left text-[11px] font-semibold text-black/50 uppercase tracking-wider">
+                      <th className="px-4 py-2.5">Name</th>
+                      <th className="px-4 py-2.5">Supply</th>
+                      <th className="px-4 py-2.5">Type</th>
+                      <th className="px-4 py-2.5">Contract Address</th>
+                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5 text-right" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((token) => (
+                      <TokenRow key={token.id} token={token} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((token, i) => (
+                  <motion.div key={token.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                    <TokenCard token={token} />
+                  </motion.div>
+                ))}
+              </div>
+            )
+          )}
+        </>
       )}
 
-      {/* OTC Token Section — independent of sales */}
-      <div className="mt-8">
-        <h2 className="text-sm font-semibold text-black/60 uppercase tracking-wide mb-4">OTC Receipt Token</h2>
-        <OTCTokenSection />
-      </div>
+      {activeTab === "otc" && <OTCTokenSection />}
     </IssuerDashboardLayout>
   );
 }
