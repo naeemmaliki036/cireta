@@ -1405,7 +1405,7 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
                           txHash={extendPhaseAction.txHash}
                           txUrl={extendPhaseAction.txUrl}
                           error={extendPhaseAction.error}
-                          successMessage="Phase extended successfully."
+                          successMessage="Phase extended successfully. The new end date will reflect on the dashboard within about a minute."
                         />
                       </div>
                     );
