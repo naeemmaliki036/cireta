@@ -311,6 +311,35 @@ DEFAULT_TEMPLATES: dict[str, dict[str, str]] = {
         ),
         "description": "Sent to issuer when their sale is approved by admin",
     },
+    "sale_activated_admin": {
+        "subject": "Sale activated on-chain — ready to publish: {{sale_title}}",
+        "html_body": (
+            f'{_STYLE_WRAP}'
+            '<h2 style="color:#111">Sale Activated</h2>'
+            '<p style="color:#555">Hi {{display_name}}, <strong>{{issuer_name}}</strong> '
+            'just activated <strong>{{sale_title}}</strong> on-chain. The sale is now Active '
+            'in the contract but not yet visible to buyers.</p>'
+            '<p style="color:#555">Open the platform sale detail and click <strong>Publish on Launchpad</strong> '
+            'when you\'re ready to make it visible.</p>'
+            f'<a href="{{{{frontend_url}}}}/platform/sales/{{{{sale_id}}}}" style="{_STYLE_BTN};margin-top:16px">Open Sale</a>'
+            f'{_STYLE_FOOTER}'
+        ),
+        "description": "Sent to admins when an issuer activates a sale on-chain (next step: Publish on Launchpad)",
+    },
+    "redemption_requested": {
+        "subject": "New redemption request — {{token_symbol}}",
+        "html_body": (
+            f'{_STYLE_WRAP}'
+            '<h2 style="color:#111">Redemption Requested</h2>'
+            '<p style="color:#555">Hi {{display_name}}, an investor has requested redemption of '
+            '<strong>{{amount}} {{token_symbol}}</strong> ({{token_name}}).</p>'
+            '<p style="color:#555;font-family:monospace;font-size:13px">From: {{investor_address}}</p>'
+            '<p style="color:#555">Review and fulfil from the admin dashboard.</p>'
+            f'<a href="{{{{frontend_url}}}}/platform/redemptions" style="{_STYLE_BTN};margin-top:16px">Open Redemptions</a>'
+            f'{_STYLE_FOOTER}'
+        ),
+        "description": "Sent to the token's issuer when an investor submits an on-chain redemption request",
+    },
     "sale_rejected": {
         "subject": "Your sale {{sale_title}} was not approved",
         "html_body": (

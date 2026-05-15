@@ -719,8 +719,11 @@ class EventListenerService:
                         new_chain_status, sale_address,
                     )
                     return
+                from sqlalchemy.orm import selectinload
                 sale_result = await db.execute(
-                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                    select(TokenSale)
+                    .options(selectinload(TokenSale.issuer))
+                    .where(TokenSale.contract_address == sale_address)
                 )
                 sale = sale_result.scalar_one_or_none()
                 if not sale:
@@ -730,6 +733,9 @@ class EventListenerService:
                 # statuses (approved, pending_approval) are platform-only and the
                 # chain has no corresponding state; we keep those rather than
                 # downgrade to 'draft'.
+                transitioned_to_active = (
+                    new_db_status == "active" and sale.status != "active"
+                )
                 if sale.status != new_db_status:
                     sale.status = new_db_status
                     if new_db_status == "active" and not sale.activated_at:
@@ -739,6 +745,39 @@ class EventListenerService:
                     "SaleStatusChanged: sale=%s chain=%d → db=%s tx=%s",
                     sale.id, new_chain_status, new_db_status, tx_hash,
                 )
+
+                # On Active transition: notify every platform admin so they can
+                # click 'Publish on Launchpad'. Failures here must not roll back
+                # the status update — log and move on.
+                if transitioned_to_active:
+                    try:
+                        from apps.api.models.enums import UserRole
+                        from apps.api.models.user import User
+                        from apps.api.services.notification_service import (
+                            NotificationService,
+                        )
+
+                        admin_rows = await db.execute(
+                            select(User).where(User.role == UserRole.ADMIN)
+                        )
+                        admins = list(admin_rows.scalars().all())
+                        notif = NotificationService(db)
+                        issuer_name = (
+                            sale.issuer.name if sale.issuer else "An issuer"
+                        )
+                        for admin in admins:
+                            await notif.notify_sale_activated_admin(
+                                admin_user_id=admin.id,
+                                admin_email=admin.email,
+                                sale_id=sale.id,
+                                sale_title=sale.title or "(untitled sale)",
+                                issuer_name=issuer_name,
+                                admin_display_name=admin.display_name or admin.email,
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "notify admins on sale-activated failed: %s", e
+                        )
 
     async def _handle_transfer_event(
         self, args: dict[str, Any], token_address: str, log: Any  # noqa: ARG002
@@ -1380,6 +1419,35 @@ class EventListenerService:
                     "RedemptionRequested: token=%s id=%d investor=%s amount=%s (stub created)",
                     token.id, onchain_id, investor, amount,
                 )
+                # Notify the token's issuer that there's a redemption to fulfil.
+                try:
+                    from sqlalchemy.orm import selectinload
+
+                    from apps.api.models.issuer import Issuer
+                    from apps.api.services.notification_service import (
+                        NotificationService,
+                    )
+
+                    issuer_result = await db.execute(
+                        select(Issuer)
+                        .options(selectinload(Issuer.user))
+                        .where(Issuer.id == token.issuer_id)
+                    )
+                    issuer = issuer_result.scalar_one_or_none()
+                    if issuer and issuer.user:
+                        notif = NotificationService(db)
+                        await notif.notify_redemption_requested(
+                            issuer_user_id=issuer.user.id,
+                            issuer_email=issuer.user.email,
+                            token_symbol=token.symbol,
+                            token_name=token.name,
+                            amount=str(amount),
+                            investor_address=investor,
+                            onchain_id=onchain_id,
+                            issuer_display_name=issuer.user.display_name or issuer.user.email,
+                        )
+                except Exception as e:
+                    logger.warning("notify issuer on redemption-requested failed: %s", e)
 
             elif event_name == "RedemptionFulfilled":
                 if not req:

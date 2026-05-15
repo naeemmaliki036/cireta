@@ -69,7 +69,7 @@ class OTPService:
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail={
                     "code": "OTP_RATE_LIMITED",
-                    "message": f"Too many verification codes requested. Please wait 5 minutes before requesting another code.",
+                    "message": "Too many verification codes requested. Please wait 5 minutes before requesting another code.",
                 },
             )
 

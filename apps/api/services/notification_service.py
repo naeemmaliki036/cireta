@@ -28,6 +28,8 @@ TOKEN_RECOVERY = "token_recovery"
 SALE_SUBMITTED_FOR_APPROVAL = "sale_submitted_for_approval"
 SALE_APPROVED = "sale_approved"
 SALE_REJECTED = "sale_rejected"
+SALE_ACTIVATED = "sale_activated"
+REDEMPTION_REQUESTED = "redemption_requested"
 
 
 # Block-explorer URLs by chain id. Used to build a "View Transaction" link
@@ -277,6 +279,71 @@ class NotificationService:
             email_template_key=template_key,
             email_to=user_email,
             email_variables={"display_name": display_name, "token_name": token_name},
+        )
+
+    async def notify_sale_activated_admin(
+        self,
+        admin_user_id: UUID,
+        admin_email: str,
+        sale_id: UUID,
+        sale_title: str,
+        issuer_name: str,
+        admin_display_name: str = "",
+    ) -> None:
+        """Tell admins an issuer just activated their sale on-chain — they now
+        need to flip is_visible so the launchpad shows it."""
+        await self.create(
+            user_id=admin_user_id,
+            notif_type=SALE_ACTIVATED,
+            title="Sale activated — ready to publish",
+            message=f"{issuer_name} activated '{sale_title}' on-chain. Click Publish on Launchpad to make it visible to buyers.",
+            data={"sale_id": str(sale_id), "sale_title": sale_title, "issuer_name": issuer_name},
+            send_email=True,
+            email_template_key="sale_activated_admin",
+            email_to=admin_email,
+            email_variables={
+                "display_name": admin_display_name,
+                "sale_title": sale_title,
+                "issuer_name": issuer_name,
+                "sale_id": str(sale_id),
+            },
+        )
+
+    async def notify_redemption_requested(
+        self,
+        issuer_user_id: UUID,
+        issuer_email: str,
+        token_symbol: str,
+        token_name: str,
+        amount: str,
+        investor_address: str,
+        onchain_id: int,
+        issuer_display_name: str = "",
+    ) -> None:
+        """Tell the issuer an investor has just requested a redemption — they
+        need to fulfil it from the admin dashboard (or RedemptionManager)."""
+        await self.create(
+            user_id=issuer_user_id,
+            notif_type=REDEMPTION_REQUESTED,
+            title="New redemption request",
+            message=f"An investor requested redemption of {amount} {token_symbol}. Review and fulfil from the admin dashboard.",
+            data={
+                "token_symbol": token_symbol,
+                "token_name": token_name,
+                "amount": amount,
+                "investor_address": investor_address,
+                "onchain_id": onchain_id,
+            },
+            send_email=True,
+            email_template_key="redemption_requested",
+            email_to=issuer_email,
+            email_variables={
+                "display_name": issuer_display_name,
+                "token_symbol": token_symbol,
+                "token_name": token_name,
+                "amount": amount,
+                "investor_address": investor_address,
+            },
         )
 
     async def notify_redemption_fulfilled(
