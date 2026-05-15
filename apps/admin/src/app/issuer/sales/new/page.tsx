@@ -341,13 +341,37 @@ export default function CreateSalePage() {
     && !phasesHaveOverlap
     && phaseWindowIssues.length === 0;
 
+  // Token supply helpers — the chain check Sale.addPhase does is
+  //   Σ Fixed phase allocations <= sale.totalTokenSupply
+  // and sale.totalTokenSupply was set at deploy time from this field. So if the
+  // user enters a value here that exceeds the token's max_supply, every phase
+  // allocation will revert later. Show the cap and validate inline.
+  const selectedTokenForCaps = tokens.find((t) => t.id === selectedTokenId);
+  const selectedTokenMaxSupply = (() => {
+    const max = selectedTokenForCaps?.max_supply;
+    if (!max) return null;
+    const n = Number(max);
+    return Number.isFinite(n) ? n : null;
+  })();
+  const totalTokenSupplyNum = Number(totalTokenSupply || "0");
+  const totalSupplyExceedsTokenCap = selectedTokenMaxSupply !== null
+    && totalTokenSupply !== ""
+    && totalTokenSupplyNum > selectedTokenMaxSupply;
+  const fixedAllocSum = phases.reduce(
+    (sum, p) => sum + (Number(p.allocation || "0") || 0),
+    0,
+  );
+  const fixedAllocExceedsSupply = totalTokenSupplyNum > 0
+    && fixedAllocSum > totalTokenSupplyNum;
+
   const tokenCapsValid = selectedTokenId !== ""
     && (saleMode === "direct" || softCap !== "")
     && hardCap !== ""
     && totalTokenSupply !== ""
     && saleStartDate !== ""
     && (isOpenEnded || saleEndDate !== "")
-    && !saleWindowTooLong(saleStartDate, saleEndDate);
+    && !saleWindowTooLong(saleStartDate, saleEndDate)
+    && !totalSupplyExceedsTokenCap;
 
   // Returns a human-readable list of reasons the current step can't be advanced.
   // Used inline above the Continue button so users see *what* needs fixing.
@@ -370,6 +394,11 @@ export default function CreateSalePage() {
         if (saleMode !== "direct" && softCap === "") issues.push("Soft cap (USDC) is required.");
         if (hardCap === "") issues.push("Hard cap (USDC) is required.");
         if (totalTokenSupply === "") issues.push("Total token supply is required.");
+        if (totalSupplyExceedsTokenCap && selectedTokenMaxSupply !== null) {
+          issues.push(
+            `Total token supply (${totalTokenSupplyNum.toLocaleString()}) exceeds the token's max supply (${selectedTokenMaxSupply.toLocaleString()} ${selectedTokenForCaps?.symbol ?? "tokens"}).`,
+          );
+        }
         if (saleStartDate === "") issues.push("Sale start date is required.");
         if (!isOpenEnded && saleEndDate === "") issues.push("Sale end date is required (or check Open-ended).");
         if (saleWindowTooLong(saleStartDate, saleEndDate)) {
@@ -392,6 +421,11 @@ export default function CreateSalePage() {
           }
         });
         if (phasesHaveOverlap) issues.push("Phases overlap — each must start after the previous one ends.");
+        if (fixedAllocExceedsSupply) {
+          issues.push(
+            `Phase allocations (${fixedAllocSum.toLocaleString()}) exceed Total Token Supply (${totalTokenSupplyNum.toLocaleString()}). Lower a phase allocation or raise Total Token Supply.`,
+          );
+        }
         issues.push(...phaseWindowIssues);
         return issues;
       }
@@ -405,16 +439,17 @@ export default function CreateSalePage() {
     }
   };
 
+  const otcStepValid = !otcEnabled || (!!otcTokenAddress && isAddress(otcTokenAddress));
   const canProceed = (() => {
     switch (step) {
-      case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "";
+      case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "" && otcStepValid;
       case 2: return true; // Content — optional
       case 3: return true; // Gallery — optional
       case 4: return true; // Team — optional
       case 5: return true; // FAQs — optional
       case 6: return true; // Documents — optional
       case 7: return tokenCapsValid;
-      case 8: return phasesValid;
+      case 8: return phasesValid && !fixedAllocExceedsSupply;
       case 9: return cliffDays !== "" && vestingDays !== "";
       default: return true;
     }
@@ -423,7 +458,7 @@ export default function CreateSalePage() {
 
   const isStepComplete = (stepId: number): boolean => {
     switch (stepId) {
-      case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "";
+      case 1: return title.trim() !== "" && description.trim() !== "" && saleMode !== "" && saleStructure !== "" && otcStepValid;
       case 2: return !!fullDescription;
       case 3: return galleryItems.length > 0;
       case 4: return teamMembers.some((m) => m.name.trim() !== "");
@@ -749,6 +784,11 @@ export default function CreateSalePage() {
                       onChange={setOtcTokenAddress}
                       required
                     />
+                    {!otcStepValid && (
+                      <p className="text-xs text-red-600 mt-1">
+                        Pick an OTC token before continuing — required when OTC is enabled.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -950,11 +990,45 @@ export default function CreateSalePage() {
                 Phases overlap: each phase&apos;s start date must be after the previous phase&apos;s end date.
               </div>
             )}
+            {totalTokenSupplyNum > 0 && (
+              <div className="px-3 py-2 rounded-md bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 mb-2 flex items-center justify-between">
+                <span>
+                  Sale supply:{" "}
+                  <span className="font-semibold text-zinc-900">
+                    {totalTokenSupplyNum.toLocaleString()}
+                  </span>{" "}
+                  · Allocated across phases:{" "}
+                  <span className="font-semibold text-zinc-900">
+                    {fixedAllocSum.toLocaleString()}
+                  </span>{" "}
+                  · Remaining:{" "}
+                  <span className={fixedAllocExceedsSupply ? "font-semibold text-red-600" : "font-semibold text-zinc-900"}>
+                    {Math.max(0, totalTokenSupplyNum - fixedAllocSum).toLocaleString()}
+                  </span>
+                </span>
+                {fixedAllocExceedsSupply && (
+                  <span className="text-red-600 font-medium">Over by {(fixedAllocSum - totalTokenSupplyNum).toLocaleString()}</span>
+                )}
+              </div>
+            )}
+            {fixedAllocExceedsSupply && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600 mb-2">
+                Phase allocations exceed the total token supply. Lower one or more phase allocations, or raise Total Token Supply on the Raise Details step.
+              </div>
+            )}
             <div className="space-y-2">
               {phases.map((ph, i) => {
                 const isOpen = expandedPhase === i;
                 const totalRaise = ph.pricePerToken && ph.allocation ? (parseFloat(ph.pricePerToken) * parseFloat(ph.allocation)).toLocaleString("en-US") : null;
                 const summary = ph.pricePerToken && ph.allocation ? `$${ph.pricePerToken}/token · ${Number(ph.allocation).toLocaleString()} tokens` : "";
+                // Remaining supply available to THIS phase = total - sum(other phases' allocations)
+                const otherPhaseAlloc = phases.reduce(
+                  (s, p, idx) => s + (idx === i ? 0 : Number(p.allocation || "0") || 0),
+                  0,
+                );
+                const phaseAllocNum = Number(ph.allocation || "0") || 0;
+                const phaseMaxAlloc = Math.max(0, totalTokenSupplyNum - otherPhaseAlloc);
+                const phaseOverAlloc = totalTokenSupplyNum > 0 && phaseAllocNum > phaseMaxAlloc;
                 return (
                 <div key={i} className="border border-zinc-200 rounded-lg overflow-hidden">
                   <button type="button" onClick={() => setExpandedPhase(isOpen ? null : i)}
@@ -972,7 +1046,23 @@ export default function CreateSalePage() {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <Input label="Price per Token (USDC)" type="number" placeholder="e.g., 1.00" value={ph.pricePerToken} onChange={(e) => updPhase(i, "pricePerToken", e.target.value)} />
-                        <Input label="Allocation (tokens)" type="number" placeholder="e.g., 100000" value={ph.allocation} onChange={(e) => updPhase(i, "allocation", e.target.value)} />
+                        <Input
+                          label="Allocation (tokens)"
+                          type="number"
+                          placeholder="e.g., 100000"
+                          value={ph.allocation}
+                          onChange={(e) => updPhase(i, "allocation", e.target.value)}
+                          helperText={
+                            totalTokenSupplyNum > 0
+                              ? `Available for this phase: ${phaseMaxAlloc.toLocaleString()}`
+                              : undefined
+                          }
+                          error={
+                            phaseOverAlloc
+                              ? `Exceeds available supply by ${(phaseAllocNum - phaseMaxAlloc).toLocaleString()}`
+                              : undefined
+                          }
+                        />
                       </div>
                       {totalRaise && (
                         <div className="bg-darkAqua/5 rounded-md px-3 py-2 text-xs">
@@ -1106,7 +1196,24 @@ export default function CreateSalePage() {
             />
             <p className="text-xs text-gray-500">
               Maximum tokens this sale will ever sell across all phases. Required.
+              {selectedTokenMaxSupply !== null && selectedToken && (
+                <>
+                  {" "}Selected token <span className="font-medium">{selectedToken.symbol}</span>{" "}
+                  has a max supply of{" "}
+                  <span className="font-semibold text-zinc-700">
+                    {selectedTokenMaxSupply.toLocaleString()}
+                  </span>{" "}
+                  — total token supply cannot exceed this.
+                </>
+              )}
             </p>
+            {totalSupplyExceedsTokenCap && selectedTokenMaxSupply !== null && (
+              <p className="text-xs text-red-600">
+                Total token supply ({totalTokenSupplyNum.toLocaleString()}) exceeds the
+                token&apos;s max supply ({selectedTokenMaxSupply.toLocaleString()}
+                {selectedToken ? ` ${selectedToken.symbol}` : ""}).
+              </p>
+            )}
             {/* Round-5: sale window */}
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 text-sm font-medium text-zinc-700">
