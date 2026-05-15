@@ -39,6 +39,7 @@ SALE_EVENTS_ABI = [
             {"indexed": True, "name": "phaseId", "type": "uint256"},
             {"indexed": False, "name": "amount", "type": "uint256"},
             {"indexed": False, "name": "tokensAllocated", "type": "uint256"},
+            {"indexed": False, "name": "isOTC", "type": "bool"},
         ],
         "name": "Purchase",
         "type": "event",
@@ -95,6 +96,59 @@ SALE_EVENTS_ABI = [
             {"indexed": False, "name": "newStartTime", "type": "uint256"},
         ],
         "name": "PhaseAdvanced",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "previousToken", "type": "address"},
+            {"indexed": True, "name": "newToken", "type": "address"},
+        ],
+        "name": "OTCTokenSet",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "previousPhaseId", "type": "uint256"},
+            {"indexed": True, "name": "newPhaseId", "type": "uint256"},
+            {"indexed": False, "name": "oldPrice", "type": "uint256"},
+            {"indexed": False, "name": "newPrice", "type": "uint256"},
+        ],
+        "name": "PriceUpdated",
+        "type": "event",
+    },
+    {"anonymous": False, "inputs": [], "name": "SaleApproved", "type": "event"},
+    {"anonymous": False, "inputs": [], "name": "SaleUnapproved", "type": "event"},
+    {"anonymous": False, "inputs": [], "name": "RefundsActivated", "type": "event"},
+]
+
+REDEMPTION_EVENTS_ABI = [
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "id", "type": "uint256"},
+            {"indexed": True, "name": "investor", "type": "address"},
+            {"indexed": False, "name": "amount", "type": "uint256"},
+        ],
+        "name": "RedemptionRequested",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "id", "type": "uint256"},
+            {"indexed": True, "name": "investor", "type": "address"},
+        ],
+        "name": "RedemptionFulfilled",
+        "type": "event",
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "id", "type": "uint256"},
+        ],
+        "name": "RedemptionCancelled",
         "type": "event",
     },
 ]
@@ -302,6 +356,13 @@ class EventListenerService:
         for addr in fraction_addresses:
             total_processed += await self._poll_recovery_events(addr, from_block + 1, to_block)
 
+        # Poll redemption events on every deployed RedemptionManager
+        redemption_addresses = await self._get_redemption_manager_addresses()
+        for addr in redemption_addresses:
+            total_processed += await self._poll_redemption_events(
+                addr, from_block + 1, to_block
+            )
+
         await self.set_last_synced_block(to_block)
         logger.info("Event poll complete: %d events processed, synced to block %d", total_processed, to_block)
         return total_processed
@@ -355,6 +416,11 @@ class EventListenerService:
             "PhaseExtended",
             "PhaseShortened",
             "PhaseAdvanced",
+            "OTCTokenSet",
+            "PriceUpdated",
+            "SaleApproved",
+            "SaleUnapproved",
+            "RefundsActivated",
         ):
             try:
                 event_filter = getattr(contract.events, event_name)
@@ -533,6 +599,95 @@ class EventListenerService:
                     "%s: sale=%s phase=%s new=%s tx=%s",
                     event_name, sale.id, phase_id, new_dt.isoformat(), tx_hash,
                 )
+
+            elif event_name == "OTCTokenSet":
+                new_token = (args.get("newToken") or "").lower()
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if not sale:
+                    logger.warning("OTCTokenSet for unknown sale %s", sale_address)
+                    return
+                zero = "0x" + "0" * 40
+                if new_token and new_token != zero:
+                    sale.otc_token_address = new_token
+                    sale.otc_enabled = True
+                else:
+                    sale.otc_token_address = None
+                    sale.otc_enabled = False
+                await db.commit()
+                logger.info(
+                    "OTCTokenSet: sale=%s otc=%s tx=%s",
+                    sale.id, sale.otc_token_address, tx_hash,
+                )
+
+            elif event_name == "PriceUpdated":
+                # Direct mode: contract shortens the active phase and appends a
+                # new one with the same name + caps but a new price. Persist the
+                # new price onto the latest DB phase row so the dashboard reflects
+                # the change without a full resync.
+                from apps.api.models.sale_phase import SalePhase
+
+                new_phase_id = int(args.get("newPhaseId", 0))
+                new_price_raw = int(args.get("newPrice", 0))
+                if new_price_raw <= 0:
+                    logger.warning("PriceUpdated missing newPrice on %s", sale_address)
+                    return
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if not sale:
+                    return
+                # Price is stored as whole USDC (numeric(78,18)); contract emits
+                # raw (6 decimals). Normalise.
+                new_price = Decimal(str(new_price_raw)) / Decimal(10**USDC_DECIMALS)
+                phase_result = await db.execute(
+                    select(SalePhase)
+                    .where(SalePhase.sale_id == sale.id)
+                    .where(SalePhase.on_chain_phase_id == new_phase_id)
+                )
+                phase = phase_result.scalar_one_or_none()
+                if phase:
+                    phase.price_per_token = new_price
+                    await db.commit()
+                logger.info(
+                    "PriceUpdated: sale=%s phase=%s newPrice=%s tx=%s",
+                    sale.id, new_phase_id, new_price, tx_hash,
+                )
+
+            elif event_name == "SaleApproved":
+                from datetime import UTC, datetime
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if sale and not sale.approved_at:
+                    sale.approved_at = datetime.now(UTC)
+                    await db.commit()
+                logger.info("SaleApproved: sale=%s tx=%s", sale.id if sale else "?", tx_hash)
+
+            elif event_name == "SaleUnapproved":
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if sale:
+                    sale.approved_at = None
+                    await db.commit()
+                logger.info("SaleUnapproved: sale=%s tx=%s", sale.id if sale else "?", tx_hash)
+
+            elif event_name == "RefundsActivated":
+                from datetime import UTC, datetime
+                sale_result = await db.execute(
+                    select(TokenSale).where(TokenSale.contract_address == sale_address)
+                )
+                sale = sale_result.scalar_one_or_none()
+                if sale and not sale.refunds_activated_at:
+                    sale.refunds_activated_at = datetime.now(UTC)
+                    await db.commit()
+                logger.info("RefundsActivated: sale=%s tx=%s", sale.id if sale else "?", tx_hash)
 
     async def _handle_transfer_event(
         self, args: dict[str, Any], token_address: str, log: Any  # noqa: ARG002
@@ -1012,3 +1167,194 @@ class EventListenerService:
                 "Recovery event indexed: %s on %s, from=%s to=%s, tx=%s",
                 event_name, contract_address, from_addr, to_addr, tx_hash,
             )
+
+    # ------------------------------------------------------------------
+    # Redemption events (RedemptionManager per-token proxy)
+    # ------------------------------------------------------------------
+
+    async def _get_redemption_manager_addresses(self) -> list[str]:
+        """Return every non-null `tokens.redemption_manager_address` (checksummed
+        downstream by web3.py)."""
+        from sqlalchemy import select
+
+        from apps.api.models.token import Token
+        from packages.common.db.session import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Token.redemption_manager_address).where(
+                    Token.redemption_manager_address.isnot(None)
+                )
+            )
+            return [row[0] for row in result.all() if row[0]]
+
+    async def _poll_redemption_events(
+        self, address: str, from_block: int, to_block: int
+    ) -> int:
+        """Poll RedemptionRequested / RedemptionFulfilled / RedemptionCancelled."""
+        contract = self.w3.eth.contract(
+            address=Web3.to_checksum_address(address), abi=REDEMPTION_EVENTS_ABI
+        )
+        count = 0
+        for event_name in (
+            "RedemptionRequested",
+            "RedemptionFulfilled",
+            "RedemptionCancelled",
+        ):
+            try:
+                event_filter = getattr(contract.events, event_name)
+                logs = await asyncio.to_thread(
+                    event_filter().get_logs, from_block=from_block, to_block=to_block
+                )
+                for log_entry in logs:
+                    await self._handle_redemption_event(
+                        event_name, dict(log_entry["args"]), address, log_entry
+                    )
+                    count += 1
+            except Exception:
+                logger.debug(
+                    "No %s events on %s (blocks %d-%d)",
+                    event_name, address, from_block, to_block,
+                )
+        return count
+
+    async def _handle_redemption_event(
+        self,
+        event_name: str,
+        args: dict[str, Any],
+        rm_address: str,
+        log_entry: Any,
+    ) -> None:
+        """Sync redemption_requests rows with on-chain state.
+
+        Matching strategy: redemption_requests.onchain_id (uint256 from the
+        contract) is the join key. If the launchpad PATCH path already created
+        the row with the on-chain id, we update its status. Otherwise (e.g.
+        someone called requestRedemption directly via Etherscan), we insert
+        a stub row so the admin dashboard can still see it.
+        """
+        from datetime import UTC, datetime
+
+        from sqlalchemy import select
+
+        from apps.api.models.enums import FulfillmentMethod, RedemptionStatus
+        from apps.api.models.redemption_request import RedemptionRequest
+        from apps.api.models.token import Token
+        from apps.api.models.user import User
+        from apps.api.models.wallet import Wallet
+        from packages.common.db.session import AsyncSessionLocal
+
+        tx_hash = (
+            log_entry["transactionHash"].hex()
+            if hasattr(log_entry["transactionHash"], "hex")
+            else str(log_entry["transactionHash"])
+        )
+        onchain_id = int(args.get("id", 0))
+
+        async with AsyncSessionLocal() as db:
+            # Locate token by RM address
+            token_result = await db.execute(
+                select(Token).where(Token.redemption_manager_address == rm_address.lower())
+            )
+            token = token_result.scalar_one_or_none()
+            if not token:
+                # Try checksummed match as fallback
+                token_result = await db.execute(
+                    select(Token).where(Token.redemption_manager_address == rm_address)
+                )
+                token = token_result.scalar_one_or_none()
+            if not token:
+                logger.warning(
+                    "%s for unknown RedemptionManager %s",
+                    event_name, rm_address,
+                )
+                return
+
+            req_result = await db.execute(
+                select(RedemptionRequest)
+                .where(RedemptionRequest.token_id == token.id)
+                .where(RedemptionRequest.onchain_id == onchain_id)
+            )
+            req = req_result.scalar_one_or_none()
+
+            if event_name == "RedemptionRequested":
+                investor = (args.get("investor") or "").lower()
+                amount_raw = int(args.get("amount", 0))
+                amount = Decimal(str(amount_raw)) / Decimal(10**token.decimals)
+
+                if req:
+                    # Row already created by the launchpad — make sure tx_hash + status are correct
+                    if not req.tx_hash:
+                        req.tx_hash = tx_hash
+                    await db.commit()
+                    logger.info(
+                        "RedemptionRequested: token=%s id=%d (row already existed)",
+                        token.id, onchain_id,
+                    )
+                    return
+
+                # Stub row — resolve user via wallet
+                user_id = None
+                wallet_result = await db.execute(
+                    select(Wallet).where(Wallet.address_checksum == Web3.to_checksum_address(investor))
+                )
+                wallet = wallet_result.scalar_one_or_none()
+                if wallet:
+                    user_result = await db.execute(
+                        select(User).where(User.id == wallet.user_id)
+                    )
+                    user = user_result.scalar_one_or_none()
+                    if user:
+                        user_id = user.id
+
+                if not user_id:
+                    logger.warning(
+                        "RedemptionRequested: no user matches investor=%s on token=%s; skipping stub insert",
+                        investor, token.id,
+                    )
+                    return
+
+                stub = RedemptionRequest(
+                    token_id=token.id,
+                    user_id=user_id,
+                    amount=amount,
+                    fulfillment_method=FulfillmentMethod.PHYSICAL,
+                    status=RedemptionStatus.PENDING,
+                    tx_hash=tx_hash,
+                    onchain_id=onchain_id,
+                )
+                db.add(stub)
+                await db.commit()
+                logger.info(
+                    "RedemptionRequested: token=%s id=%d investor=%s amount=%s (stub created)",
+                    token.id, onchain_id, investor, amount,
+                )
+
+            elif event_name == "RedemptionFulfilled":
+                if not req:
+                    logger.warning(
+                        "RedemptionFulfilled: no DB row for token=%s id=%d",
+                        token.id, onchain_id,
+                    )
+                    return
+                req.status = RedemptionStatus.FULFILLED
+                req.fulfilled_at = datetime.now(UTC)
+                await db.commit()
+                logger.info(
+                    "RedemptionFulfilled: token=%s id=%d tx=%s",
+                    token.id, onchain_id, tx_hash,
+                )
+
+            elif event_name == "RedemptionCancelled":
+                if not req:
+                    logger.warning(
+                        "RedemptionCancelled: no DB row for token=%s id=%d",
+                        token.id, onchain_id,
+                    )
+                    return
+                req.status = RedemptionStatus.CANCELLED
+                await db.commit()
+                logger.info(
+                    "RedemptionCancelled: token=%s id=%d tx=%s",
+                    token.id, onchain_id, tx_hash,
+                )

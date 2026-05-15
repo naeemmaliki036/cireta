@@ -1044,7 +1044,7 @@ export default function CreateSalePage() {
         {step === 7 && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-xl font-semibold text-text">Raise Details</h2>
-            <Select label="Token being sold (optional)" options={[{ value: "", label: "Select a token..." }, ...tokens.filter((t) => t.contract_address && t.contract_address !== "0x0000000000000000000000000000000000000000").map((t) => {
+            <Select label="Token being sold" options={[{ value: "", label: "Select a token..." }, ...tokens.filter((t) => t.contract_address && t.contract_address !== "0x0000000000000000000000000000000000000000").map((t) => {
               const addr = t.contract_address!;
               return { value: t.id, label: `${t.name} (${t.symbol}) — ${addr.slice(0, 6)}...${addr.slice(-4)}` };
             })]}

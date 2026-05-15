@@ -1,20 +1,12 @@
 """Unit tests for EventListenerService."""
 
-import asyncio
-from decimal import Decimal
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.models.contribution import Contribution
 from apps.api.models.enums import ContributionStatus, SaleStatus
-from apps.api.models.token import Token
 from apps.api.models.token_sale import TokenSale
-from apps.api.models.user import User
 from apps.api.services.event_listener_service import (
     REDIS_LAST_BLOCK_KEY,
     EventListenerService,
@@ -395,3 +387,129 @@ class TestHandleSaleEvent:
 
             # commit should not be called when sale not found
             mock_db.commit.assert_not_called()
+
+
+class TestPhaseMutationEvents:
+    """PhaseExtended / PhaseShortened / PhaseAdvanced — index into sale_phases."""
+
+    async def _run(self, event_name: str, args: dict, expect_field: str) -> MagicMock:
+        log = {"transactionHash": bytes.fromhex("ab" * 32)}
+        mock_sale = MagicMock()
+        mock_sale.id = "00000000-0000-0000-0000-000000000001"
+        mock_phase = MagicMock()
+        with patch("packages.common.db.session.AsyncSessionLocal") as mock_session_cls:
+            mock_db = AsyncMock()
+            r_sale = MagicMock()
+            r_sale.scalar_one_or_none.return_value = mock_sale
+            r_phase = MagicMock()
+            r_phase.scalar_one_or_none.return_value = mock_phase
+            mock_db.execute = AsyncMock(side_effect=[r_sale, r_phase])
+            mock_db.commit = AsyncMock()
+            mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            svc = EventListenerService.__new__(EventListenerService)
+            await svc._handle_sale_event(event_name, args, "0x" + "aa" * 20, log)
+            mock_db.commit.assert_called_once()
+        # Capture the timestamp we set on the phase
+        return getattr(mock_phase, expect_field)
+
+    async def test_phase_extended_updates_end_time(self) -> None:
+        dt = await self._run("PhaseExtended", {"phaseId": 0, "newEndTime": 1735689600}, "end_time")
+        assert dt.timestamp() == 1735689600
+
+    async def test_phase_shortened_updates_end_time(self) -> None:
+        dt = await self._run("PhaseShortened", {"phaseId": 0, "newEndTime": 1735689600}, "end_time")
+        assert dt.timestamp() == 1735689600
+
+    async def test_phase_advanced_updates_start_time(self) -> None:
+        dt = await self._run("PhaseAdvanced", {"phaseId": 0, "newStartTime": 1735689600}, "start_time")
+        assert dt.timestamp() == 1735689600
+
+
+class TestOTCTokenSet:
+    """OTCTokenSet handler — toggles otc_enabled + persists otc_token_address."""
+
+    async def test_otc_set_to_real_address(self) -> None:
+        log = {"transactionHash": bytes.fromhex("ab" * 32)}
+        new_otc = "0x" + "cd" * 20
+        args = {"previousToken": "0x" + "0" * 40, "newToken": new_otc}
+        mock_sale = MagicMock()
+        mock_sale.id = "00000000-0000-0000-0000-000000000001"
+        with patch("packages.common.db.session.AsyncSessionLocal") as mock_session_cls:
+            mock_db = AsyncMock()
+            r = MagicMock()
+            r.scalar_one_or_none.return_value = mock_sale
+            mock_db.execute = AsyncMock(return_value=r)
+            mock_db.commit = AsyncMock()
+            mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            svc = EventListenerService.__new__(EventListenerService)
+            await svc._handle_sale_event("OTCTokenSet", args, "0x" + "aa" * 20, log)
+        assert mock_sale.otc_token_address == new_otc.lower()
+        assert mock_sale.otc_enabled is True
+
+    async def test_otc_cleared_to_zero(self) -> None:
+        log = {"transactionHash": bytes.fromhex("ab" * 32)}
+        args = {"previousToken": "0x" + "cd" * 20, "newToken": "0x" + "0" * 40}
+        mock_sale = MagicMock()
+        mock_sale.id = "00000000-0000-0000-0000-000000000001"
+        with patch("packages.common.db.session.AsyncSessionLocal") as mock_session_cls:
+            mock_db = AsyncMock()
+            r = MagicMock()
+            r.scalar_one_or_none.return_value = mock_sale
+            mock_db.execute = AsyncMock(return_value=r)
+            mock_db.commit = AsyncMock()
+            mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            svc = EventListenerService.__new__(EventListenerService)
+            await svc._handle_sale_event("OTCTokenSet", args, "0x" + "aa" * 20, log)
+        assert mock_sale.otc_token_address is None
+        assert mock_sale.otc_enabled is False
+
+
+class TestApprovalLifecycleEvents:
+    """SaleApproved / SaleUnapproved / RefundsActivated."""
+
+    async def _run(self, event_name: str) -> MagicMock:
+        log = {"transactionHash": bytes.fromhex("ab" * 32)}
+        mock_sale = MagicMock()
+        mock_sale.id = "abc"
+        mock_sale.approved_at = None
+        mock_sale.refunds_activated_at = None
+        with patch("packages.common.db.session.AsyncSessionLocal") as mock_session_cls:
+            mock_db = AsyncMock()
+            r = MagicMock()
+            r.scalar_one_or_none.return_value = mock_sale
+            mock_db.execute = AsyncMock(return_value=r)
+            mock_db.commit = AsyncMock()
+            mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            svc = EventListenerService.__new__(EventListenerService)
+            await svc._handle_sale_event(event_name, {}, "0x" + "aa" * 20, log)
+        return mock_sale
+
+    async def test_sale_approved_sets_timestamp(self) -> None:
+        sale = await self._run("SaleApproved")
+        assert sale.approved_at is not None
+
+    async def test_sale_unapproved_clears_timestamp(self) -> None:
+        log = {"transactionHash": bytes.fromhex("ab" * 32)}
+        mock_sale = MagicMock()
+        mock_sale.id = "abc"
+        from datetime import UTC, datetime
+        mock_sale.approved_at = datetime.now(UTC)
+        with patch("packages.common.db.session.AsyncSessionLocal") as mock_session_cls:
+            mock_db = AsyncMock()
+            r = MagicMock()
+            r.scalar_one_or_none.return_value = mock_sale
+            mock_db.execute = AsyncMock(return_value=r)
+            mock_db.commit = AsyncMock()
+            mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+            mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            svc = EventListenerService.__new__(EventListenerService)
+            await svc._handle_sale_event("SaleUnapproved", {}, "0x" + "aa" * 20, log)
+        assert mock_sale.approved_at is None
+
+    async def test_refunds_activated_sets_timestamp(self) -> None:
+        sale = await self._run("RefundsActivated")
+        assert sale.refunds_activated_at is not None
