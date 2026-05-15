@@ -544,18 +544,6 @@ export function Navbar({ variant = "dark" }: NavbarProps) {
                 >
                   <div className={cn("relative w-6 h-6 rounded-full flex items-center justify-center", effectiveScrolled || variant === "light" ? "bg-darkAqua/10" : "bg-white/20")}>
                     <User className={cn("h-3 w-3", effectiveScrolled || variant === "light" ? "text-darkAqua" : "text-white/70")} />
-                    {kycBadge && (
-                      <span
-                        className={cn(
-                          "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center ring-2",
-                          effectiveScrolled || variant === "light" ? "ring-white" : "ring-black/90",
-                          kycBadge.bg
-                        )}
-                        title={kycBadge.tooltip}
-                      >
-                        <kycBadge.icon className={cn("h-2 w-2", kycBadge.color)} />
-                      </span>
-                    )}
                   </div>
                   <span className="max-w-[120px] truncate">{user.display_name || user.email.split("@")[0]}</span>
                   {kycBadge?.label === "Verified" && <ShieldCheck className="h-3.5 w-3.5 text-darkAqua shrink-0" />}
