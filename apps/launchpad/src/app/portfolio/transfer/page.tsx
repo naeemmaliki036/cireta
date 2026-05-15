@@ -10,9 +10,19 @@ import { Button, Spinner } from "@/components/atoms";
 import { DashboardLayout } from "@/components/templates";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPortfolio, type Holding } from "@/lib/api/repositories/portfolio.repository";
-import { getTxUrl } from "@/lib/contracts/addresses";
+import { getAddresses, getTxUrl } from "@/lib/contracts/addresses";
 import { useContractAction } from "@/hooks/useContractAction";
 import { useToast, ToastContainer } from "@/components/molecules/Toast";
+
+const IDENTITY_REGISTRY_ABI = [
+  {
+    name: "isVerified",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_userAddress", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
 
 const ERC20_TRANSFER_ABI = [
   {
@@ -143,6 +153,24 @@ export default function TransferPage() {
     ? Number(formatUnits(onChainBalance as bigint, decimals))
     : 0;
 
+  // Pre-flight: query identityRegistry.isVerified(recipient) so we can block
+  // the transfer in the UI before the user signs a doomed tx.
+  const identityRegistry = getAddresses(chainId).identityRegistry;
+  const recipientIsValidAddress = !!recipient && isAddress(recipient);
+  const {
+    data: recipientVerifiedRaw,
+    isFetching: isCheckingRecipient,
+    error: recipientCheckError,
+  } = useReadContract({
+    address: identityRegistry ?? undefined,
+    abi: IDENTITY_REGISTRY_ABI,
+    functionName: "isVerified",
+    args: recipientIsValidAddress ? [recipient as `0x${string}`] : undefined,
+    query: { enabled: recipientIsValidAddress && !!identityRegistry },
+  });
+  const recipientVerified =
+    typeof recipientVerifiedRaw === "boolean" ? recipientVerifiedRaw : null;
+
   useEffect(() => {
     if (authLoading || !isAuthenticated) {
       setLoading(false);
@@ -198,6 +226,12 @@ export default function TransferPage() {
       setError("Please enter a valid recipient address.");
       return;
     }
+    if (recipientVerified === false) {
+      setError(
+        "Recipient wallet is not on the identity registry. The transfer would revert on-chain. Ask the recipient to complete KYC and link their wallet first.",
+      );
+      return;
+    }
     if (numericAmount <= 0) {
       setError("Please enter a valid amount.");
       return;
@@ -208,7 +242,7 @@ export default function TransferPage() {
     }
     setError(null);
     setStep("confirm");
-  }, [selectedToken, recipient, numericAmount, onChainBalanceFormatted]);
+  }, [selectedToken, recipient, recipientVerified, numericAmount, onChainBalanceFormatted]);
 
   const executeBatchTransfer = useCallback(async () => {
     if (!selectedToken) return;
@@ -437,6 +471,27 @@ export default function TransferPage() {
                         {recipient && !isAddress(recipient) && (
                           <p className="text-xs text-text/70 mt-1">Invalid Ethereum address</p>
                         )}
+                        {recipientIsValidAddress && identityRegistry && (
+                          <div className="mt-1.5">
+                            {isCheckingRecipient ? (
+                              <p className="text-xs text-black/40">Checking identity registry…</p>
+                            ) : recipientCheckError ? (
+                              <p className="text-xs text-amber-700">
+                                Could not check registry. Try again or proceed at your own risk — the transfer will revert if the recipient isn&apos;t verified.
+                              </p>
+                            ) : recipientVerified === true ? (
+                              <p className="text-xs text-green-700 flex items-center gap-1">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Recipient is on the identity registry.
+                              </p>
+                            ) : recipientVerified === false ? (
+                              <p className="text-xs text-red-700 flex items-center gap-1">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Recipient is NOT on the identity registry — transfer will revert. Ask them to complete KYC and link this wallet first.
+                              </p>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -514,7 +569,13 @@ export default function TransferPage() {
                     <Button
                       variant="primary"
                       className="w-full"
-                      disabled={!selectedToken || !recipient || numericAmount <= 0}
+                      disabled={
+                        !selectedToken ||
+                        !recipient ||
+                        numericAmount <= 0 ||
+                        recipientVerified === false ||
+                        (recipientIsValidAddress && !!identityRegistry && recipientVerified === null && isCheckingRecipient)
+                      }
                       onClick={handleTransfer}
                     >
                       <Send className="h-4 w-4 mr-2" /> Review Transfer

@@ -153,11 +153,6 @@ export default function PortfolioPage() {
     projectSlug: h.token_symbol.toLowerCase(),
   }));
   const vestedHoldings = holdings.filter((h) => h.sale_mode === "vested");
-  const totalClaimable = holdings.reduce(
-    (sum, h) => sum + parseFloat(h.claimable_amount ?? h.claimable ?? "0"),
-    0
-  );
-  const totalValue = parseFloat(portfolio?.total_value_usd ?? "0");
   const totalInvested = parseFloat(portfolio?.total_invested_usd ?? "0");
   const positionCount = holdings.length;
 
@@ -241,16 +236,6 @@ export default function PortfolioPage() {
                   </span>
                   <span className="text-black/30">·</span>
                   <span>{formatCurrency(totalInvested)} invested</span>
-                  <span className="text-black/30">·</span>
-                  <span>{formatCurrency(totalValue)} current value</span>
-                  {totalClaimable > 0 && (
-                    <>
-                      <span className="text-black/30">·</span>
-                      <span className="text-darkAqua font-semibold">
-                        {totalClaimable.toLocaleString(undefined, { maximumFractionDigits: 2 })} ready to claim
-                      </span>
-                    </>
-                  )}
                 </p>
               )}
             </div>
