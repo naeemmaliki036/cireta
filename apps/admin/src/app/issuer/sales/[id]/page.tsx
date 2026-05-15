@@ -24,7 +24,7 @@ import { ProgressBar } from "@/components/atoms";
 import { IssuerDashboardLayout } from "@/components/templates";
 import { formatCurrency } from "@/lib/utils";
 import {
-  getSale, submitSaleForApproval, updateSale, setHeroImage,
+  getSale, submitSaleForApproval, updateSale, updatePhase, setHeroImage,
   addSaleImage, removeSaleImage,
   type Sale, type UpdateSaleRequest,
 } from "@/lib/api/repositories/sales";
@@ -323,9 +323,21 @@ export default function SaleDetailPage({ params: paramsPromise }: { params: Prom
       args: [BigInt(phaseIdx), newEndTimestamp],
     });
     if (receipt) {
+      // Sync the DB row so the displayed phase end matches the on-chain truth.
+      // (Backend indexer doesn't handle PhaseExtended yet.)
+      const phase = sale.phases[phaseIdx];
+      if (phase) {
+        try {
+          await updatePhase(sale.id, phase.id, {
+            end_time: new Date(extendNewEnd).toISOString(),
+          });
+        } catch {
+          // non-fatal — UI still refreshes from contract on next page load
+        }
+      }
       setExtendPhaseId(null);
       setExtendNewEnd("");
-      reload();
+      await reload();
     }
   };
 
