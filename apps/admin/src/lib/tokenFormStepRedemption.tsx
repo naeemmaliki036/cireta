@@ -36,10 +36,6 @@ const RADIO_OPTIONS: { value: RedemptionType; label: string; hint: string }[] = 
   },
 ];
 
-function isValidAddress(v: string): boolean {
-  return /^0x[0-9a-fA-F]{40}$/.test(v);
-}
-
 export function StepRedemption({
   data,
   onChange,
@@ -49,11 +45,6 @@ export function StepRedemption({
 }): React.ReactElement {
   const set = (partial: Partial<RedemptionFormData>): void =>
     onChange({ ...data, ...partial });
-
-  const addressInvalid =
-    data.redemptionType === "on_chain" &&
-    data.redemptionManagerAddress !== "" &&
-    !isValidAddress(data.redemptionManagerAddress);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -113,24 +104,22 @@ export function StepRedemption({
 
               {selected && opt.value === "on_chain" && (
                 <div className="px-4 pb-4 ml-7 border-t border-zinc-100 pt-3 space-y-3">
-                  <div>
-                    <Input
-                      label="RedemptionManager Contract Address"
-                      placeholder="0x..."
-                      value={data.redemptionManagerAddress}
-                      onChange={(e) =>
-                        set({ redemptionManagerAddress: e.target.value.trim() })
-                      }
-                      error={
-                        addressInvalid
-                          ? "Must be a valid 0x-prefixed 42-character address"
-                          : undefined
-                      }
-                    />
+                  <div className="rounded-md bg-darkAqua/5 border border-darkAqua/15 p-3 text-xs text-zinc-700">
+                    <p className="font-semibold text-darkAqua mb-1">
+                      RedemptionManager is deployed after the token
+                    </p>
+                    <p>
+                      The RedemptionManager contract takes the token address as a
+                      constructor argument, so it can&apos;t be deployed until the
+                      token exists. After you finish this wizard, open the token
+                      detail page and click <strong>Deploy RM</strong> — your
+                      wallet signs <code>redemptionFactory.deployRedemptionManager(token)</code>
+                      {" "}and the address is filled in automatically. No manual paste.
+                    </p>
                   </div>
                   <Textarea
                     label="Redemption Description (optional)"
-                    placeholder="Describe the on-chain redemption process..."
+                    placeholder="Describe the on-chain redemption process for buyers..."
                     value={data.redemptionDescription}
                     onChange={(e) => set({ redemptionDescription: e.target.value })}
                     rows={3}
