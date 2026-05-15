@@ -218,7 +218,7 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
 
   // Check if tokens are deposited — read project token balance of vault (vested) or sale contract (direct)
   const depositCheckAddress = isVested ? (vaultAddress as string) : sale.contract_address;
-  const { data: depositedBalanceRaw } = useReadContract({
+  const { data: depositedBalanceRaw, refetch: refetchDepositedBalance } = useReadContract({
     address: sale.token_contract_address as `0x${string}`,
     abi: CIRETA_TOKEN_ABI as unknown as Abi,
     functionName: "balanceOf",
@@ -401,7 +401,10 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
         functionName: "depositProjectTokens",
         args: [amount],
       });
-      if (receipt) onReload();
+      if (receipt) {
+        await refetchDepositedBalance();
+        onReload();
+      }
     } else {
       // Direct transfer
       const receipt = await depositAction.execute({
@@ -410,7 +413,10 @@ export function SaleSetupChecklist({ sale, onReload, onSubmitForApproval, isSubm
         functionName: "transfer",
         args: [sale.contract_address as `0x${string}`, amount],
       });
-      if (receipt) onReload();
+      if (receipt) {
+        await refetchDepositedBalance();
+        onReload();
+      }
     }
   };
 
