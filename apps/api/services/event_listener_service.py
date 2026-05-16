@@ -1440,7 +1440,7 @@ class EventListenerService:
                     )
                     return
 
-                # Stub row — resolve user via wallet
+                # Resolve user via the investor wallet.
                 user_id = None
                 wallet_result = await db.execute(
                     select(Wallet).where(Wallet.address_checksum == Web3.to_checksum_address(investor))
@@ -1458,6 +1458,33 @@ class EventListenerService:
                     logger.warning(
                         "RedemptionRequested: no user matches investor=%s on token=%s; skipping stub insert",
                         investor, token.id,
+                    )
+                    return
+
+                # Fallback match: the launchpad POSTed a pending row with
+                # shipping_address_id BEFORE signing the on-chain tx, so the
+                # row exists but doesn't have an onchain_id yet. Match the
+                # oldest pending row for this (token, user, amount) and
+                # claim it instead of creating a duplicate stub.
+                pending_result = await db.execute(
+                    select(RedemptionRequest)
+                    .where(RedemptionRequest.token_id == token.id)
+                    .where(RedemptionRequest.user_id == user_id)
+                    .where(RedemptionRequest.amount == amount)
+                    .where(RedemptionRequest.onchain_id.is_(None))
+                    .where(RedemptionRequest.status == RedemptionStatus.PENDING)
+                    .order_by(RedemptionRequest.created_at.asc())
+                    .limit(1)
+                )
+                pending_row = pending_result.scalar_one_or_none()
+                if pending_row is not None:
+                    pending_row.onchain_id = onchain_id
+                    pending_row.tx_hash = tx_hash
+                    await db.commit()
+                    logger.info(
+                        "RedemptionRequested: token=%s id=%d attached to "
+                        "pre-existing pending row %s (user=%s)",
+                        token.id, onchain_id, pending_row.id, user_id,
                     )
                     return
 

@@ -99,10 +99,17 @@ def _vesting_to_response(schedule, sale=None) -> VestingScheduleResponse:
 
 def _redemption_to_response(redemption) -> RedemptionResponse:
     """Convert redemption request to response."""
+    token = getattr(redemption, "token", None)
     return RedemptionResponse(
         id=str(redemption.id),
         token_id=str(redemption.token_id),
-        token_symbol=redemption.token.symbol,
+        token_symbol=token.symbol if token else "",
+        token_name=token.name if token else None,
+        token_contract_address=token.contract_address if token else None,
+        redemption_manager_address=(
+            getattr(token, "redemption_manager_address", None) if token else None
+        ),
+        onchain_id=redemption.onchain_id,
         amount=str(redemption.amount),
         fulfillment_method=(
             redemption.fulfillment_method.value
@@ -115,11 +122,16 @@ def _redemption_to_response(redemption) -> RedemptionResponse:
         tx_hash=redemption.tx_hash,
         fulfilled_at=redemption.fulfilled_at,
         notes=redemption.notes,
+        rejection_reason=getattr(redemption, "rejection_reason", None),
+        delivery_details=redemption.delivery_details,
         tracking_number=redemption.tracking_number,
         shipped_at=redemption.shipped_at,
         delivery_name=redemption.delivery_name,
         delivery_address=redemption.delivery_address,
         delivery_phone=redemption.delivery_phone,
+        shipping_country_mismatch=bool(
+            getattr(redemption, "shipping_country_mismatch", False)
+        ),
         created_at=redemption.created_at,
     )
 
@@ -237,6 +249,13 @@ async def create_redemption(
             else request.fulfillment_method
         ),
         notes=request.notes,
+        shipping_address_id=(
+            UUID(request.shipping_address_id) if request.shipping_address_id else None
+        ),
+        delivery_name=request.delivery_name,
+        delivery_address=request.delivery_address,
+        delivery_phone=request.delivery_phone,
+        delivery_country=request.delivery_country,
     )
 
     # Load token relationship for response

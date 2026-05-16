@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,6 +15,7 @@ from apps.api.models.enums import FulfillmentMethod, RedemptionStatus
 from packages.common.models.base import BaseModel
 
 if TYPE_CHECKING:
+    from apps.api.models.shipping_address import ShippingAddress
     from apps.api.models.token import Token
     from apps.api.models.user import User
 
@@ -51,9 +52,26 @@ class RedemptionRequest(BaseModel):
     # Joined back to the row by the indexer.
     onchain_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Address book linkage. The free-text delivery_* columns above hold the
+    # immutable snapshot of what the user submitted (editing the book later
+    # must not rewrite past redemptions); shipping_address_id is just a
+    # pointer for issuer convenience and analytics.
+    shipping_address_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("shipping_addresses.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Denormalised: shipping country differs from user's verified country
+    # of residence (retail) or company jurisdiction (corporate). Soft flag,
+    # not an enforcement gate — issuer sees it on the dashboard.
+    shipping_country_mismatch: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+
     # Relationships
     token: Mapped[Token] = relationship(back_populates="redemption_requests")
     user: Mapped[User] = relationship(back_populates="redemption_requests")
+    shipping_address: Mapped[ShippingAddress | None] = relationship()
 
     def __repr__(self) -> str:
         return f"<RedemptionRequest(id={self.id}, amount={self.amount}, status={self.status})>"

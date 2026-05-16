@@ -79,12 +79,24 @@ class VestingClaimResponse(BaseModel):
 
 
 class RedemptionCreateRequest(BaseModel):
-    """Request to create a redemption."""
+    """Request to create a redemption.
+
+    For physical fulfilment, supply EITHER ``shipping_address_id`` to use
+    an existing book row, OR the inline ``delivery_*`` fields. The server
+    treats the picked book row as authoritative (its values overwrite any
+    inline fields supplied alongside it).
+    """
 
     token_id: str
     amount: Decimal = Field(..., gt=0)
     fulfillment_method: FulfillmentMethod = FulfillmentMethod.CASH
     notes: str | None = None
+    shipping_address_id: str | None = None
+    # Inline fallback when the user hasn't saved the address yet.
+    delivery_name: str | None = Field(default=None, max_length=255)
+    delivery_address: str | None = Field(default=None, max_length=2000)
+    delivery_phone: str | None = Field(default=None, max_length=40)
+    delivery_country: str | None = Field(default=None, min_length=3, max_length=3)
 
 
 class RedemptionResponse(BaseModel):
@@ -93,6 +105,10 @@ class RedemptionResponse(BaseModel):
     id: str
     token_id: str
     token_symbol: str
+    token_name: str | None = None
+    token_contract_address: str | None = None
+    redemption_manager_address: str | None = None
+    onchain_id: int | None = None
     amount: str
     fulfillment_method: str
     status: str
@@ -106,6 +122,7 @@ class RedemptionResponse(BaseModel):
     delivery_name: str | None = None
     delivery_address: str | None = None
     delivery_phone: str | None = None
+    shipping_country_mismatch: bool = False
     created_at: datetime
 
     class Config:

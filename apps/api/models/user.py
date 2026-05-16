@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from apps.api.models.notification import Notification
     from apps.api.models.notification_preferences import NotificationPreferences
     from apps.api.models.redemption_request import RedemptionRequest
+    from apps.api.models.shipping_address import ShippingAddress
     from apps.api.models.vesting_schedule import VestingSchedule
     from apps.api.models.wallet import Wallet
 
@@ -119,6 +120,9 @@ class User(BaseModel):
     contributions: Mapped[list[Contribution]] = relationship(back_populates="user")
     vesting_schedules: Mapped[list[VestingSchedule]] = relationship(back_populates="user")
     redemption_requests: Mapped[list[RedemptionRequest]] = relationship(back_populates="user")
+    shipping_addresses: Mapped[list[ShippingAddress]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     notifications: Mapped[list[Notification]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
