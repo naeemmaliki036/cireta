@@ -14,6 +14,7 @@ See docs/IDENTITY_MODE_SWITCHOVER.md for full migration guide.
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from uuid import UUID
 
 from eth_account import Account
@@ -208,14 +209,21 @@ class SimpleIdentityBridgeService:
             wallet = to_register[0]
             tx_hash = await self._add_to_whitelist(w3, signer, registry, wallet.address_checksum, country_code)
             wallet.registered_on_chain = True
+            wallet.register_tx_hash = tx_hash
+            wallet.registered_at = datetime.now(UTC)
             registered.append(wallet.address_checksum)
         else:
-            # Multiple wallets — batch call (saves gas)
+            # Multiple wallets — batch call (saves gas). All wallets in the
+            # batch share the same tx_hash and registered_at — they were
+            # confirmed in the same block.
             addresses = [w.address_checksum for w in to_register]
             countries = [country_code] * len(addresses)
             tx_hash = await self._batch_add(w3, signer, registry, addresses, countries)
+            now = datetime.now(UTC)
             for w in to_register:
                 w.registered_on_chain = True
+                w.register_tx_hash = tx_hash
+                w.registered_at = now
                 registered.append(w.address_checksum)
 
         await self.db.commit()
@@ -268,18 +276,25 @@ class SimpleIdentityBridgeService:
         country_code = self._get_country_code(user)
 
         tx_hash = await self._add_to_whitelist(w3, signer, registry, wallet_address, country_code)
-        await self._reconcile_wallet_flag(wallet_address, registered=True)
+        await self._reconcile_wallet_flag(wallet_address, registered=True, tx_hash=tx_hash)
         logger.info("Whitelisted wallet %s for user %s (tx=%s)", wallet_address, user.id, tx_hash)
         return {"tx_hash": tx_hash, "already_whitelisted": False}
 
     async def _reconcile_wallet_flag(
-        self, wallet_address: str, *, registered: bool
+        self,
+        wallet_address: str,
+        *,
+        registered: bool,
+        tx_hash: str | None = None,
     ) -> None:
         """Flip Wallet.registered_on_chain to match the on-chain truth.
 
         Used after every register/revoke call (and when the on-chain
         check finds a wallet is already in the desired state) so the DB
         cache stays in sync without requiring the caller to commit.
+
+        When tx_hash is supplied (i.e. we just signed the addToWhitelist
+        ourselves), also persist register_tx_hash + registered_at as proof.
         """
         from web3 import Web3 as _W3
 
@@ -291,8 +306,17 @@ class SimpleIdentityBridgeService:
             select(Wallet).where(Wallet.address_checksum == checksum)
         )
         wallet = wallet_q.scalar_one_or_none()
-        if wallet and wallet.registered_on_chain != registered:
+        if not wallet:
+            return
+        dirty = False
+        if wallet.registered_on_chain != registered:
             wallet.registered_on_chain = registered
+            dirty = True
+        if registered and tx_hash and not wallet.register_tx_hash:
+            wallet.register_tx_hash = tx_hash
+            wallet.registered_at = datetime.now(UTC)
+            dirty = True
+        if dirty:
             await self.db.commit()
 
     async def revoke_wallet(self, wallet_address: str) -> dict:

@@ -36,6 +36,8 @@ class AdminWalletItem(BaseModel):
     is_primary: bool
     is_safe: bool
     registered_on_chain: bool
+    register_tx_hash: str | None
+    registered_at: datetime | None
     label: str | None
     linked_at: datetime
     last_screened_at: datetime | None
@@ -151,6 +153,8 @@ def _wallet_to_item(w: Wallet, u: User) -> AdminWalletItem:
         is_primary=w.is_primary,
         is_safe=w.is_safe,
         registered_on_chain=w.registered_on_chain,
+        register_tx_hash=w.register_tx_hash,
+        registered_at=w.registered_at,
         label=w.label,
         linked_at=w.linked_at,
         last_screened_at=w.last_screened_at,
@@ -301,6 +305,8 @@ async def mark_wallet_registered(
     await _verify_tx_receipt(body.tx_hash, wallet.address_checksum)
 
     wallet.registered_on_chain = True
+    wallet.register_tx_hash = body.tx_hash
+    wallet.registered_at = datetime.now(UTC)
     wallet.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(wallet)

@@ -932,6 +932,27 @@ class KYCService:
                 user.kyc_provider = "sumsub"
                 user.kyc_external_id = applicant_id
                 user.kyc_verified_at = datetime.now(UTC)
+                # Mirror the retail GREEN path: auto-whitelist every wallet
+                # on the SimpleIdentityRegistry. Failures are non-blocking —
+                # the user is still approved and Resync IR recovers them.
+                try:
+                    await self._issue_onchain_claims(user)
+                except Exception as exc:
+                    log.warning(
+                        "Corporate IR auto-register failed for user=%s: %s",
+                        user.id, exc, exc_info=True,
+                    )
+                    await self._write_audit(
+                        actor_id=None,
+                        action="identity_sync_inline_failed",
+                        target_type="user",
+                        target_id=str(user.id),
+                        payload={
+                            "error": str(exc)[:500],
+                            "kyc_type": "corporate",
+                        },
+                        ip_address=ip_address,
+                    )
                 try:
                     notif_service = NotificationService(self.db)
                     await notif_service.notify_kyc_approved(user.id, user.email)

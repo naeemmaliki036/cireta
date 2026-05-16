@@ -31,6 +31,16 @@ class Wallet(BaseModel):
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     is_safe: Mapped[bool] = mapped_column(Boolean, default=False)
     registered_on_chain: Mapped[bool] = mapped_column(Boolean, default=False)
+    # On-chain registration proof. Both nullable because (1) older rows
+    # registered before this column existed have no hash, and (2) when a
+    # wallet's registered_on_chain flips True via an indexer pass we may
+    # not have the tx hash handy. Tx hashes are public — no encryption.
+    register_tx_hash: Mapped[str | None] = mapped_column(
+        String(66), nullable=True, default=None
+    )
+    registered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     label: Mapped[str | None] = mapped_column(String(100), nullable=True, default=None)
     linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
