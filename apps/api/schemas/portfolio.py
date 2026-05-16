@@ -28,6 +28,13 @@ class HoldingResponse(BaseModel):
     claimable: str = "0"
     locked: bool = False
     is_redeemable: bool = False
+    # "none" | "manual_off_chain" | "on_chain" — drives whether the
+    # Redeem button on the holding row opens the RedemptionRequestModal
+    # (on_chain) or links out to the issuer's manual instructions.
+    redemption_type: str | None = None
+    # Deployed RedemptionManager address — only populated for on_chain
+    # tokens. RedemptionRequestModal needs this to sign requestRedemption.
+    redemption_manager_address: str | None = None
     sale_mode: str = "direct"
     # On-chain token contract — needed by /portfolio/transfer to look up
     # balanceOf and submit transfer txs.

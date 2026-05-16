@@ -15,6 +15,7 @@ import {
   Shield,
   Bell,
   MapPin,
+  PackageOpen,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const ACCOUNT_LINKS = [
   { href: "/account", label: "Account", icon: User },
   { href: "/portfolio", label: "Holdings", icon: LayoutDashboard },
   { href: "/portfolio/vesting", label: "Vesting", icon: Clock },
+  { href: "/portfolio/redemptions", label: "Redemptions", icon: PackageOpen },
   { href: "/portfolio/transfer", label: "Transfer", icon: Send },
   { href: "/portfolio/fraction-transfer", label: "Fraction Transfer", icon: Send },
   { href: "/portfolio/transactions", label: "Transactions", icon: FileText },

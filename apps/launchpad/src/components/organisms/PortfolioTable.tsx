@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Coins } from "lucide-react";
+import { ArrowUpRight, Coins, PackageOpen } from "lucide-react";
 import { Button } from "@/components/atoms";
+import { RedemptionRequestModal } from "@/components/molecules/RedemptionRequestModal";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   formatVestingStatus,
@@ -154,19 +155,74 @@ function HoldingRow({ h }: { h: HoldingItem }) {
 
       {/* Action */}
       <td className="px-4 py-3.5 text-right">
-        {claimable > 0 ? (
-          <Link href={`/portfolio/claim/${h.token_id}`}>
-            <Button variant="primary" size="sm">Claim</Button>
-          </Link>
-        ) : (
-          <Link
-            href={`/project/${h.projectSlug}`}
-            className="inline-flex items-center gap-1 text-xs font-medium text-darkAqua hover:underline"
-          >
-            View <ArrowUpRight className="h-3 w-3" />
-          </Link>
-        )}
+        <HoldingActions h={h} state={state} claimable={claimable} balance={balance} />
       </td>
     </tr>
+  );
+}
+
+interface HoldingActionsProps {
+  h: HoldingItem;
+  state: ReturnType<typeof getVestingState>;
+  claimable: number;
+  balance: number;
+}
+
+/** Action cell — Claim takes priority when there's something to claim;
+ *  otherwise Redeem appears for redeemable on-chain tokens the buyer
+ *  actually holds (balance > 0). Falls back to a View link to the
+ *  project page so the row is never actionless. */
+function HoldingActions({ h, state, claimable, balance }: HoldingActionsProps) {
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
+
+  const canRedeemOnChain =
+    !!h.is_redeemable &&
+    h.redemption_type === "on_chain" &&
+    !!h.redemption_manager_address &&
+    !!h.contract_address &&
+    balance > 0 &&
+    state !== "locked"; // can't redeem soul-bound fraction tokens
+
+  if (claimable > 0) {
+    return (
+      <Link href={`/portfolio/claim/${h.token_id}`}>
+        <Button variant="primary" size="sm">Claim</Button>
+      </Link>
+    );
+  }
+
+  if (canRedeemOnChain) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setShowRedeemModal(true)}
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-darkAqua text-white text-xs font-semibold hover:bg-darkAqua/90"
+        >
+          <PackageOpen className="h-3.5 w-3.5" /> Redeem
+        </button>
+        {showRedeemModal && (
+          <RedemptionRequestModal
+            isOpen={showRedeemModal}
+            onClose={() => setShowRedeemModal(false)}
+            tokenAddress={h.contract_address as `0x${string}`}
+            tokenSymbol={h.token_symbol}
+            tokenId={h.token_id}
+            redemptionManagerAddress={
+              h.redemption_manager_address as `0x${string}`
+            }
+          />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <Link
+      href={`/project/${h.projectSlug}`}
+      className="inline-flex items-center gap-1 text-xs font-medium text-darkAqua hover:underline"
+    >
+      View <ArrowUpRight className="h-3 w-3" />
+    </Link>
   );
 }

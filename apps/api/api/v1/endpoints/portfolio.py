@@ -61,6 +61,8 @@ def _holding_to_response(holding: dict) -> HoldingResponse:
         claimable=str(holding["claimable_amount"]),
         locked=bool(holding.get("locked", False)),
         is_redeemable=bool(holding.get("is_redeemable", False)),
+        redemption_type=holding.get("redemption_type"),
+        redemption_manager_address=holding.get("redemption_manager_address"),
         sale_mode=holding.get("sale_mode", "direct"),
         contract_address=holding.get("contract_address"),
         vesting_progress=float(holding.get("vesting_progress") or 0.0),

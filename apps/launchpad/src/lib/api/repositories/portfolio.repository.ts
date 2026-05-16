@@ -20,6 +20,11 @@ export interface Holding {
   locked?: boolean;
   /** Whether the investor can redeem tokens from this sale. */
   is_redeemable?: boolean;
+  /** "none" | "manual_off_chain" | "on_chain". Drives whether the Redeem
+   *  button opens RedemptionRequestModal or links to issuer instructions. */
+  redemption_type?: "none" | "manual_off_chain" | "on_chain" | null;
+  /** Deployed RedemptionManager — required to sign requestRedemption. */
+  redemption_manager_address?: string | null;
   /** Sale mode — "vested" means holder has fraction tokens, "direct" means project tokens. */
   sale_mode?: "direct" | "vested";
   /** Per-source balance breakdown (vested mode only). Optional; backend may not populate. */

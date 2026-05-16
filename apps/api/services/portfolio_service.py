@@ -102,6 +102,10 @@ class PortfolioService:
                     "claimable_amount": Decimal("0"),
                     "locked": is_locked,
                     "is_redeemable": getattr(contrib.sale, "is_redeemable", False) or False,
+                    "redemption_type": getattr(token, "redemption_type", None),
+                    "redemption_manager_address": getattr(
+                        token, "redemption_manager_address", None
+                    ),
                     "sale_mode": getattr(contrib.sale, "sale_mode", "direct") or "direct",
                     "contract_address": getattr(token, "contract_address", None),
                     "vesting_progress": 0.0,
@@ -150,6 +154,10 @@ class PortfolioService:
                     "vested_amount": Decimal("0"),
                     "claimable_amount": Decimal("0"),
                     "locked": False,
+                    "redemption_type": getattr(schedule.token, "redemption_type", None),
+                    "redemption_manager_address": getattr(
+                        schedule.token, "redemption_manager_address", None
+                    ),
                     "sale_mode": "vested",
                     "contract_address": getattr(schedule.token, "contract_address", None),
                     "vesting_progress": 0.0,
