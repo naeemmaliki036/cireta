@@ -678,19 +678,34 @@ async def contribute(
         amount=request.amount,
         tx_hash=request.tx_hash,
     )
-    # Fire investment confirmed notification (non-blocking)
+    # Fire investment confirmed notification (non-blocking).
+    #
+    # Earlier version of this block read `contribution.phase.sale.token.symbol`
+    # which traverses three un-eagerly-loaded relationships. In async
+    # SQLAlchemy that raises MissingGreenlet, gets swallowed by the bare
+    # except below, and the email never went out. Query the symbol
+    # explicitly via sale_id instead — same number of round-trips, but
+    # async-safe.
     try:
         from sqlalchemy import select as _select
 
+        from apps.api.models.token import Token as _Token
+        from apps.api.models.token_sale import TokenSale as _TokenSale
         from apps.api.models.user import User as _User
         from apps.api.services.notification_service import NotificationService as _NS
 
-        _res = await sale_service.db.execute(_select(_User).where(_User.id == user_id))
-        _user = _res.scalar_one_or_none()
+        _user_res = await sale_service.db.execute(
+            _select(_User).where(_User.id == user_id)
+        )
+        _user = _user_res.scalar_one_or_none()
+        _symbol_res = await sale_service.db.execute(
+            _select(_Token.symbol)
+            .join(_TokenSale, _TokenSale.token_id == _Token.id)
+            .where(_TokenSale.id == sale_id)
+        )
+        _token_symbol = _symbol_res.scalar_one_or_none() or "TOKEN"
+
         if _user:
-            _token_symbol = (
-                contribution.phase.sale.token.symbol if hasattr(contribution, "phase") else "TOKEN"
-            )
             await _NS(sale_service.db).notify_investment_confirmed(
                 user_id=user_id,
                 user_email=_user.email,
