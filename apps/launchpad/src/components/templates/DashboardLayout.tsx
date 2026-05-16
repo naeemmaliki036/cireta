@@ -14,6 +14,7 @@ import {
   Wallet,
   Shield,
   Bell,
+  MapPin,
 } from "lucide-react";
 import { Navbar, Footer } from "@/components/organisms";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const ACCOUNT_LINKS = [
 const SETTINGS_LINKS = [
   { href: "/settings/profile", label: "Profile", icon: User },
   { href: "/settings/wallets", label: "Wallets", icon: Wallet },
+  { href: "/settings/addresses", label: "Shipping Addresses", icon: MapPin },
   { href: "/settings/verification", label: "Verification", icon: Shield },
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
 ];

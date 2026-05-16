@@ -9,6 +9,15 @@ import { Button, Spinner } from "@/components/atoms";
 import { useContractAction } from "@/hooks/useContractAction";
 import { REDEMPTION_MANAGER_ABI } from "@/lib/contracts/redemptionManagerAbi";
 import { OTC_TOKEN_ABI } from "@/lib/contracts/otcTokenAbi";
+import { ShippingAddressForm } from "@/components/molecules/ShippingAddressForm";
+import { apiPost } from "@/lib/api/client";
+import {
+  createShippingAddress,
+  listShippingAddresses,
+  type ShippingAddress,
+  type ShippingAddressInput,
+} from "@/lib/api/repositories/shipping-addresses";
+import { formatCountry } from "@/lib/countries";
 
 /** method enum on-chain: 0 = Cash, 1 = Physical */
 type FulfillmentMethod = 0 | 1;
@@ -47,9 +56,13 @@ export interface RedemptionRequestModalProps {
   tokenAddress: `0x${string}`;
   /** Token symbol for display */
   tokenSymbol: string;
+  /** Token id in our DB — needed to POST the redemption row before signing */
+  tokenId: string;
   /** Deployed RedemptionManager contract address */
   redemptionManagerAddress: `0x${string}`;
 }
+
+type PickerMode = "book" | "new";
 
 type Phase = "form" | "approving" | "requesting" | "success" | "error";
 
@@ -58,6 +71,7 @@ export function RedemptionRequestModal({
   onClose,
   tokenAddress,
   tokenSymbol,
+  tokenId,
   redemptionManagerAddress,
 }: RedemptionRequestModalProps): React.ReactElement | null {
   const { address: walletAddress } = useAccount();
@@ -67,6 +81,14 @@ export function RedemptionRequestModal({
   const [phase, setPhase] = useState<Phase>("form");
   const [newRequestId, setNewRequestId] = useState<bigint | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Shipping address state — only used when method === 1 (Physical)
+  const [addresses, setAddresses] = useState<ShippingAddress[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [pickerMode, setPickerMode] = useState<PickerMode>("book");
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [newAddress, setNewAddress] = useState<ShippingAddressInput | null>(null);
+  const [saveNewToBook, setSaveNewToBook] = useState(true);
 
   const approveAction = useContractAction();
   const requestAction = useContractAction();
@@ -119,10 +141,34 @@ export function RedemptionRequestModal({
       setPhase("form");
       setNewRequestId(null);
       setFormError(null);
+      setPickerMode("book");
+      setSelectedAddressId(null);
+      setNewAddress(null);
+      setSaveNewToBook(true);
       approveAction.reset();
       requestAction.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Load saved addresses once on open. Pick the default automatically.
+  useEffect(() => {
+    if (!isOpen) return;
+    setAddressesLoading(true);
+    listShippingAddresses()
+      .then((rows) => {
+        setAddresses(rows);
+        const def = rows.find((r) => r.is_default) ?? rows[0] ?? null;
+        if (def) {
+          setSelectedAddressId(def.id);
+          setPickerMode("book");
+        } else {
+          // No saved addresses — drop straight into the new-address form
+          setPickerMode("new");
+        }
+      })
+      .catch(() => setAddresses([]))
+      .finally(() => setAddressesLoading(false));
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -137,6 +183,66 @@ export function RedemptionRequestModal({
     setFormError(null);
     if (!walletAddress) { setFormError("Connect your wallet first."); return; }
     if (!amountValid) { setFormError("Enter a valid amount within your balance."); return; }
+
+    // For physical: must have either a picked book row or a complete new-address payload
+    let resolvedAddressId: string | null = null;
+    let inlineAddress: ShippingAddressInput | null = null;
+    if (method === 1) {
+      if (pickerMode === "book") {
+        if (!selectedAddressId) {
+          setFormError("Pick a shipping address or add a new one.");
+          return;
+        }
+        resolvedAddressId = selectedAddressId;
+      } else {
+        if (!newAddress) {
+          setFormError("Fill in the new shipping address before submitting.");
+          return;
+        }
+        inlineAddress = newAddress;
+        if (saveNewToBook) {
+          try {
+            const saved = await createShippingAddress(newAddress);
+            resolvedAddressId = saved.id;
+            inlineAddress = null;
+          } catch (e) {
+            setFormError(e instanceof Error ? e.message : "Failed to save address");
+            return;
+          }
+        }
+      }
+    }
+
+    // POST the DB row BEFORE signing on-chain. The chain-sync indexer will
+    // attach onchain_id + tx_hash to this row when it sees the event
+    // (fallback match by user+amount+pending+null onchain_id), so the
+    // shipping info isn't lost if the user closes the modal mid-flow.
+    try {
+      await apiPost("/api/v1/portfolio/redemptions", {
+        token_id: tokenId,
+        amount: amount,
+        fulfillment_method: method === 1 ? "physical" : "cash",
+        shipping_address_id: resolvedAddressId,
+        delivery_name: inlineAddress?.recipient_name ?? null,
+        delivery_address: inlineAddress
+          ? [
+              inlineAddress.line1,
+              inlineAddress.line2,
+              [inlineAddress.city, inlineAddress.region, inlineAddress.postal_code]
+                .filter(Boolean)
+                .join(", "),
+              inlineAddress.country,
+            ]
+              .filter(Boolean)
+              .join("\n")
+          : null,
+        delivery_phone: inlineAddress?.phone ?? null,
+        delivery_country: inlineAddress?.country ?? null,
+      });
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Failed to save redemption request");
+      return;
+    }
 
     const amountBigInt = parseUnits(amount, decimals);
 
@@ -330,6 +436,110 @@ export function RedemptionRequestModal({
                         ))}
                       </div>
                     </div>
+
+                    {/* Shipping address picker — physical only */}
+                    {method === 1 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-black">
+                          Shipping address
+                        </p>
+                        {addressesLoading ? (
+                          <p className="text-xs text-black/40">Loading saved addresses…</p>
+                        ) : (
+                          <>
+                            {addresses.length > 0 && (
+                              <div className="space-y-2">
+                                {addresses.map((a) => (
+                                  <label
+                                    key={a.id}
+                                    className={`block rounded-xl border p-3 cursor-pointer transition-colors ${
+                                      pickerMode === "book" && selectedAddressId === a.id
+                                        ? "border-[#13636F] bg-[#13636F]/5"
+                                        : "border-[#ECF3F4] hover:border-[#13636F]/40"
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <input
+                                        type="radio"
+                                        name="shipping-address"
+                                        checked={
+                                          pickerMode === "book" &&
+                                          selectedAddressId === a.id
+                                        }
+                                        onChange={() => {
+                                          setPickerMode("book");
+                                          setSelectedAddressId(a.id);
+                                        }}
+                                        className="mt-1"
+                                      />
+                                      <div className="text-xs leading-relaxed">
+                                        <p className="font-semibold text-black">
+                                          {a.label || a.recipient_name}
+                                          {a.is_default && (
+                                            <span className="ml-2 text-[10px] uppercase tracking-wide text-[#13636F] font-semibold">
+                                              Default
+                                            </span>
+                                          )}
+                                        </p>
+                                        <p className="text-black/60">
+                                          {a.recipient_name} ·{" "}
+                                          {[a.line1, a.city, a.postal_code, formatCountry(a.country)]
+                                            .filter(Boolean)
+                                            .join(", ")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                            <label
+                              className={`block rounded-xl border p-3 cursor-pointer transition-colors ${
+                                pickerMode === "new"
+                                  ? "border-[#13636F] bg-[#13636F]/5"
+                                  : "border-[#ECF3F4] hover:border-[#13636F]/40"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="shipping-address"
+                                  checked={pickerMode === "new"}
+                                  onChange={() => {
+                                    setPickerMode("new");
+                                    setSelectedAddressId(null);
+                                  }}
+                                />
+                                <span className="text-sm font-medium text-black">
+                                  Ship to a new address
+                                </span>
+                              </div>
+                            </label>
+                            {pickerMode === "new" && (
+                              <div className="rounded-xl border border-[#ECF3F4] p-4 bg-white/60">
+                                <ShippingAddressForm
+                                  showDefaultToggle={false}
+                                  showSaveToBookToggle
+                                  saveToBook={saveNewToBook}
+                                  onSaveToBookChange={setSaveNewToBook}
+                                  submitLabel="Use this address"
+                                  onSubmit={(body) => {
+                                    setNewAddress(body);
+                                  }}
+                                />
+                                {newAddress && (
+                                  <p className="mt-2 text-xs text-[#13636F]">
+                                    ✓ Address captured. Click&nbsp;
+                                    <strong>Request Redemption</strong> below to
+                                    continue.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
 

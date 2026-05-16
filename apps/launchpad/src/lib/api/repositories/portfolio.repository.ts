@@ -60,17 +60,26 @@ export interface PortfolioSummary {
 export interface RedemptionRequest {
   id: string;
   token_id: string;
-  token_name: string;
+  token_symbol: string;
+  token_name: string | null;
+  token_contract_address: string | null;
+  redemption_manager_address: string | null;
+  /** RedemptionManager request id — null until the indexer syncs it. */
+  onchain_id: number | null;
   amount: string;
   fulfillment_method: "physical" | "cash";
   status: "pending" | "processing" | "shipped" | "fulfilled" | "cancelled";
-  tx_hash: string;
+  /** On-chain burn tx hash, set when the issuer signs fulfil(id). */
+  tx_hash: string | null;
   fulfilled_at: string | null;
+  notes: string | null;
+  rejection_reason: string | null;
   tracking_number: string | null;
   shipped_at: string | null;
   delivery_name: string | null;
   delivery_address: string | null;
   delivery_phone: string | null;
+  shipping_country_mismatch: boolean;
   created_at: string;
 }
 

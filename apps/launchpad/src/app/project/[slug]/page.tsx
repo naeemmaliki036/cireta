@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -27,6 +27,7 @@ import { getTxUrl } from "@/lib/contracts/addresses";
 import { useChainId, useAccount, useReadContract } from "wagmi";
 import type { Abi } from "viem";
 import { RedemptionRequestModal } from "@/components/molecules/RedemptionRequestModal";
+import { RedemptionHistoryRow } from "@/components/molecules/RedemptionHistoryRow";
 
 /* ---------- types for sale content endpoints ---------- */
 interface SaleImage { id: string; url: string; caption?: string; is_banner?: boolean; sort_order?: number; media_type?: "image" | "video"; video_url?: string }
@@ -93,6 +94,24 @@ const VESTED_INSERT = "Vesting" as const;
 const CLAIM_INSERT = "Redeem" as const;
 type Tab = (typeof ALL_TABS)[number] | typeof VESTED_INSERT | typeof CLAIM_INSERT;
 
+// URL fragment <-> Tab. The fragment is what appears after the `#` on
+// /project/[slug]#overview etc. Kebab-case for readability.
+const TAB_TO_SLUG: Record<Tab, string> = {
+  "Overview": "overview",
+  "Token & Sale": "token-sale",
+  "OTC & Bank": "otc",
+  "Team": "team",
+  "FAQ": "faq",
+  "Documents": "documents",
+  "My Position": "my-position",
+  "Transactions": "transactions",
+  "Vesting": "vesting",
+  "Redeem": "redeem",
+};
+const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
+  Object.entries(TAB_TO_SLUG).map(([t, s]) => [s, t as Tab]),
+);
+
 function PdfThumbnail({ url }: { url: string }) {
   const [loaded, setLoaded] = useState(false);
   return (
@@ -156,7 +175,32 @@ export default function ProjectDetailPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  const [activeTab, setActiveTabState] = useState<Tab>("Overview");
+
+  // Bidirectional sync between activeTab and window.location.hash.
+  // - On mount and on hashchange, read the hash and apply it.
+  // - When a tab button is clicked, replace (don't push) the hash so
+  //   the browser back-button doesn't get polluted by tab toggles.
+  const setActiveTab = useCallback((tab: Tab) => {
+    setActiveTabState(tab);
+    if (typeof window === "undefined") return;
+    const slug = TAB_TO_SLUG[tab];
+    if (window.location.hash.slice(1) !== slug) {
+      window.history.replaceState(null, "", `#${slug}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const apply = () => {
+      const slug = window.location.hash.slice(1);
+      const t = SLUG_TO_TAB[slug];
+      if (t) setActiveTabState(t);
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [openPhases, setOpenPhases] = useState<Set<string>>(new Set());
   const [selectedImage, setSelectedImage] = useState(0);
@@ -1705,56 +1749,16 @@ export default function ProjectDetailPage() {
                           <p className="text-sm text-black/50">No redemption requests yet.</p>
                         ) : (
                           <ul className="divide-y divide-gray-100">
-                            {redemptions.map((r) => {
-                              const statusColor =
-                                r.status === "fulfilled" ? "text-green-600" :
-                                r.status === "cancelled" ? "text-gray-400" :
-                                r.status === "shipped" || r.status === "processing" ? "text-amber-600" :
-                                "text-darkAqua";
-                              return (
-                                <li key={r.id} className="py-3 flex items-center justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium text-text">
-                                      {Number(r.amount).toLocaleString()} {project.tokenSymbol}
-                                      <span className="text-xs font-normal text-black/40 ml-2">
-                                        · {r.fulfillment_method}
-                                      </span>
-                                    </p>
-                                    <p className="text-xs text-black/40 mt-0.5">
-                                      Requested {new Date(r.created_at).toLocaleString()}
-                                      {r.tx_hash && (
-                                        <>
-                                          {" · "}
-                                          <a
-                                            href={getTxUrl(chainId, r.tx_hash) ?? "#"}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-darkAqua hover:underline font-mono"
-                                          >
-                                            {r.tx_hash.slice(0, 8)}…{r.tx_hash.slice(-6)}
-                                          </a>
-                                        </>
-                                      )}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className={`text-xs font-semibold uppercase tracking-wide ${statusColor}`}>
-                                      {r.status}
-                                    </span>
-                                    {r.status === "pending" && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleCancelRedemption(r.id)}
-                                        disabled={cancellingId === r.id}
-                                        className="text-xs text-red-600 hover:underline disabled:opacity-40"
-                                      >
-                                        {cancellingId === r.id ? "Cancelling…" : "Cancel"}
-                                      </button>
-                                    )}
-                                  </div>
-                                </li>
-                              );
-                            })}
+                            {redemptions.map((r) => (
+                              <RedemptionHistoryRow
+                                key={r.id}
+                                redemption={r}
+                                chainId={chainId}
+                                tokenSymbolFallback={project.tokenSymbol}
+                                onCancel={handleCancelRedemption}
+                                cancelling={cancellingId === r.id}
+                              />
+                            ))}
                           </ul>
                         )}
                       </div>
@@ -2056,6 +2060,7 @@ export default function ProjectDetailPage() {
             onClose={() => setShowRedemptionModal(false)}
             tokenAddress={token.contract_address as `0x${string}`}
             tokenSymbol={token.symbol}
+            tokenId={token.id}
             redemptionManagerAddress={token.redemption_manager_address as `0x${string}`}
           />
         )}
